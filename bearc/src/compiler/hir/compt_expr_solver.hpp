@@ -2878,10 +2878,26 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         // TODO handle valid/exhaustive scalar matches here
 
-        // linear branch check
-
         if (!valid_branches_and_exhaustive) {
             return {};
+        }
+
+        const ast_slice_of_exprs_t branches = match_expr->expr.match_expr.branches;
+
+        for (size_t i = 0; i < branches.len; ++i) {
+
+            const ast_expr_match_branch_t branch = branches.start[i]->expr.match_branch;
+
+            const ast_expr_t* val_expr = branch.value;
+
+            for (size_t k = 0; k < branch.patterns.len; ++k) {
+
+                const auto* pattern = branch.patterns.start[k];
+
+                OptId<ExecId> maybe_pattern_eid = solve_expr(fid, scope, pattern, matched_tid);
+
+                // TODO
+            }
         }
 
         // TODO finish
