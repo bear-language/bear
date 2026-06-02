@@ -28,10 +28,10 @@ var _0 = @static_assert b == 12;
 
 var _1 = @static_assert b == 13; // oops
 
-// TODO these:
-
 var _2 = @static_assert c == d; 
 
 var _3 = @static_assert Bar() == Bar();
 
 var _4 = @static_assert Ben(1) == Ben (1);
+
+var _5 = @static_assert 1234 == match(123){123 => 1234, 321 => 4, else => 0};

@@ -140,8 +140,31 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             }
             return true;
         },
-        [](const ExecVariantFieldInit& t) -> bool {
-            return false; // TODO add logic
+        [&other, &ctx](const ExecVariantFieldInit& t) -> bool {
+            if (!other.holds<ExecVariantFieldInit>()) {
+                return false;
+            }
+
+            const auto o = other.as<ExecVariantFieldInit>();
+
+            if (t.variant_field_def_id != o.variant_field_def_id) {
+                return false;
+            }
+
+            // malformed guard
+            if (t.member_inits.len() != o.member_inits.len()) {
+                return false;
+            }
+
+            // compare each member init sequentially and just ret false if a single one disagrees
+            for (HirSize i = 0; i < o.member_inits.len(); ++i) {
+                if (!equivalent_exec(ctx, ctx.exec_id(o.member_inits.get(i)),
+                                     ctx.exec_id(t.member_inits.get(i)))) {
+                    return false;
+                }
+            }
+
+            return true;
         },
         [](const ExecExprAssignMove& t) -> bool { return false; },
         [](const ExecExprAssignEqual& t) -> bool { return false; },
