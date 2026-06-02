@@ -1,0 +1,37 @@
+// tests/hir/79.br
+
+mod test;
+
+variant Foo {
+    Bar,
+    Ben(i32 a),
+}
+
+use Foo..Bar;
+use Foo..Ben;
+
+compt Foo a = Foo..Bar();
+
+compt i32 b = match(a) {
+    Foo..Bar => 12,
+    Foo..Ben => 13,
+};
+
+compt Foo c = Foo..Ben(123);
+
+compt Foo d = match(c) {
+    Ben => Ben(123),
+    Bar => Bar(), 
+};
+
+var _0 = @static_assert b == 12;
+
+var _1 = @static_assert b == 13; // oops
+
+// TODO these:
+
+var _2 = @static_assert c == d; 
+
+var _3 = @static_assert Bar() == Bar();
+
+var _4 = @static_assert Ben(1) == Ben (1);

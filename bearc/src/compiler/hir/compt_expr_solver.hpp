@@ -17,6 +17,7 @@
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/exec_ops.hpp"
+#include "compiler/hir/exec_proving.hpp"
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/matching.hpp"
@@ -311,8 +312,15 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         // handle MyThingy..ThingyField
-        if (into_type.holds<TypeVariant>() && expr->type == AST_EXPR_ID) {
-            const auto maybe_eid = handle_any_id(fid, scope, expr->expr.id);
+        if (into_type.holds<TypeVariant>()) {
+            OptId<ExecId> maybe_eid{};
+
+            if (expr->type == AST_EXPR_ID) {
+                maybe_eid = handle_any_id(fid, scope, expr->expr.id);
+            } else if (expr->type == AST_EXPR_MATCH) {
+                maybe_eid = handle_match(fid, scope, expr);
+            }
+
             if (maybe_eid.empty()) {
                 return std::nullopt; // poison
             }
@@ -1170,6 +1178,10 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecExprStructInit>(rhs_exec)) {
             return solve_struct_eq(lhs_exec, rhs_exec, op);
+        }
+
+        if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecExprVariantInit>(rhs_exec)) {
+            return solve_variant_eq(lhs_eid, rhs_eid, op);
         }
 
         bool cooked = false;
@@ -2681,6 +2693,14 @@ template <IsDefVisitor V> class ComptExprSolver {
         return emplace_val_based_on_eq(true);
     }
 
+    [[nodiscard]] OptId<ExecId> solve_variant_eq(ExecId variant_eid1, ExecId variant_eid2,
+                                                 binary_op eq_neq) {
+        const bool equiv = equivalent_exec(context, variant_eid1, variant_eid2);
+        return context.emplace_compt_exec(
+            ExecConst{(eq_neq == binary_op::bool_equal) ? equiv : !equiv},
+            Span::combine(context.exec(variant_eid1).span, context.exec(variant_eid2).span));
+    }
+
     [[nodiscard]] OptId<ExecId> solve_compt_closure(FileId fid, ScopeId scope,
                                                     const ast_expr_t* expr) {
         assert(expr->type == AST_EXPR_CLOSURE);
@@ -2884,6 +2904,8 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         const ast_slice_of_exprs_t branches = match_expr->expr.match_expr.branches;
 
+        const ast_expr_t* else_val_expr = nullptr;
+
         for (size_t i = 0; i < branches.len; ++i) {
 
             const ast_expr_match_branch_t branch = branches.start[i]->expr.match_branch;
@@ -2892,17 +2914,67 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             for (size_t k = 0; k < branch.patterns.len; ++k) {
 
-                const auto* pattern = branch.patterns.start[k];
+                const ast_expr_t* pattern_expr = branch.patterns.start[k];
 
-                OptId<ExecId> maybe_pattern_eid = solve_expr(fid, scope, pattern, matched_tid);
+                if (pattern_expr->type == AST_EXPR_ELSE_MATCH_PATTERN) {
+                    else_val_expr = val_expr;
+                    continue;
+                }
 
-                // TODO
+                if (pattern_matches(fid, scope, pattern_expr, matched_eid)) {
+                    return solve_expr(fid, scope, val_expr);
+                }
             }
         }
 
-        // TODO finish
+        // fallback to else since no other pattern matched
+        if (else_val_expr) {
+            return solve_expr(fid, scope, else_val_expr);
+        }
 
+        // fallback, this should've already been handled by the branch validity check
+        context.emplace_diagnostic(Span{context, fid, match_expr},
+                                   diag_code::match_expression_is_not_exhaustive, diag_type::error);
         return {};
+    }
+
+    bool pattern_matches(FileId fid, ScopeId scope, const ast_expr_t* pattern_expr,
+                         ExecId matched_eid) {
+        const Exec& matched_exec = context.exec(matched_eid);
+
+        if (matched_exec.holds<ExecExprVariantInit>()) {
+            const auto active_field_idx = matched_exec.as<ExecExprVariantInit>().active_member_idx;
+            const auto variant_field_def_idx
+                = context.ordered_defs_for(matched_exec.as<ExecExprVariantInit>().variant_def_id)
+                      .get(active_field_idx);
+            const DefId variant_field_def_id = context.def_id(variant_field_def_idx);
+
+            if (pattern_expr->type == AST_EXPR_ID
+                || pattern_expr->type == AST_EXPR_VARIANT_DECOMP) {
+                const Span span{context, fid, pattern_expr};
+                const token_ptr_slice_t id_slice = (pattern_expr->type == AST_EXPR_ID)
+                                                       ? pattern_expr->expr.id.slice
+                                                       : pattern_expr->expr.variant_decomp.id;
+                const auto maybe_did
+                    = context.look_up_scoped_type(scope, context.symbol_slice(id_slice), span);
+                if (maybe_did.empty()) {
+                    context.emplace_diagnostic(
+                        span, diag_code::use_of_undeclared_identifier, diag_type::error,
+                        DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
+                    return {};
+                }
+                return maybe_did.as_id() == variant_field_def_id;
+            }
+            return false; // (poison)
+        }
+
+        const auto maybe_pattern_val = solve_expr(fid, scope, pattern_expr);
+
+        if (maybe_pattern_val.empty()) {
+            return {};
+        }
+
+        return equivalent_exec(context, maybe_pattern_val.as_id(), matched_eid);
     }
 };
 

@@ -50,6 +50,8 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
 
     const ast_expr_t* else_pattern = nullptr;
 
+    bool valid = true;
+
     for (size_t i = 0; i < branches.len; ++i) {
 
         const ast_expr_t* branch = branches.start[i];
@@ -70,6 +72,7 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
                     dl.link(context.emplace_diagnostic(Span{context, fid, else_pattern},
                                                        diag_code::previous_def_here,
                                                        diag_type::note));
+                    valid = false;
                 }
                 else_pattern = pattern;
                 if (i != branches.len - 1) {
@@ -91,6 +94,8 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
                 dl.link(context.emplace_diagnostic(
                     id_span, diag_code::invalid_pattern, diag_type::error,
                     DiagnosticSubCode{.sub_code = diag_code::not_a_variant_field}));
+
+                valid = false;
                 continue;
             }
             const auto sid_slice = maybe_sid_slice.value();
@@ -100,6 +105,8 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
                 dl.link(context.emplace_diagnostic(
                     id_span, diag_code::use_of_undeclared_identifier, diag_type::error,
                     DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope}));
+
+                valid = false;
                 continue;
             }
 
@@ -109,10 +116,12 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
                 dl.link(context.emplace_diagnostic(
                     id_span, diag_code::invalid_pattern, diag_type::error,
                     DiagnosticSubCode{.sub_code = diag_code::not_a_variant_field}));
+                valid = false;
                 continue;
             }
 
             if (!context.check_variant_field_has_parent(variant_field_did, variant_did, id_span)) {
+                valid = false;
                 continue;
             }
 
@@ -121,6 +130,7 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
                 dl.link(context.emplace_diagnostic(Span{context, fid, pattern},
                                                    diag_code::duplicate_match_pattern,
                                                    diag_type::error));
+                valid = false;
             }
         }
     }
@@ -131,6 +141,8 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
         Span span{context, fid, match_expr};
         dl.link(context.emplace_diagnostic(span, diag_code::match_expression_is_not_exhaustive,
                                            diag_type::error));
+
+        valid = false;
 
         for (auto didx = variant_fields.begin(); didx != variant_fields.end(); ++didx) {
             const auto field_did = context.def_id(didx);
@@ -144,7 +156,7 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
         }
     }
 
-    return true;
+    return valid;
 }
 
 } // namespace hir

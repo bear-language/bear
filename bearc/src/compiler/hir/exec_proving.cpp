@@ -140,6 +140,9 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             }
             return true;
         },
+        [](const ExecVariantFieldInit& t) -> bool {
+            return false; // TODO add logic
+        },
         [](const ExecExprAssignMove& t) -> bool { return false; },
         [](const ExecExprAssignEqual& t) -> bool { return false; },
         [](const ExecExprIs& t) -> bool { return false; },
@@ -158,7 +161,6 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecExprMatch& t) -> bool { return false; },
         [](const ExecExprMatchBranch& t) -> bool { return false; },
         [](const ExecFnPtr& t) -> bool { return false; },
-        [](const ExecVariantFieldInit& t) -> bool { return false; },
     };
 
     return ctx.exec(eid1).visit(vs);
