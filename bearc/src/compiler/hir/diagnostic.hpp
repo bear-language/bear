@@ -161,6 +161,8 @@ enum class diag_code : uint8_t {
     duplicate_match_pattern,
     match_expression_is_not_exhaustive,
     does_not_consider,
+    match_expression_may_not_be_exhaustive,
+    add_an_else_branch,
 
     count, // this must be last,
 

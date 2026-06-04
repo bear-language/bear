@@ -2894,8 +2894,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             const auto variant_did = ty.as<TypeVariant>().def_id;
             valid_branches_and_exhaustive
                 = valid_exhaustive_match_for_variant(*this, scope, fid, variant_did, match_expr);
+        } else {
+            valid_branches_and_exhaustive
+                = valid_exhaustive_match_for_non_variant(*this, scope, fid, match_expr);
         }
-
         // TODO handle valid/exhaustive scalar matches here
 
         if (!valid_branches_and_exhaustive) {

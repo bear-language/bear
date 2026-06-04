@@ -316,6 +316,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "match expression is not exhaustive";
     case diag_code::does_not_consider:
         return "does not consider";
+    case diag_code::match_expression_may_not_be_exhaustive:
+        return "match expression may not be exhaustive";
+    case diag_code::add_an_else_branch:
+        return "add an else branch";
     }
 
     std::unreachable();

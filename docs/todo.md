@@ -14,13 +14,14 @@ main quest
 
 - [ ] matching
     - [x] exhaustive for variants
-    - [ ] exhaustive scalar matches 
-        - [ ] at absolute minimum, make sure there's an `else` clause
-        - [ ] if feasible, add range checking 
-    - [ ] compt-based Exec-equality matching
+    - [x] exhaustive scalar matches 
+        - [x] at absolute minimum, make sure there's an `else` clause
+    - [x] compt-based Exec-equality matching
     - [ ] handle variant decomp 
         - [ ] allow partial decomp & type-check
         - [ ] ban multiple (heterogeneous) decomps on the same branch
+
+- [ ] unified `hir::Exec` hashing function
 
 - [ ] implement generic args canonicalization to allow mapping of canonical lists of generic args to concrete instatiations for generic structs, variants, and functions
     - [ ] factor out `ComptExprSolver`'s equality logic (`ExecConst`, `ExecExprListInit`, and `ExecExprStructInit`) to use for comparing comparing compt execs inside the table

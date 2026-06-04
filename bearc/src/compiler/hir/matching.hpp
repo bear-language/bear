@@ -159,6 +159,68 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
     return valid;
 }
 
+template <IsExprSolver S>
+bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid,
+                                            const ast_expr_t* match_expr) {
+    // TODO make this de-duplicate branches using exec hashing and an exec hash table!
+    assert(match_expr->type == AST_EXPR_MATCH);
+
+    Context& context = solver.get_context();
+
+    const ast_slice_of_exprs_t branches = match_expr->expr.match_expr.branches;
+
+    DiagLinker dl{context};
+
+    const ast_expr_t* else_pattern = nullptr;
+
+    bool valid = true;
+
+    for (size_t i = 0; i < branches.len; ++i) {
+
+        const ast_expr_t* branch = branches.start[i];
+
+        assert(branch->type == AST_EXPR_MATCH_BRANCH);
+
+        const ast_slice_of_exprs_t patterns = branch->expr.match_branch.patterns;
+
+        for (size_t j = 0; j < patterns.len; ++j) {
+
+            const ast_expr_t* pattern = patterns.start[j];
+
+            if (pattern->type == AST_EXPR_ELSE_MATCH_PATTERN) {
+                if (else_pattern) {
+                    dl.link(context.emplace_diagnostic(Span{context, fid, pattern},
+                                                       diag_code::duplicate_else_match_branch,
+                                                       diag_type::error));
+                    dl.link(context.emplace_diagnostic(Span{context, fid, else_pattern},
+                                                       diag_code::previous_def_here,
+                                                       diag_type::note));
+                    valid = false;
+                }
+                else_pattern = pattern;
+                if (i != branches.len - 1) {
+                    dl.link(context.emplace_diagnostic(
+                        Span{context, fid, pattern}, diag_code::else_match_branch_should_come_last,
+                        diag_type::warning));
+                }
+                continue;
+            }
+        }
+    }
+
+    if (!else_pattern) {
+        valid = false;
+        Span span{context, fid, match_expr};
+        const auto d0 = context.emplace_diagnostic(
+            span, diag_code::match_expression_may_not_be_exhaustive, diag_type::error);
+        const auto d1
+            = context.emplace_diagnostic(span, diag_code::add_an_else_branch, diag_type::help);
+        context.link_diagnostic(d0, d1);
+    }
+
+    return valid;
+}
+
 } // namespace hir
 
 #endif // !BEARC_COMPILER_HIR_MATCHING_HPP

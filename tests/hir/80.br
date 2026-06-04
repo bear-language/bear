@@ -1,0 +1,57 @@
+// tests/hir/80.br
+
+mod match_test;
+
+// note: type heterogeneity is largely fine here since 
+//       it can be type checked for the yielded value of 
+//       the match, which can unlock some cool flexible 
+//       type-system related conditional compilation
+
+compt i32 a = match(12) {
+    12 => 1,
+    13 => 2,
+    else => 3,
+};
+
+compt i32 b = match(12) {
+    12 => 1,
+    13 => 2,
+}; // oops
+
+compt str mys = "hello";
+
+compt i32 c = match(mys) {
+    12 => 1,
+    13 => 2,
+    "hello" => 3,
+    else => 4,
+}; 
+
+compt i32 d = match(mys) {
+    mys => "earth", // oops 
+    else => 123455678,
+};
+
+
+var _0 = @static_assert a == 1;
+
+var _1 = @static_assert a != 1; // oops
+
+var _2 = @static_assert c == 3;
+
+var _3 = @static_assert c != 3; //oops
+
+compt fn cool_thing(var thing) => match(thing) {
+    "give me a string" => "here",
+    "give me an int" => 123,
+    "give me an i64" => 123 as i64,
+    else => "blah",
+}
+
+var _4 = @static_assert @same_type (typeof cool_thing("give me a string"), str);
+
+var _5 = @static_assert @same_type (typeof cool_thing("give me an int"), str); // oops
+
+var _6 = @static_assert @same_type (typeof cool_thing("give me an int"), i32);
+
+var _7 = @static_assert @same_type (typeof cool_thing("give me an i64"), i64);
