@@ -23,6 +23,8 @@ main quest
 
 - [ ] unified `hir::Exec` hashing function
 
+- [ ] finish generic args table, review `GenericArgsId` and related Ids to ensure the design is sane
+
 - [ ] implement generic args canonicalization to allow mapping of canonical lists of generic args to concrete instatiations for generic structs, variants, and functions
     - [ ] factor out `ComptExprSolver`'s equality logic (`ExecConst`, `ExecExprListInit`, and `ExecExprStructInit`) to use for comparing comparing compt execs inside the table
     - [ ] write ExecId hasher akin to the TypeTransformer/TypeHasher construct
