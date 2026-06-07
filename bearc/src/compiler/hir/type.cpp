@@ -10,6 +10,7 @@
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/exec_ops.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "utils/hashing.hpp"
 #include <iostream>
 #include <utility>
 
@@ -94,15 +95,6 @@ template <ConsiderMut C> bool TypeComparator<C>::operator()(const Type& t1, cons
 }
 
 template <ConsiderMut C> size_t TypeHasher<C>::operator()(const Type& t1) const {
-    // https://xorshift.di.unimi.it/splitmix64.c
-    auto mix = +[](size_t x) {
-        x += 0x9e3779b97f4a7c15;
-        x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9;
-        x = (x ^ (x >> 27)) * 0x94d049bb133111eb;
-        x ^= x >> 31;
-        return x;
-    };
-
     auto vs = Ovld{
         [&](const TypeBuiltin& t) -> size_t { return mix(0x01ULL ^ static_cast<size_t>(t.type)); },
         [&](const TypeStruct& t) -> size_t {
