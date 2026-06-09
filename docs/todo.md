@@ -12,8 +12,7 @@ main quest
 
 - [x] unified `hir::Exec` equality function (for `compt` match)
 
-- [ ] handle all-encompassing type deduction with `var` in decls: a `TypeInferer` allowing `var` to be decorated with `*`, `&`, etc, could be allowable with the `TypeTransformer` construct
-    - [ ] A `TypeIsInferable` functor could be useful (this would allow decorated `var`s), just walk and match `TypeVar` with anything 
+- [x] handle all-encompassing type deduction with `var` in decls: a `TypeInferer` allowing `var` to be decorated with `*`, `&`, etc, could be allowable with the `TypeTransformer` construct
 
 - [ ] finish matching
     - [ ] handle variant decomp 
