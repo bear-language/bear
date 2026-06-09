@@ -77,7 +77,7 @@ DefId TopLevelDefVisitor::visit_as_mutator(DefId def) {
 
 DefId TopLevelDefVisitor::resolve_def(DefId did) {
 
-    auto check_to_err_when_compt_is_not_mut = [&](TypeId tid, const Def& def) {
+    auto check_to_err_when_compt_is_mut = [&](TypeId tid, const Def& def) {
         if (contains_mut(context, tid) && def.compt) {
             context.emplace_diagnostic(context.type(tid).span,
                                        diag_code::compt_variable_should_be_immutable,
@@ -93,7 +93,6 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         return (def.parent.has_value()) ? context.is_struct_def(def.parent.as_id()) : false;
     };
 
-    //  TODO finish handlers
     switch (stmt->type) {
     case AST_STMT_VAR_DECL: {
         Def& def = context.def(did);
@@ -103,7 +102,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             goto cleanup;
         }
         // compt =/= mut guard
-        check_to_err_when_compt_is_not_mut(maybe_tid.as_id(), def);
+        check_to_err_when_compt_is_mut(maybe_tid.as_id(), def);
         if (def.compt) {
             context.emplace_diagnostic_with_message_value(
                 def.span, diag_code::a_compt_variable_should_be_explicitly_initialized,
@@ -138,9 +137,9 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                                        diag_type::error);
         }
         // compt =/= mut guard
-        check_to_err_when_compt_is_not_mut(maybe_tid.as_id(), context.def(did));
+        check_to_err_when_compt_is_mut(maybe_tid.as_id(), context.def(did));
 
-        auto maybe_compt_eid
+        const auto maybe_compt_eid
             = ComptExprSolver(context, *this)
                   .solve_expr(span.file_id, scope, stmt->stmt.var_init_decl.rhs, maybe_tid.as_id());
 

@@ -189,6 +189,19 @@ template <ConsiderMut C> class TypeComparator {
     static consteval bool considers_mut() { return C::considers_mut(); }
 };
 
+template <ConsiderMut C> class TypeInferer {
+    const Context& context;
+
+  public:
+    using value_type = bool;
+    TypeInferer(const Context& context) : context(context) {}
+    bool operator()(const Type& t1, const Type& t2) const;
+    // single invocation -> doesn't matter => true
+    bool operator()(const Type& t1) const { return true; } // NOLINT, intentionally taking t1
+    static bool transform(bool res1, bool res2) { return res1 && res2; }
+    static consteval bool considers_mut() { return C::considers_mut(); }
+};
+
 class TypeContainsMut {
     const Context& context;
 

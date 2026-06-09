@@ -385,10 +385,16 @@ typename F::value_type TypeTransformer<F>::invoke_as_mentioned(TypeId tid1, Type
 // explicit instatiantiations for the TypeTransformer
 template class TypeTransformer<TypeHasher<DoConsiderMut>>;
 template class TypeTransformer<TypeHasher<DoNotConsiderMut>>;
+
 template class TypeTransformer<TypeComparator<DoConsiderMut>>;
 template class TypeTransformer<TypeComparator<DoNotConsiderMut>>;
+
+template class TypeTransformer<TypeInferer<DoConsiderMut>>;
+template class TypeTransformer<TypeInferer<DoNotConsiderMut>>;
+
 template class TypeTransformer<TypeToString<DoConsiderMut>>;
 template class TypeTransformer<TypeToString<DoNotConsiderMut>>;
+
 template class TypeTransformer<TypeContainsVar>;
 template class TypeTransformer<TypeContainsDeftype>;
 
@@ -867,6 +873,62 @@ bool builtin_type_has_unary_op(builtin_type type, unary_op op) {
         return false;
     }
     return false;
+}
+
+template <ConsiderMut C> bool TypeInferer<C>::operator()(const Type& t1, const Type& t2) const {
+
+    TypeComparator<C> comparator{context};
+
+    auto vs = Ovld{
+        [&](const TypeBuiltin& t) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeStruct& t) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeVariant& t) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeUnion& t) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeDeftype&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeArr& t) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeSlice&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeRef&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypePtr&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [this, &t2](const TypeFnPtr& t) -> bool {
+            if (!t2.holds<TypeFnPtr>()) {
+                return false;
+            }
+            bool rt_match = false;
+            if (t.return_type.has_value() && t2.as<TypeFnPtr>().return_type.has_value()) {
+                rt_match = context.type_inferrable_as(t.return_type.as_id(),
+                                                      t2.as<TypeFnPtr>().return_type.as_id())
+                           || context.equivalent_type(t.return_type.as_id(),
+                                                      t2.as<TypeFnPtr>().return_type.as_id());
+            } else {
+                rt_match = t.return_type.empty() && t2.as<TypeFnPtr>().return_type.empty();
+            }
+            bool arity_match = t.param_types.len() == t2.as<TypeFnPtr>().param_types.len();
+            if (!rt_match || !arity_match) {
+                return false;
+            }
+            auto t_start = t.param_types.begin();
+            auto t2_start = t2.as<TypeFnPtr>().param_types.begin();
+            auto len = t.param_types.len();
+            for (HirSize i = 0; i < len; i++) {
+                auto tid = context.type_id(t_start.at(i));
+                auto tid2 = context.type_id(t2_start.at(i));
+                if (!TypeTransformer<TypeInferer<C>>{context}(tid, tid2)) {
+                    return false;
+                }
+            }
+            // all matched, so return true
+            return true;
+        },
+        [&](const TypeVariadic&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeVar&) -> bool { return true; },
+
+    };
+    if constexpr (considers_mut()) {
+        if (t1.mut != t2.mut) {
+            return false;
+        }
+    }
+    return t1.visit(vs);
 }
 
 } // namespace hir

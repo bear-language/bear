@@ -2899,7 +2899,6 @@ template <IsDefVisitor V> class ComptExprSolver {
             valid_branches_and_exhaustive
                 = valid_exhaustive_match_for_non_variant(*this, scope, fid, match_expr);
         }
-        // TODO handle valid/exhaustive scalar matches here
 
         if (!valid_branches_and_exhaustive) {
             return {};
@@ -2978,6 +2977,21 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         return equivalent_exec(context, maybe_pattern_val.as_id(), matched_eid);
+    }
+
+    /// returns true on variant decomp, else false
+    bool try_variant_decomp(FileId fid, ScopeId scope, const ast_expr_t* pattern_expr) {
+        if (pattern_expr->type != AST_EXPR_VARIANT_DECOMP) {
+            return false;
+        }
+
+        const ast_expr_variant_decomp_t decomp = pattern_expr->expr.variant_decomp;
+
+        for (size_t i = 0; i < decomp.vars.len; ++i) {
+            // TODO
+        }
+
+        return true;
     }
 };
 

@@ -15,3 +15,8 @@ compt i32 c = match(b) {
 };
 
 var _0 = @static_assert c == 0;
+
+compt i32 d = match(b) {
+    Foo..A(var a) => a,
+    Foo..B(var r, var g, var b) => r + g - b,
+};

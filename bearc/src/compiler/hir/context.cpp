@@ -1304,6 +1304,10 @@ bool Context::equivalent_type(TypeId tid1, TypeId tid2) const {
     return type(tid1).canonical == type(tid2).canonical;
 }
 
+bool Context::type_inferrable_as(TypeId tid1, TypeId tid2) const {
+    return TypeTransformer<TypeInferer<DoConsiderMut>>{*this}(tid1, tid2);
+}
+
 bool Context::equivalent_type_slice(IdSlice<TypeId> s1, IdSlice<TypeId> s2) const {
     if (s1.len() != s2.len()) {
         return false;
