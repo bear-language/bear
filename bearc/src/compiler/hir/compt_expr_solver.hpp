@@ -2783,7 +2783,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         llvm::SmallVector<ExecId> member_init_vec;
         for (size_t i = 0; i < args.len; i++) {
             const ast_expr_t* arg = args.start[i];
-            TypeId tid = context.def(var_field_def.members.get(i)).as<DefVariable>().type_id;
+            TypeId tid
+                = context.def(var_field_def.members.get(i)).template as<DefVariable>().type_id;
             OptId<ExecId> maybe_eid = solve_expr(fid, scope, arg, tid);
             if (maybe_eid.empty()) {
                 cooked = true;
@@ -2823,7 +2824,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         const ExecExprVariantInit var_init = exec.as<ExecExprVariantInit>();
         const auto ordered_variant_fields
-            = context.def(var_init.variant_def_id).as<DefVariant>().ordered_members;
+            = context.def(var_init.variant_def_id).template as<DefVariant>().ordered_members;
         if (pattern_expr->type != AST_EXPR_VARIANT_DECOMP) {
             return {}; // poisoned
         }
@@ -2840,7 +2841,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         const auto hopefully_var_field = maybe_var_field.as_id();
 
-        if (!context.def(hopefully_var_field).holds<DefVariantField>()) {
+        if (!context.def(hopefully_var_field).template holds<DefVariantField>()) {
             context.emplace_diagnostic(
                 Span{context, fid, pattern_expr},
                 diag_code::identifer_does_not_name_a_valid_pattern, diag_type::error,
