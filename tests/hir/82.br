@@ -1,0 +1,22 @@
+// tests/hir/82.br 
+
+variant Foo {
+    A(i32 a),
+    B(u8 r, u8 g, u8 b),
+}
+
+compt Foo a = Foo..A(12);
+
+compt Foo b = Foo..B(1, 2, 3);
+
+compt i32 c = match(b) {
+    Foo..A(var a) => 0,
+    Foo..B(var r, var g, var b) => 0,
+};
+
+var _0 = @static_assert c == 0;
+
+compt i32 d = match(b) {
+    Foo..A(var a) => a,
+    Foo..B(var r, var g, var b) => r + g - b,
+};

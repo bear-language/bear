@@ -32,7 +32,7 @@ static uint8_t preunary_prec_map[TOK__NUM] = {
     [TOK_STAR] = 3,         [TOK_AMPER] = 3,         [TOK_SIZEOF] = 3,      [TOK_ALIGNOF] = 3,
     [TOK_BOOL_NOT] = 3,     [TOK_TYPEOF] = 3,        [TOK_BIT_NOT] = 3,     [TOK_COMPT] = 3,
     [TOK_SAME_TYPE] = 3,    [TOK_STATIC_ASSERT] = 3, [TOK_TYPE_TO_STR] = 3, [TOK_DEFINED] = 3,
-    [TOK_HAS_CONTRACT] = 3,
+    [TOK_HAS_CONTRACT] = 3, [TOK_INFERABLE_AS] = 3,
 
 };
 

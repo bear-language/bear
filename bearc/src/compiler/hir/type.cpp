@@ -895,8 +895,8 @@ template <ConsiderMut C> bool TypeInferer<C>::operator()(const Type& t1, const T
             }
             bool rt_match = false;
             if (t.return_type.has_value() && t2.as<TypeFnPtr>().return_type.has_value()) {
-                rt_match = context.type_inferrable_as(t.return_type.as_id(),
-                                                      t2.as<TypeFnPtr>().return_type.as_id())
+                rt_match = context.type_inferable_as(t.return_type.as_id(),
+                                                     t2.as<TypeFnPtr>().return_type.as_id())
                            || context.equivalent_type(t.return_type.as_id(),
                                                       t2.as<TypeFnPtr>().return_type.as_id());
             } else {

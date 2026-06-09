@@ -644,6 +644,14 @@ void pretty_print_expr(const ast_expr_t* expression) {
         print_delineator_from_type(TOK_RPAREN);
         print_closing_green_brace();
         break;
+    case AST_EXPR_INFERABLE_AS:
+        print_title("@inferable_as");
+        print_opening_delim_from_type(TOK_LPAREN);
+        print_type(expr.expr.inferable_as_expr.lhs_type);
+        print_type(expr.expr.inferable_as_expr.rhs_type);
+        print_closing_delim_from_type(TOK_LPAREN);
+        print_closing_green_brace();
+        break;
     }
     puts(",");
     printer_deindent();

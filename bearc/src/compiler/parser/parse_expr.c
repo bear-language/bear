@@ -166,6 +166,8 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
         return parse_expr_has_contract(p);
     case TOK_STATIC_ASSERT:
         return parse_expr_static_assert(p);
+    case TOK_INFERABLE_AS:
+        return parse_expr_inferable_as(p);
     case TOK_TYPE_TO_STR:
         return parse_expr_type_to_str(p);
     case TOK_DEFINED:
@@ -337,6 +339,26 @@ ast_expr_t* parse_expr_static_assert(parser_t* p) {
     }
 
     ex->first = stass_tkn;
+    ex->last = parser_prev(p);
+    return ex;
+}
+
+ast_expr_t* parse_expr_inferable_as(parser_t* p) {
+    ast_expr_t* ex = parser_alloc_expr(p);
+    ex->type = AST_EXPR_INFERABLE_AS;
+
+    token_t* kw_tkn = parser_expect_token(p, TOK_INFERABLE_AS);
+    if (!kw_tkn) {
+        return parser_sync_expr(p);
+    }
+
+    parser_expect_token(p, TOK_LPAREN);
+    ex->expr.same_type.lhs_type = parse_type(p);
+    parser_expect_token(p, TOK_COMMA);
+    ex->expr.same_type.rhs_type = parse_type(p);
+    parser_expect_token(p, TOK_RPAREN);
+
+    ex->first = kw_tkn;
     ex->last = parser_prev(p);
     return ex;
 }

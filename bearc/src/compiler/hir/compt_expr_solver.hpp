@@ -623,6 +623,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_expr(fid, scope, expr->expr.compt_expr.inner, into_tid);
         case AST_EXPR_SAME_TYPE:
             return handle_same_type(fid, scope, expr);
+        case AST_EXPR_INFERABLE_AS:
+            return handle_inferable_as(fid, scope, expr);
         case AST_EXPR_TYPE_TO_STR:
             return handle_type_to_str(fid, scope, expr);
         case AST_EXPR_STATIC_ASSERT:
@@ -867,6 +869,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_BLOCK:
         case AST_EXPR_MATCH_BRANCH:
         case AST_EXPR_ELSE_MATCH_PATTERN:
+        case AST_EXPR_INFERABLE_AS:
         case AST_EXPR_INVALID:
             break;
         }
@@ -1648,6 +1651,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_SAME_TYPE:
         case AST_EXPR_TYPE_TO_STR:
         case AST_EXPR_HAS_CONTRACT:
+        case AST_EXPR_INFERABLE_AS:
         case AST_EXPR_STATIC_ASSERT:
             break;
         }
@@ -1876,6 +1880,31 @@ template <IsDefVisitor V> class ComptExprSolver {
                                     Span{context, fid, same_type_expr->first, same_type_expr->last},
                                     true);
     }
+    [[nodiscard]] OptId<ExecId> handle_inferable_as(FileId fid, ScopeId scope,
+                                                    const ast_expr_t* infas_expr) {
+        assert(infas_expr->type == AST_EXPR_INFERABLE_AS);
+        auto maybe_lhs_tid = resolve_type(fid, scope, infas_expr->expr.same_type.lhs_type);
+
+        if (maybe_lhs_tid.empty()) {
+            return std::nullopt;
+        }
+
+        auto lhs_tid = maybe_lhs_tid.as_id();
+
+        auto maybe_rhs_tid = resolve_type(fid, scope, infas_expr->expr.same_type.rhs_type);
+
+        if (maybe_rhs_tid.empty()) {
+            return std::nullopt;
+        }
+
+        auto rhs_tid = maybe_rhs_tid.as_id();
+
+        const bool infas_type_bool_val = context.type_inferable_as(lhs_tid, rhs_tid);
+
+        return context.emplace_exec(ExecExprComptConstant{infas_type_bool_val},
+                                    Span{context, fid, infas_expr->first, infas_expr->last}, true);
+    }
+
     [[nodiscard]] OptId<ExecId> handle_type_to_str(FileId fid, ScopeId scope,
                                                    const ast_expr_t* tts_expr) {
 

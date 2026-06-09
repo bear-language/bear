@@ -1,22 +1,19 @@
 // tests/hir/81.br
 
-variant Foo {
-    A(i32 a),
-    B(u8 r, u8 g, u8 b),
-}
+var _0 = @static_assert @inferable_as(i32, var);
 
-compt Foo a = Foo..A(12);
+var _1 = @static_assert @inferable_as(*i32, var);
 
-compt Foo b = Foo..B(1, 2, 3);
+var _2 = @static_assert @inferable_as(*i32, *var);
 
-compt i32 c = match(b) {
-    Foo..A(var a) => 0,
-    Foo..B(var r, var g, var b) => 0,
-};
+var _3 = @static_assert !@inferable_as(&i32, *var);
 
-var _0 = @static_assert c == 0;
+var _4 = @static_assert @inferable_as(*fn(**i32, &i32)->[&]i32, *fn(*var,&var)->[&]var);
 
-compt i32 d = match(b) {
-    Foo..A(var a) => a,
-    Foo..B(var r, var g, var b) => r + g - b,
-};
+var _5 = @static_assert !@inferable_as(*fn(**i32, &i32)->[&]i32, *fn(*var,&var)->[&]var); // oops
+
+var _6 = @static_assert @inferable_as(*fn(**i32, &i32)->[&]i32, *fn(var,var)->var);
+
+var _7 = @static_assert @inferable_as(*fn(var,var)->var, *fn(**i32, &i32)->[&]i32);
+
+

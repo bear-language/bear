@@ -214,7 +214,7 @@ static ast_type_t* parse_type_impl(parser_t* p, token_ptr_slice_t leading_id, bo
 
     parser_shed_rparens(p, &paren_count);
 
-    while (token_is_generic_opener(parser_peek(p)->type)) {
+    if (token_is_generic_opener(parser_peek(p)->type)) {
         inner = parse_type_generic(p, inner);
     }
 

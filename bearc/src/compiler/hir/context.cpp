@@ -1304,7 +1304,7 @@ bool Context::equivalent_type(TypeId tid1, TypeId tid2) const {
     return type(tid1).canonical == type(tid2).canonical;
 }
 
-bool Context::type_inferrable_as(TypeId tid1, TypeId tid2) const {
+bool Context::type_inferable_as(TypeId tid1, TypeId tid2) const {
     return TypeTransformer<TypeInferer<DoConsiderMut>>{*this}(tid1, tid2);
 }
 

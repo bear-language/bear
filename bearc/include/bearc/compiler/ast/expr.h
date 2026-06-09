@@ -47,6 +47,7 @@ typedef enum ast_expr_type {
     AST_EXPR_STATIC_ASSERT,
     AST_EXPR_DEFINED,
     AST_EXPR_HAS_CONTRACT,
+    AST_EXPR_INFERABLE_AS,
 
     // structs
     AST_EXPR_STRUCT_INIT,
@@ -256,6 +257,7 @@ typedef union ast_expr_u {
     ast_expr_ternary_if_t ternary_if;
     ast_expr_wrapped_t compt_expr;
     ast_expr_wrapped_t static_assert_expr;
+    ast_expr_two_types_t inferable_as_expr;
     ast_expr_type_t type_to_str;
     ast_expr_two_types_t same_type;
     ast_expr_defined_t defined;

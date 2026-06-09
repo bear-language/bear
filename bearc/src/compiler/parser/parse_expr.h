@@ -39,6 +39,8 @@ ast_expr_t* parse_expr_same_type(parser_t* p);
 
 ast_expr_t* parse_expr_type_to_str(parser_t* p);
 
+ast_expr_t* parse_expr_inferable_as(parser_t* p);
+
 ast_expr_t* parse_expr_defined(parser_t* p);
 
 ast_expr_t* parse_expr_has_contract(parser_t* p);
