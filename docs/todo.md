@@ -12,11 +12,10 @@ main quest
 
 - [x] unified `hir::Exec` equality function (for `compt` match)
 
-- [ ] matching
-    - [x] exhaustive for variants
-    - [x] exhaustive scalar matches 
-        - [x] at absolute minimum, make sure there's an `else` clause
-    - [x] compt-based Exec-equality matching
+- [ ] handle all-encompassing type deduction with `var` in decls: a `TypeInferer` allowing `var` to be decorated with `*`, `&`, etc, could be allowable with the `TypeTransformer` construct
+    - [ ] A `TypeIsInferable` functor could be useful (this would allow decorated `var`s), just walk and match `TypeVar` with anything 
+
+- [ ] finish matching
     - [ ] handle variant decomp 
         - [ ] allow partial decomp & type-check
         - [ ] ban multiple (heterogeneous) decomps on the same branch
@@ -39,8 +38,6 @@ main quest
 
 - [ ] last bit of `hir::Type`s 
     - [ ] generic types (just find/instatiate mentioned generic def and then use that concrete def within the type)
-    - [ ] handle all-encompassing type deduction with `var` in decls: a `TypeInferer` allowing `var` to be decorated with `*`, `&`, etc, could be allowable with the `TypeTransformer` construct
-    - [ ] A `TypeIsInferable` functor could be useful (this would allow decorated `var`s), just walk and match `TypeVar` with anything 
 
 - [ ] tighten up abi related stuff with hir::LayoutRules or something similar
     - [ ] properly impl `sizeof` and `alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
