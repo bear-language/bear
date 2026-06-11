@@ -10,15 +10,6 @@ main quest
     - [ ] compt closures (pure-expr only)
         - [ ] allow capturing compt variables 
 
-- [x] unified `hir::Exec` equality function (for `compt` match)
-
-- [x] handle all-encompassing type deduction with `var` in decls: a `TypeInferer` allowing `var` to be decorated with `*`, `&`, etc, could be allowable with the `TypeTransformer` construct
-
-- [x] finish matching
-    - [x] handle variant decomp 
-        - [x] allow partial decomp & type-check
-        - [x] ban multiple (heterogeneous) decomps on the same branch
-
 - [ ] unified `hir::Exec` hashing function
 
 - [ ] finish generic args table, review `GenericArgsId` and related Ids to ensure the design is sane
