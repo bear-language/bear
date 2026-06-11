@@ -2952,8 +2952,15 @@ template <IsDefVisitor V> class ComptExprSolver {
                     continue;
                 }
 
+                if (check_for_multi_decomps_on_match_branch(context, fid, branch)) {
+                    return {}; // malformed decomps on this branch
+                }
+
                 if (pattern_matches(fid, scope, pattern_expr, matched_eid)) {
-                    return solve_expr(fid, scope, val_expr);
+                    const ScopeId branch_scope
+                        = context.make_compt_temp_scope(scope, 8); // decently sized
+                    try_variant_decomp(fid, branch_scope, pattern_expr, matched_eid);
+                    return solve_expr(fid, branch_scope, val_expr);
                 }
             }
         }
@@ -3029,7 +3036,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         const Def& variant_field_def = context.def(variant_field_did);
 
-        if (variant_field_def.holds<DefVariantField>()) {
+        if (!variant_field_def.holds<DefVariantField>()) {
             return false;
         }
 
@@ -3070,14 +3077,28 @@ template <IsDefVisitor V> class ComptExprSolver {
             Span span{context, fid, decomped_var->first, decomped_var->last};
 
             if (!type_matches) {
-                // TODO
+                const auto d0 = context.emplace_diagnostic_with_message_value(
+                    context.type(written_tid).span,
+                    diag_code::cannot_match_type_for_decomposed_variant_from, diag_type::error,
+                    DiagnosticTypeToType{.from = written_tid, .to = needed_tid});
+                const auto member_did = context.def_id(variant_field.members.get(i));
+                const auto d1 = context.emplace_diagnostic_with_message_value(
+                    context.def(member_did).span, diag_code::declared_here, diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = context.def(member_did).name});
+                context.link_diagnostic(d0, d1);
                 continue;
             }
 
-            ExecId value = {};
+            ExecId value = context.exec_id(
+                context.exec(context.exec(variant_eid).as<ExecExprVariantInit>().payload_init)
+                    .as<ExecVariantFieldInit>()
+                    .member_inits.get(i));
 
-            DefId decomped = context.register_compt_def(
-                name, span, {}, DefVariable{.type_id = needed_tid, .compt_value = {}});
+            const DefId did = context.register_compt_def(
+                name, span, {},
+                DefVariable{.type_id = needed_tid, .compt_value = value, .moved = false});
+
+            context.insert_variable(scope, name, did);
         }
 
         return true;

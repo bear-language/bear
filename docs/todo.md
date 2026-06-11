@@ -14,10 +14,10 @@ main quest
 
 - [x] handle all-encompassing type deduction with `var` in decls: a `TypeInferer` allowing `var` to be decorated with `*`, `&`, etc, could be allowable with the `TypeTransformer` construct
 
-- [ ] finish matching
-    - [ ] handle variant decomp 
-        - [ ] allow partial decomp & type-check
-        - [ ] ban multiple (heterogeneous) decomps on the same branch
+- [x] finish matching
+    - [x] handle variant decomp 
+        - [x] allow partial decomp & type-check
+        - [x] ban multiple (heterogeneous) decomps on the same branch
 
 - [ ] unified `hir::Exec` hashing function
 

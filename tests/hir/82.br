@@ -11,7 +11,7 @@ compt Foo b = Foo..B(1, 2, 3);
 
 compt i32 c = match(b) {
     Foo..A(var a) => 0,
-    Foo..B(var r, var g, var b) => 0,
+    Foo..B(i8 r, var g, var b) => 0, // oops
 };
 
 var _0 = @static_assert c == 0;
@@ -20,3 +20,7 @@ compt i32 d = match(b) {
     Foo..A(var a) => a,
     Foo..B(var r, var g, var b) => r + g - b,
 };
+
+var _1 = @static_assert d == 0; 
+
+var _2 = @static_assert d == 12; // oops

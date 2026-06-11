@@ -1,0 +1,70 @@
+// tests/hir/83.br
+
+mod demo;
+
+variant OptInt {
+    Some(i32 val),
+    None,
+}
+
+use OptInt..Some;
+use OptInt..None;
+
+compt OptInt a = Some(12);
+compt OptInt b = None();
+
+var _0 = @static_assert match(a) {
+    Some(i32 a) => a,
+    None => 0
+} == 12;
+
+var _1 = @static_assert match(b) {
+    Some(i32 a) => a,
+    None => 0
+} == 0;
+
+/// return true on Some, false on None
+compt fn test_opt_int(var oi) -> bool => ( match (oi) { Some => true, None => false } )
+
+var _2 = @static_assert test_opt_int(a);
+
+var _3 = @static_assert !test_opt_int(b);
+
+
+variant Contrived {
+    Foo(u8 a, u8 b, u8 c, u8 d, u8 e, u8 f),
+    Bar(i8 a, i8 b, i8 c, i8 d, i8 e, i8 f),
+}
+
+deftype Cn = Contrived;
+use Contrived..Foo;
+use Contrived..Bar;
+
+compt Cn c = Foo(1, 2, 3, 4, 5, 6);
+compt Cn d = Bar(1, 2, 3, 4, 5, 6);
+
+
+var _4 = @static_assert 6 == match(c) {
+    Foo(var a, u8 b, var c) => a + b + c,
+    Bar(var a, i8 b, var c) => (a+ b) * c,
+};
+
+var _5 = @static_assert 9 == match(d) {
+    Foo(var a, u8 b, u8 c) => a + b + c,
+    Bar(i8 a, i8 b, var c) => (a + b) * c,
+};
+
+var _6 = @static_assert 14 == match(d) {
+    Foo(var a, u8 b, u8 c) => a + b + c,
+    Bar(i8 a, i8 b, var c, var d) => (a + b) * c + d,
+};
+
+var _7 = @static_assert 14 == match(d) {
+    Foo(var a, u8 b, u8 c) => a + b + c,
+    Bar(i8 a, i8 b, var c, var d) => (a + b) * c + d + e, // oops
+};
+
+var _8 = @static_assert 14 == match(d) {
+    Foo(var a, u8 b, u8 c) | Bar(var a, var b, var c) => a + b + c,
+};
+

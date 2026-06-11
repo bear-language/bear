@@ -322,6 +322,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "add an else branch";
     case diag_code::too_many_decompositions_for_variant:
         return "too many decompositions for variant";
+    case diag_code::cannot_match_type_for_decomposed_variant_from:
+        return "cannot match type for decomposed variant from";
+    case diag_code::cannot_decompose_multiple_variants_on_the_same_match_arm:
+        return "cannot decompose multiple variants on the same match arm";
     }
 
     std::unreachable();

@@ -18,6 +18,7 @@
 #include "compiler/hir/indexing.hpp"
 #include "utils/data_arena.hpp"
 #include <cassert>
+#include <cstddef>
 
 namespace hir {
 
@@ -220,6 +221,10 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
 
     return valid;
 }
+
+// returns true on issue, else false
+bool check_for_multi_decomps_on_match_branch(Context& ctx, FileId fid,
+                                             ast_expr_match_branch_t match_branch);
 
 } // namespace hir
 
