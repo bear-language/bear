@@ -2429,7 +2429,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         ScopeId temp_scope
-            = context.make_compt_func_temp_scope(context.containing_scope(func_did), params.len());
+            = context.make_compt_temp_scope(context.containing_scope(func_did), params.len());
 
         for (HirSize i = 0; i < params.len(); i++) {
             const Def& param_def = context.def(params.get(i));
@@ -3009,15 +3009,75 @@ template <IsDefVisitor V> class ComptExprSolver {
     }
 
     /// returns true on variant decomp, else false
-    bool try_variant_decomp(FileId fid, ScopeId scope, const ast_expr_t* pattern_expr) {
+    bool try_variant_decomp(FileId fid, ScopeId scope, const ast_expr_t* pattern_expr,
+                            ExecId variant_eid) {
         if (pattern_expr->type != AST_EXPR_VARIANT_DECOMP) {
             return false;
         }
 
         const ast_expr_variant_decomp_t decomp = pattern_expr->expr.variant_decomp;
 
+        Span decomp_span{context, fid, pattern_expr};
+        OptId<DefId> maybe_variant_field_did = context.look_up_scoped_type(
+            scope, context.symbol_slice(pattern_expr->expr.variant_decomp.id), decomp_span);
+
+        if (maybe_variant_field_did.empty()) {
+            return false;
+        }
+
+        const auto variant_field_did = maybe_variant_field_did.as_id();
+
+        const Def& variant_field_def = context.def(variant_field_did);
+
+        if (variant_field_def.holds<DefVariantField>()) {
+            return false;
+        }
+
+        const DefVariantField variant_field = variant_field_def.as<DefVariantField>();
+
+        if (decomp.vars.len > variant_field.members.len()) {
+            const auto d0 = context.emplace_diagnostic(
+                decomp_span, diag_code::too_many_decompositions_for_variant, diag_type::error);
+            const auto d1 = context.emplace_diagnostic(variant_field_def.span,
+                                                       diag_code::declared_here, diag_type::note);
+
+            context.link_diagnostic(d0, d1);
+
+            return false;
+        }
+
         for (size_t i = 0; i < decomp.vars.len; ++i) {
-            // TODO
+            ast_param_t* const decomped_var = decomp.vars.start[i];
+            if (!decomped_var->valid) {
+                continue;
+            }
+
+            const OptId<TypeId> maybe_tid = resolve_type(fid, scope, decomped_var->type);
+            if (maybe_tid.empty()) {
+                continue;
+            }
+            const auto written_tid = maybe_tid.as_id();
+
+            const SymbolId name = context.symbol_id(decomped_var->name);
+
+            const DefVariable variants_field_variable
+                = context.def(variant_field.members.get(i)).as<DefVariable>();
+
+            const TypeId needed_tid = variants_field_variable.type_id;
+
+            const bool type_matches = context.type_inferable_as(written_tid, needed_tid);
+
+            Span span{context, fid, decomped_var->first, decomped_var->last};
+
+            if (!type_matches) {
+                // TODO
+                continue;
+            }
+
+            ExecId value = {};
+
+            DefId decomped = context.register_compt_def(
+                name, span, {}, DefVariable{.type_id = needed_tid, .compt_value = {}});
         }
 
         return true;

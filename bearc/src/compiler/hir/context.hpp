@@ -76,7 +76,7 @@ class Context {
     [[nodiscard]] ScopeId make_small_scope(OptId<ScopeId> parent_scope);
     [[nodiscard]] ScopeId make_medium_scope(OptId<ScopeId> parent_scope);
     [[nodiscard]] ScopeId make_scope(OptId<ScopeId> parent_scope, HirSize capacity);
-    [[nodiscard]] ScopeId make_compt_func_temp_scope(ScopeId parent_scope, HirSize capacity);
+    [[nodiscard]] ScopeId make_compt_temp_scope(ScopeId parent_scope, HirSize capacity);
 
     // generate a deftype and insert into the provided scoep
     // - this will forward all references of some identifer to an arbitrary type
@@ -233,7 +233,7 @@ class Context {
     DefId register_top_level_def(SymbolId name, bool pub, bool compt, bool statik, bool generic,
                                  Span span, ast_stmt_t* stmt, OptId<DefId> parent = OptId<DefId>{});
 
-    DefId register_compt_def(SymbolId name, Span span, DefId parent,
+    DefId register_compt_def(SymbolId name, Span span, OptId<DefId> parent,
                              DefValue value = DefUnevaluated{});
 
     DefId register_def(SymbolId name, Span span, DefId parent, DefValue value = DefUnevaluated{});

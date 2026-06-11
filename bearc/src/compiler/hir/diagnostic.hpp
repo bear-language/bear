@@ -163,6 +163,7 @@ enum class diag_code : uint8_t {
     does_not_consider,
     match_expression_may_not_be_exhaustive,
     add_an_else_branch,
+    too_many_decompositions_for_variant,
 
     count, // this must be last,
 

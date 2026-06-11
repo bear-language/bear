@@ -320,6 +320,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "match expression may not be exhaustive";
     case diag_code::add_an_else_branch:
         return "add an else branch";
+    case diag_code::too_many_decompositions_for_variant:
+        return "too many decompositions for variant";
     }
 
     std::unreachable();

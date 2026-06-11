@@ -435,7 +435,7 @@ DefId Context::register_top_level_def(SymbolId name, bool pub, bool compt, bool 
     return def;
 }
 
-DefId Context::register_compt_def(SymbolId name, Span span, DefId parent, DefValue value) {
+DefId Context::register_compt_def(SymbolId name, Span span, OptId<DefId> parent, DefValue value) {
     DefId def = defs.emplace_and_get_id(value, name, true, true, true, false, span, parent);
     def_resol_states.bump(Def::resol_state::resolved);
     def_ast_nodes.bump();
@@ -512,7 +512,7 @@ ScopeId Context::make_scope(OptId<ScopeId> parent_scope, HirSize capacity) {
     return scopes.emplace_and_get_id(parent_scope, capacity, scope_arena);
 }
 
-ScopeId Context::make_compt_func_temp_scope(ScopeId parent_scope, HirSize capacity) {
+ScopeId Context::make_compt_temp_scope(ScopeId parent_scope, HirSize capacity) {
     return scopes.emplace_and_get_id(parent_scope, capacity, *temp_scope_arena,
                                      Scope::storage::variables);
 }
