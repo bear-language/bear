@@ -3068,7 +3068,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             const SymbolId name = context.symbol_id(decomped_var->name);
 
             const DefVariable variants_field_variable
-                = context.def(variant_field.members.get(i)).as<DefVariable>();
+                = context.def(variant_field.members.get(i)).template as<DefVariable>();
 
             const TypeId needed_tid = variants_field_variable.type_id;
 
@@ -3090,8 +3090,9 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
 
             ExecId value = context.exec_id(
-                context.exec(context.exec(variant_eid).as<ExecExprVariantInit>().payload_init)
-                    .as<ExecVariantFieldInit>()
+                context
+                    .exec(context.exec(variant_eid).template as<ExecExprVariantInit>().payload_init)
+                    .template as<ExecVariantFieldInit>()
                     .member_inits.get(i));
 
             const DefId did = context.register_compt_def(
