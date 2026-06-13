@@ -10,7 +10,8 @@ main quest
     - [ ] compt closures (pure-expr only)
         - [ ] allow capturing compt variables 
 
-- [ ] unified `hir::Exec` hashing function
+- [x] unified `hir::Exec` hashing function
+    - [ ] double check validity before moving on
 
 - [ ] finish generic args table, review `GenericArgsId` and related Ids to ensure the design is sane
 
