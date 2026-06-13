@@ -96,49 +96,49 @@ template <ConsiderMut C> bool TypeComparator<C>::operator()(const Type& t1, cons
 
 template <ConsiderMut C> size_t TypeHasher<C>::operator()(const Type& t1) const {
     auto vs = Ovld{
-        [&](const TypeBuiltin& t) -> size_t { return mix(0x01ULL ^ static_cast<size_t>(t.type)); },
+        [&](const TypeBuiltin& t) -> size_t { return mix(0x01uz ^ static_cast<size_t>(t.type)); },
         [&](const TypeStruct& t) -> size_t {
-            return mix(0x02ULL ^ static_cast<size_t>(t.def_id.val()));
+            return mix(0x02uz ^ static_cast<size_t>(t.def_id.val()));
         },
         [&](const TypeDeftype&) -> size_t {
             std::cout << ("tried to directly hash a deftype, do not use `as_mentioned` invocations "
                           "when hashing!")
                       << '\n';
             std::unreachable();
-            return 0ULL;
+            return 0uz;
         },
         [&](const TypeArr& t) -> size_t {
-            return mix(0x04ULL ^ static_cast<size_t>(t.canonical_size));
+            return mix(0x04uz ^ static_cast<size_t>(t.canonical_size));
         },
-        [&](const TypeSlice&) -> size_t { return mix(0x05ULL); },
-        [&](const TypeRef&) -> size_t { return mix(0x06ULL); },
-        [&](const TypePtr&) -> size_t { return mix(0x07ULL); },
+        [&](const TypeSlice&) -> size_t { return mix(0x05uz); },
+        [&](const TypeRef&) -> size_t { return mix(0x06uz); },
+        [&](const TypePtr&) -> size_t { return mix(0x07uz); },
         [&](const TypeFnPtr& t) -> size_t {
             size_t h = 0;
             if (t.return_type.has_value()) {
-                h = mix(0x08ULL ^ TypeTransformer<TypeHasher>{context}(t.return_type.as_id()));
+                h = mix(0x08uz ^ TypeTransformer<TypeHasher>{context}(t.return_type.as_id()));
             }
-            h ^= static_cast<size_t>(t.param_types.len()) * 0x9e3779b97f4a7c15ULL;
+            h ^= static_cast<size_t>(t.param_types.len()) * 0x9e3779b97f4a7c15uz;
             for (auto tidx = t.param_types.begin(); tidx != t.param_types.end(); tidx++) {
                 auto tid = context.type_id(tidx);
                 h = transform(h, TypeTransformer<TypeHasher>{context}(tid));
             }
             return mix(h);
         },
-        [&](const TypeVariadic&) -> size_t { return mix(0x09ULL); },
-        [&](const TypeVar&) -> size_t { return mix(0x10ULL); },
+        [&](const TypeVariadic&) -> size_t { return mix(0x09uz); },
+        [&](const TypeVar&) -> size_t { return mix(0x10uz); },
         [&](const TypeUnion& t) -> size_t {
-            return mix(0x11ULL ^ static_cast<size_t>(t.def_id.val()));
+            return mix(0x11uz ^ static_cast<size_t>(t.def_id.val()));
         },
         [&](const TypeVariant& t) -> size_t {
-            return mix(0x12ULL ^ static_cast<size_t>(t.def_id.val()));
+            return mix(0x12uz ^ static_cast<size_t>(t.def_id.val()));
         }};
 
     size_t h = t1.visit(vs);
 
     if constexpr (considers_mut()) {
         if (t1.mut) {
-            h ^= 0x9e3779b97f4a7c15ULL;
+            h ^= 0x9e3779b97f4a7c15uz;
         }
     }
 
@@ -147,7 +147,7 @@ template <ConsiderMut C> size_t TypeHasher<C>::operator()(const Type& t1) const 
 template <ConsiderMut C> size_t TypeHasher<C>::transform(size_t res1, size_t res2) {
     // high entropy hash transform
     // https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values
-    return res1 ^ (res2 + 0x9e3779b97f4a7c15ULL + (res1 << 6) + (res1 >> 2));
+    return res1 ^ (res2 + 0x9e3779b97f4a7c15uz + (res1 << 6) + (res1 >> 2));
 }
 
 template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Type& t1) const {

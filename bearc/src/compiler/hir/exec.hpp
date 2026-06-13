@@ -14,6 +14,7 @@
 #include "compiler/hir/span.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/variant_helpers.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -65,6 +66,19 @@ using ConstantValue
                    /*5*/ int32_t, /*6*/ uint32_t,
                    /*7*/ int64_t, /*8*/ uint64_t, /*9*/ char, /*10*/ float, /*11*/ double,
                    /* 12 */ std::nullptr_t, /* 13 */ bool>;
+
+/// corresponding to a constant builtin type
+using i8 = int8_t;
+using u8 = uint8_t;
+using i16 = int16_t;
+using u16 = uint16_t;
+using i32 = int32_t;
+using u32 = uint32_t;
+using i64 = int64_t;
+using u64 = uint64_t;
+using usize = uint64_t;
+using f32 = float;
+using f64 = double;
 
 /// represents literals/constant builtin types
 struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
@@ -139,6 +153,42 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
             return builtin_type::voidd;
         }
     }
+    [[nodiscard]] size_t to_size() const {
+        switch (this->type_builtin()) {
+        case builtin_type::u8:
+            return as<u8>();
+        case builtin_type::i8:
+            return as<i8>();
+        case builtin_type::u16:
+            return as<u16>();
+        case builtin_type::i16:
+            return as<i16>();
+        case builtin_type::u32:
+            return as<u32>();
+        case builtin_type::i32:
+            return as<i32>();
+        case builtin_type::u64:
+            return as<u64>();
+        case builtin_type::i64:
+            return as<i64>();
+        case builtin_type::usize:
+            return as<usize>();
+        case builtin_type::charr:
+            return as<char>();
+        case builtin_type::f32:
+            return static_cast<size_t>(std::bit_cast<u32>(as<f32>()));
+        case builtin_type::f64:
+            return std::bit_cast<size_t>(as<f64>());
+        case builtin_type::voidd:
+            return 0;
+        case builtin_type::str:
+            return as<SymbolId>().val();
+        case builtin_type::nullpointer:
+            return 0;
+        case builtin_type::boolean:
+            return as<bool>();
+        }
+    }
 
     // straight up string converter, use this mostly just for debugging
     std::string to_string();
@@ -190,19 +240,7 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
     [[nodiscard]] static std::optional<ExecConst> preunary_bit_not(ExecConst ec);
 };
 
-/// corresponding to a constant builtin type
 using ExecConst = ExecExprComptConstant;
-using i8 = int8_t;
-using u8 = uint8_t;
-using i16 = int16_t;
-using u16 = uint16_t;
-using i32 = int32_t;
-using u32 = uint32_t;
-using i64 = int64_t;
-using u64 = uint64_t;
-using usize = uint64_t;
-using f32 = float;
-using f64 = double;
 
 struct ExecExprListLiteral {
     IdSlice<ExecId> elems;

@@ -10,6 +10,8 @@
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "utils/hashing.hpp"
+#include <cstddef>
 
 namespace hir {
 
@@ -192,6 +194,82 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
     return equivalent_exec(ctx, eid1, eid2)
            || ctx.exec(eid1).holds_same_variant_type(ctx.exec(eid2));
+}
+
+size_t hash_exec(const Context& ctx, ExecId eid) {
+    auto vs = Ovld{
+        [](const ExecBlock& t) -> size_t { return mix(1uz); },
+        [](const ExecExprStmt& t) -> size_t { return mix(2uz); },
+        [](const ExecBreakStmt& t) -> size_t { return mix(3uz); },
+        [](const ExecContinueStmt& t) -> size_t { return mix(4uz); },
+        [](const ExecIfStmt& t) -> size_t { return mix(5uz); },
+        [](const ExecLoopStmt& t) -> size_t { return mix(6uz); },
+        [](const ExecReturnStmt& t) -> size_t { return mix(7uz); },
+        [&ctx](const ExecYieldStmt& t) -> size_t {
+            return mix(8uz ^ t.yield_value.has_value() ? hash_exec(ctx, t.yield_value.as_id()) : 0);
+        },
+        [&ctx](const ExecExprUnionInit& t) -> size_t {
+            return mix(t.union_def_id.val() ^ hash_exec(ctx, t.member_init) ^ t.active_member_idx);
+        },
+        [&ctx](const ExecExprVariantInit& t) -> size_t {
+            return mix(t.variant_def_id.val() ^ hash_exec(ctx, t.payload_init)
+                       ^ t.active_member_idx);
+        },
+        [&ctx](const ExecExprStructInit& t) -> size_t {
+            size_t h = t.struct_def_id.val();
+            for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
+                h = transform(h, hash_exec(ctx, ctx.exec_id(eidx)));
+            }
+            return h;
+        },
+        [&ctx](const ExecExprStructMemberInit& t) -> size_t {
+            return transform(t.field_def.val(), hash_exec(ctx, (t.value)));
+        },
+        [](const ExecExprVariable& t) -> size_t {
+            return transform(t.def_id.val(), t.type_id.val());
+        },
+        [](const ExecExprComptConstant& t) -> size_t {
+            return transform(t.value.index(), t.to_size());
+        },
+        [&ctx](const ExecExprListLiteral& t) -> size_t {
+            size_t h = t.elem_type_id.val();
+            h = transform(h, t.len());
+            for (auto eidx = t.elems.begin(); eidx != t.elems.end(); ++eidx) {
+                h = transform(h, hash_exec(ctx, ctx.exec_id(eidx)));
+            }
+            return h;
+        },
+        [](const ExecExprAssignMove& t) -> size_t { return {}; },
+        [](const ExecExprAssignEqual& t) -> size_t { return {}; },
+        [](const ExecExprIs& t) -> size_t { return {}; },
+        [](const ExecExprMemberAccess& t) -> size_t { return {}; },
+        [](const ExecExprPointerMemberAccess& t) -> size_t { return {}; },
+        [](const ExecExprBinary& t) -> size_t { return {}; },
+        [](const ExecExprCast& t) -> size_t { return {}; },
+        [](const ExecExprPreUnary& t) -> size_t { return {}; },
+        [](const ExecExprPostUnary& t) -> size_t { return {}; },
+        [](const ExecExprSubscript& t) -> size_t { return {}; },
+        [](const ExecExprFnCall& t) -> size_t { return {}; },
+        [](const ExecExprBorrow& t) -> size_t { return {}; },
+        [](const ExecExprDeref& t) -> size_t { return {}; },
+        [](const ExecExprClosure& t) -> size_t {
+            // todo, add when impl'd
+            return {};
+        },
+        [](const ExecExprVariantDecomp& t) -> size_t { return {}; },
+        [](const ExecExprMatch& t) -> size_t { return {}; },
+        [](const ExecExprMatchBranch& t) -> size_t { return {}; },
+        [](const ExecFnPtr& t) -> size_t { return mix(t.func_def_id.val()); },
+        [&ctx](const ExecVariantFieldInit& t) -> size_t {
+            size_t h = t.variant_field_def_id.val();
+            for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
+                h = transform(h, hash_exec(ctx, ctx.exec_id(eidx)));
+            }
+            return h;
+        },
+    };
+
+    return ctx.exec(eid).visit(vs);
 }
 
 } // namespace hir

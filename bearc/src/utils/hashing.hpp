@@ -21,4 +21,10 @@
     return x;
 };
 
+[[nodiscard]] static inline size_t transform(size_t a, size_t b) {
+    // high entropy hash transform
+    // https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values
+    return a ^ (b + 0x9e3779b97f4a7c15uz + (a << 6) + (a >> 2));
+}
+
 #endif // !BEARC_COMPILER_UTILS_HPP
