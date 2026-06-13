@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 #include <variant>
 
 namespace hir {
@@ -188,6 +189,8 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
         case builtin_type::boolean:
             return as<bool>();
         }
+        std::unreachable();
+        return 0;
     }
 
     // straight up string converter, use this mostly just for debugging
