@@ -23,6 +23,8 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 /// - note: this might be useless (in its current state)
 bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
+size_t hash_exec(const Context& ctx, ExecId eid);
+
 } // namespace hir
 
 #endif // !BEARC_COMPILER_HIR_EXEC_PROVING_HPP

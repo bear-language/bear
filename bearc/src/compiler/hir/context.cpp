@@ -474,6 +474,14 @@ ExecId Context::emplace_compt_exec(const ExecValue& value, Span span) {
     return execs.emplace_and_get_id(*this, value, span, true);
 }
 
+GenericArgId Context::emplace_generic_arg(GenericArg value) {
+    return generic_args.emplace_and_get_id(value);
+}
+
+GenericArgIdSliceId Context::emplace_generic_arg_id_slice(IdSlice<GenericArgId> value) {
+    return generic_arg_id_slices.emplace_and_get_id(value);
+}
+
 FileAst& Context::ast(FileId file_id) { return file_asts.at(files.at(file_id).ast_id); }
 
 const FileAst& Context::ast(FileId file_id) const {
@@ -788,11 +796,19 @@ Type& Context::type_as_mentioned(IdIdx<TypeId> ididx) {
 }
 
 [[nodiscard]] const Type& Context::type_as_mentioned(TypeId id) const { return types.cat(id); }
+
 /// gets the type value without bypassing deftypes
 [[nodiscard]] Type& Context::type_as_mentioned(TypeId id) { return types.at(id); }
+
 TypeId Context::type_id(IdIdx<TypeId> tid) const { return type_ids.cat(tid); }
+
 CanonicalTypeId Context::emplace_and_get_canonical_type_id(TypeId first_structural_type_id) {
     return canonical_to_type_id.emplace_and_get_id(first_structural_type_id);
+}
+
+CanonicalGenericArgsId Context::emplace_and_get_canonical_gen_args_slice_id(
+    GenericArgIdSliceId first_structural_slice_id) {
+    return canonical_generic_args_to_first_instance.emplace_and_get_id(first_structural_slice_id);
 }
 
 TypeId Context::emplace_type(const TypeValue& value, Span span, bool mut) {
@@ -807,6 +823,20 @@ TypeId Context::emplace_type(const TypeValue& value, Span span, bool mut) {
 
 [[nodiscard]] const Exec& Context::exec(IdIdx<ExecId> id) const {
     return execs.cat(exec_ids.cat(id));
+}
+
+[[nodiscard]] GenericArg Context::gen_arg(GenericArgId id) const { return generic_args.cat(id); }
+
+[[nodiscard]] GenericArg Context::gen_arg(IdIdx<GenericArgId> id) const {
+    return generic_args.cat(generic_arg_ids.cat(id));
+}
+
+[[nodiscard]] GenericArgId Context::gen_arg_id(IdIdx<GenericArgId> id) const {
+    return generic_arg_ids.cat(id);
+}
+
+[[nodiscard]] IdSlice<GenericArgId> Context::gen_arg_id_slice(GenericArgIdSliceId id) const {
+    return generic_arg_id_slices.cat(id);
 }
 
 ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.cat(id); }
@@ -1663,7 +1693,7 @@ bool Context::type_matches_struct_def(TypeId tid, DefId did) {
     return ty.as<TypeStruct>().def_id == did; // only matches if did is also a struct, of course
 }
 
-OptId<CanonicalComptArgsId> Context::generic_args_for_def(DefId did) {
+OptId<CanonicalGenericArgsId> Context::generic_args_for_def(DefId did) {
     const Def& d = def(did);
     if (d.holds<DefFunction>()) {
         return d.as<DefFunction>().maybe_generic_args;

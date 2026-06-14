@@ -8,6 +8,7 @@
 #ifndef COMPILER_HIR_GENERICS_HPP
 #define COMPILER_HIR_GENERICS_HPP
 
+#include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/variant_helpers.hpp"
 #include "utils/data_arena.hpp"
@@ -21,21 +22,24 @@ struct GenericArg : NodeWithVariantValue<GenericArg> {
     GenericArgValue value;
 };
 
-class Context;
+[[nodiscard]] size_t hash_gen_arg(const Context& ctx, GenericArgId gen_arg_id);
+[[nodiscard]] bool equivalent_gen_arg(const Context& ctx, GenericArgId gid1, GenericArgId gid2);
+[[nodiscard]] size_t hash_gen_arg_id_slice(const Context& ctx, GenericArgIdSliceId gid);
+[[nodiscard]] bool equivalent_gen_arg_id_slice(const Context& ctx, GenericArgIdSliceId sid1,
+                                               GenericArgIdSliceId sid2);
 
-// TODO implement
 class CanonicalComptArgsTable {
     struct Entry {
-        ComptArgIdSliceId key_id;
-        CanonicalComptArgsId val;
+        GenericArgIdSliceId key_id;
+        CanonicalGenericArgsId val;
         size_t hash;
         Entry* next;
-        Entry(ComptArgIdSliceId key_id, CanonicalComptArgsId val, size_t hash, Entry* next)
+        Entry(GenericArgIdSliceId key_id, CanonicalGenericArgsId val, size_t hash, Entry* next)
             : key_id(key_id), val(val), hash(hash), next(next) {}
     };
     static constexpr size_t DEFAULT_CAP = 128;
     static constexpr double LOAD_FACTOR = 1.25;
-    // internally, this consider mut recursively:
+    static constexpr size_t GROWTH_FACTOR = 2;
     Context& context;
     DataArena& arena;
 
@@ -44,18 +48,18 @@ class CanonicalComptArgsTable {
     size_t capacity;
 
     void rehash(size_t new_capacity);
-    bool same_structure(ComptArgIdSliceId tid1, ComptArgIdSliceId tid2) const;
-    size_t hash(TypeId type) const;
+    bool same_structure(GenericArgIdSliceId gid1, GenericArgIdSliceId gid2) const;
+    size_t hash(GenericArgIdSliceId id) const;
     static size_t index(size_t hash, size_t cap);
     static void put_new_head_on_chain(Entry** chain, Entry* new_entry);
     // only use after at returns none to avoid duplicate inserts
-    void insert(TypeId tid, CanonicalComptArgsId cid);
+    void insert(GenericArgIdSliceId id, CanonicalGenericArgsId cid);
 
   public:
     CanonicalComptArgsTable(Context& context, DataArena& arena, HirSize capacity)
         : context{context}, arena{arena}, capacity{capacity} {}
-    OptId<CanonicalComptArgsId> at(ComptArgIdSliceId tid) const;
-    [[nodiscard]] CanonicalComptArgsId canonical(ComptArgIdSliceId tid);
+    OptId<CanonicalGenericArgsId> at(GenericArgIdSliceId id) const;
+    [[nodiscard]] CanonicalGenericArgsId canonical(GenericArgIdSliceId id);
 };
 
 } // namespace hir

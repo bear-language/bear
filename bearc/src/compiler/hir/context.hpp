@@ -206,6 +206,10 @@ class Context {
     /// to the first structural representation of the canonical type
     [[nodiscard]] CanonicalTypeId
     emplace_and_get_canonical_type_id(TypeId first_structural_type_id);
+
+    [[nodiscard]] CanonicalGenericArgsId
+    emplace_and_get_canonical_gen_args_slice_id(GenericArgIdSliceId first_structural_slice_id);
+
     /// emplaces a type, setting its CanonicalTypeId, and returning its TypeId
     [[nodiscard]] TypeId emplace_type(const TypeValue& value, Span span, bool mut);
 
@@ -250,6 +254,10 @@ class Context {
     [[nodiscard]] ExecId emplace_exec(const ExecValue& value, Span span, bool should_be_compt);
 
     [[nodiscard]] ExecId emplace_compt_exec(const ExecValue& value, Span span);
+
+    [[nodiscard]] GenericArgId emplace_generic_arg(GenericArg value);
+
+    [[nodiscard]] GenericArgIdSliceId emplace_generic_arg_id_slice(IdSlice<GenericArgId> value);
 
     // ----- info viewing ------
 
@@ -334,6 +342,14 @@ class Context {
 
     [[nodiscard]] const Exec& exec(IdIdx<ExecId> id) const;
 
+    [[nodiscard]] GenericArg gen_arg(GenericArgId id) const;
+
+    [[nodiscard]] GenericArg gen_arg(IdIdx<GenericArgId> id) const;
+
+    [[nodiscard]] GenericArgId gen_arg_id(IdIdx<GenericArgId> id) const;
+
+    [[nodiscard]] IdSlice<GenericArgId> gen_arg_id_slice(GenericArgIdSliceId id) const;
+
     [[nodiscard]] ExecId exec_id(IdIdx<ExecId> id) const;
 
     [[nodiscard]] const Scope& scope(ScopeId sid) const;
@@ -384,7 +400,7 @@ class Context {
     /// checks if a (decayed) type matches a struct def
     [[nodiscard]] bool type_matches_struct_def(TypeId tid, DefId did);
 
-    [[nodiscard]] OptId<CanonicalComptArgsId> generic_args_for_def(DefId did);
+    [[nodiscard]] OptId<CanonicalGenericArgsId> generic_args_for_def(DefId did);
 
     /// checks if a struct has a contract
     /// - defaults to returning false if struct_did does not correspond to a struct and same with
@@ -498,20 +514,20 @@ class Context {
 
     // for getting the concrete defs from generic args (routed thru an unspecialized generic defs
     // that has a map to it's child concrete defs)
-    IdVecMap<CanonicalGenericArgsIdMapId, IdHashMap<CanonicalComptArgsId, DefId>>
+    IdVecMap<CanonicalGenericArgsIdMapId, IdHashMap<CanonicalGenericArgsId, DefId>>
         canonical_generic_args_id_to_def_id_map;
 
     // for structurally reverse engineering canonical args
-    IdVecMap<CanonicalComptArgsId, IdSlice<GenericArgId>> canonical_generic_args_to_first_instance;
+    IdVecMap<CanonicalGenericArgsId, GenericArgIdSliceId> canonical_generic_args_to_first_instance;
 
     // for keys in the generic arg map
-    IdVecMap<ComptArgIdSliceId, IdSlice<GenericArgId>> generic_arg_id_slices;
+    IdVecMap<GenericArgIdSliceId, IdSlice<GenericArgId>> generic_arg_id_slices;
 
     // storage for the generic args table
     DataArena canonical_generic_args_table_arena;
 
     // main table for mapping a GenericArgIdSliceId to a CanonicalGenericArgsId
-    CanonicalComptArgsTable canonical_compt_args_table; // TODO, the logic for this isn't impl'd yet
+    CanonicalComptArgsTable canonical_compt_args_table;
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // error tracking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

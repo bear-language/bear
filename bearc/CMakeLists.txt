@@ -70,6 +70,7 @@ set(SRC
     src/compiler/hir/compt_expr_solver.cpp
     src/compiler/hir/exec_proving.cpp
     src/compiler/hir/matching.cpp
+    src/compiler/hir/generic.cpp
 
 )
 

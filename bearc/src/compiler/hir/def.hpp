@@ -40,7 +40,7 @@ struct DefFunction {
     /// if this function was derived from an original generic function
     OptId<DefId> original;
     // generic args, if any
-    OptId<CanonicalComptArgsId> maybe_generic_args;
+    OptId<CanonicalGenericArgsId> maybe_generic_args;
     bool discardable = false;
     bool takes_self = false;
     bool posioned = false;
@@ -80,7 +80,7 @@ struct DefStruct {
     /// if this struct was derived from an original generic struct
     OptId<DefId> orginal;
     // generic args, if any
-    OptId<CanonicalComptArgsId> maybe_generic_args;
+    OptId<CanonicalGenericArgsId> maybe_generic_args;
 };
 
 struct DefGenericStruct {
@@ -95,7 +95,7 @@ struct DefVariant {
     /// if this variant was derived from an original generic variant
     OptId<DefId> orginal;
     // generic args, if any
-    OptId<CanonicalComptArgsId> maybe_generic_args;
+    OptId<CanonicalGenericArgsId> maybe_generic_args;
 };
 
 struct DefGenericVariant {
