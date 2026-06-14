@@ -13,17 +13,20 @@ main quest
 - [x] unified `hir::Exec` hashing function
     - [ ] double check validity before moving on
 
-- [ ] finish generic args table, review `GenericArgsId` and related Ids to ensure the design is sane
+- [x] finish generic args table, review `GenericArgsId` and related Ids to ensure the design is sane
 
-- [ ] implement generic args canonicalization to allow mapping of canonical lists of generic args to concrete instatiations for generic structs, variants, and functions
-    - [ ] factor out `ComptExprSolver`'s equality logic (`ExecConst`, `ExecExprListInit`, and `ExecExprStructInit`) to use for comparing comparing compt execs inside the table
-    - [ ] write ExecId hasher akin to the TypeTransformer/TypeHasher construct
-    - all generic params become either deftypes to type args or simply compt variables for expression value args 
-    - [ ] see and finish impl'ing the canonical generic args slice table outline, basically each canonical set of generic args for a given def needs to either:
+- [x] implement generic args canonicalization to allow mapping of canonical lists of generic args to concrete instatiations for generic structs, variants, and functions
+
+- [ ] implement generic instatiation -> each canonical set of generic args for a given def needs to either:
         1.  map to an already instatiated specialized, concrete instance of the def, or:
         2. instatiate a new defintion by lowering the `ast_stmt_t` after inserting the specific defintions for values into a new scope for the concrete type 
+    - [ ] implement the various mapping mechanisms (see `CanonicalGenericArgsIdMapId` and related things)
+    - [ ] handle generic routing for types
+    - [ ] handle generic routing for functions 
+    - [ ] generic routing for struct inits 
+    - [ ] generic routing for variant inits
 
-- [ ] **use canonical generic args canonicalization to memoize compt function args -> values**
+- [ ] use canonical generic args canonicalization to memoize compt function args -> values
 
 - [ ] contract diagnostics for per-param disagreements
 
