@@ -351,8 +351,10 @@ template <IsDefVisitor V> class TypeResolver {
             return {};
         }
 
-        // OptId<DefId> maybe_did =
-        // context.look_up_scoped_type(type_node->type.generic.inner.);
+        // @@@ TODO: use DefId to access a gen arg map, then key into it with the generic args
+        // - impl the gen arg map access with a DefId -> GenericArgsIdSliceMapId
+        // - impl generic arg lowering (easy, just make sure to try identifier expressions as types
+        // first and then expressions)
 
         return {};
     }
