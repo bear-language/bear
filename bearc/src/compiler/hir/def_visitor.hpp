@@ -75,7 +75,6 @@ class TopLevelDefVisitor {
 };
 static_assert(IsDefVisitor<TopLevelDefVisitor>);
 
-// TODO
 class InsideBodyDefVisitor {
     Context& context;
 

@@ -120,7 +120,7 @@ Context::Context(const bearc_args_t& args, instances instances)
     // tally parser errors
     for (FileId id = files.rbegin_id(); id != files.rend_id(); --id) {
         File& f = files.at(id);
-        const FileAst& ast = file_asts.cat(f.ast_id);
+        const FileAst& ast = file_asts.at(f.ast_id);
         if (!has_flag(CLI_FLAG_PARSE_ONLY)) {
             FileAstVisitor visitor{*this, id};
             visitor.register_top_level_declarations();
@@ -220,10 +220,10 @@ FileAstId Context::emplace_ast(const char* file_name) {
 }
 
 const char* Context::symbol_id_to_cstr(SymbolId id) const {
-    return this->symbols.cat(id).sv().data();
+    return this->symbols.at(id).sv().data();
 }
 
-std::string_view Context::symbol(SymbolId id) const { return this->symbols.cat(id).sv(); }
+std::string_view Context::symbol(SymbolId id) const { return this->symbols.at(id).sv(); }
 
 /**
  * updates the slice storing the importers for an importee
@@ -317,11 +317,11 @@ void Context::try_print_info() {
                   << ansi_reset() << '\n';
         for (FileId curr = files.begin_id(); curr != files.end_id(); ++curr) {
 
-            const FileAst& ast = file_asts.cat(files.cat(curr).ast_id);
+            const FileAst& ast = file_asts.at(files.at(curr).ast_id);
 
             std::cout << ansi_bold_reset() << '[' << curr.val() << "] " << ast.file_name();
-            const auto list = importer_to_importees.cat(
-                symbol_id_to_file_id_map.at(files.cat(curr).path).as_id());
+            const auto list = importer_to_importees.at(
+                symbol_id_to_file_id_map.at(files.at(curr).path).as_id());
 
             if (list.len() != 0) {
                 std::cout << ": ";
@@ -330,9 +330,9 @@ void Context::try_print_info() {
                 if (imp.val() == 0) {
                     continue;
                 }
-                FileId importee = file_ids.cat(imp); // file_ids.cat(imp);
+                FileId importee = file_ids.at(imp); // file_ids.cat(imp);
                 std::cout << '[' << importee.val() << "] "
-                          << symbol_id_to_cstr(files.cat(importee).path);
+                          << symbol_id_to_cstr(files.at(importee).path);
                 // do this check to avoid trailing comma
                 if (imp.val() != list.end().val() - 1) {
                     std::cout << ", ";
@@ -350,7 +350,7 @@ void Context::try_print_info() {
             aast.print_all_errors(compact_diagnostics_enabled());
             // 2. print diagnostics (semantic/non-grammatical errors)
             // OptId<DiagnosticId> prev_diag{};
-            for (const auto d : file_to_diagnostics.cat(fid)) {
+            for (const auto d : file_to_diagnostics.at(fid)) {
                 /*
                 bool print_file = true;
                 // check if we should bother printing the file name again
@@ -396,14 +396,14 @@ void Context::try_print_info() {
     if (this->diagnostic_count() != 0) {
         if (!has_flag(CLI_FLAG_SILENT)) {
             printf("compilation terminated: %s'%s'\n%s", ansi_bold_reset(),
-                   symbol_id_to_cstr(files.cat(FileId{1}).path), ansi_reset());
+                   symbol_id_to_cstr(files.at(FileId{1}).path), ansi_reset());
         }
     }
     // release printer's internal state
     pretty_printer_reset();
 }
 
-const char* Context::file_name(FileId id) const { return symbol_id_to_cstr(files.cat(id).path); }
+const char* Context::file_name(FileId id) const { return symbol_id_to_cstr(files.at(id).path); }
 
 OptId<FileId> Context::try_file_from_import_statement(FileId importer_id,
                                                       const ast_stmt_t* import_statement) {
@@ -484,9 +484,7 @@ GenericArgIdSliceId Context::emplace_generic_arg_id_slice(IdSlice<GenericArgId> 
 
 FileAst& Context::ast(FileId file_id) { return file_asts.at(files.at(file_id).ast_id); }
 
-const FileAst& Context::ast(FileId file_id) const {
-    return file_asts.cat(files.cat(file_id).ast_id);
-}
+const FileAst& Context::ast(FileId file_id) const { return file_asts.at(files.at(file_id).ast_id); }
 
 ScopeId Context::get_or_make_root_scope() {
     if (scopes.size() == 0) {
@@ -622,17 +620,17 @@ DiagnosticId Context::emplace_diagnostic_with_message_value(Span span, diag_code
 
 void Context::print_diagnostic(DiagnosticId diag_id, bool print_file) {
     // as to not re-report
-    if (diagnostics_used.cat(diag_id)) {
+    if (diagnostics_used.at(diag_id)) {
         return;
     }
-    const Diagnostic& diag = diagnostics.cat(diag_id);
+    const Diagnostic& diag = diagnostics.at(diag_id);
     diag.print(*this, print_file);
     // mark used
     diagnostics_used.at(diag_id) = true;
     // try print next
-    if (diag.next.has_value() && !diagnostics_used.cat(diag.next.as_id())) {
+    if (diag.next.has_value() && !diagnostics_used.at(diag.next.as_id())) {
         // only print next's file if it differs
-        Span next_span = diagnostics.cat(diag.next.as_id()).span;
+        Span next_span = diagnostics.at(diag.next.as_id()).span;
         bool print_next_file
             = !next_span.is_generated() && (diag.span.file_id != next_span.file_id);
         print_diagnostic(diag.next.as_id(), print_next_file);
@@ -673,7 +671,7 @@ DefId Context::try_func_did(DefId def_id) const {
     return def_id;
 }
 
-FileId Context::file_id(IdIdx<FileId> ididx) const { return file_ids.cat(ididx); }
+FileId Context::file_id(IdIdx<FileId> ididx) const { return file_ids.at(ididx); }
 
 void Context::register_ordered_defs(DefId def, llvm::SmallVectorImpl<DefId>& vec) {
     IdSlice<DefId> def_slice = freeze_id_vec(vec);
@@ -687,18 +685,16 @@ IdSlice<DefId> Context::ordered_defs_for(DefId def_id) {
         // empty slice
         return IdSlice<DefId>{};
     }
-    return ordered_def_slices.cat(maybe_odef_slice_id.as_id());
+    return ordered_def_slices.at(maybe_odef_slice_id.as_id());
 }
 
-Def::resol_state Context::resol_state_of(DefId def) const { return def_resol_states.cat(def); }
+Def::resol_state Context::resol_state_of(DefId def) const { return def_resol_states.at(def); }
 
 void Context::set_resol_state_of(DefId def, Def::resol_state resol_state) {
     def_resol_states.at(def) = resol_state;
 }
 
-Def::mention_state Context::mention_state_of(DefId def) const {
-    return def_mention_states.cat(def);
-}
+Def::mention_state Context::mention_state_of(DefId def) const { return def_mention_states.at(def); }
 void Context::promote_mention_state_of(DefId def, Def::mention_state new_mention_state) {
     // only promote (when current is less than new)
     if (mention_state_of(def) < new_mention_state) {
@@ -717,15 +713,15 @@ ScopeId Context::scope_for_top_level_def(DefId def_id) const {
 }
 
 [[nodiscard]] const ast_stmt_t* Context::def_ast_node(DefId def_id) const {
-    return def_ast_nodes.cat(def_id);
+    return def_ast_nodes.at(def_id);
 }
 
 [[nodiscard]] bool Context::is_struct_def(DefId def_id) const {
-    return def_ast_nodes.cat(def_id)->type == AST_STMT_STRUCT_DEF;
+    return def_ast_nodes.at(def_id)->type == AST_STMT_STRUCT_DEF;
 }
 
 OptId<ScopeId> Context::try_scope_for_top_level_def(DefId def_id) const {
-    const auto& def = defs.cat(def_id);
+    const auto& def = defs.at(def_id);
     // no parent means parent scope is root scope
     if (def.holds<DefModule>()) {
         return def.as<DefModule>().scope;
@@ -741,12 +737,12 @@ OptId<ScopeId> Context::try_scope_for_top_level_def(DefId def_id) const {
 }
 
 bool Context::is_top_level_def_with_associated_scope(DefId def_id) const {
-    ast_stmt_type_e decl_type = def_ast_nodes.cat(def_id)->type;
+    ast_stmt_type_e decl_type = def_ast_nodes.at(def_id)->type;
     return decl_type == AST_STMT_VARIANT_DEF || decl_type == AST_STMT_CONTRACT_DEF
            || decl_type == AST_STMT_STRUCT_DEF || decl_type == AST_STMT_UNION_DEF;
 }
 
-FileId Context::def_to_file_id(DefId def) const { return defs.cat(def).span.file_id; }
+FileId Context::def_to_file_id(DefId def) const { return defs.at(def).span.file_id; }
 
 Span Context::make_def_name_span(DefId def, const ast_stmt_t* stmt) const {
     auto fid = def_to_file_id(def);
@@ -758,15 +754,15 @@ Span Context::make_def_name_span(DefId def, const ast_stmt_t* stmt) const {
 }
 
 Span Context::make_top_level_def_name_span(DefId def) const {
-    return make_def_name_span(def, def_ast_nodes.cat(def));
+    return make_def_name_span(def, def_ast_nodes.at(def));
 }
 
-const Type& Context::type(IdIdx<TypeId> ididx) const { return type(type_ids.cat(ididx)); }
+const Type& Context::type(IdIdx<TypeId> ididx) const { return type(type_ids.at(ididx)); }
 Type& Context::type(IdIdx<TypeId> ididx) { return type(type_ids.at(ididx)); }
 const Type& Context::type(TypeId id) const {
-    const Type* t = &types.cat(id);
+    const Type* t = &types.at(id);
     while (t->holds<TypeDeftype>()) {
-        t = &types.cat(t->as<TypeDeftype>().true_type);
+        t = &types.at(t->as<TypeDeftype>().true_type);
     }
     return *t;
 }
@@ -788,19 +784,19 @@ TypeId Context::try_decay_ref(TypeId tid) const {
 
 /// gets the type value without bypassing deftypes
 const Type& Context::type_as_mentioned(IdIdx<TypeId> ididx) const {
-    return type_as_mentioned(type_ids.cat(ididx));
+    return type_as_mentioned(type_ids.at(ididx));
 }
 /// gets the type value without bypassing deftypes
 Type& Context::type_as_mentioned(IdIdx<TypeId> ididx) {
     return type_as_mentioned(type_ids.at(ididx));
 }
 
-[[nodiscard]] const Type& Context::type_as_mentioned(TypeId id) const { return types.cat(id); }
+[[nodiscard]] const Type& Context::type_as_mentioned(TypeId id) const { return types.at(id); }
 
 /// gets the type value without bypassing deftypes
 [[nodiscard]] Type& Context::type_as_mentioned(TypeId id) { return types.at(id); }
 
-TypeId Context::type_id(IdIdx<TypeId> tid) const { return type_ids.cat(tid); }
+TypeId Context::type_id(IdIdx<TypeId> tid) const { return type_ids.at(tid); }
 
 CanonicalTypeId Context::emplace_and_get_canonical_type_id(TypeId first_structural_type_id) {
     return canonical_to_type_id.emplace_and_get_id(first_structural_type_id);
@@ -817,33 +813,33 @@ TypeId Context::emplace_type(const TypeValue& value, Span span, bool mut) {
     types.at(tid).canonical = canonical_type_table.canonical(tid);
     return tid;
 }
-[[nodiscard]] const Exec& Context::exec(ExecId id) const { return execs.cat(id); }
+[[nodiscard]] const Exec& Context::exec(ExecId id) const { return execs.at(id); }
 
-[[nodiscard]] const Def& Context::def(DefId id) const { return defs.cat(id); }
+[[nodiscard]] const Def& Context::def(DefId id) const { return defs.at(id); }
 
 [[nodiscard]] const Exec& Context::exec(IdIdx<ExecId> id) const {
-    return execs.cat(exec_ids.cat(id));
+    return execs.at(exec_ids.at(id));
 }
 
-[[nodiscard]] GenericArg Context::gen_arg(GenericArgId id) const { return generic_args.cat(id); }
+[[nodiscard]] GenericArg Context::gen_arg(GenericArgId id) const { return generic_args.at(id); }
 
 [[nodiscard]] GenericArg Context::gen_arg(IdIdx<GenericArgId> id) const {
-    return generic_args.cat(generic_arg_ids.cat(id));
+    return generic_args.at(generic_arg_ids.at(id));
 }
 
 [[nodiscard]] GenericArgId Context::gen_arg_id(IdIdx<GenericArgId> id) const {
-    return generic_arg_ids.cat(id);
+    return generic_arg_ids.at(id);
 }
 
 [[nodiscard]] IdSlice<GenericArgId> Context::gen_arg_id_slice(GenericArgIdSliceId id) const {
-    return generic_arg_id_slices.cat(id);
+    return generic_arg_id_slices.at(id);
 }
 
-ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.cat(id); }
+ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
 
-[[nodiscard]] const Scope& Context::scope(ScopeId sid) const { return scopes.cat(sid); }
+[[nodiscard]] const Scope& Context::scope(ScopeId sid) const { return scopes.at(sid); }
 
-[[nodiscard]] const Def& Context::def(IdIdx<DefId> id) const { return defs.cat(def_ids.cat(id)); }
+[[nodiscard]] const Def& Context::def(IdIdx<DefId> id) const { return defs.at(def_ids.at(id)); }
 
 [[nodiscard]] OptId<DefId> Context::try_struct_def(DefId did) const {
     const Def& d = def(did);
@@ -887,7 +883,7 @@ ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.cat(id); }
     return {};
 }
 
-[[nodiscard]] DefId Context::def_id(IdIdx<DefId> id) const { return def_ids.cat(id); }
+[[nodiscard]] DefId Context::def_id(IdIdx<DefId> id) const { return def_ids.at(id); }
 
 OptId<DefId> Context::look_up_variable(ScopeId scope, SymbolId sid) const {
     return Scope::look_up_variable(*this, scope, sid);
@@ -903,7 +899,7 @@ OptId<DefId> Context::look_up_scoped(auto F, ScopeId scope, IdSlice<SymbolId> id
                                      Span id_span) {
     ScopeId curr_scope = scope;
     for (IdIdx<SymbolId> sidx = id_slice.begin(); sidx != id_slice.end(); sidx++) {
-        SymbolId sid = symbol_ids.cat(sidx);
+        SymbolId sid = symbol_ids.at(sidx);
         // base case, last elem should be the variable
         if (sidx == id_slice.last_elem()) {
             OptId<DefId> maybe = F(curr_scope, sid);
@@ -988,7 +984,7 @@ OptId<DefId> Context::look_up_scoped_bypassing_visibility(auto F, ScopeId scope,
                                                           IdSlice<SymbolId> id_slice) {
     ScopeId curr_scope = scope;
     for (IdIdx<SymbolId> sidx = id_slice.begin(); sidx != id_slice.end(); sidx++) {
-        SymbolId sid = symbol_ids.cat(sidx);
+        SymbolId sid = symbol_ids.at(sidx);
         // base case, last elem should be the variable
         if (sidx == id_slice.last_elem()) {
             OptId<DefId> maybe = F(curr_scope, sid);
@@ -1294,7 +1290,7 @@ IdSlice<SymbolId> Context::symbol_slice(token_ptr_slice_t token_slice) {
 }
 
 ScopeId Context::containing_scope(DefId did) const {
-    auto maybe_parent = defs.cat(did).parent;
+    auto maybe_parent = defs.at(did).parent;
     // ----- base cases (parent w/ scope)---------
     if (!maybe_parent.has_value()) {
         return root_scope();
@@ -1328,7 +1324,7 @@ Span Context::name_span_for_def(DefId did) const {
                 FileAstVisitor::name_of_ast_decl(def_ast_node(did)).value()};
 }
 
-SymbolId Context::symbol_id(IdIdx<SymbolId> sididx) const { return symbol_ids.cat(sididx); }
+SymbolId Context::symbol_id(IdIdx<SymbolId> sididx) const { return symbol_ids.at(sididx); }
 
 bool Context::equivalent_type(TypeId tid1, TypeId tid2) const {
     return type(tid1).canonical == type(tid2).canonical;
@@ -1705,6 +1701,18 @@ OptId<CanonicalGenericArgsId> Context::generic_args_for_def(DefId did) {
         return d.as<DefStruct>().maybe_generic_args;
     }
     return {};
+}
+
+CanonicalGenericArgsIdMapId Context::make_generic_args_map_and_get_id() {
+    static constexpr auto DEFAULT_CAP = 8uz;
+    // this is emplacing a new IdHashMap
+    return this->canonical_generic_args_id_to_def_id_map.emplace_and_get_id(
+        canonical_generic_args_table_arena, DEFAULT_CAP);
+}
+
+IdHashMap<CanonicalGenericArgsId, DefId>&
+Context::generic_args_map(CanonicalGenericArgsIdMapId id) {
+    return this->canonical_generic_args_id_to_def_id_map.at(id);
 }
 
 OptId<DefId> Context::linear_name_match_in_def_slice(IdSlice<DefId> defs, SymbolId name) const {

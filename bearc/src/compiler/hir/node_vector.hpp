@@ -35,7 +35,7 @@ template <hir::IsId I, typename V> class IdVecMap {
         assert(id.val() != HIR_ID_NONE && "[hir::IdVecMap::at] asked for an id of HIR_ID_NONE\n");
         return vec.at(id.val() - OFFSET);
     }
-    [[nodiscard]] const V& cat(I id) const {
+    [[nodiscard]] const V& at(I id) const {
         assert(id.val() != HIR_ID_NONE && "[hir::IdVecMap::cat] asked for an id of HIR_ID_NONE\n");
         return vec.at(id.val() - OFFSET);
     }

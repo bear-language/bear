@@ -402,6 +402,11 @@ class Context {
 
     [[nodiscard]] OptId<CanonicalGenericArgsId> generic_args_for_def(DefId did);
 
+    [[nodiscard]] CanonicalGenericArgsIdMapId make_generic_args_map_and_get_id();
+
+    [[nodiscard]] IdHashMap<CanonicalGenericArgsId, DefId>&
+    generic_args_map(CanonicalGenericArgsIdMapId id);
+
     /// checks if a struct has a contract
     /// - defaults to returning false if struct_did does not correspond to a struct and same with
     /// contract_did
