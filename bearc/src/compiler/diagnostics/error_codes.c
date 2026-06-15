@@ -27,8 +27,7 @@ static const char* error_messages[ERR__COUNT] = {
     [ERR_EXPECTED_STATEMENT] = "expected statement",
     [ERR_INCOMPLETE_VAR_DECLARATION] = "expected ';' or assignment operator",
     [ERR_EXPECT_GENERIC_OPENER] = "expected '::' or '<' in generic type",
-    [ERR_EXPECTED_BASE_TYPE_IN_GENERIC]
-    = "generic template can only be applied to base types (not &, *, or arrays)",
+    [ERR_EXPECTED_BASE_TYPE_IN_GENERIC] = "generic template can only be applied to base types",
     [ERR_REDUNDANT_MUT] = "redundant 'mut' qualifier",
     [ERR_MUT_CANNOT_BIND_TO_ARRAYS] = "'mut' qualifier cannot bind to arrays",
     [ERR_NO_LEADING_MUT_FOR_SLICES] = "'mut' qualifier should be: [&mut] for slices",

@@ -1,0 +1,10 @@
+// tests/hir/84.br
+
+struct Foo<T> {
+    T foo;
+    mt get_foo() -> T => self.foo;
+}
+
+compt Foo<i32> a = Foo::<T>{.foo = 12};
+
+compt [16]i32<i32><i32> b; // oops

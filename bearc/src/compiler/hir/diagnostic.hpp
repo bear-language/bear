@@ -166,6 +166,8 @@ enum class diag_code : uint8_t {
     too_many_decompositions_for_variant,
     cannot_match_type_for_decomposed_variant_from,
     cannot_decompose_multiple_variants_on_the_same_match_arm,
+    does_not_take_generic_arguments,
+    not_a_generic_type,
 
     count, // this must be last,
 
@@ -200,6 +202,10 @@ struct DiagnosticSymbolAfterMessageNoQuotes {
 };
 
 struct DiagnosticTypeAfterMessage {
+    TypeId tid;
+};
+
+struct DiagnosticTypeBeforeMessage {
     TypeId tid;
 };
 
@@ -276,7 +282,7 @@ using DiagnosticMessageValue = std::variant<
     DiagnosticComptStackOverflow, DiagnosticIdxOutOfBounds, DiagnosticStructMemberSymBeforeMsg,
     DiagnosticStructDoesNotDefineBlankForContract, DiagnosticContractFnExpectedButGotNumParams,
     DiagnosticContractFnExpectedRetTyButGot, DiagnosticVariantInitExpectedButGotNumArgs,
-    DiagnosticSymbolBeforeAndAfterMessage>;
+    DiagnosticSymbolBeforeAndAfterMessage, DiagnosticTypeBeforeMessage>;
 
 struct DiagnosticImportStack {
     IdSlice<FileId> files;

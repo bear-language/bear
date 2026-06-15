@@ -17,6 +17,7 @@
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/token.h"
+#include <cinttypes>
 #include <optional>
 
 namespace hir {
@@ -308,6 +309,54 @@ template <IsDefVisitor V> class TypeResolver {
         return decay_type(maybe_tid.as_id(), Span{context, fid, type_node->first, type_node->last});
     }
 
+    OptId<TypeId> type_generic(FileId fid, ScopeId scope, const ast_type_t* type_node) {
+
+        assert(type_node->tag == AST_TYPE_GENERIC);
+
+        const ast_type_t* inner = type_node->type.generic.inner;
+
+        // this shouldn't happen (but just in case)
+        if (inner->tag != AST_TYPE_BASE) {
+
+            const OptId<TypeId> maybe_inner_tid = resolve_type(fid, scope, inner);
+            if (maybe_inner_tid.empty()) {
+                return {}; // poisoned
+            }
+            const auto inner_tid = maybe_inner_tid.as_id();
+
+            context.emplace_diagnostic(
+                context.type(inner_tid).span, diag_code::does_not_take_generic_arguments,
+                diag_type::error, DiagnosticTypeBeforeMessage{.tid = inner_tid},
+                DiagnosticSubCode{.sub_code = diag_code::not_a_generic_type});
+            return {};
+        }
+
+        const token_ptr_slice_t id_slice = inner->type.base.id;
+        const Span span{context, fid, id_slice};
+
+        const OptId<DefId> maybe_did
+            = context.look_up_scoped_type(scope, context.symbol_slice(id_slice), span);
+
+        if (maybe_did.empty()) {
+            return {}; // poisoned
+        }
+
+        const DefId did = maybe_did.as_id();
+
+        if (!context.def(did).generic) {
+            context.emplace_diagnostic(
+                span, diag_code::does_not_take_generic_arguments, diag_type::error,
+                DiagnosticSymbolBeforeMessage{.sid = context.def(did).name},
+                DiagnosticSubCode{.sub_code = diag_code::not_a_generic_type});
+            return {};
+        }
+
+        // OptId<DefId> maybe_did =
+        // context.look_up_scoped_type(type_node->type.generic.inner.);
+
+        return {};
+    }
+
   public:
     explicit TypeResolver(Context& ctx, V& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
 
@@ -338,7 +387,6 @@ template <IsDefVisitor V> class TypeResolver {
 
         case AST_TYPE_TYPEOF:
             return type_typeof(fid, scope, type);
-            break;
         case AST_TYPE_DECAY:
             return type_decay(fid, scope, type);
         case AST_TYPE_INVALID:

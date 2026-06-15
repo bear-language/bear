@@ -326,6 +326,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot match type for decomposed variant from";
     case diag_code::cannot_decompose_multiple_variants_on_the_same_match_arm:
         return "cannot decompose multiple variants on the same match arm";
+    case diag_code::does_not_take_generic_arguments:
+        return "does not take generic arguments";
+    case diag_code::not_a_generic_type:
+        return "not a generic type";
     }
 
     std::unreachable();
@@ -888,7 +892,12 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        str += message_for_code(code);
                        str += " ";
                        sid_helper(d.after_sid);
-                   }};
+                   },
+                   [&](DiagnosticTypeBeforeMessage d) {
+                       type_helper(d.tid);
+                       str += " ";
+                       str += message_for_code(code);
+                   }}; // namespace hir
     std::visit(vs, message_value);
 }
 
