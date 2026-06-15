@@ -352,9 +352,6 @@ template <IsDefVisitor V> class TypeResolver {
         }
 
         // @@@ TODO: use DefId to access a gen arg map, then key into it with the generic args
-        // - impl the gen arg map access with a DefId -> GenericArgsIdSliceMapId
-        // - impl generic arg lowering (easy, just make sure to try identifier expressions as types
-        // first and then expressions)
 
         return {};
     }

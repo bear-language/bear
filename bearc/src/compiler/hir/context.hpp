@@ -407,6 +407,8 @@ class Context {
     [[nodiscard]] IdHashMap<CanonicalGenericArgsId, DefId>&
     generic_args_map(CanonicalGenericArgsIdMapId id);
 
+    [[nodiscard]] OptId<CanonicalGenericArgsIdMapId> generic_map_for_def(DefId def_id);
+
     /// checks if a struct has a contract
     /// - defaults to returning false if struct_did does not correspond to a struct and same with
     /// contract_did
@@ -533,6 +535,11 @@ class Context {
 
     // main table for mapping a GenericArgIdSliceId to a CanonicalGenericArgsId
     CanonicalComptArgsTable canonical_compt_args_table;
+
+    DataArena def_id_to_generic_args_map_id_arena;
+
+    IdHashMap<DefId, CanonicalGenericArgsIdMapId> def_id_to_generic_args_map_id;
+
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // error tracking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -93,6 +93,9 @@ Context::Context(const bearc_args_t& args, instances instances)
       canonical_generic_args_table_arena{DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP},
       canonical_compt_args_table{*this, canonical_generic_args_table_arena,
                                  DEFAULT_CANONICAL_GEN_ARGS_CAP},
+      def_id_to_generic_args_map_id_arena{DEFAULT_ID_MAP_ARENA_CAP},
+      def_id_to_generic_args_map_id{def_id_to_generic_args_map_id_arena,
+                                    DEFAULT_CANONICAL_GEN_ARGS_CAP},
       diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM},
       only_one_context_instance((instances == instances::one) && one_instance_status), args{args},
       compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]) {
@@ -1713,6 +1716,10 @@ CanonicalGenericArgsIdMapId Context::make_generic_args_map_and_get_id() {
 IdHashMap<CanonicalGenericArgsId, DefId>&
 Context::generic_args_map(CanonicalGenericArgsIdMapId id) {
     return this->canonical_generic_args_id_to_def_id_map.at(id);
+}
+
+OptId<CanonicalGenericArgsIdMapId> Context::generic_map_for_def(DefId def_id) {
+    return this->def_id_to_generic_args_map_id.at(def_id);
 }
 
 OptId<DefId> Context::linear_name_match_in_def_slice(IdSlice<DefId> defs, SymbolId name) const {
