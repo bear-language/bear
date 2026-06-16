@@ -16,7 +16,7 @@ variant Bar {
 
 compt Bar c = Bar..A(3210);
 
-compt bool d = c is Bar..A(var a);
+compt bool d = c is Bar..A(var a); // oops
 
 variant Ben<T> {
     A(i32 a),
