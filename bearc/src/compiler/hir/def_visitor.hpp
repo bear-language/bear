@@ -9,6 +9,7 @@
 #ifndef COMPILER_HIR_DEF_VISITOR_HPP
 #define COMPILER_HIR_DEF_VISITOR_HPP
 
+#include "compiler/ast/stmt.h"
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
@@ -45,6 +46,10 @@ class TopLevelDefVisitor {
     DefId resolve_def(DefId did);
     DefId visit_and_resolve_if_needed(DefId def);
     void report_cycle(DefId culprit);
+    [[nodiscard]] std::optional<IdSlice<GenericParamId>>
+    resolve_generic_params(File fid, ScopeId scope, ast_slice_of_generic_args_t gen_params);
+    [[nodiscard]] OptId<GenericParamId>
+    resolve_generic_param(File fid, ScopeId scope, const ast_generic_parameter_t* gen_param);
 
   public:
     TopLevelDefVisitor(Context& context) : context{context}, began_resolution{false} {}
@@ -69,6 +74,7 @@ class TopLevelDefVisitor {
                                              const ast_param_t* param);
     [[nodiscard]] OptId<DefId> resolve_param(FileId fid, ScopeId scope, DefId func_def, TypeId tid,
                                              SymbolId name, Span span);
+
     [[nodiscard]] DefFunction::ParamResolResult
     resolve_params(FileId fid, ScopeId scope, DefId func_def, ast_slice_of_params_t params,
                    OptId<TypeId> self_type = std::nullopt);

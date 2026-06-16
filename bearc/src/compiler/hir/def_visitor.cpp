@@ -195,7 +195,8 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         auto strct = stmt->stmt.struct_decl;
         // delay resolution/instantiation until specialization
         if (strct.is_generic) {
-            // TODO: proper set up for generic logic goes here
+            context.def(did).set_value(DefGenericStruct{
+                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id()});
             goto cleanup;
         }
 
@@ -426,75 +427,74 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                 DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"=> (Expression)">()});
             context.link_diagnostic(d0, d1);
         }
-        if (!def.generic) {
-            OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl, def);
 
-            bool takes_self = maybe_self_type.has_value();
+        if (def.generic) {
+            context.def(did).set_value(DefGenericFunction{
+                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id()});
+            goto cleanup;
+        }
 
-            DefFunction::ParamResolResult params_res
-                = resolve_params(fid, scope, did, fn_decl.params, maybe_self_type);
+        OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl, def);
 
-            auto params = params_res.params;
+        bool takes_self = maybe_self_type.has_value();
 
-            llvm::SmallVector<TypeId> type_vec{};
+        DefFunction::ParamResolResult params_res
+            = resolve_params(fid, scope, did, fn_decl.params, maybe_self_type);
 
-            const bool func_is_runtime = !def.compt;
+        auto params = params_res.params;
 
-            for (auto didx = params.begin(); didx != params.end(); didx++) {
-                const Def& param_def = context.def(didx);
-                assert(param_def.holds<DefVariable>());
+        llvm::SmallVector<TypeId> type_vec{};
 
-                if (didx == params.begin() && !takes_self && parent_is_struct(context.def(did))
-                    && context.type_matches_struct_def(param_def.as<DefVariable>().type_id,
-                                                       def.parent.as_id())) {
-                    takes_self = true;
-                }
+        const bool func_is_runtime = !def.compt;
 
-                // guard run-time func with `var` typed params
-                if (func_is_runtime
-                    && TypeTransformer<TypeContainsVar>{context}(
-                        param_def.as<DefVariable>().type_id)) {
-                    const Span ty_span = context.type(param_def.as<DefVariable>().type_id).span;
-                    auto d0 = context.emplace_diagnostic(
-                        ty_span, diag_code::type_deduction_not_legal_here, diag_type::error);
-                    auto d1 = context.emplace_diagnostic(
-                        param_def.span,
-                        diag_code::non_compt_function_params_must_have_explicit_types,
-                        diag_type::note);
-                    auto d2 = context.emplace_diagnostic(
-                        ty_span,
-                        diag_code::use_a_generic_function_parameter_and_specify_it_as_a_type,
-                        diag_type::help);
-                    context.link_diagnostic(d0, d1);
-                    context.link_diagnostic(d1, d2);
-                }
-                type_vec.push_back(param_def.as<DefVariable>().type_id);
+        for (auto didx = params.begin(); didx != params.end(); didx++) {
+            const Def& param_def = context.def(didx);
+            assert(param_def.holds<DefVariable>());
+
+            if (didx == params.begin() && !takes_self && parent_is_struct(context.def(did))
+                && context.type_matches_struct_def(param_def.as<DefVariable>().type_id,
+                                                   def.parent.as_id())) {
+                takes_self = true;
             }
 
-            const IdSlice<TypeId> param_types = context.freeze_id_vec(type_vec);
-
-            const OptId<TypeId> return_tid
-                = (fn_decl.return_type)
-                      ? TypeResolver{context, *this}.resolve_type(fid, scope, fn_decl.return_type)
-                      : std::nullopt;
-            if (return_tid.has_value()) {
-                context.report_invalid_return_type(return_tid.as_id());
+            // guard run-time func with `var` typed params
+            if (func_is_runtime
+                && TypeTransformer<TypeContainsVar>{context}(param_def.as<DefVariable>().type_id)) {
+                const Span ty_span = context.type(param_def.as<DefVariable>().type_id).span;
+                auto d0 = context.emplace_diagnostic(
+                    ty_span, diag_code::type_deduction_not_legal_here, diag_type::error);
+                auto d1 = context.emplace_diagnostic(
+                    param_def.span, diag_code::non_compt_function_params_must_have_explicit_types,
+                    diag_type::note);
+                auto d2 = context.emplace_diagnostic(
+                    ty_span, diag_code::use_a_generic_function_parameter_and_specify_it_as_a_type,
+                    diag_type::help);
+                context.link_diagnostic(d0, d1);
+                context.link_diagnostic(d1, d2);
             }
+            type_vec.push_back(param_def.as<DefVariable>().type_id);
+        }
 
-            // handle methods explicitly
-            def.set_value(DefFunction{.params = params,
-                                      .param_types = param_types,
-                                      .return_type = return_tid,
-                                      .body = std::nullopt,
-                                      .original = std::nullopt, // not generic
-                                      .maybe_generic_args = {}, // not generic
-                                      .discardable = fn_decl.discardable,
-                                      .takes_self = takes_self,
-                                      .posioned = params_res.poisoned});
+        const IdSlice<TypeId> param_types = context.freeze_id_vec(type_vec);
+
+        const OptId<TypeId> return_tid
+            = (fn_decl.return_type)
+                  ? TypeResolver{context, *this}.resolve_type(fid, scope, fn_decl.return_type)
+                  : std::nullopt;
+        if (return_tid.has_value()) {
+            context.report_invalid_return_type(return_tid.as_id());
         }
-        // TODO, handle generic functions
-        else {
-        }
+
+        // handle methods explicitly
+        def.set_value(DefFunction{.params = params,
+                                  .param_types = param_types,
+                                  .return_type = return_tid,
+                                  .body = std::nullopt,
+                                  .original = std::nullopt, // not generic
+                                  .maybe_generic_args = {}, // not generic
+                                  .discardable = fn_decl.discardable,
+                                  .takes_self = takes_self,
+                                  .posioned = params_res.poisoned});
         break;
     }
     case AST_STMT_CONTRACT_DEF: {
@@ -524,6 +524,8 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
     case AST_STMT_VARIANT_DEF: {
         // TODO properly handle generics
         if (context.def(did).generic) {
+            context.def(did).set_value(DefGenericStruct{
+                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id()});
             goto cleanup;
         }
         auto members = context.ordered_defs_for(did);
@@ -801,6 +803,19 @@ bool TopLevelDefVisitor::try_satisfy_contracts(DefId struct_did, IdSlice<DefId> 
     return cooked;
 }
 
+[[nodiscard]] std::optional<IdSlice<GenericParamId>>
+TopLevelDefVisitor::resolve_generic_params(File fid, ScopeId scope,
+                                           ast_slice_of_generic_args_t gen_params) {
+    // @@@ TODO; validate no repeated identifiers
+    return {};
+}
+[[nodiscard]] OptId<GenericParamId>
+TopLevelDefVisitor::resolve_generic_param(File fid, ScopeId scope,
+                                          const ast_generic_parameter_t* gen_param) {
+    // @@@ TODO
+    return {};
+}
+
 DefId InsideBodyDefVisitor::visit_as_dependent(DefId def) {
     context.promote_mention_state_of(def, Def::mention_state::mentioned);
     return def;
@@ -817,4 +832,5 @@ DefId InsideBodyDefVisitor::visit_as_mutator(DefId def) {
     context.promote_mention_state_of(def, Def::mention_state::mutated);
     return def;
 }
+
 } // namespace hir

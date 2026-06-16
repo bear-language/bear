@@ -12,6 +12,7 @@
 #include "compiler/ast/expr.h"
 #include "compiler/ast/params.h"
 #include "compiler/ast/stmt.h"
+#include "compiler/ast/type.h"
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
@@ -3103,6 +3104,75 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         return true;
+    }
+    [[nodiscard]] OptId<GenericArgId> lower_generic_arg(FileId fid, ScopeId scope,
+                                                        const ast_generic_arg_t* gen_arg) {
+        if (!gen_arg->valid) {
+            return {};
+        }
+        GenericArg arg;
+        switch (gen_arg->tag) {
+        case AST_GENERIC_ARG_TYPE: {
+            const OptId<TypeId> maybe_tid = resolve_type(fid, scope, gen_arg->arg.type);
+            if (maybe_tid.empty()) {
+                return {};
+            }
+            arg.value = maybe_tid.as_id();
+            break;
+        }
+        case AST_GENERIC_ARG_EXPR: {
+            const ast_expr_t* expr = gen_arg->arg.expr;
+            if (expr->type == AST_EXPR_ID) {
+                const auto id_slice = expr->expr.id.slice;
+                // only do this if a type actually exists for this identifer, otherwise treat it as
+                // an expression
+                if (context
+                        .look_up_scoped_type(scope, context.symbol_slice(id_slice),
+                                             Span{context, fid, id_slice})
+                        .has_value()) {
+                    ast_type_t type = {.type = {},
+                                       .tag = AST_TYPE_BASE,
+                                       .canonical_base = &type,
+                                       .first = id_slice.start[0],
+                                       .last = id_slice.start[id_slice.len - 1]};
+                    type.type.base = {.id = id_slice, .mut = false};
+                    const OptId<TypeId> maybe_tid = resolve_type(fid, scope, gen_arg->arg.type);
+                    if (maybe_tid.empty()) {
+                        return {};
+                    }
+                    arg.value = maybe_tid.as_id();
+                    break;
+                }
+            }
+            const OptId<ExecId> maybe_eid = solve_expr(fid, scope, expr);
+            if (maybe_eid.empty()) {
+                return {};
+            }
+            arg.value = maybe_eid.as_id();
+            break;
+        }
+        }
+        return context.emplace_generic_arg(arg);
+    }
+    [[nodiscard]] OptId<GenericArgIdSliceId>
+    lower_generic_args(FileId fid, ScopeId scope, Context& ctx,
+                       ast_slice_of_generic_args_t gen_args) {
+
+        if (!gen_args.valid) {
+            return {};
+        }
+        llvm::SmallVector<GenericArgId> gen_arg_ids{};
+
+        for (size_t i = 0; i < gen_args.len; ++i) {
+            const auto* gen_arg = gen_args.start[i];
+            const auto maybe_gen_arg_id = lower_generic_arg(fid, scope, gen_arg);
+            if (maybe_gen_arg_id.empty()) {
+                return {};
+            }
+            gen_arg_ids.push_back(maybe_gen_arg_id.as_id());
+        }
+
+        return context.emplace_generic_arg_id_slice(context.freeze_id_vec(gen_arg_ids));
     }
 };
 

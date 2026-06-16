@@ -348,6 +348,12 @@ class Context {
 
     [[nodiscard]] GenericArgId gen_arg_id(IdIdx<GenericArgId> id) const;
 
+    [[nodiscard]] GenericParam gen_param(GenericParamId id) const;
+
+    [[nodiscard]] GenericParam gen_param(IdIdx<GenericParamId> id) const;
+
+    [[nodiscard]] GenericParamId gen_param_id(IdIdx<GenericParamId> id) const;
+
     [[nodiscard]] IdSlice<GenericArgId> gen_arg_id_slice(GenericArgIdSliceId id) const;
 
     [[nodiscard]] ExecId exec_id(IdIdx<ExecId> id) const;
@@ -407,7 +413,9 @@ class Context {
     [[nodiscard]] IdHashMap<CanonicalGenericArgsId, DefId>&
     generic_args_map(CanonicalGenericArgsIdMapId id);
 
-    [[nodiscard]] OptId<CanonicalGenericArgsIdMapId> generic_map_for_def(DefId def_id);
+    [[nodiscard]] CanonicalGenericArgsId canonical_gen_args(GenericArgIdSliceId slice_id);
+
+    OptId<DefId> try_generic_instatiation(DefId def_id, GenericArgIdSliceId generic_args_id);
 
     /// checks if a struct has a contract
     /// - defaults to returning false if struct_did does not correspond to a struct and same with
@@ -427,7 +435,8 @@ class Context {
     // freeze a vector (llvm::SmallVector) into an IdSlice for leaner storage
     template <IsId I>
     [[nodiscard]] IdSlice<I> freeze_id_vec(const llvm::SmallVectorImpl<I>& vec)
-        requires is_any_of_v<I, TypeId, ExecId, DefId, GenericArgId, FileId, SymbolId>
+        requires is_any_of_v<I, TypeId, ExecId, DefId, GenericArgId, FileId, SymbolId,
+                             GenericParamId>
     {
         if constexpr (std::is_same_v<I, TypeId>) {
             return type_ids.freeze_small_vec(vec);
@@ -441,6 +450,8 @@ class Context {
             return file_ids.freeze_small_vec(vec);
         } else if constexpr (std::is_same_v<I, SymbolId>) {
             return symbol_ids.freeze_small_vec(vec);
+        } else if constexpr (std::is_same_v<I, GenericParamId>) {
+            return generic_param_ids.freeze_small_vec(vec);
         } else {
             static_assert(false, "try to freeze a vector of an unconsidered hir::Id type");
         }
@@ -536,9 +547,8 @@ class Context {
     // main table for mapping a GenericArgIdSliceId to a CanonicalGenericArgsId
     CanonicalComptArgsTable canonical_compt_args_table;
 
-    DataArena def_id_to_generic_args_map_id_arena;
-
-    IdHashMap<DefId, CanonicalGenericArgsIdMapId> def_id_to_generic_args_map_id;
+    IdVector<GenericParamId> generic_param_ids;
+    NodeVector<GenericParam> generic_params;
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -568,6 +578,12 @@ class Context {
     void report_cycle(llvm::SmallVectorImpl<FileId>& import_stack, const token_t* import_path_tkn);
     [[nodiscard]] OptId<FileId> try_file_from_import_statement(FileId importer_id,
                                                                const ast_stmt_t* import_statement);
+
+    [[nodiscard]] OptId<DefId>
+    make_new_generic_instatiation(DefId did, CanonicalGenericArgsId canon_gen_args_id);
+
+    // true on valid, else false
+    [[nodiscard]] bool validate_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id);
 };
 
 } // namespace hir

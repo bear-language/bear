@@ -17,7 +17,6 @@
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/token.h"
-#include <cinttypes>
 #include <optional>
 
 namespace hir {
@@ -375,8 +374,7 @@ template <IsDefVisitor V> class TypeResolver {
             return type_slice(fid, scope, type);
 
         case AST_TYPE_GENERIC:
-            // TODO: attempt a generic instantiation
-            break;
+            return type_generic(fid, scope, type);
 
         case AST_TYPE_FN_PTR:
             return type_fn_ptr(fid, scope, type);

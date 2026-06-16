@@ -93,10 +93,9 @@ Context::Context(const bearc_args_t& args, instances instances)
       canonical_generic_args_table_arena{DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP},
       canonical_compt_args_table{*this, canonical_generic_args_table_arena,
                                  DEFAULT_CANONICAL_GEN_ARGS_CAP},
-      def_id_to_generic_args_map_id_arena{DEFAULT_ID_MAP_ARENA_CAP},
-      def_id_to_generic_args_map_id{def_id_to_generic_args_map_id_arena,
-                                    DEFAULT_CANONICAL_GEN_ARGS_CAP},
-      diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM},
+      generic_param_ids(DEFAULT_CANONICAL_GEN_ARGS_CAP),
+      generic_params(DEFAULT_CANONICAL_GEN_ARGS_CAP), diagnostics{DEFAULT_DIAG_NUM},
+      diagnostics_used{DEFAULT_DIAG_NUM},
       only_one_context_instance((instances == instances::one) && one_instance_status), args{args},
       compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]) {
 
@@ -836,6 +835,18 @@ TypeId Context::emplace_type(const TypeValue& value, Span span, bool mut) {
 
 [[nodiscard]] IdSlice<GenericArgId> Context::gen_arg_id_slice(GenericArgIdSliceId id) const {
     return generic_arg_id_slices.at(id);
+}
+
+[[nodiscard]] GenericParam Context::gen_param(GenericParamId id) const {
+    return this->generic_params.at(id);
+}
+
+[[nodiscard]] GenericParam Context::gen_param(IdIdx<GenericParamId> id) const {
+    return this->generic_params.at(this->generic_param_ids.at(id));
+}
+
+[[nodiscard]] GenericParamId Context::gen_param_id(IdIdx<GenericParamId> id) const {
+    return this->generic_param_ids.at(id);
 }
 
 ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
@@ -1718,10 +1729,6 @@ Context::generic_args_map(CanonicalGenericArgsIdMapId id) {
     return this->canonical_generic_args_id_to_def_id_map.at(id);
 }
 
-OptId<CanonicalGenericArgsIdMapId> Context::generic_map_for_def(DefId def_id) {
-    return this->def_id_to_generic_args_map_id.at(def_id);
-}
-
 OptId<DefId> Context::linear_name_match_in_def_slice(IdSlice<DefId> defs, SymbolId name) const {
     for (auto didx = defs.begin(); didx != defs.end(); didx++) {
         if (def(didx).name == name) {
@@ -1730,4 +1737,46 @@ OptId<DefId> Context::linear_name_match_in_def_slice(IdSlice<DefId> defs, Symbol
     }
     return {};
 }
+
+CanonicalGenericArgsId Context::canonical_gen_args(GenericArgIdSliceId slice_id) {
+    return this->canonical_compt_args_table.canonical(slice_id);
+}
+
+OptId<DefId> Context::try_generic_instatiation(DefId def_id, GenericArgIdSliceId generic_args_id) {
+    const Def& def = this->def(def_id);
+    if (!def.generic) {
+        return {};
+    }
+    CanonicalGenericArgsIdMapId map_id{};
+    if (def.holds<DefGenericFunction>()) {
+        map_id = def.as<DefGenericFunction>().generics_args_to_concrete_defs_map;
+    } else if (def.holds<DefGenericStruct>()) {
+        map_id = def.as<DefGenericStruct>().generics_args_to_concrete_defs_map;
+    } else if (def.holds<DefGenericVariant>()) {
+        map_id = def.as<DefGenericVariant>().generics_args_to_concrete_defs_map;
+    }
+    IdHashMap<CanonicalGenericArgsId, DefId>& map = this->generic_args_map(map_id);
+
+    const auto canonical_args = canonical_gen_args(generic_args_id);
+
+    const auto maybe_instance = map.at(canonical_args);
+
+    // attempt new instatiation if there's not an existing one
+    if (maybe_instance.empty()) {
+        // @@@ TODO: make a new instatiation
+    }
+    return maybe_instance.as_id();
+}
+
+[[nodiscard]] bool validate_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id) {
+    // @@@ TODO validate args based on the def's generic params (once they're impl'd)
+    return {};
+}
+
+[[nodiscard]] OptId<DefId>
+Context::make_new_generic_instatiation(DefId did, CanonicalGenericArgsId canon_gen_args_id) {
+    // @@@ TODO
+    return {};
+}
+
 } // namespace hir

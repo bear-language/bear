@@ -7,6 +7,7 @@
 
 #include "compiler/hir/generic.hpp"
 #include "compiler/hir/context.hpp"
+#include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/exec_proving.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/type.hpp"

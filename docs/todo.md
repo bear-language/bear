@@ -18,8 +18,8 @@ main quest
 - [x] implement generic args canonicalization to allow mapping of canonical lists of generic args to concrete instatiations for generic structs, variants, and functions
 
 - [ ] TODO:@@@ finish creation for types -> use DefId to access a gen arg map, then key into it with the generic args
-    - [ ] impl the gen arg map access with a DefId -> GenericArgsIdSliceMapId hashmap
-    - [ ] impl generic arg lowering (easy, just make sure to try identifier expressions as types first and then expressions
+- [ ] set up the `DefGenericFunction`, `DefGenericStruct`, and `DefGenericVariant` in DefVisitor 
+- [ ] make the `try_generic_instatiation` attempt to make a new instatiation when needed
 
 - [ ] implement generic instatiation -> each canonical set of generic args for a given def needs to either:
         1.  map to an already instatiated specialized, concrete instance of the def, or:

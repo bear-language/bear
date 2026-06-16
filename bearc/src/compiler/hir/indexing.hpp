@@ -88,6 +88,9 @@ using TypeId = Id<Type>;
 /// for addressing generic argument nodes
 using GenericArgId = Id<GenericArg>;
 
+/// for addressing generic param nodes
+using GenericParamId = Id<GenericParam>;
+
 using DiagnosticId = Id<Diagnostic>;
 
 /// to be stored in a HirSymbolId -> HirSymbol table

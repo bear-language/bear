@@ -22,6 +22,20 @@ struct GenericArg : NodeWithVariantValue<GenericArg> {
     GenericArgValue value;
 };
 
+struct GenericParamType {};
+
+struct GenericParamVariable {
+    TypeId type;
+};
+
+using GenericParamValue = std::variant<GenericParamType, GenericParamVariable>;
+struct GenericParam : NodeWithVariantValue<GenericParam> {
+    using id_type = GenericParamId;
+    using value_type = GenericParamValue;
+    GenericParamValue value;
+    SymbolId name;
+};
+
 [[nodiscard]] size_t hash_gen_arg(const Context& ctx, GenericArgId gen_arg_id);
 [[nodiscard]] bool equivalent_gen_arg(const Context& ctx, GenericArgId gid1, GenericArgId gid2);
 [[nodiscard]] size_t hash_gen_arg_id_slice(const Context& ctx, GenericArgIdSliceId gid);
