@@ -8,3 +8,22 @@ struct Foo<T> {
 compt Foo<i32> a = Foo::<T>{.foo = 12};
 
 compt [16]i32<i32><i32> b; // oops
+
+variant Bar {
+    A(i32 a),
+    B(u32 b),
+}
+
+compt Bar c = Bar..A(3210);
+
+compt bool d = c is Bar..A(var a);
+
+variant Ben<T> {
+    A(i32 a),
+    B(u32 b),
+    C(T c),
+}
+
+compt Ben<i32> e = Ben::i32(42);
+
+compt Ben::u8 f = Ben::u8(42);
