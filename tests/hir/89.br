@@ -2,6 +2,26 @@
 
 struct Foo<i32 N> {
     compt fn get() -> i32 => N
+    struct Boo {}
+    struct Bar<T> {
+        T v;
+    }
 }
 
-var _0 = @static_assert @defined Foo..get;
+struct Foo<i32 N> {
+    compt fn get() -> i32 => N
+}
+
+variant Foo<i32 N> {
+    A(N n),
+    B,
+    C,
+}
+
+struct Boo {
+    compt fn iden() -> bool => true
+}
+
+var _0 = @static_assert !@defined Foo..get;
+
+var _1 = @static_assert @defined Boo..iden;

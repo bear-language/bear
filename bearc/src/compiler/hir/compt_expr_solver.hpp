@@ -3185,13 +3185,18 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         llvm::SmallVector<GenericArgId> gen_arg_ids{};
 
+        bool cooked = false;
         for (size_t i = 0; i < gen_args.len; ++i) {
             const auto* gen_arg = gen_args.start[i];
             const auto maybe_gen_arg_id = lower_generic_arg(fid, scope, gen_arg);
             if (maybe_gen_arg_id.empty()) {
-                return {};
+                cooked = true;
+                continue;
             }
             gen_arg_ids.push_back(maybe_gen_arg_id.as_id());
+        }
+        if (cooked) {
+            return {};
         }
 
         return context.emplace_generic_arg_id_slice(context.freeze_id_vec(gen_arg_ids));

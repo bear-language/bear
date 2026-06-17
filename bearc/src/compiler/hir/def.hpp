@@ -142,7 +142,7 @@ using DefValue = std::variant<DefModule, DefFunction, DefGenericFunction, DefFun
                               DefScopeWrapper, DefUnevaluated, DefMalformed>;
 
 enum class abi_lang : uint8_t {
-    native = 0,
+    bear = 0,
     c,
 };
 
@@ -201,21 +201,21 @@ struct Def : NodeWithVariantValue<Def> {
     /// indicates alignment preference, 0 = default alignment
     const uint8_t alignment_preference = 0;
     /// indicates ABI
-    const abi_lang abi = abi_lang::native;
+    const abi_lang abi = abi_lang::bear;
 
     Def(DefValue value, SymbolId name, bool pub, bool compt, bool statik, bool generic, Span span,
-        OptId<DefId> parent, enum abi_lang abi = abi_lang::native)
+        OptId<DefId> parent, enum abi_lang abi = abi_lang::bear)
         : value{value}, span{span}, name{name}, parent{parent}, pub{pub}, compt{compt},
           statik{statik}, generic{generic}, abi{abi} {}
 
     Def(DefValue value, SymbolId name, bool pub, bool compt, bool statik, bool generic, Span span,
-        OptId<DefId> parent, uint8_t alignment_preference, enum abi_lang abi = abi_lang::native)
+        OptId<DefId> parent, uint8_t alignment_preference, enum abi_lang abi = abi_lang::bear)
         : value{value}, span{span}, name{name}, parent{parent}, pub{pub}, compt{compt},
           statik{statik}, generic{generic}, alignment_preference{alignment_preference}, abi{abi} {}
 
     Def(DefValue value, SymbolId name, bool pub, bool compt, bool statik, bool generic, Span span,
         OptId<DefId> parent, uint8_t alignment_preference, HirSize member_idx,
-        enum abi_lang abi = abi_lang::native)
+        enum abi_lang abi = abi_lang::bear)
         : value{value}, span{span}, name{name}, parent{parent}, member_idx{member_idx}, pub{pub},
           compt{compt}, statik{statik}, generic{generic},
           alignment_preference{alignment_preference}, abi{abi} {

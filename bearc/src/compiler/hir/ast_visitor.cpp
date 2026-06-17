@@ -31,7 +31,7 @@ void FileAstVisitor::register_top_level_declarations() {
     // registers all the top level stmts of the file using the top level scope
     register_top_level_stmts(context.get_or_make_root_scope(),
                              context.ast(file).root()->stmt.file.stmts, OptId<DefId>{},
-                             abi_lang::native,
+                             abi_lang::bear,
                              GenericState{.inst_state = gen_instatiation_state::not_instantiating,
                                           .vis_state = gen_visit_state::outside_generic});
 }
@@ -520,12 +520,18 @@ bool is_lower(const token_t* s) { return !is_capital(s); }
 bool is_capital(const token_t* s) { return s->start[0] >= 'A' && s->start[0] <= 'Z'; }
 std::optional<abi_lang> abi_for_extern_stmt(const ast_stmt_t* stmt) {
     if (stmt->stmt.extern_block.extern_language == nullptr) {
-        return abi_lang::native;
+        return abi_lang::bear;
     }
     return (stmt->stmt.extern_block.extern_language->len != 0
             && stmt->stmt.extern_block.extern_language->start[0] == 'C')
                ? abi_lang::c
                : std::optional<abi_lang>{};
+}
+[[nodiscard]] OptId<DefId> FileAstVisitor::lower_generic_stmt(ScopeId scope, ast_stmt_t* stmt,
+                                                              OptId<DefId> parent) {
+    return register_top_level_stmt(scope, stmt, parent, abi_lang::bear,
+                                   GenericState{.inst_state = gen_instatiation_state::instantiating,
+                                                .vis_state = gen_visit_state::outside_generic});
 }
 
 } // namespace hir
