@@ -1,0 +1,11 @@
+//tests/hir/86.br
+
+contract A {} contract B {} contract C {}
+
+struct Foo<T has(A, B, C)> {}
+
+variant Bar<T has (A), M has(B)> {
+    OptionOne(T one),
+    OptionTwo(M two),
+    OptionThree,
+}

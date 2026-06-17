@@ -142,7 +142,7 @@ br_test_result_t test_hir(void) {
     char* args7[] = {"bearc", "00.br", "-I", "tests/projects/02"};
     ASSERT_EQ_ERR_FROM_ARGSN(args7, 4, 3);
     char* args8[] = {"bearc", "tests/hir/09.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args8, 4);
+    ASSERT_EQ_ERR_FROM_ARGS(args8, 5);
     char* args9[] = {"bearc", "tests/hir/10.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args9, 2);
     char* args10[] = {"bearc", "tests/hir/11.br"};
@@ -296,7 +296,11 @@ br_test_result_t test_hir(void) {
     char* args84[] = {"bearc", "tests/hir/84.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args84, 14);
     char* args85[] = {"bearc", "tests/hir/85.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args85, 8);
+    ASSERT_EQ_ERR_FROM_ARGS(args85, 18);
+    char* args86[] = {"bearc", "tests/hir/86.br"};
+    ASSERT_EQ_ERR_FROM_ARGS(args86, 0);
+    char* args87[] = {"bearc", "tests/hir/87.br", "-I", "tests/hir"};
+    ASSERT_EQ_ERR_FROM_ARGS(args87, 10);
 
     return TEST_RESULT;
 }

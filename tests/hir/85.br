@@ -43,4 +43,10 @@ compt Foo::i32 foo = Foo::i32{}; // oops
 
 struct Goo<i32 a, T> {}
 
-compt Goo<i32, 123> e = Goo::<i32, 123>{}; //oops, @@@ TODO, this should fail
+compt Goo<i32, 123> e = Goo::<i32, 123>{}; //oops 
+
+contract A {} contract B {} contract C {}
+
+struct Boo<T has(A, B, C), P has(C)> {}
+
+compt Boo<i32, [&mut]u8> boo = Boo::<i32, [&mut]u8>{};

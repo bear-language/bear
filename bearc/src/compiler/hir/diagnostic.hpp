@@ -168,10 +168,10 @@ enum class diag_code : uint8_t {
     cannot_decompose_multiple_variants_on_the_same_match_arm,
     does_not_take_generic_arguments,
     not_a_generic_type,
-    expected_a_value_expression_not_a_type,
+    gen_arg_expected_a_value_expression_not_a_type,
     should_a_compt_value_of_type,
     does_not_satisfy_contract,
-    expected_a_type_not_a_value_expression,
+    gen_arg_expected_a_type_not_a_value_expression,
     generic_argument_expected_value_of_type,
 
     count, // this must be last,

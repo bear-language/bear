@@ -1783,7 +1783,6 @@ OptId<DefId> Context::try_generic_instatiation(DefId def_id, GenericArgIdSliceId
 
 // true on valid, else false
 [[nodiscard]] bool Context::validate_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id) {
-    // @@@ TODO validate args based on the def's generic params (once they're impl'd)
     if (!def(did).generic) {
         emplace_diagnostic(span_for_gen_args(gen_args_id),
                            diag_code::does_not_take_generic_arguments, diag_type::error,
@@ -1823,12 +1822,15 @@ OptId<DefId> Context::try_generic_instatiation(DefId def_id, GenericArgIdSliceId
             [this, pid, &dl](TypeId tid) -> bool {
                 GenericParam param = gen_param(pid);
                 if (param.holds<GenericParamVariable>()) {
-                    dl.link(emplace_diagnostic(type(tid).span,
-                                               diag_code::expected_a_value_expression_not_a_type,
-                                               diag_type::error));
+                    dl.link(emplace_diagnostic(
+                        type(tid).span, diag_code::gen_arg_expected_a_value_expression_not_a_type,
+                        diag_type::error));
                     dl.link(emplace_diagnostic_with_message_value(
                         type(tid).span, diag_code::should_a_compt_value_of_type, diag_type::note,
                         DiagnosticTypeAfterMessage{.tid = param.as<GenericParamVariable>().type}));
+                    dl.link(emplace_diagnostic_with_message_value(
+                        param.span, diag_code::declared_here, diag_type::note,
+                        DiagnosticSymbolBeforeMessage{.sid = param.name}));
                     return false;
                 }
                 if (param.holds<GenericParamType>()) {
@@ -1844,6 +1846,11 @@ OptId<DefId> Context::try_generic_instatiation(DefId def_id, GenericArgIdSliceId
                                     .sid = def(contract_did).name, .tid = tid}));
                             cooked = true;
                         }
+                    }
+                    if (cooked) {
+                        dl.link(emplace_diagnostic_with_message_value(
+                            param.span, diag_code::declared_here, diag_type::note,
+                            DiagnosticSymbolBeforeMessage{.sid = param.name}));
                     }
                     return !cooked;
                 }
@@ -1862,6 +1869,9 @@ OptId<DefId> Context::try_generic_instatiation(DefId def_id, GenericArgIdSliceId
                         dl.link(emplace_diagnostic_with_message_value(
                             exec(eid).span, diag_code::generic_argument_expected_value_of_type,
                             diag_type::error, DiagnosticTypeAfterMessage{.tid = expected_tid}));
+                        dl.link(emplace_diagnostic_with_message_value(
+                            param.span, diag_code::declared_here, diag_type::note,
+                            DiagnosticSymbolBeforeMessage{.sid = param.name}));
                         return false;
                     }
                     if (!equivalent_type(maybe_tid.as_id(), expected_tid)) {
@@ -1870,14 +1880,22 @@ OptId<DefId> Context::try_generic_instatiation(DefId def_id, GenericArgIdSliceId
                             diag_type::error,
                             DiagnosticTyButGot{.expected_tid = expected_tid,
                                                .got_tid = maybe_tid.as_id()}));
+                        dl.link(emplace_diagnostic_with_message_value(
+                            param.span, diag_code::declared_here, diag_type::note,
+                            DiagnosticSymbolBeforeMessage{.sid = param.name}));
+
                         return false;
                     }
                     return true;
                 }
                 if (param.holds<GenericParamType>()) {
-                    dl.link(emplace_diagnostic(exec(eid).span,
-                                               diag_code::expected_a_type_not_a_value_expression,
-                                               diag_type::error));
+                    dl.link(emplace_diagnostic(
+                        exec(eid).span, diag_code::gen_arg_expected_a_type_not_a_value_expression,
+                        diag_type::error));
+                    dl.link(emplace_diagnostic_with_message_value(
+                        param.span, diag_code::declared_here, diag_type::note,
+                        DiagnosticSymbolBeforeMessage{.sid = param.name}));
+
                     return false;
                 }
                 return false; // fallback (unreachable)

@@ -1,0 +1,14 @@
+// tests/hir/87.br 
+
+import "86.br";
+
+struct Ben has A, B, C {}
+
+compt Foo::i32 a = Foo::i32{}; // oops
+
+compt Foo::Ben b = Foo::Ben{};
+
+compt Bar<Ben, Ben> c = Bar..OptionThree;
+
+compt Bar<i32, str> d = Bar..OptionThree;
+

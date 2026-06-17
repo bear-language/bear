@@ -330,14 +330,14 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "does not take generic arguments";
     case diag_code::not_a_generic_type:
         return "not a generic type";
-    case diag_code::expected_a_value_expression_not_a_type:
+    case diag_code::gen_arg_expected_a_value_expression_not_a_type:
         return "generic argument expected a value expression, not a type";
     case diag_code::should_a_compt_value_of_type:
         return "should be a compile-time value of type";
     case diag_code::does_not_satisfy_contract:
         return "does not satisfy contract";
-    case diag_code::expected_a_type_not_a_value_expression:
-        return "expected a type, not a value expression";
+    case diag_code::gen_arg_expected_a_type_not_a_value_expression:
+        return "generic argument expected a type, not a value expression";
     case diag_code::generic_argument_expected_value_of_type:
         return "generic argument expected value of type";
     }
