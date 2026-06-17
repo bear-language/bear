@@ -168,6 +168,11 @@ enum class diag_code : uint8_t {
     cannot_decompose_multiple_variants_on_the_same_match_arm,
     does_not_take_generic_arguments,
     not_a_generic_type,
+    expected_a_value_expression_not_a_type,
+    should_a_compt_value_of_type,
+    does_not_satisfy_contract,
+    expected_a_type_not_a_value_expression,
+    generic_argument_expected_value_of_type,
 
     count, // this must be last,
 
@@ -186,6 +191,11 @@ struct DiagnosticIdentifierBeforeMessage {
 
 struct DiagnosticIdentifierBeforeMessageAndTypeAfter {
     IdSlice<SymbolId> sid_slice;
+    TypeId tid;
+};
+
+struct DiagnosticTyperBeforeMessageAndSymbolAfter {
+    SymbolId sid;
     TypeId tid;
 };
 
@@ -262,8 +272,19 @@ struct DiagnosticContractFnExpectedRetTyButGot {
     TypeId got_return_tid;
 };
 
+struct DiagnosticTyButGot {
+    TypeId expected_tid;
+    TypeId got_tid;
+};
+
 struct DiagnosticVariantInitExpectedButGotNumArgs {
     SymbolId variant_field_name;
+    SymbolId expected_sid;
+    SymbolId got_sid;
+};
+
+struct DiagnosticGenArgsExpectedButGotNumArgs {
+    SymbolId name;
     SymbolId expected_sid;
     SymbolId got_sid;
 };
@@ -282,7 +303,9 @@ using DiagnosticMessageValue = std::variant<
     DiagnosticComptStackOverflow, DiagnosticIdxOutOfBounds, DiagnosticStructMemberSymBeforeMsg,
     DiagnosticStructDoesNotDefineBlankForContract, DiagnosticContractFnExpectedButGotNumParams,
     DiagnosticContractFnExpectedRetTyButGot, DiagnosticVariantInitExpectedButGotNumArgs,
-    DiagnosticSymbolBeforeAndAfterMessage, DiagnosticTypeBeforeMessage>;
+    DiagnosticSymbolBeforeAndAfterMessage, DiagnosticTypeBeforeMessage,
+    DiagnosticGenArgsExpectedButGotNumArgs, DiagnosticTyperBeforeMessageAndSymbolAfter,
+    DiagnosticTyButGot>;
 
 struct DiagnosticImportStack {
     IdSlice<FileId> files;

@@ -330,6 +330,16 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "does not take generic arguments";
     case diag_code::not_a_generic_type:
         return "not a generic type";
+    case diag_code::expected_a_value_expression_not_a_type:
+        return "generic argument expected a value expression, not a type";
+    case diag_code::should_a_compt_value_of_type:
+        return "should be a compile-time value of type";
+    case diag_code::does_not_satisfy_contract:
+        return "does not satisfy contract";
+    case diag_code::expected_a_type_not_a_value_expression:
+        return "expected a type, not a value expression";
+    case diag_code::generic_argument_expected_value_of_type:
+        return "generic argument expected value of type";
     }
 
     std::unreachable();
@@ -874,6 +884,23 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        str += plural_helper(d.got_sid);
                        str += ansi_bold_reset();
                    },
+                   [&](DiagnosticGenArgsExpectedButGotNumArgs d) {
+                       str += "generic arguments for ";
+                       sid_helper(d.name);
+                       str += " expected ";
+                       str += ansi_bold_green();
+                       str += ctx.symbol_id_to_cstr(d.expected_sid);
+                       str += ansi_bold_reset();
+                       str += " argument";
+                       str += plural_helper(d.expected_sid);
+                       str += " but got ";
+                       str += ansi_bold_red();
+                       str += ctx.symbol_id_to_cstr(d.got_sid);
+                       str += ansi_bold_reset();
+                       str += " argument";
+                       str += plural_helper(d.got_sid);
+                       str += ansi_bold_reset();
+                   },
                    [&](DiagnosticContractFnExpectedRetTyButGot d) {
                        str += "contract function ";
                        sid_helper(d.contract_fn_name);
@@ -886,12 +913,30 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        type_helper_color(d.got_return_tid, ansi_bold_red());
                        str += ansi_bold_reset();
                    },
+                   [&](DiagnosticTyButGot d) {
+                       str += message_for_code(code);
+                       str += " ";
+                       str += ansi_bold_green();
+                       type_helper_color(d.expected_tid, ansi_bold_green());
+                       str += ansi_bold_reset();
+                       str += " but got ";
+                       str += ansi_bold_red();
+                       type_helper_color(d.got_tid, ansi_bold_red());
+                       str += ansi_bold_reset();
+                   },
                    [&](DiagnosticSymbolBeforeAndAfterMessage d) {
                        sid_helper(d.before_sid);
                        str += " ";
                        str += message_for_code(code);
                        str += " ";
                        sid_helper(d.after_sid);
+                   },
+                   [&](DiagnosticTyperBeforeMessageAndSymbolAfter d) {
+                       type_helper(d.tid);
+                       str += " ";
+                       str += message_for_code(code);
+                       str += " ";
+                       sid_helper(d.sid);
                    },
                    [&](DiagnosticTypeBeforeMessage d) {
                        type_helper(d.tid);

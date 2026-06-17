@@ -1,0 +1,40 @@
+// tests/hir/85.br
+
+contract Paper {}
+
+struct Will has Paper {}
+
+struct Foo<T has Paper> {}
+
+compt Foo::Will my_foo_with_will = Foo::Will{};
+
+compt i32 my_val = 42;
+
+struct Int<i32 VAL> {
+    compt fn get() -> i32 => VAL
+}
+
+deftype MyInt = Int::my_val;
+
+var _0 = @static_assert MyInt..get() == my_val; // todo, full lowering for this not impl'd
+
+struct FourIntList<[4]i32 LIST> {
+
+}
+
+compt FourIntList<1, 2, 3, 4> a = FourIntList::<1,2,3,4>{}; //oops
+
+// these tricks/strategies circumvent the vexing parse on list literals as generic args 
+// (where the parser seeing brackets and wants to parse an array type instead of a list 
+// literal expression)
+compt FourIntList<compt[1,2,3,4]> b = FourIntList::compt[1,2,3,4]{};
+
+compt FourIntList<([1,2,3,4])> c = FourIntList::([1,2,3,4]){};
+
+compt [4]i32 li = [1,2,3,4];
+
+compt FourIntList::li d = FourIntList::li{};
+
+var _1 = @static_assert @same_type(FourIntList::li, typeof c);
+
+var _2 = ([1,2,3,4]);

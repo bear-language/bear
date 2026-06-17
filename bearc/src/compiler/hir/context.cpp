@@ -17,6 +17,7 @@
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/file.hpp"
+#include "compiler/hir/generic.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/span.hpp"
@@ -1790,7 +1791,125 @@ OptId<DefId> Context::try_generic_instatiation(DefId def_id, GenericArgIdSliceId
                            DiagnosticSubCode{.sub_code = diag_code::not_a_generic_type});
         return false;
     }
+
+    TopLevelDefVisitor{*this}.visit_as_dependent(did);
+    const auto maybe_gen_params = try_generic_params_for_def(did);
+    if (!maybe_gen_params.has_value()) {
+        return false; // this shouldn't happen, but we need to return false here to protect
+                      // invariance
+    }
+    const auto param_slice = maybe_gen_params.value();
+
+    const IdSlice<GenericArgId> arg_slice = gen_arg_id_slice(gen_args_id);
+
+    if (param_slice.len() != arg_slice.len()) {
+        Span span = span_for_gen_args(gen_args_id);
+        const auto d0 = emplace_diagnostic_with_message_value(
+            span, diag_code::only_message_value_is_meaningful, diag_type::error,
+            DiagnosticGenArgsExpectedButGotNumArgs{
+                .name = def(did).name,
+                .expected_sid = symbol_id(std::to_string(param_slice.len())),
+                .got_sid = symbol_id(std::to_string(arg_slice.len()))});
+        const auto d1 = emplace_diagnostic_with_message_value(
+            def(did).span, diag_code::declared_here, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = def(did).name});
+        link_diagnostic(d0, d1);
+        return {};
+    }
+
+    DiagLinker dl{*this};
+    auto validate_arg = [this, &dl](GenericArgId aid, GenericParamId pid) -> bool {
+        Ovld vs{
+            [this, pid, &dl](TypeId tid) -> bool {
+                GenericParam param = gen_param(pid);
+                if (param.holds<GenericParamVariable>()) {
+                    dl.link(emplace_diagnostic(type(tid).span,
+                                               diag_code::expected_a_value_expression_not_a_type,
+                                               diag_type::error));
+                    dl.link(emplace_diagnostic_with_message_value(
+                        type(tid).span, diag_code::should_a_compt_value_of_type, diag_type::note,
+                        DiagnosticTypeAfterMessage{.tid = param.as<GenericParamVariable>().type}));
+                    return false;
+                }
+                if (param.holds<GenericParamType>()) {
+                    const auto contracts = param.as<GenericParamType>().contracts;
+                    bool cooked = false;
+                    for (auto didx = contracts.begin(); didx != contracts.end(); ++didx) {
+                        DefId contract_did = def_id(didx);
+                        if (!type_has_contract(tid, contract_did)) {
+                            dl.link(emplace_diagnostic_with_message_value(
+                                type(tid).span, diag_code::does_not_satisfy_contract,
+                                diag_type::error,
+                                DiagnosticTyperBeforeMessageAndSymbolAfter{
+                                    .sid = def(contract_did).name, .tid = tid}));
+                            cooked = true;
+                        }
+                    }
+                    return !cooked;
+                }
+                return false; // fallback (unreachable)
+            },
+            [this, pid, &dl](ExecId eid) -> bool {
+                GenericParam param = gen_param(pid);
+                if (param.holds<GenericParamVariable>()) {
+                    TopLevelDefVisitor def_visitor{*this};
+                    OptId<TypeId> maybe_tid
+                        = ComptExprSolver{*this, def_visitor}.infer_type_from_exec(eid);
+
+                    const auto expected_tid = param.as<GenericParamVariable>().type;
+
+                    if (maybe_tid.empty()) {
+                        dl.link(emplace_diagnostic_with_message_value(
+                            exec(eid).span, diag_code::generic_argument_expected_value_of_type,
+                            diag_type::error, DiagnosticTypeAfterMessage{.tid = expected_tid}));
+                        return false;
+                    }
+                    if (!equivalent_type(maybe_tid.as_id(), expected_tid)) {
+                        dl.link(emplace_diagnostic_with_message_value(
+                            exec(eid).span, diag_code::generic_argument_expected_value_of_type,
+                            diag_type::error,
+                            DiagnosticTyButGot{.expected_tid = expected_tid,
+                                               .got_tid = maybe_tid.as_id()}));
+                        return false;
+                    }
+                    return true;
+                }
+                if (param.holds<GenericParamType>()) {
+                    dl.link(emplace_diagnostic(exec(eid).span,
+                                               diag_code::expected_a_type_not_a_value_expression,
+                                               diag_type::error));
+                    return false;
+                }
+                return false; // fallback (unreachable)
+            }};
+        return gen_arg(aid).visit(vs);
+    };
+
+    bool cooked = false;
+    for (HirSize i = 0; i < arg_slice.len(); ++i) {
+        cooked |= !validate_arg(gen_arg_id(arg_slice.get(i)), gen_param_id(param_slice.get(i)));
+    }
+    if (cooked) {
+        dl.link(emplace_diagnostic_with_message_value(
+            def(did).span, diag_code::declared_here, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = def(did).name}));
+    }
     return true;
+}
+
+[[nodiscard]] std::optional<IdSlice<GenericParamId>>
+Context::try_generic_params_for_def(DefId did) const {
+    const Def& def = this->def(did);
+    if (def.holds<DefGenericStruct>()) {
+        return def.as<DefGenericStruct>().generic_params;
+    }
+    if (def.holds<DefGenericFunction>()) {
+        return def.as<DefGenericFunction>().generic_params;
+    }
+    if (def.holds<DefGenericVariant>()) {
+        return def.as<DefGenericVariant>().generic_params;
+    }
+    return {};
 }
 
 [[nodiscard]] OptId<DefId>

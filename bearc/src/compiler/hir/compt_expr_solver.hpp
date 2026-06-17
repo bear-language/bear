@@ -139,6 +139,10 @@ template <IsDefVisitor V> class ComptExprSolver {
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr,
                                            OptId<TypeId> maybe_into_tid) {
 
+        if (expr->type == AST_EXPR_GROUPING) {
+            return solve_expr(fid, scope, expr->expr.grouping.expr, maybe_into_tid);
+        }
+
         auto expr_is_mem_access = +[](const ast_expr_t* expr) {
             return expr->type == AST_EXPR_BINARY && expr->expr.binary.op->type == TOK_DOT;
         };
@@ -3110,6 +3114,26 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         switch (gen_arg->tag) {
         case AST_GENERIC_ARG_TYPE: {
+            const ast_type_t* type = gen_arg->arg.type;
+            // try to interpret as an expr if its benerficial
+            if (type->tag == AST_TYPE_BASE && !type->type.base.mut) {
+                const auto id_slice = type->type.base.id;
+                const auto sid_slice = context.symbol_slice(id_slice);
+                const auto maybe_tid
+                    = context.look_up_scoped_type(scope, sid_slice, Span{context, fid, id_slice});
+                if (maybe_tid.empty()) {
+                    ast_expr_t expr;
+                    expr.type = AST_EXPR_ID;
+                    expr.first = id_slice.start[0];
+                    expr.last = id_slice.start[id_slice.len - 1];
+                    expr.expr.id = ast_expr_id_t{.slice = id_slice};
+                    const OptId<ExecId> maybe_eid = solve_expr(fid, scope, &expr);
+                    if (maybe_eid.empty()) {
+                        return {};
+                    }
+                    return context.emplace_generic_arg(maybe_eid.as_id());
+                }
+            }
             const OptId<TypeId> maybe_tid = resolve_type(fid, scope, gen_arg->arg.type);
             if (maybe_tid.empty()) {
                 return {};

@@ -592,6 +592,9 @@ class Context {
 
     // true on valid, else false
     [[nodiscard]] bool validate_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id);
+
+    [[nodiscard]] std::optional<IdSlice<GenericParamId>>
+    try_generic_params_for_def(DefId did) const;
 };
 
 } // namespace hir

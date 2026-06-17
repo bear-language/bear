@@ -6,26 +6,14 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] `compt` improvements:
-    - [ ] compt closures (pure-expr only)
-        - [ ] allow capturing compt variables 
-
-- [x] unified `hir::Exec` hashing function
-    - [x] double check validity before moving on
-
-- [x] finish generic args table, review `GenericArgsId` and related Ids to ensure the design is sane
-
-- [x] implement generic args canonicalization to allow mapping of canonical lists of generic args to concrete instatiations for generic structs, variants, and functions
-
 - [ ] TODO:@@@ finish creation for types -> use DefId to access a gen arg map, then key into it with the generic args
 - [x] set up the `DefGenericFunction`, `DefGenericStruct`, and `DefGenericVariant` in DefVisitor 
-- [ ] valid generic args against generic params
+- [x] validate generic args against generic params
 - [ ] make the `try_generic_instatiation` attempt to make a new instatiation when needed
 
 - [ ] implement generic instatiation -> each canonical set of generic args for a given def needs to either:
         1.  map to an already instatiated specialized, concrete instance of the def, or:
         2. instatiate a new defintion by lowering the `ast_stmt_t` after inserting the specific defintions for values into a new scope for the concrete type 
-    - [ ] implement the various mapping mechanisms (see `CanonicalGenericArgsIdMapId` and related things)
     - [ ] handle generic routing for types
     - [ ] handle generic routing for functions 
     - [ ] generic routing for struct inits 
@@ -33,15 +21,16 @@ main quest
 
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
 
-- [ ] contract diagnostics for per-param disagreements
-
-- [ ] last bit of `hir::Type`s 
-    - [ ] generic types (just find/instatiate mentioned generic def and then use that concrete def within the type)
-
 - [ ] tighten up abi related stuff with hir::LayoutRules or something similar
     - [ ] properly impl `sizeof` and `alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
 
-- [ ] preliminary full `ast_stmt_t*` (top-level decls) lowering to `hir::Def` (requires both types and exprs)
+- [ ] `compt` improvements:
+    - [ ] compt closures (pure-expr only)
+        - [ ] allow capturing compt variables 
+    - [ ] compt slices `[&]` so we can work with any dimensional lists at compt
+    - [ ] compt ranges `1...4` and make then work with compt matching
+
+- [ ] tighten up variadic type handling
 
 - [ ] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
 
@@ -114,10 +103,12 @@ lexer & parser
     - [ ] probably just replace strtoll and friends with hand-rolled impls 
     - [ ] add binary integer literals `0b1010101` (keeping dec, hex, and float that we currently already have)
     - [ ] set a tkn to TOK_OVERSIZED_INT_ERR if there's no decimal and it's greater than u64 max or less than i64 min
+    - [ ] suffixes?
 - [ ] verify correctness of escape sequences in char and string literals
 
 hir & later 
 ----------- 
+- [ ] contract diagnostics for per-param disagreements
 - [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps
 - [ ] add an Exec Stringifier (tedious)
 - [ ] add a Def Stringifier (tedious)  
