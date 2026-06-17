@@ -545,7 +545,7 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
     // for tracking elipsing out:
 
     HirSize starting_line = curr_line;
-    static constexpr HirSize MAX_LINES_BEFORE_ELLIPSING = 9;
+    static constexpr HirSize MAX_LINES_BEFORE_ELLIPSING = 8;
 
     HirSize curr_len = 0;
     HirSize prev_len = 0; // NOLINT
