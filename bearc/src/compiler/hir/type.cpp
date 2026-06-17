@@ -165,7 +165,7 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
         },
         [&](const TypeStruct& t) {
             str += context.symbol_id_to_cstr(context.def(t.def_id).name);
-            if (t.maybe_canon_gen_args_id.has_value()) {
+            if (t.generic) {
                 str += "::<>"; // TODO properly handle gen args
             }
             if constexpr (considers_mut()) {
@@ -176,7 +176,7 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
         },
         [&](const TypeVariant& t) {
             str += context.symbol_id_to_cstr(context.def(t.def_id).name);
-            if (t.maybe_canon_gen_args_id.has_value()) {
+            if (t.generic) {
                 str += "::<>"; // TODO properly handle gen args
             }
             if constexpr (considers_mut()) {
@@ -415,7 +415,7 @@ bool CanonicalTypeTable::same_structure(TypeId tid1, TypeId tid2) const {
     return TypeTransformer<TypeComparator<considerer_type>>{context}(tid1, tid2);
 }
 
-size_t CanonicalTypeTable::index(size_t hash, size_t cap) { return hash & (cap - 1); }
+size_t CanonicalTypeTable::index(size_t hash, size_t cap) { return hash % cap; }
 void CanonicalTypeTable::put_new_head_on_chain(Entry** chain, Entry* new_entry) {
     assert(chain);
     new_entry->next = *chain;

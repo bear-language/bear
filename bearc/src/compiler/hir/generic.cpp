@@ -92,7 +92,7 @@ size_t CanonicalComptArgsTable::hash(GenericArgIdSliceId id) const {
     return hash_gen_arg_id_slice(context, id);
 }
 
-size_t CanonicalComptArgsTable::index(size_t hash, size_t cap) { return hash & (cap - 1); }
+size_t CanonicalComptArgsTable::index(size_t hash, size_t cap) { return hash % cap; }
 
 void CanonicalComptArgsTable::put_new_head_on_chain(Entry** chain, Entry* new_entry) {
     assert(chain);
@@ -107,6 +107,16 @@ void CanonicalComptArgsTable::insert(GenericArgIdSliceId id, CanonicalGenericArg
     ::new (new_entry) Entry{id, cid, hash_val, nullptr};
     put_new_head_on_chain(chain, new_entry);
     ++this->count;
+}
+
+CanonicalComptArgsTable::CanonicalComptArgsTable(Context& context, DataArena& arena,
+                                                 HirSize capacity)
+    : context{context}, arena{arena}, capacity{capacity} {
+    this->capacity = (capacity > DEFAULT_CAP) ? capacity : DEFAULT_CAP;
+    buckets = arena.alloc_as<Entry**>(this->capacity * sizeof(Entry*));
+
+    // zero-init buckets
+    memset(static_cast<void*>(buckets), 0, this->capacity * sizeof(Entry*));
 }
 
 OptId<CanonicalGenericArgsId> CanonicalComptArgsTable::at(GenericArgIdSliceId id) const {

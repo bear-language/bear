@@ -76,8 +76,7 @@ class CanonicalComptArgsTable {
     void insert(GenericArgIdSliceId id, CanonicalGenericArgsId cid);
 
   public:
-    CanonicalComptArgsTable(Context& context, DataArena& arena, HirSize capacity)
-        : context{context}, arena{arena}, capacity{capacity} {}
+    CanonicalComptArgsTable(Context& context, DataArena& arena, HirSize capacity);
     OptId<CanonicalGenericArgsId> at(GenericArgIdSliceId id) const;
     [[nodiscard]] CanonicalGenericArgsId canonical(GenericArgIdSliceId id);
 };

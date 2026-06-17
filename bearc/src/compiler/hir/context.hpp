@@ -420,7 +420,10 @@ class Context {
 
     [[nodiscard]] CanonicalGenericArgsId canonical_gen_args(GenericArgIdSliceId slice_id);
 
-    OptId<DefId> try_generic_instatiation(DefId def_id, GenericArgIdSliceId generic_args_id);
+    [[nodiscard]] OptId<DefId> try_generic_instatiation(DefId def_id,
+                                                        GenericArgIdSliceId generic_args_id);
+
+    [[nodiscard]] Span span_for_gen_args(GenericArgIdSliceId gen_arg_slice) const;
 
     /// checks if a struct has a contract
     /// - defaults to returning false if struct_did does not correspond to a struct and same with

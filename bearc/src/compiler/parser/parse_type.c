@@ -484,6 +484,9 @@ ast_type_t* parse_type_generic(parser_t* p, ast_type_t* inner) {
         p, PARSER_MODE_BAN_ANGLE_BRACKETS_IN_EXPRS); // cleaner template parsing from < and > issues
     ast_slice_of_generic_args_t args = parse_slice_of_generic_args(p);
     parser_mode_set(p, saved); // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    if (parser_peek_match(p, TOK_MUT) && inner->tag == AST_TYPE_BASE) {
+        inner->type.base.mut = true; // force inner to be mut
+    }
     if (!args.valid) {
         return parser_sync_type(p);
     }

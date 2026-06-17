@@ -229,7 +229,7 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
             return transform(t.def_id.raw(), t.type_id.raw());
         },
         [](const ExecExprComptConstant& t) -> size_t {
-            return transform(t.value.index(), t.to_size());
+            return transform(t.hash_identity(), t.to_size());
         },
         [&ctx](const ExecExprListLiteral& t) -> size_t {
             size_t h = t.elem_type_id.raw();

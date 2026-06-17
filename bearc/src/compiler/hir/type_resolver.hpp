@@ -88,14 +88,14 @@ template <IsDefVisitor V> class TypeResolver {
                     TypeStruct{
                         .def_id = did,
                         .gen_args_slice = {},
-                        .maybe_canon_gen_args_id = {},
+                        .generic = false,
                     },
                     span, mut); // not generic
             }
             if (context.is_variant(did)) {
                 return context.emplace_type(
-                    TypeVariant{.def_id = did, .gen_args_slice = {}, .maybe_canon_gen_args_id = {}},
-                    span, mut); // not generic
+                    TypeVariant{.def_id = did, .gen_args_slice = {}, .generic = false}, span,
+                    mut); // not generic
             }
             if (context.is_union(did)) {
                 return context.emplace_type(TypeUnion{.def_id = did}, span, mut);
@@ -121,7 +121,6 @@ template <IsDefVisitor V> class TypeResolver {
         }
 
         context.emplace_diagnostic(span, diag_code::type_not_defined, diag_type::error);
-
         return {};
     }
 
@@ -340,19 +339,38 @@ template <IsDefVisitor V> class TypeResolver {
             return {}; // poisoned
         }
 
-        const DefId did = maybe_did.as_id();
+        const DefId did = def_visitor.visit_as_transparent(maybe_did.as_id());
 
-        if (!context.def(did).generic) {
-            context.emplace_diagnostic(
-                span, diag_code::does_not_take_generic_arguments, diag_type::error,
-                DiagnosticSymbolBeforeMessage{.sid = context.def(did).name},
-                DiagnosticSubCode{.sub_code = diag_code::not_a_generic_type});
+        const auto maybe_gen_args = ComptExprSolver{context, def_visitor}.lower_generic_args(
+            fid, scope, type_node->type.generic.generic_args);
+        if (maybe_gen_args.empty()) {
             return {};
         }
 
-        // @@@ TODO: use DefId to access a gen arg map, then key into it with the generic args
+        const OptId<DefId> maybe_instant
+            = context.try_generic_instatiation(did, maybe_gen_args.as_id());
 
-        return {};
+        if (maybe_instant.empty()) {
+            return {};
+        }
+
+        const Def& def = context.def(did);
+
+        if (def.holds<DefGenericStruct>()) {
+            return context.emplace_type(TypeStruct{.def_id = maybe_instant.as_id(),
+                                                   .gen_args_slice = maybe_gen_args.as_id(),
+                                                   .generic = true},
+                                        Span{context, fid, type_node->first, type_node->last},
+                                        inner->type.base.mut);
+        }
+        if (def.holds<DefGenericVariant>()) {
+            return context.emplace_type(TypeVariant{.def_id = maybe_instant.as_id(),
+                                                    .gen_args_slice = maybe_gen_args.as_id(),
+                                                    .generic = true},
+                                        Span{context, fid, type_node->first, type_node->last},
+                                        inner->type.base.mut);
+        }
+        return {}; // oops
     }
 
   public:

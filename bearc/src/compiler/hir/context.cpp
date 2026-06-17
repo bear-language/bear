@@ -1751,10 +1751,12 @@ CanonicalGenericArgsId Context::canonical_gen_args(GenericArgIdSliceId slice_id)
 }
 
 OptId<DefId> Context::try_generic_instatiation(DefId def_id, GenericArgIdSliceId generic_args_id) {
-    const Def& def = this->def(def_id);
-    if (!def.generic) {
+
+    if (!validate_gen_args_for_def(def_id, generic_args_id)) {
         return {};
     }
+
+    const Def& def = this->def(TopLevelDefVisitor{*this}.visit_as_dependent(def_id));
     CanonicalGenericArgsIdMapId map_id{};
     if (def.holds<DefGenericFunction>()) {
         map_id = def.as<DefGenericFunction>().generics_args_to_concrete_defs_map;
@@ -1762,6 +1764,8 @@ OptId<DefId> Context::try_generic_instatiation(DefId def_id, GenericArgIdSliceId
         map_id = def.as<DefGenericStruct>().generics_args_to_concrete_defs_map;
     } else if (def.holds<DefGenericVariant>()) {
         map_id = def.as<DefGenericVariant>().generics_args_to_concrete_defs_map;
+    } else {
+        return {};
     }
     IdHashMap<CanonicalGenericArgsId, DefId>& map = this->generic_args_map(map_id);
 
@@ -1771,20 +1775,47 @@ OptId<DefId> Context::try_generic_instatiation(DefId def_id, GenericArgIdSliceId
 
     // attempt new instatiation if there's not an existing one
     if (maybe_instance.empty()) {
-        // @@@ TODO: make a new instatiation
+        return make_new_generic_instatiation(def_id, canonical_args);
     }
     return maybe_instance.as_id();
 }
 
-[[nodiscard]] bool validate_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id) {
+// true on valid, else false
+[[nodiscard]] bool Context::validate_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id) {
     // @@@ TODO validate args based on the def's generic params (once they're impl'd)
-    return {};
+    if (!def(did).generic) {
+        emplace_diagnostic(span_for_gen_args(gen_args_id),
+                           diag_code::does_not_take_generic_arguments, diag_type::error,
+                           DiagnosticSymbolBeforeMessage{.sid = this->def(did).name},
+                           DiagnosticSubCode{.sub_code = diag_code::not_a_generic_type});
+        return false;
+    }
+    return true;
 }
 
 [[nodiscard]] OptId<DefId>
 Context::make_new_generic_instatiation(DefId did, CanonicalGenericArgsId canon_gen_args_id) {
     // @@@ TODO
     return {};
+}
+
+Span Context::span_for_gen_args(GenericArgIdSliceId gen_arg_slice) const {
+
+    auto span = [this](GenericArgId gid) {
+        Ovld vs{
+            [this](ExecId eid) { return exec(eid).span; },
+            [this](TypeId tid) { return type(tid).span; },
+        };
+        return this->gen_arg(gid).visit(vs);
+    };
+
+    const auto slice = gen_arg_id_slice(gen_arg_slice);
+
+    const Span span1 = span(gen_arg_id(slice.begin()));
+
+    const Span span2 = span(gen_arg_id(slice.last_elem()));
+
+    return Span::combine(span1, span2);
 }
 
 } // namespace hir

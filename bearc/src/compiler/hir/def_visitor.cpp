@@ -211,9 +211,8 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         context.register_generated_deftype(
             structs_scope, context.symbol_id<"Self">(),
             // TODO properly handle generic args here
-            context.emplace_type(
-                TypeStruct{.def_id = did, .gen_args_slice = {}, .maybe_canon_gen_args_id = {}},
-                Span::generated(), false),
+            context.emplace_type(TypeStruct{.def_id = did, .gen_args_slice = {}, .generic = false},
+                                 Span::generated(), false),
             did, Span{context, context.def(did).span.file_id, strct.name});
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

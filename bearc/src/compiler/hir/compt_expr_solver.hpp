@@ -24,6 +24,7 @@
 #include "compiler/hir/matching.hpp"
 #include "compiler/hir/span.hpp"
 #include "compiler/hir/type.hpp"
+#include "compiler/parser/token_eaters.h"
 #include "compiler/token.h"
 #include "def_visitor.hpp"
 #include <cassert>
@@ -89,7 +90,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             return context.emplace_type(
                 TypeStruct{.def_id = struct_did,
                            .gen_args_slice = {},
-                           .maybe_canon_gen_args_id = context.generic_args_for_def(struct_did)},
+                           .generic = context.generic_args_for_def(struct_did).has_value()},
                 Span::generated(), false);
         }
         if (exec.holds<ExecExprListLiteral>()) {
@@ -117,12 +118,12 @@ template <IsDefVisitor V> class ComptExprSolver {
                 false);
         }
         if (exec.holds<ExecExprVariantInit>()) {
+            const auto did = exec.as<ExecExprVariantInit>().variant_def_id;
             return context.emplace_type(
-                TypeVariant{
-                    .def_id = exec.as<ExecExprVariantInit>().variant_def_id,
-                    .gen_args_slice = {},
-                    .maybe_canon_gen_args_id = {},
-                },
+                TypeVariant{.def_id = did,
+                            .gen_args_slice = {},
+                            .generic = context.generic_args_for_def(did).has_value()},
+
                 Span::generated(), false);
         }
 
@@ -1082,9 +1083,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                     diag_type::error,
                     DiagnosticTypeToType{
                         .from = context.emplace_type(
-                            TypeStruct{.def_id = struct_did,
-                                       .gen_args_slice = {},
-                                       .maybe_canon_gen_args_id = {}},
+                            TypeStruct{
+                                .def_id = struct_did, .gen_args_slice = {}, .generic = false},
                             Span(
                                 fid, context.ast(fid).buffer(), expr->expr.struct_init.id.start[0],
                                 expr->expr.struct_init.id.start[expr->expr.struct_init.id.len - 1]),
@@ -2679,14 +2679,12 @@ template <IsDefVisitor V> class ComptExprSolver {
         if (s1.struct_def_id != s2.struct_def_id) {
 
             // TODO properly set gen args here! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            auto t1 = context.emplace_type(TypeStruct{.def_id = s1.struct_def_id,
-                                                      .gen_args_slice = {},
-                                                      .maybe_canon_gen_args_id = {}},
-                                           Span::generated(), false);
-            auto t2 = context.emplace_type(TypeStruct{.def_id = s2.struct_def_id,
-                                                      .gen_args_slice = {},
-                                                      .maybe_canon_gen_args_id = {}},
-                                           Span::generated(), false);
+            auto t1 = context.emplace_type(
+                TypeStruct{.def_id = s1.struct_def_id, .gen_args_slice = {}, .generic = false},
+                Span::generated(), false);
+            auto t2 = context.emplace_type(
+                TypeStruct{.def_id = s2.struct_def_id, .gen_args_slice = {}, .generic = false},
+                Span::generated(), false);
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             auto d0 = context.emplace_diagnostic(Span::combine(list1.span, list2.span),
                                                  diag_code::invalid_operand_for_binary_expression,
@@ -3124,10 +3122,11 @@ template <IsDefVisitor V> class ComptExprSolver {
                 const auto id_slice = expr->expr.id.slice;
                 // only do this if a type actually exists for this identifer, otherwise treat it as
                 // an expression
-                if (context
-                        .look_up_scoped_type(scope, context.symbol_slice(id_slice),
-                                             Span{context, fid, id_slice})
-                        .has_value()) {
+                if (token_is_builtin_type(expr->expr.id.slice.start[0]->type)
+                    || context
+                           .look_up_scoped_type(scope, context.symbol_slice(id_slice),
+                                                Span{context, fid, id_slice})
+                           .has_value()) {
                     ast_type_t type = {.type = {},
                                        .tag = AST_TYPE_BASE,
                                        .canonical_base = &type,
@@ -3151,9 +3150,10 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         return {};
     }
+
+  public:
     [[nodiscard]] OptId<GenericArgIdSliceId>
-    lower_generic_args(FileId fid, ScopeId scope, Context& ctx,
-                       ast_slice_of_generic_args_t gen_args) {
+    lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generic_args_t gen_args) {
 
         if (!gen_args.valid) {
             return {};
