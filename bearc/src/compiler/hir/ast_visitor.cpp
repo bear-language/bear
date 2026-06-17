@@ -271,19 +271,26 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
         break;
     }
 
+    bool currently_instatiating_a_specialized_generic = false;
+
     // redefintion guard, only care if it's not for the same stmt (basically meaning this is a
     // generic instatiation)
-    if (already_defined.has_value() && gen_state.inst_state != gen_instatiation_state::instantiating
-        && context.def_ast_node(already_defined.as_id()) != stmt) {
-        // do diagnostics for the redefinition
-        auto d1 = context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
-                                             diag_code::redefined_symbol, diag_type::error);
-        auto orig_file = context.def(already_defined.as_id()).span.file_id;
-        auto* t = top_level_info_for(context.def_ast_node(already_defined.as_id())).name_tkn;
-        auto d2 = context.emplace_diagnostic(Span(orig_file, context.ast(orig_file).buffer(), t),
+    if (already_defined.has_value()) {
+        currently_instatiating_a_specialized_generic
+            = gen_state.inst_state == gen_instatiation_state::instantiating;
+        if (!currently_instatiating_a_specialized_generic
+            && context.def_ast_node(already_defined.as_id()) != stmt) {
+            // do diagnostics for the redefinition
+            auto d1 = context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
+                                                 diag_code::redefined_symbol, diag_type::error);
+            auto orig_file = context.def(already_defined.as_id()).span.file_id;
+            auto* t = top_level_info_for(context.def_ast_node(already_defined.as_id())).name_tkn;
+            auto d2
+                = context.emplace_diagnostic(Span(orig_file, context.ast(orig_file).buffer(), t),
                                              diag_code::previous_def_here, diag_type::note);
-        context.link_diagnostic(d1, d2);
-        return OptId<DefId>{};
+            context.link_diagnostic(d1, d2);
+            return OptId<DefId>{};
+        }
     }
 
     // no issues, so register definition
@@ -294,10 +301,18 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
     if (!info.do_not_insert_in_scope) {
         switch (kind) {
         case scope_kind::variable:
-            context.scope(scope).insert_variable(name, did);
+            // specializations shouldn't map name to def_id since their generic args are how we look
+            // them up!
+            if (!currently_instatiating_a_specialized_generic) {
+                context.scope(scope).insert_variable(name, did);
+            }
             break;
         case scope_kind::type: {
-            context.scope(scope).insert_type(name, did);
+            // specializations shouldn't map name to def_id since their generic args are how we look
+            // them up!
+            if (!currently_instatiating_a_specialized_generic) {
+                context.scope(scope).insert_type(name, did);
+            }
             // if the type (namely a variant field decl) doesn't have statements then the scope
             // needn't be large
             const bool is_small_scope = !stmts.has_value();
