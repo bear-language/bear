@@ -38,3 +38,5 @@ compt FourIntList::li d = FourIntList::li{};
 var _1 = @static_assert @same_type(FourIntList::li, typeof c);
 
 var _2 = ([1,2,3,4]);
+
+compt Foo::i32 foo = Foo::i32{}; // oops

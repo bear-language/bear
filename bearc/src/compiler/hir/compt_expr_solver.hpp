@@ -3116,7 +3116,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_GENERIC_ARG_TYPE: {
             const ast_type_t* type = gen_arg->arg.type;
             // try to interpret as an expr if its benerficial
-            if (type->tag == AST_TYPE_BASE && !type->type.base.mut) {
+            if (type->tag == AST_TYPE_BASE && !type->type.base.mut
+                && !token_is_builtin_type(type->type.base.id.start[0]->type)) {
                 const auto id_slice = type->type.base.id;
                 const auto sid_slice = context.symbol_slice(id_slice);
                 const auto maybe_tid
