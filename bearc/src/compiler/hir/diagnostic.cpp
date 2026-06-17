@@ -542,6 +542,11 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
     bool do_faux_line = false;
     static constexpr HirSize MAX_LINE_LEN = 100;
 
+    // for tracking elipsing out:
+
+    HirSize starting_line = curr_line;
+    static constexpr HirSize MAX_LINES_BEFORE_ELLIPSING = 9;
+
     HirSize curr_len = 0;
     HirSize prev_len = 0; // NOLINT
 
@@ -638,6 +643,13 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
         }
 
         ++curr_len;
+        if (curr_line - starting_line == MAX_LINES_BEFORE_ELLIPSING) {
+            buf += line_without_num();
+            buf += ansi_bold_reset();
+            buf += "...";
+            buf += ansi_reset();
+            break;
+        }
     }
     buf += ansi_reset();
 

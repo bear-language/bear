@@ -116,8 +116,6 @@ hir & later
 - [ ] arbitrary source code reconstruction from hir::Context
 
 #### diagnostics
-- [ ] elipse out diagnostics after like 8 lines
-- [ ] add trimming of cwd from file paths in diagnostics reporting?
 - [ ] fully allow cyclical imports, add a flag to enable warnings instead of always warning for it
 - [ ] using a scope iterator, use Levenshtein distance to make a `help: did you mean:` `...`
 

@@ -1,0 +1,30 @@
+// tests/hir/88.br
+
+struct Foo<i32 a> {
+    fn foo() {
+
+
+
+
+    }
+
+    mt very_long() -> i32 {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        return 0;
+    }
+}
+
+compt Foo<i32> a = Foo{};
