@@ -271,8 +271,10 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
         break;
     }
 
-    // redefintion guard
-    if (already_defined.has_value()) {
+    // redefintion guard, only care if it's not for the same stmt (basically meaning this is a
+    // generic instatiation)
+    if (already_defined.has_value() && gen_state.inst_state != gen_instatiation_state::instantiating
+        && context.def_ast_node(already_defined.as_id()) != stmt) {
         // do diagnostics for the redefinition
         auto d1 = context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
                                              diag_code::redefined_symbol, diag_type::error);
@@ -285,24 +287,24 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
     }
 
     // no issues, so register definition
-    DefId def = context.register_top_level_def(
+    DefId did = context.register_top_level_def(
         name, pub, compt, statik, is_generic,
         Span(file, context.ast(file).buffer(), first_tkn, last_tkn), stmt, parent);
     // register into a scope
     if (!info.do_not_insert_in_scope) {
         switch (kind) {
         case scope_kind::variable:
-            context.scope(scope).insert_variable(name, def);
+            context.scope(scope).insert_variable(name, did);
             break;
         case scope_kind::type: {
-            context.scope(scope).insert_type(name, def);
+            context.scope(scope).insert_type(name, did);
             // if the type (namely a variant field decl) doesn't have statements then the scope
             // needn't be large
             const bool is_small_scope = !stmts.has_value();
             ScopeId types_scope
                 = (is_small_scope) ? context.make_small_scope(scope) : context.make_scope(scope);
 
-            context.defs_to_scopes_for_types().insert(def, types_scope);
+            context.defs_to_scopes_for_types().insert(did, types_scope);
             // warn on lowercase structure definition
             if (is_lower(name_tkn)) {
                 context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
@@ -315,7 +317,7 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
                                                             ? gen_visit_state::inside_generic
                                                             : gen_state.vis_state};
                 register_top_level_stmts_registering_ordered_members(
-                    def, types_scope, info.stmts.value(), def, abi, new_gen_state);
+                    did, types_scope, info.stmts.value(), did, abi, new_gen_state);
             }
             break;
         }
@@ -326,11 +328,11 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
     }
     // return the DefId since this is an orderable definition
     if (info.is_orderable_var && !statik && !compt) {
-        return def;
+        return did;
     }
     // always order contract fields
     if (parent.has_value() && context.def_ast_node(parent.as_id())->type == AST_STMT_CONTRACT_DEF) {
-        return def;
+        return did;
     }
     return OptId<DefId>{};
 }
