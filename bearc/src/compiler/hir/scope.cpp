@@ -42,7 +42,7 @@ Scope::Scope(ScopeId parent, size_t capacity, DataArena& arena, storage storage)
 OptId<DefId> Scope::look_up_impl(const Context& context, ScopeId local_scope_id, SymbolId symbol,
                                  scope_kind kind) {
 
-    if (!local_scope_id.val()) {
+    if (!local_scope_id.raw()) {
         return std::nullopt;
     }
     // init curr scope local scope
@@ -53,7 +53,7 @@ OptId<DefId> Scope::look_up_impl(const Context& context, ScopeId local_scope_id,
     OptId<DefId> def{};
 
     // start walking scopes from local thru parents
-    while (!def.val()) {
+    while (!def.raw()) {
         curr_scope = &context.scope(curr_scope_id);
         switch (kind) {
         case scope_kind::namespacee:
@@ -66,7 +66,7 @@ OptId<DefId> Scope::look_up_impl(const Context& context, ScopeId local_scope_id,
             def = curr_scope->types.at(symbol);
             break;
         }
-        if (def.val()) {
+        if (def.raw()) {
             break; // hit, stop now since we allow shadowing
         }
         const OptId<ScopeId> parent_scope_id = curr_scope->parent_;

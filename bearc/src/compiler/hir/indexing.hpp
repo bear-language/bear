@@ -42,7 +42,7 @@ template <typename T> class Id {
     using id_tag = T;
     constexpr explicit Id(HirId v) : value(v) {}
     constexpr Id() : value(HIR_ID_NONE) {}
-    [[nodiscard]] constexpr HirId val() const noexcept { return value; }
+    [[nodiscard]] constexpr HirId raw() const noexcept { return value; }
     friend constexpr bool operator==(Id<T> a, Id<T> b) { return a.value == b.value; }
     constexpr Id operator++() { return Id{++value}; }
     constexpr Id operator--() { return Id{--value}; }
@@ -122,7 +122,7 @@ template <hir::IsId T> class IdIdx {
     using self_type = IdIdx<T>;
     constexpr IdIdx() : value(HIR_ID_NONE) {}
     explicit IdIdx(HirId value) : value(value) {};
-    constexpr HirId val() const noexcept { return value; }
+    constexpr HirId raw() const noexcept { return value; }
     constexpr self_type operator++() { return IdIdx{++value}; }
     constexpr self_type operator--() { return IdIdx{--value}; }
     constexpr self_type operator++(int) { return IdIdx{value++}; }
@@ -148,13 +148,13 @@ template <hir::IsId T> class OptId {
     OptId(T id_value) : underlying(id_value) {}
     // allow conversion from none_type
     constexpr OptId(none_type none) : OptId{} { const auto _ = none; }
-    HirId val() const { return underlying.val(); }
+    HirId raw() const { return underlying.raw(); }
     constexpr T as_id() const noexcept {
-        assert(underlying.val() != HIR_ID_NONE);
+        assert(underlying.raw() != HIR_ID_NONE);
         return underlying;
     }
-    [[nodiscard]] bool has_value() const noexcept { return underlying.val() != HIR_ID_NONE; }
-    [[nodiscard]] bool empty() const noexcept { return underlying.val() == HIR_ID_NONE; }
+    [[nodiscard]] bool has_value() const noexcept { return underlying.raw() != HIR_ID_NONE; }
+    [[nodiscard]] bool empty() const noexcept { return underlying.raw() == HIR_ID_NONE; }
     void set(T id_value) noexcept { this->underlying = id_value; }
     T get_or(T or_else_this_value) {
         return this->has_value() ? this->as_id() : or_else_this_value;
@@ -171,10 +171,10 @@ template <hir::IsId T> class IdSlice {
     constexpr IdSlice(IdIdx<T> first, HirSize len) : first_(first), len_(len) {}
     [[nodiscard]] constexpr IdIdx<T> first() const noexcept { return first_; }
     [[nodiscard]] constexpr IdIdx<T> last_elem() const noexcept {
-        return IdIdx<T>{first_.val() + len_ - 1};
+        return IdIdx<T>{first_.raw() + len_ - 1};
     }
     [[nodiscard]] constexpr IdIdx<T> get(HirSize i) const noexcept {
-        return IdIdx<T>{first_.val() + i};
+        return IdIdx<T>{first_.raw() + i};
     }
     [[nodiscard]] constexpr HirSize len() const noexcept { return len_; }
     [[nodiscard]] constexpr bool is_empty() const noexcept { return len_ == 0; }
@@ -189,7 +189,7 @@ template <hir::IsId T> class IdSlice {
 
     [[nodiscard]] constexpr IdIdx<T> begin() const noexcept { return first_; }
 
-    [[nodiscard]] constexpr IdIdx<T> end() const noexcept { return IdIdx<T>{first_.val() + len_}; }
+    [[nodiscard]] constexpr IdIdx<T> end() const noexcept { return IdIdx<T>{first_.raw() + len_}; }
 };
 
 using OrderedDefSliceId = Id<IdSlice<DefId>>;

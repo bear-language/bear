@@ -47,9 +47,11 @@ class TopLevelDefVisitor {
     DefId visit_and_resolve_if_needed(DefId def);
     void report_cycle(DefId culprit);
     [[nodiscard]] std::optional<IdSlice<GenericParamId>>
-    resolve_generic_params(File fid, ScopeId scope, ast_slice_of_generic_args_t gen_params);
+    resolve_generic_params(FileId fid, ScopeId scope, ast_slice_of_generic_params_t gen_params);
     [[nodiscard]] OptId<GenericParamId>
-    resolve_generic_param(File fid, ScopeId scope, const ast_generic_parameter_t* gen_param);
+    resolve_generic_param(FileId fid, ScopeId scope, const ast_generic_parameter_t* gen_param);
+    [[nodiscard]] IdSlice<DefId>
+    resolve_contracts_for_generic_param(FileId fid, ScopeId scope, ast_slice_of_exprs_t contracts);
 
   public:
     TopLevelDefVisitor(Context& context) : context{context}, began_resolution{false} {}

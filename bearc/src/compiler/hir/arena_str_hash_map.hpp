@@ -23,7 +23,7 @@ template <hir::IsId I> class StrIdHashMap {
     StrIdHashMap(DataArena& arena)
         : arena{arena},
           map{strimap_create_from_arena(DEFAULT_ARENA_STR_HASH_MAP_SIZE, arena.arena())} {}
-    void emplace(const char* key, I id) { strimap_emplace(&map, key, id.val()); }
+    void emplace(const char* key, I id) { strimap_emplace(&map, key, id.raw()); }
     bool contains(const char* key) { return strimap_contains(&map, key); }
     OptId<I> at(const char* key) {
         auto* id = strimap_at(&map, key);

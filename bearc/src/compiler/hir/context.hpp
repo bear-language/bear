@@ -255,9 +255,12 @@ class Context {
 
     [[nodiscard]] ExecId emplace_compt_exec(const ExecValue& value, Span span);
 
-    [[nodiscard]] GenericArgId emplace_generic_arg(GenericArg value);
+    [[nodiscard]] GenericArgId emplace_generic_arg(GenericArgValue value);
 
     [[nodiscard]] GenericArgIdSliceId emplace_generic_arg_id_slice(IdSlice<GenericArgId> value);
+
+    [[nodiscard]] GenericParamId emplace_generic_param(Span span, GenericParamValue value,
+                                                       SymbolId name);
 
     // ----- info viewing ------
 
@@ -376,6 +379,8 @@ class Context {
     [[nodiscard]] bool is_variant(DefId did) const;
     /// checks if a Def is a variant field without resolving it
     [[nodiscard]] bool is_variant_field(DefId did) const;
+
+    [[nodiscard]] bool is_contract(DefId did) const;
 
     /// try to go from Foo to Bar..Foo
     [[nodiscard]] IdSlice<SymbolId> try_singly_qualified_name(DefId did);

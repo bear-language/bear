@@ -18,7 +18,7 @@ namespace hir {
 
 size_t hash_gen_arg(const Context& ctx, GenericArgId gen_arg_id) {
     Ovld vs{
-        [&ctx](TypeId tid) -> size_t { return mix(ctx.type(tid).canonical.val()); },
+        [&ctx](TypeId tid) -> size_t { return mix(ctx.type(tid).canonical.raw()); },
         [&ctx](ExecId eid) -> size_t { return hash_exec(ctx, eid); },
     };
     return ctx.gen_arg(gen_arg_id).visit(vs);

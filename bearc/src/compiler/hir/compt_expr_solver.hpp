@@ -3110,15 +3110,13 @@ template <IsDefVisitor V> class ComptExprSolver {
         if (!gen_arg->valid) {
             return {};
         }
-        GenericArg arg;
         switch (gen_arg->tag) {
         case AST_GENERIC_ARG_TYPE: {
             const OptId<TypeId> maybe_tid = resolve_type(fid, scope, gen_arg->arg.type);
             if (maybe_tid.empty()) {
                 return {};
             }
-            arg.value = maybe_tid.as_id();
-            break;
+            return context.emplace_generic_arg(maybe_tid.as_id());
         }
         case AST_GENERIC_ARG_EXPR: {
             const ast_expr_t* expr = gen_arg->arg.expr;
@@ -3140,19 +3138,18 @@ template <IsDefVisitor V> class ComptExprSolver {
                     if (maybe_tid.empty()) {
                         return {};
                     }
-                    arg.value = maybe_tid.as_id();
-                    break;
+                    return context.emplace_generic_arg(maybe_tid.as_id());
                 }
             }
             const OptId<ExecId> maybe_eid = solve_expr(fid, scope, expr);
             if (maybe_eid.empty()) {
                 return {};
             }
-            arg.value = maybe_eid.as_id();
+            return context.emplace_generic_arg(maybe_eid.as_id());
             break;
         }
         }
-        return context.emplace_generic_arg(arg);
+        return {};
     }
     [[nodiscard]] OptId<GenericArgIdSliceId>
     lower_generic_args(FileId fid, ScopeId scope, Context& ctx,

@@ -41,7 +41,7 @@ class Span {
     [[nodiscard]] static std::string_view retrieve_from_buffer(const char* data, Span span);
     [[nodiscard]] std::string_view as_sv(const Context& context) const;
     static Span generated();
-    bool is_generated() const { return file_id.val() == HIR_ID_NONE; };
+    bool is_generated() const { return file_id.raw() == HIR_ID_NONE; };
     static Span combine(Span span1, Span span2);
     static Span find_between_tokens(const Context& ctx, FileId fid, const token_t* t1,
                                     const token_t* t2);

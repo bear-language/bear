@@ -27,3 +27,24 @@ variant Ben<T> {
 compt Ben<i32> e = Ben::i32(42);
 
 compt Ben::u8 f = Ben::u8(42);
+
+variant Bowie<B has(Cat), B, B, A, usize A, usize a> {
+    Aa(A a),
+    Bb(B b),
+}
+
+contract Cat {
+
+}
+
+contract Dog {
+
+}
+
+struct PetShop<A has Dog, B has Cat, C has Ben> {
+
+}
+
+struct FictiousPlace<A has(Dog), B has(Cat), C has Yabadababa> {
+
+}

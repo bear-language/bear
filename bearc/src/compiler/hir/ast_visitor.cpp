@@ -264,7 +264,7 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
     if (already_defined.has_value()) {
         // do diagnostics for the redefinition
         auto d1 = context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
-                                             diag_code::redefinition, diag_type::error);
+                                             diag_code::redefined_symbol, diag_type::error);
         auto orig_file = context.def(already_defined.as_id()).span.file_id;
         auto* t = top_level_info_for(context.def_ast_node(already_defined.as_id())).name_tkn;
         auto d2 = context.emplace_diagnostic(Span(orig_file, context.ast(orig_file).buffer(), t),

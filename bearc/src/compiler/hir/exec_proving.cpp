@@ -209,30 +209,30 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
             return mix(8uz ^ t.yield_value.has_value() ? hash_exec(ctx, t.yield_value.as_id()) : 0);
         },
         [&ctx](const ExecExprUnionInit& t) -> size_t {
-            return mix(t.union_def_id.val() ^ hash_exec(ctx, t.member_init) ^ t.active_member_idx);
+            return mix(t.union_def_id.raw() ^ hash_exec(ctx, t.member_init) ^ t.active_member_idx);
         },
         [&ctx](const ExecExprVariantInit& t) -> size_t {
-            return mix(t.variant_def_id.val() ^ hash_exec(ctx, t.payload_init)
+            return mix(t.variant_def_id.raw() ^ hash_exec(ctx, t.payload_init)
                        ^ t.active_member_idx);
         },
         [&ctx](const ExecExprStructInit& t) -> size_t {
-            size_t h = t.struct_def_id.val();
+            size_t h = t.struct_def_id.raw();
             for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
                 h = transform(h, hash_exec(ctx, ctx.exec_id(eidx)));
             }
             return h;
         },
         [&ctx](const ExecExprStructMemberInit& t) -> size_t {
-            return transform(t.field_def.val(), hash_exec(ctx, (t.value)));
+            return transform(t.field_def.raw(), hash_exec(ctx, (t.value)));
         },
         [](const ExecExprVariable& t) -> size_t {
-            return transform(t.def_id.val(), t.type_id.val());
+            return transform(t.def_id.raw(), t.type_id.raw());
         },
         [](const ExecExprComptConstant& t) -> size_t {
             return transform(t.value.index(), t.to_size());
         },
         [&ctx](const ExecExprListLiteral& t) -> size_t {
-            size_t h = t.elem_type_id.val();
+            size_t h = t.elem_type_id.raw();
             h = transform(h, t.len());
             for (auto eidx = t.elems.begin(); eidx != t.elems.end(); ++eidx) {
                 h = transform(h, hash_exec(ctx, ctx.exec_id(eidx)));
@@ -259,9 +259,9 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
         [](const ExecExprVariantDecomp& t) -> size_t { return {}; },
         [](const ExecExprMatch& t) -> size_t { return {}; },
         [](const ExecExprMatchBranch& t) -> size_t { return {}; },
-        [](const ExecFnPtr& t) -> size_t { return mix(t.func_def_id.val()); },
+        [](const ExecFnPtr& t) -> size_t { return mix(t.func_def_id.raw()); },
         [&ctx](const ExecVariantFieldInit& t) -> size_t {
-            size_t h = t.variant_field_def_id.val();
+            size_t h = t.variant_field_def_id.raw();
             for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
                 h = transform(h, hash_exec(ctx, ctx.exec_id(eidx)));
             }

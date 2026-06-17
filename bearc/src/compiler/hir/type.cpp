@@ -98,7 +98,7 @@ template <ConsiderMut C> size_t TypeHasher<C>::operator()(const Type& t1) const 
     auto vs = Ovld{
         [&](const TypeBuiltin& t) -> size_t { return mix(0x01uz ^ static_cast<size_t>(t.type)); },
         [&](const TypeStruct& t) -> size_t {
-            return mix(0x02uz ^ static_cast<size_t>(t.def_id.val()));
+            return mix(0x02uz ^ static_cast<size_t>(t.def_id.raw()));
         },
         [&](const TypeDeftype&) -> size_t {
             std::cout << ("tried to directly hash a deftype, do not use `as_mentioned` invocations "
@@ -128,10 +128,10 @@ template <ConsiderMut C> size_t TypeHasher<C>::operator()(const Type& t1) const 
         [&](const TypeVariadic&) -> size_t { return mix(0x09uz); },
         [&](const TypeVar&) -> size_t { return mix(0x10uz); },
         [&](const TypeUnion& t) -> size_t {
-            return mix(0x11uz ^ static_cast<size_t>(t.def_id.val()));
+            return mix(0x11uz ^ static_cast<size_t>(t.def_id.raw()));
         },
         [&](const TypeVariant& t) -> size_t {
-            return mix(0x12uz ^ static_cast<size_t>(t.def_id.val()));
+            return mix(0x12uz ^ static_cast<size_t>(t.def_id.raw()));
         }};
 
     size_t h = t1.visit(vs);

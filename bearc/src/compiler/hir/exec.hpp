@@ -183,7 +183,7 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
         case builtin_type::voidd:
             return 0;
         case builtin_type::str:
-            return as<SymbolId>().val();
+            return as<SymbolId>().raw();
         case builtin_type::nullpointer:
             return 0;
         case builtin_type::boolean:

@@ -16,6 +16,7 @@
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/type_resolver.hpp"
+#include "utils/data_arena.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
 #include <optional>
@@ -195,8 +196,14 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         auto strct = stmt->stmt.struct_decl;
         // delay resolution/instantiation until specialization
         if (strct.is_generic) {
+            const auto maybe_generic_params = resolve_generic_params(
+                context.def(did).span.file_id, context.containing_scope(did), strct.generic_params);
+            if (!maybe_generic_params.has_value()) {
+                goto cleanup;
+            }
             context.def(did).set_value(DefGenericStruct{
-                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id()});
+                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
+                .generic_params = maybe_generic_params.value()});
             goto cleanup;
         }
 
@@ -257,7 +264,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                         ctr_span, diag_code::struct_already_has_contract, diag_type::error,
                         DiagnosticSymbolAfterMessage{contract_def.name}));
                 } else {
-                    dlinker.link(context.emplace_diagnostic(ctr_span, diag_code::redefinition,
+                    dlinker.link(context.emplace_diagnostic(ctr_span, diag_code::redefined_symbol,
                                                             diag_type::error));
                     dlinker.link(context.emplace_diagnostic(
                         context.name_span_for_def(already_defined.as_id()),
@@ -429,8 +436,15 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         }
 
         if (def.generic) {
+            const auto maybe_generic_params
+                = resolve_generic_params(context.def(did).span.file_id,
+                                         context.containing_scope(did), fn_decl.generic_params);
+            if (!maybe_generic_params.has_value()) {
+                goto cleanup;
+            }
             context.def(did).set_value(DefGenericFunction{
-                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id()});
+                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
+                .generic_params = maybe_generic_params.value()});
             goto cleanup;
         }
 
@@ -524,8 +538,15 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
     case AST_STMT_VARIANT_DEF: {
         // TODO properly handle generics
         if (context.def(did).generic) {
-            context.def(did).set_value(DefGenericStruct{
-                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id()});
+            const auto maybe_generic_params = resolve_generic_params(
+                context.def(did).span.file_id, context.containing_scope(did),
+                stmt->stmt.variant_decl.generic_params);
+            if (!maybe_generic_params.has_value()) {
+                goto cleanup;
+            }
+            context.def(did).set_value(DefGenericVariant{
+                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
+                .generic_params = maybe_generic_params.value()});
             goto cleanup;
         }
         auto members = context.ordered_defs_for(did);
@@ -804,16 +825,117 @@ bool TopLevelDefVisitor::try_satisfy_contracts(DefId struct_did, IdSlice<DefId> 
 }
 
 [[nodiscard]] std::optional<IdSlice<GenericParamId>>
-TopLevelDefVisitor::resolve_generic_params(File fid, ScopeId scope,
-                                           ast_slice_of_generic_args_t gen_params) {
-    // @@@ TODO; validate no repeated identifiers
-    return {};
+TopLevelDefVisitor::resolve_generic_params(FileId fid, ScopeId scope,
+                                           ast_slice_of_generic_params_t gen_params) {
+    llvm::SmallVector<GenericParamId> param_vec;
+    DataArena arena{0x400}; // TOOD, get from context probably
+    IdHashMap<SymbolId, GenericParamId> param_map{arena, 1000};
+    bool cooked = false;
+    for (size_t i = 0; i < gen_params.len; ++i) {
+        const OptId<GenericParamId> maybe_param_id
+            = resolve_generic_param(fid, scope, gen_params.start[i]);
+        if (maybe_param_id.empty()) {
+            cooked = true;
+            continue;
+        }
+        const Id<GenericParam> param_id = maybe_param_id.as_id();
+        const SymbolId name = context.gen_param(param_id).name;
+        const OptId<GenericParamId> maybe_defined_already = param_map.at(name);
+        if (param_map.contains(name)) {
+            const auto d0 = context.emplace_diagnostic(
+                context.gen_param(param_id).span, diag_code::redefined_symbol, diag_type::error);
+            const auto d1
+                = context.emplace_diagnostic(context.gen_param(maybe_defined_already.as_id()).span,
+                                             diag_code::previous_def_here, diag_type::note);
+            context.link_diagnostic(d0, d1);
+            cooked = true;
+            continue;
+        }
+
+        param_map.insert(name, param_id); // register name -> param_id mapping to check redefinition
+        param_vec.push_back(
+            param_id); // add param_id to list of all params to be made into a param slice
+    }
+
+    if (cooked) {
+        return {};
+    }
+    return context.freeze_id_vec(param_vec);
 }
 [[nodiscard]] OptId<GenericParamId>
-TopLevelDefVisitor::resolve_generic_param(File fid, ScopeId scope,
+TopLevelDefVisitor::resolve_generic_param(FileId fid, ScopeId scope,
                                           const ast_generic_parameter_t* gen_param) {
-    // @@@ TODO
+
+    switch (gen_param->tag) {
+    case AST_GENERIC_PARAM_TYPE: {
+        if (!gen_param->param.generic_type->valid) {
+            return {};
+        }
+        const auto* id = gen_param->param.generic_type->id;
+        const SymbolId name = context.symbol_id(id);
+        IdSlice<DefId> contracts = resolve_contracts_for_generic_param(
+            fid, scope, gen_param->param.generic_type->contract_ids);
+        return context.emplace_generic_param(Span{context, fid, gen_param->first, gen_param->last},
+                                             GenericParamType{contracts}, name);
+    }
+    case AST_GENERIC_PARAM_VAR: {
+        const auto gen_var = *gen_param->param.generic_var;
+
+        if (!gen_var.valid) {
+            return {};
+        }
+
+        const auto maybe_tid = TypeResolver{context, *this}.resolve_type(fid, scope, gen_var.type);
+        if (maybe_tid.empty()) {
+            return {};
+        }
+        SymbolId name = context.symbol_id(gen_var.name);
+        return context.emplace_generic_param(Span{context, fid, gen_param->first, gen_param->last},
+                                             GenericParamVariable{.type = maybe_tid.as_id()}, name);
+    }
+    case AST_GENERIC_PARAM_INVALID:
+        return {};
+    }
+
     return {};
+}
+
+IdSlice<DefId>
+TopLevelDefVisitor::resolve_contracts_for_generic_param(FileId fid, ScopeId scope,
+                                                        ast_slice_of_exprs_t contracts) {
+
+    llvm::SmallVector<DefId> contract_vec{};
+
+    auto valid = +[](const ast_expr_t* expr) -> bool { return expr->type == AST_EXPR_ID; };
+
+    for (size_t i = 0; i < contracts.len; ++i) {
+        const ast_expr_t* contract = contracts.start[i];
+        if (!valid(contract)) {
+            return {};
+        }
+        const auto id_slice = contract->expr.id.slice;
+        Span span{context, fid, id_slice};
+        const auto sid_slice = context.symbol_slice(id_slice);
+        const auto maybe_did = context.look_up_scoped_type(scope, sid_slice, span);
+        if (maybe_did.empty()) {
+            context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
+                                       diag_type::error,
+                                       DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
+            return {};
+        }
+        if (!context.is_contract(visit_as_transparent(maybe_did.as_id()))) {
+            const auto d0
+                = context.emplace_diagnostic(span, diag_code::invalid_contract, diag_type::error,
+                                             DiagnosticSubCode{diag_code::not_a_contract});
+            const auto d1 = context.emplace_diagnostic_with_message_value(
+                context.def(maybe_did.as_id()).span, diag_code::declared_here, diag_type::note,
+                DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
+            context.link_diagnostic(d0, d1);
+            return {};
+        }
+        contract_vec.push_back(maybe_did.as_id());
+    }
+    return context.freeze_id_vec(contract_vec);
 }
 
 DefId InsideBodyDefVisitor::visit_as_dependent(DefId def) {

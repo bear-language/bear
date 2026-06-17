@@ -384,8 +384,10 @@ template <IsDefVisitor V> class TypeResolver {
 
         case AST_TYPE_TYPEOF:
             return type_typeof(fid, scope, type);
+
         case AST_TYPE_DECAY:
             return type_decay(fid, scope, type);
+
         case AST_TYPE_INVALID:
             break;
         }
@@ -395,6 +397,17 @@ template <IsDefVisitor V> class TypeResolver {
 
     [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, ScopeId scope, const ast_type_t* type) {
         return resolve_type(fid, scope, type, false);
+    }
+
+    [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, ScopeId scope,
+                                             token_ptr_slice_t id_slice) {
+        ast_type_t type = {.type = {},
+                           .tag = AST_TYPE_BASE,
+                           .canonical_base = &type,
+                           .first = id_slice.start[0],
+                           .last = id_slice.start[id_slice.len - 1]};
+        type.type.base = {.id = id_slice, .mut = false};
+        return resolve_type(fid, scope, &type, false);
     }
 
     [[nodiscard]] OptId<TypeId> decay_type(TypeId tid, Span span = Span::generated()) {

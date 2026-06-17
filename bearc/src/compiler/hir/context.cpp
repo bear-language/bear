@@ -321,7 +321,7 @@ void Context::try_print_info() {
 
             const FileAst& ast = file_asts.at(files.at(curr).ast_id);
 
-            std::cout << ansi_bold_reset() << '[' << curr.val() << "] " << ast.file_name();
+            std::cout << ansi_bold_reset() << '[' << curr.raw() << "] " << ast.file_name();
             const auto list = importer_to_importees.at(
                 symbol_id_to_file_id_map.at(files.at(curr).path).as_id());
 
@@ -329,14 +329,14 @@ void Context::try_print_info() {
                 std::cout << ": ";
             }
             for (auto imp = list.first(); imp != list.end(); ++imp) {
-                if (imp.val() == 0) {
+                if (imp.raw() == 0) {
                     continue;
                 }
                 FileId importee = file_ids.at(imp); // file_ids.cat(imp);
-                std::cout << '[' << importee.val() << "] "
+                std::cout << '[' << importee.raw() << "] "
                           << symbol_id_to_cstr(files.at(importee).path);
                 // do this check to avoid trailing comma
-                if (imp.val() != list.end().val() - 1) {
+                if (imp.raw() != list.end().raw() - 1) {
                     std::cout << ", ";
                 }
             }
@@ -476,12 +476,16 @@ ExecId Context::emplace_compt_exec(const ExecValue& value, Span span) {
     return execs.emplace_and_get_id(*this, value, span, true);
 }
 
-GenericArgId Context::emplace_generic_arg(GenericArg value) {
+GenericArgId Context::emplace_generic_arg(GenericArgValue value) {
     return generic_args.emplace_and_get_id(value);
 }
 
 GenericArgIdSliceId Context::emplace_generic_arg_id_slice(IdSlice<GenericArgId> value) {
     return generic_arg_id_slices.emplace_and_get_id(value);
+}
+
+GenericParamId Context::emplace_generic_param(Span span, GenericParamValue value, SymbolId name) {
+    return generic_params.emplace_and_get_id(value, name, span);
 }
 
 FileAst& Context::ast(FileId file_id) { return file_asts.at(files.at(file_id).ast_id); }
@@ -647,7 +651,7 @@ void Context::link_diagnostic(DiagnosticId diag, DiagnosticId next) {
 }
 
 void Context::force_link_diagnostic(DiagnosticId diag) {
-    HirId prev_val = diag.val() - 1;
+    HirId prev_val = diag.raw() - 1;
     if (prev_val == HIR_ID_NONE) {
         return;
     }
@@ -924,14 +928,14 @@ OptId<DefId> Context::look_up_scoped(auto F, ScopeId scope, IdSlice<SymbolId> id
             curr_scope = def(guard_hid_namespace(
                                  scope, maybe_mod.as_id(),
                                  IdSlice<SymbolId>{id_slice.begin(),
-                                                   sidx.val() + 1 - id_slice.begin().val()},
+                                                   sidx.raw() + 1 - id_slice.begin().raw()},
                                  id_span))
                              .as<DefModule>()
                              .scope;
         } else if (auto maybe_type = look_up_type(curr_scope, sid); maybe_type.has_value()) {
             curr_scope = scope_for_top_level_def(guard_hid_type(
                 scope, maybe_type.as_id(),
-                IdSlice<SymbolId>{id_slice.begin(), sidx.val() + 1 - id_slice.begin().val()},
+                IdSlice<SymbolId>{id_slice.begin(), sidx.raw() + 1 - id_slice.begin().raw()},
                 id_span));
         }
     }
@@ -1423,6 +1427,10 @@ bool Context::is_variant(DefId did) const {
 
 bool Context::is_variant_field(DefId did) const {
     return def_ast_node(did)->type == AST_STMT_VARIANT_FIELD_DECL;
+}
+
+bool Context::is_contract(DefId did) const {
+    return def_ast_node(did)->type == AST_STMT_CONTRACT_DEF;
 }
 
 bool Context::def_id_slice_contains_def_id(IdSlice<DefId> def_id_slice, DefId def_id) const {

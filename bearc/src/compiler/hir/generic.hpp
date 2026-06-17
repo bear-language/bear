@@ -20,9 +20,12 @@ struct GenericArg : NodeWithVariantValue<GenericArg> {
     using id_type = GenericArgId;
     using value_type = GenericArgValue;
     GenericArgValue value;
+    explicit GenericArg(GenericArgValue value) : value{value} {}
 };
 
-struct GenericParamType {};
+struct GenericParamType {
+    IdSlice<DefId> contracts;
+};
 
 struct GenericParamVariable {
     TypeId type;
@@ -33,7 +36,10 @@ struct GenericParam : NodeWithVariantValue<GenericParam> {
     using id_type = GenericParamId;
     using value_type = GenericParamValue;
     GenericParamValue value;
+    Span span;
     SymbolId name;
+    explicit GenericParam(GenericParamValue value, SymbolId name, Span span)
+        : value{value}, span{span}, name{name} {}
 };
 
 [[nodiscard]] size_t hash_gen_arg(const Context& ctx, GenericArgId gen_arg_id);

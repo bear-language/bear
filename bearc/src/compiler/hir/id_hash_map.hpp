@@ -34,28 +34,28 @@ class IdHashMap {
     IdHashMap(DataArena& arena, size_t capacity)
         : arena(arena), map(mapu32u32_create_from_arena(capacity, arena.arena())) {}
     void insert(K key, V value) {
-        assert((key.val() != HIR_ID_NONE) && "tried to insert a key with value HIR_ID_NONE");
-        mapu32u32_insert(&map, key.val(), value.val());
+        assert((key.raw() != HIR_ID_NONE) && "tried to insert a key with value HIR_ID_NONE");
+        mapu32u32_insert(&map, key.raw(), value.raw());
     }
     /// returns false if key is not found
-    bool remove(K key) { return mapu32u32_remove(&map, key.val()); }
+    bool remove(K key) { return mapu32u32_remove(&map, key.raw()); }
     /// returns an optional id by value
     OptId<V> at(K key) const {
-        auto* value = mapu32u32_cat(&map, key.val());
+        auto* value = mapu32u32_cat(&map, key.raw());
         if (value == nullptr) {
             return OptId<V>{};
         }
         return OptId<V>{V{*value}};
     }
-    bool contains(K key) { return mapu32u32_at(&map, key.val()) != 0; }
+    bool contains(K key) { return mapu32u32_at(&map, key.raw()) != 0; }
 
     class Entry {
         K key_;
         V val_;
 
       public:
-        K key() const noexcept { return *key_; }
-        V val() const noexcept { return *val_; }
+        K key() const noexcept { return key_; }
+        V val() const noexcept { return val_; }
         Entry(K key, V val) : key_(key), val_(val) {}
     };
 

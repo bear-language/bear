@@ -32,12 +32,12 @@ template <hir::IsId I, typename V> class IdVecMap {
     explicit IdVecMap(HirSize capacity) : vec{} { vec.reserve(capacity + OFFSET); }
     void reserve(HirSize size) { vec.reserve(size); }
     [[nodiscard]] V& at(I id) {
-        assert(id.val() != HIR_ID_NONE && "[hir::IdVecMap::at] asked for an id of HIR_ID_NONE\n");
-        return vec.at(id.val() - OFFSET);
+        assert(id.raw() != HIR_ID_NONE && "[hir::IdVecMap::at] asked for an id of HIR_ID_NONE\n");
+        return vec.at(id.raw() - OFFSET);
     }
     [[nodiscard]] const V& at(I id) const {
-        assert(id.val() != HIR_ID_NONE && "[hir::IdVecMap::cat] asked for an id of HIR_ID_NONE\n");
-        return vec.at(id.val() - OFFSET);
+        assert(id.raw() != HIR_ID_NONE && "[hir::IdVecMap::cat] asked for an id of HIR_ID_NONE\n");
+        return vec.at(id.raw() - OFFSET);
     }
     template <typename... Args>
     [[nodiscard("Id must be fetched or emplaced node is dead.")]] I

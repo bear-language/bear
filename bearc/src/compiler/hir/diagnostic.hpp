@@ -21,7 +21,7 @@ namespace hir {
 class Context;
 enum class diag_code : uint8_t {
     imported_file_dne,
-    redefinition,
+    redefined_symbol,
     previous_def_here,
     no_matching_struct_for_method,
     capitalized_mod,

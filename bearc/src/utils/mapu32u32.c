@@ -41,7 +41,7 @@ void mapu32u32_insert(mapu32u32_t* map, uint32_t key, uint32_t val) {
         mapu32u32_rehash(map, 2 * map->capacity);
     }
     uint32_t raw_hash = hash_uint32(key);
-    uint32_t bucket_idx = raw_hash & (map->capacity - 1);
+    uint32_t bucket_idx = raw_hash % map->capacity;
 
     mapu32u32_entry_t* curr = map->buckets[bucket_idx];
 

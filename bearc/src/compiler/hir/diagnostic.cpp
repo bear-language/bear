@@ -27,7 +27,7 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     switch (c) {
     case diag_code::count:
         break;
-    case diag_code::redefinition:
+    case diag_code::redefined_symbol:
         return "redefined symbol";
     case diag_code::previous_def_here:
         return "previous definition here";
@@ -410,7 +410,7 @@ void Diagnostic::print_info_value(Context& context, HirSize min_width,
         };
         int idx = 0;
         std::cout << '\n';
-        for (auto fid = IdIdx<FileId>{files.begin().val() + 1}; fid != files.end(); ++fid) {
+        for (auto fid = IdIdx<FileId>{files.begin().raw() + 1}; fid != files.end(); ++fid) {
             print_line(stream_trace(context.file_id(fid), idx).str());
             idx++;
         }
