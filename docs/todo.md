@@ -21,16 +21,17 @@ main quest
 
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
 
-- [ ] tighten up abi related stuff with hir::LayoutRules or something similar
-    - [ ] properly impl `sizeof` and `alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
-
 - [ ] `compt` improvements:
+    - [ ] add `@return_type_of` 
     - [ ] compt closures (pure-expr only)
         - [ ] allow capturing compt variables 
     - [ ] compt slices `[&]` so we can work with any dimensional lists at compt
     - [ ] compt ranges `1...4` and make then work with compt matching
 
 - [ ] tighten up variadic type handling
+
+- [ ] tighten up abi related stuff with hir::LayoutRules or something similar
+    - [ ] properly impl `sizeof` and `alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
 
 - [ ] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
 
