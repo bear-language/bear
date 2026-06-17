@@ -420,8 +420,36 @@ class Context {
 
     [[nodiscard]] CanonicalGenericArgsId canonical_gen_args(GenericArgIdSliceId slice_id);
 
-    [[nodiscard]] OptId<DefId> try_generic_instatiation(DefId def_id,
-                                                        GenericArgIdSliceId generic_args_id);
+    template <IsDefVisitor V>
+    [[nodiscard]] OptId<DefId> try_generic_instatiation(V& def_visitor, DefId def_id,
+                                                        GenericArgIdSliceId generic_args_id) {
+        if (!validate_gen_args_for_def(def_id, generic_args_id)) {
+            return {};
+        }
+
+        const Def& def = this->def(TopLevelDefVisitor{*this}.visit_as_dependent(def_id));
+        CanonicalGenericArgsIdMapId map_id{};
+        if (def.holds<DefGenericFunction>()) {
+            map_id = def.as<DefGenericFunction>().generics_args_to_concrete_defs_map;
+        } else if (def.holds<DefGenericStruct>()) {
+            map_id = def.as<DefGenericStruct>().generics_args_to_concrete_defs_map;
+        } else if (def.holds<DefGenericVariant>()) {
+            map_id = def.as<DefGenericVariant>().generics_args_to_concrete_defs_map;
+        } else {
+            return {};
+        }
+        IdHashMap<CanonicalGenericArgsId, DefId>& map = this->generic_args_map(map_id);
+
+        const auto canonical_args = canonical_gen_args(generic_args_id);
+
+        const auto maybe_instance = map.at(canonical_args);
+
+        // attempt new instatiation if there's not an existing one
+        if (maybe_instance.empty()) {
+            return make_new_generic_instatiation(def_visitor, def_id, canonical_args);
+        }
+        return maybe_instance.as_id();
+    }
 
     [[nodiscard]] Span span_for_gen_args(GenericArgIdSliceId gen_arg_slice) const;
 
@@ -586,10 +614,13 @@ class Context {
     void report_cycle(llvm::SmallVectorImpl<FileId>& import_stack, const token_t* import_path_tkn);
     [[nodiscard]] OptId<FileId> try_file_from_import_statement(FileId importer_id,
                                                                const ast_stmt_t* import_statement);
-
+    template <IsDefVisitor V>
     [[nodiscard]] OptId<DefId>
-    make_new_generic_instatiation(DefId did, CanonicalGenericArgsId canon_gen_args_id);
-
+    make_new_generic_instatiation(V& def_visitor, DefId did,
+                                  CanonicalGenericArgsId canon_gen_args_id) {
+        // @@@ TODO
+        return {};
+    }
     // true on valid, else false
     [[nodiscard]] bool validate_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id);
 

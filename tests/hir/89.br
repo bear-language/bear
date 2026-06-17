@@ -1,0 +1,7 @@
+// tests/hir/89.br
+
+struct Foo<i32 N> {
+    compt fn get() -> i32 => N
+}
+
+var _0 = @static_assert @defined Foo..get;

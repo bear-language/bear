@@ -31,11 +31,14 @@ void FileAstVisitor::register_top_level_declarations() {
     // registers all the top level stmts of the file using the top level scope
     register_top_level_stmts(context.get_or_make_root_scope(),
                              context.ast(file).root()->stmt.file.stmts, OptId<DefId>{},
-                             abi_lang::native);
+                             abi_lang::native,
+                             GenericState{.inst_state = gen_instatiation_state::not_instantiating,
+                                          .vis_state = gen_visit_state::outside_generic});
 }
 
 OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* stmt,
-                                                     OptId<DefId> parent, abi_lang abi) {
+                                                     OptId<DefId> parent, abi_lang abi,
+                                                     GenericState gen_state) {
     // get first and last token before adjustments so we get the true full span
     const token_t* first_tkn = stmt->first;
     const token_t* last_tkn = stmt->last;
@@ -176,8 +179,8 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
         }
         context.def(mod_def).set_value(DefModule{.scope = mod_scope});
         context.scope(scope).insert_namespace(name, mod_def);
-        register_top_level_stmts(mod_scope, stmt->stmt.module.decls, mod_def,
-                                 abi); // pass in this module def as parent
+        register_top_level_stmts(mod_scope, stmt->stmt.module.decls, mod_def, abi,
+                                 gen_state); // pass in this module def as parent
 
         return OptId<DefId>{};
     }
@@ -203,7 +206,7 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
 
         } else {
             enum abi_lang abi = maybe_abi.value();
-            register_top_level_stmts(scope, stmt->stmt.extern_block.decls, parent, abi);
+            register_top_level_stmts(scope, stmt->stmt.extern_block.decls, parent, abi, gen_state);
         }
         return OptId<DefId>{};
     }
@@ -218,6 +221,14 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
     // if this wasn't named definition, then RETURN so we don't try to make a new hir::Def
     if (name_tkn == nullptr) {
         return OptId<DefId>{};
+    }
+
+    // don't evaulate variables/(functions)/variant fields when we're inside a generic that we're
+    // not instatiating so that we don't try to make definitiosn with incomplete/non-instatiated
+    // variables/fns/fields
+    if ((kind == scope_kind::variable || stmt->type == AST_STMT_VARIANT_FIELD_DECL)
+        && gen_state.not_instantiating_but_in_generic()) {
+        return {};
     }
 
     // hanlde scope prefix for Foo..bar() functions
@@ -285,10 +296,6 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
             break;
         case scope_kind::type: {
             context.scope(scope).insert_type(name, def);
-            // delay resolution (don't clutter scope tree with unspecialized/dead definitions)
-            if (is_generic) {
-                break;
-            }
             // if the type (namely a variant field decl) doesn't have statements then the scope
             // needn't be large
             const bool is_small_scope = !stmts.has_value();
@@ -303,8 +310,12 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
             }
             // try to parse fields
             if (info.stmts.has_value()) {
-                register_top_level_stmts_registering_ordered_members(def, types_scope,
-                                                                     info.stmts.value(), def, abi);
+                GenericState new_gen_state{.inst_state = gen_state.inst_state,
+                                           .vis_state = (is_generic)
+                                                            ? gen_visit_state::inside_generic
+                                                            : gen_state.vis_state};
+                register_top_level_stmts_registering_ordered_members(
+                    def, types_scope, info.stmts.value(), def, abi, new_gen_state);
             }
             break;
         }
@@ -325,17 +336,19 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
 }
 
 void FileAstVisitor::register_top_level_stmts(ScopeId scope, ast_slice_of_stmts_t stmts,
-                                              OptId<DefId> parent, abi_lang abi) {
+                                              OptId<DefId> parent, abi_lang abi,
+                                              GenericState gen_state) {
     for (size_t i = 0; i < stmts.len; i++) {
-        register_top_level_stmt(scope, stmts.start[i], parent, abi);
+        register_top_level_stmt(scope, stmts.start[i], parent, abi, gen_state);
     }
 }
 void FileAstVisitor::register_top_level_stmts_registering_ordered_members(
-    DefId parent_def, ScopeId scope, ast_slice_of_stmts_t stmts, OptId<DefId> parent,
-    abi_lang abi) {
+    DefId parent_def, ScopeId scope, ast_slice_of_stmts_t stmts, OptId<DefId> parent, abi_lang abi,
+    GenericState gen_state) {
     llvm::SmallVector<DefId> def_vec{};
     for (size_t i = 0; i < stmts.len; i++) {
-        OptId<DefId> maybe_def = register_top_level_stmt(scope, stmts.start[i], parent, abi);
+        OptId<DefId> maybe_def
+            = register_top_level_stmt(scope, stmts.start[i], parent, abi, gen_state);
         if (maybe_def.has_value()) {
             context.def(maybe_def.as_id()).member_idx = def_vec.size(); // set member_idx
             def_vec.emplace_back(maybe_def.as_id());
@@ -343,7 +356,7 @@ void FileAstVisitor::register_top_level_stmts_registering_ordered_members(
     }
 
     // handle no members
-    if (def_vec.empty()) {
+    if (def_vec.empty() && !gen_state.not_instantiating_but_in_generic()) {
         const ast_stmt_t* st = context.def_ast_node(parent_def);
         const ast_stmt_type_e statement_type = st->type;
         const Span span{file, context.ast(file).buffer(), top_level_info_for(st).name_tkn};

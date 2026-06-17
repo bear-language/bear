@@ -24,6 +24,26 @@ struct TopLevelInfo {
     bool is_generic = false;
     bool do_not_insert_in_scope = false;
 };
+
+enum class gen_instatiation_state : uint8_t {
+    not_instantiating,
+    instantiating,
+};
+
+enum class gen_visit_state : uint8_t {
+    outside_generic,
+    inside_generic,
+};
+
+struct GenericState {
+    gen_instatiation_state inst_state;
+    gen_visit_state vis_state;
+    [[nodiscard]] bool not_instantiating_but_in_generic() const {
+        return inst_state == gen_instatiation_state::not_instantiating
+               && vis_state == gen_visit_state::inside_generic;
+    }
+};
+
 /**
  * class to traverse the entirety of the namespaces of a file, filling in top level declarations
  * into an hir::Context
@@ -33,12 +53,13 @@ class FileAstVisitor {
     Context& context;
     FileId file;
     OptId<DefId> register_top_level_stmt(ScopeId scope, ast_stmt_t* stmt, OptId<DefId> parent,
-                                         abi_lang abi);
+                                         abi_lang abi, GenericState gen_state);
     void register_top_level_stmts(ScopeId scope, ast_slice_of_stmts_t stmts, OptId<DefId> parent,
-                                  abi_lang abi);
+                                  abi_lang abi, GenericState gen_state);
     void register_top_level_stmts_registering_ordered_members(DefId parent_def, ScopeId scope,
                                                               ast_slice_of_stmts_t stmts,
-                                                              OptId<DefId> parent, abi_lang abi);
+                                                              OptId<DefId> parent, abi_lang abi,
+                                                              GenericState gen_state);
     static TopLevelInfo top_level_info_for(const ast_stmt_t* stmt);
 
   public:

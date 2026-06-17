@@ -348,7 +348,7 @@ template <IsDefVisitor V> class TypeResolver {
         }
 
         const OptId<DefId> maybe_instant
-            = context.try_generic_instatiation(did, maybe_gen_args.as_id());
+            = context.try_generic_instatiation(def_visitor, did, maybe_gen_args.as_id());
 
         if (maybe_instant.empty()) {
             return {};
