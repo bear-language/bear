@@ -3158,7 +3158,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                                        .first = id_slice.start[0],
                                        .last = id_slice.start[id_slice.len - 1]};
                     type.type.base = {.id = id_slice, .mut = false};
-                    const OptId<TypeId> maybe_tid = resolve_type(fid, scope, gen_arg->arg.type);
+                    const OptId<TypeId> maybe_tid = resolve_type(fid, scope, &type);
                     if (maybe_tid.empty()) {
                         return {};
                     }
