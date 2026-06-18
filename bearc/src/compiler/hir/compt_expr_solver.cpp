@@ -16,6 +16,12 @@ template <IsDefVisitor V>
 OptId<TypeId> ComptExprSolver<V>::resolve_type(FileId fid, ScopeId scope, const ast_type_t* type) {
     return TypeResolver<V>{context, this->def_visitor}.resolve_type(fid, scope, type);
 }
+template <IsDefVisitor V>
+OptId<TypeId> ComptExprSolver<V>::resolve_type(FileId fid, ScopeId scope, const ast_type_t* type,
+                                               bool need_layout_info) {
+    return TypeResolver<V>{context, this->def_visitor}.resolve_type(fid, scope, type,
+                                                                    need_layout_info);
+}
 
 // explicit instants., these should be the only ones necessary
 template class ComptExprSolver<InsideBodyDefVisitor>;

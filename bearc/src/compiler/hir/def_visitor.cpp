@@ -19,7 +19,6 @@
 #include "utils/data_arena.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
-#include <iostream>
 #include <optional>
 #include <stddef.h>
 
@@ -209,11 +208,13 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             goto cleanup;
         }
 
+        const auto maybe_generic_args = context.search_for_gen_args_for_def(did);
         ScopeId structs_scope = context.scope_for_top_level_def(did);
         context.register_generated_deftype(
             structs_scope, context.symbol_id<"Self">(),
-            // TODO properly handle generic args here
-            context.emplace_type(TypeStruct{.def_id = did, .gen_args_slice = {}, .generic = false},
+            context.emplace_type(TypeStruct{.def_id = did,
+                                            .gen_args_slice = maybe_generic_args,
+                                            .generic = maybe_generic_args.has_value()},
                                  Span::generated(), false),
             did, Span{context, context.def(did).span.file_id, strct.name});
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -290,7 +291,6 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
 
         try_satisfy_contracts(did, contracts);
 
-        const auto maybe_generic_args = context.search_for_gen_args_for_def(did);
         HirSize posterior_diag_count = context.diagnostic_count();
         if (posterior_diag_count > prior_diag_count && maybe_generic_args.has_value()) {
             context.emplace_diagnostic(context.span_for_gen_args(maybe_generic_args.as_id()),

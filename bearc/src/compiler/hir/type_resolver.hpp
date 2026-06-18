@@ -357,7 +357,7 @@ template <IsDefVisitor V> class TypeResolver {
                                    : def_visitor.visit_as_transparent(maybe_did.as_id());
 
         const auto maybe_gen_args = ComptExprSolver{context, def_visitor}.lower_generic_args(
-            fid, scope, type_node->type.generic.generic_args);
+            fid, scope, type_node->type.generic.generic_args, need_layout_info);
         if (maybe_gen_args.empty()) {
             return {};
         }

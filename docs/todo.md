@@ -6,7 +6,7 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
  
-- [ ] fix `tests/hir/92.br` not detecting circularity
+- [x] fix `tests/hir/92.br` not detecting circularity
 - [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the following:
 - [x] handle generic routing for types 
 - [ ] handle generic routing for functions 

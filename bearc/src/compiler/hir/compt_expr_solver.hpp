@@ -1233,6 +1233,9 @@ template <IsDefVisitor V> class ComptExprSolver {
 
     [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, ScopeId scope, const ast_type_t* type);
 
+    [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, ScopeId scope, const ast_type_t* type,
+                                             bool need_layout_info);
+
     [[nodiscard]] bool guard_incompatible_types(const Exec& lhs, const Exec& rhs, ExecConst lhs_val,
                                                 ExecConst rhs_val) {
 
@@ -3108,7 +3111,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         return true;
     }
     [[nodiscard]] OptId<GenericArgId> lower_generic_arg(FileId fid, ScopeId scope,
-                                                        const ast_generic_arg_t* gen_arg) {
+                                                        const ast_generic_arg_t* gen_arg,
+                                                        bool need_layout_info) {
         if (!gen_arg->valid) {
             return {};
         }
@@ -3135,7 +3139,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                     return context.emplace_generic_arg(maybe_eid.as_id());
                 }
             }
-            const OptId<TypeId> maybe_tid = resolve_type(fid, scope, gen_arg->arg.type);
+            const OptId<TypeId> maybe_tid
+                = resolve_type(fid, scope, gen_arg->arg.type, need_layout_info);
             if (maybe_tid.empty()) {
                 return {};
             }
@@ -3158,7 +3163,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                                        .first = id_slice.start[0],
                                        .last = id_slice.start[id_slice.len - 1]};
                     type.type.base = {.id = id_slice, .mut = false};
-                    const OptId<TypeId> maybe_tid = resolve_type(fid, scope, &type);
+                    const OptId<TypeId> maybe_tid
+                        = resolve_type(fid, scope, &type, need_layout_info);
                     if (maybe_tid.empty()) {
                         return {};
                     }
@@ -3178,7 +3184,8 @@ template <IsDefVisitor V> class ComptExprSolver {
 
   public:
     [[nodiscard]] OptId<GenericArgIdSliceId>
-    lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generic_args_t gen_args) {
+    lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generic_args_t gen_args,
+                       bool need_layout_info) {
 
         if (!gen_args.valid) {
             return {};
@@ -3188,7 +3195,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         bool cooked = false;
         for (size_t i = 0; i < gen_args.len; ++i) {
             const auto* gen_arg = gen_args.start[i];
-            const auto maybe_gen_arg_id = lower_generic_arg(fid, scope, gen_arg);
+            const auto maybe_gen_arg_id = lower_generic_arg(fid, scope, gen_arg, need_layout_info);
             if (maybe_gen_arg_id.empty()) {
                 cooked = true;
                 continue;

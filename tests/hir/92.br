@@ -1,11 +1,48 @@
 // tests/hir/92.br
 struct Foo<T> {
     T a;
-    dne e; //oops
 }
 
 struct Bar {
-    Foo::Bar a; // oops circular, TODO not working
+    Foo::Bar a; //oops
 }
 
-// struct Cir {Le le;} struct Le {Cir cir;} struct Boo<T> {Bee a;} struct Bee {Boo::i32 a;}
+struct Cir {Le le;} 
+
+struct Le {Cir cir;} // oops
+
+struct Boo<T> {Bee a;} 
+
+struct Bee {Boo::i32 a;} // oops
+
+struct Foo1<T> {
+    T a;
+}
+
+struct Bar1 {
+    *Foo1::Bar1 a; 
+}
+
+struct Foo2<T> {
+    T a;
+}
+
+struct Bar2 {
+    &Foo2::Bar2 a; 
+}
+
+struct Foo3<T> {
+    T a;
+}
+
+struct Bar3 {
+    [12]Foo3::Bar3 a; //oops
+}
+
+struct Foo4<T> {
+    T a;
+}
+
+struct Bar4 {
+    [&mut]Foo4::Bar4 a;
+}
