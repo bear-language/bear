@@ -42,6 +42,26 @@ struct GenericParam : NodeWithVariantValue<GenericParam> {
         : value{value}, span{span}, name{name} {}
 };
 
+class TickableGenArgSlice {
+    IdSlice<GenericArgId> slice;
+    HirSize curr_idx;
+
+  public:
+    explicit TickableGenArgSlice(IdSlice<GenericArgId> slice) : slice{slice} {}
+    [[nodiscard]] OptId<IdIdx<GenericArgId>> tick() {
+        if (curr_idx < slice.len()) {
+            return slice.get(curr_idx++);
+        }
+        return {};
+    }
+    [[nodiscard]] IdIdx<GenericArgId> on_begin() const { return slice.get(curr_idx); }
+    [[nodiscard]] HirSize on_end_len() const { return curr_idx + 1; }
+    [[nodiscard]] TickableGenArgSlice remaining() const {
+        return TickableGenArgSlice(
+            IdSlice<GenericArgId>{slice.get(curr_idx), slice.len() - curr_idx});
+    }
+};
+
 [[nodiscard]] size_t hash_gen_arg(const Context& ctx, GenericArgId gen_arg_id);
 [[nodiscard]] bool equivalent_gen_arg(const Context& ctx, GenericArgId gid1, GenericArgId gid2);
 [[nodiscard]] size_t hash_gen_arg_id_slice(const Context& ctx, GenericArgIdSliceId gid);

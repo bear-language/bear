@@ -179,8 +179,8 @@ template <hir::IsId T> class IdSlice {
     [[nodiscard]] constexpr HirSize len() const noexcept { return len_; }
     [[nodiscard]] constexpr bool is_empty() const noexcept { return len_ == 0; }
 
-    [[nodiscard]] constexpr IdSlice sub_slice_n(HirSize end_index) const noexcept {
-        return IdSlice{first_, end_index};
+    [[nodiscard]] constexpr IdSlice sub_slice_n(HirSize count) const noexcept {
+        return IdSlice{first_, count};
     }
     [[nodiscard]] constexpr IdSlice sub_slice(HirSize begin_index,
                                               HirSize end_index) const noexcept {

@@ -96,6 +96,10 @@ class Context {
     [[nodiscard]] OptId<DefId> look_up_scoped(auto F, ScopeId scope, IdSlice<SymbolId> id_slice,
                                               Span id_span);
 
+    [[nodiscard]] OptId<DefId> look_up_scoped_generic(auto F, ScopeId scope,
+                                                      IdSlice<SymbolId> id_slice, Span id_span,
+                                                      GenericArgIdSliceId gen_args_id); // TODO
+
     /// finds a variable and attempts to resolve definitions on the way to it
     [[nodiscard]] OptId<DefId> look_up_scoped_variable(ScopeId scope, IdSlice<SymbolId> id_slice,
                                                        Span id_span);

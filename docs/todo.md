@@ -7,11 +7,12 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
  
 - [x] fix `tests/hir/92.br` not detecting circularity
-- [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the following:
-- [x] handle generic routing for types 
+- [ ] look up generic functions using `TickableGenericArgs`
+- [ ] handle generic routing for types (revise after finishing above)
 - [ ] handle generic routing for functions 
 - [ ] generic routing for struct inits 
 - [ ] generic routing for variant inits
+- [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the above
 
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
 
