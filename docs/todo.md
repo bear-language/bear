@@ -5,19 +5,13 @@ main quest
 
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
-
-- [ ] TODO:@@@ finish creation for types -> use DefId to access a gen arg map, then key into it with the generic args
-- [x] set up the `DefGenericFunction`, `DefGenericStruct`, and `DefGenericVariant` in DefVisitor 
-- [x] validate generic args against generic params
-- [ ] make the `try_generic_instatiation` attempt to make a new instatiation when needed
-
-- [ ] implement generic instatiation -> each canonical set of generic args for a given def needs to either:
-        1.  map to an already instatiated specialized, concrete instance of the def, or:
-        2. instatiate a new defintion by lowering the `ast_stmt_t` after inserting the specific defintions for values into a new scope for the concrete type 
-    - [ ] handle generic routing for types
-    - [ ] handle generic routing for functions 
-    - [ ] generic routing for struct inits 
-    - [ ] generic routing for variant inits
+ 
+- [ ] fix `tests/hir/92.br` not detecting circularity
+- [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the following:
+- [x] handle generic routing for types 
+- [ ] handle generic routing for functions 
+- [ ] generic routing for struct inits 
+- [ ] generic routing for variant inits
 
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
 

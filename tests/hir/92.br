@@ -1,0 +1,9 @@
+// tests/hir/92.br
+struct Foo<T> {
+    T a;
+    dne e; //oops
+}
+
+struct Bar {
+    Foo::Bar a; // oops circular, TODO not working
+}

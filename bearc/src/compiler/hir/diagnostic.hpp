@@ -173,6 +173,8 @@ enum class diag_code : uint8_t {
     does_not_satisfy_contract,
     gen_arg_expected_a_type_not_a_value_expression,
     generic_argument_expected_value_of_type,
+    in_generic_instantiated_here,
+    raw_use_of_generic_type,
 
     count, // this must be last,
 

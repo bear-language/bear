@@ -36,9 +36,10 @@ void FileAstVisitor::register_top_level_declarations() {
                                           .vis_state = gen_visit_state::outside_generic});
 }
 
-OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* stmt,
+OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt,
                                                      OptId<DefId> parent, abi_lang abi,
-                                                     GenericState gen_state) {
+                                                     GenericState gen_state,
+                                                     bool force_return_did) {
     // get first and last token before adjustments so we get the true full span
     const token_t* first_tkn = stmt->first;
     const token_t* last_tkn = stmt->last;
@@ -297,6 +298,11 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
     DefId did = context.register_top_level_def(
         name, pub, compt, statik, is_generic,
         Span(file, context.ast(file).buffer(), first_tkn, last_tkn), stmt, parent);
+
+    if (stmt->type == AST_STMT_FN_DECL || stmt->type == AST_STMT_FN_PROTOTYPE) {
+        context.record_function_def(did); // record this function to ensure it gets lowered
+    }
+
     // register into a scope
     if (!info.do_not_insert_in_scope) {
         switch (kind) {
@@ -349,6 +355,10 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, ast_stmt_t* 
     if (parent.has_value() && context.def_ast_node(parent.as_id())->type == AST_STMT_CONTRACT_DEF) {
         return did;
     }
+    if (force_return_did) {
+        return did;
+    }
+
     return OptId<DefId>{};
 }
 
@@ -356,7 +366,7 @@ void FileAstVisitor::register_top_level_stmts(ScopeId scope, ast_slice_of_stmts_
                                               OptId<DefId> parent, abi_lang abi,
                                               GenericState gen_state) {
     for (size_t i = 0; i < stmts.len; i++) {
-        register_top_level_stmt(scope, stmts.start[i], parent, abi, gen_state);
+        register_top_level_stmt(scope, stmts.start[i], parent, abi, gen_state, false);
     }
 }
 void FileAstVisitor::register_top_level_stmts_registering_ordered_members(
@@ -365,7 +375,7 @@ void FileAstVisitor::register_top_level_stmts_registering_ordered_members(
     llvm::SmallVector<DefId> def_vec{};
     for (size_t i = 0; i < stmts.len; i++) {
         OptId<DefId> maybe_def
-            = register_top_level_stmt(scope, stmts.start[i], parent, abi, gen_state);
+            = register_top_level_stmt(scope, stmts.start[i], parent, abi, gen_state, false);
         if (maybe_def.has_value()) {
             context.def(maybe_def.as_id()).member_idx = def_vec.size(); // set member_idx
             def_vec.emplace_back(maybe_def.as_id());
@@ -544,11 +554,12 @@ std::optional<abi_lang> abi_for_extern_stmt(const ast_stmt_t* stmt) {
                ? abi_lang::c
                : std::optional<abi_lang>{};
 }
-[[nodiscard]] OptId<DefId> FileAstVisitor::lower_generic_stmt(ScopeId scope, ast_stmt_t* stmt,
+[[nodiscard]] OptId<DefId> FileAstVisitor::lower_generic_stmt(ScopeId scope, const ast_stmt_t* stmt,
                                                               OptId<DefId> parent) {
     return register_top_level_stmt(scope, stmt, parent, abi_lang::bear,
                                    GenericState{.inst_state = gen_instatiation_state::instantiating,
-                                                .vis_state = gen_visit_state::outside_generic});
+                                                .vis_state = gen_visit_state::outside_generic},
+                                   true);
 }
 
 } // namespace hir

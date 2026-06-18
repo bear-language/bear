@@ -10,7 +10,7 @@
 #define COMPILER_HIR_AST_VISITOR_HPP
 
 #include "compiler/ast/stmt_slice.h"
-#include "compiler/hir/context.hpp"
+#include "compiler/hir/def.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
 namespace hir {
@@ -52,8 +52,9 @@ struct GenericState {
 class FileAstVisitor {
     Context& context;
     FileId file;
-    OptId<DefId> register_top_level_stmt(ScopeId scope, ast_stmt_t* stmt, OptId<DefId> parent,
-                                         abi_lang abi, GenericState gen_state);
+    OptId<DefId> register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, OptId<DefId> parent,
+                                         abi_lang abi, GenericState gen_state,
+                                         bool force_return_did);
     void register_top_level_stmts(ScopeId scope, ast_slice_of_stmts_t stmts, OptId<DefId> parent,
                                   abi_lang abi, GenericState gen_state);
     void register_top_level_stmts_registering_ordered_members(DefId parent_def, ScopeId scope,
@@ -66,7 +67,7 @@ class FileAstVisitor {
     FileAstVisitor(Context& context, FileId file) : context(context), file(file) {}
     void register_top_level_declarations();
     static std::optional<const token_t*> name_of_ast_decl(const ast_stmt_t* stmt);
-    [[nodiscard]] OptId<DefId> lower_generic_stmt(ScopeId scope, ast_stmt_t* stmt,
+    [[nodiscard]] OptId<DefId> lower_generic_stmt(ScopeId scope, const ast_stmt_t* stmt,
                                                   OptId<DefId> parent);
 };
 

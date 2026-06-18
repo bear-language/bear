@@ -340,6 +340,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "generic argument expected a type, not a value expression";
     case diag_code::generic_argument_expected_value_of_type:
         return "generic argument expected value of type";
+    case diag_code::in_generic_instantiated_here:
+        return "in generic instantiation requested here";
+    case diag_code::raw_use_of_generic_type:
+        return "raw use of generic type";
     }
 
     std::unreachable();

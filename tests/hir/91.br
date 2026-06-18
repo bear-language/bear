@@ -1,0 +1,32 @@
+//tests/hir/91.br
+
+struct List<T1, T2, T3, T4, T5> {
+    T1 a;
+    T2 b;
+    T3 c;
+    T4 d;
+    T5 e;
+    compt fn foo() -> dne => dne // oops
+}
+
+var _0 = @static_assert @same_type(List<u8, u8, u8, u8, u32>, List<u8, u8, u8, u8, u32>);
+
+compt u8 a = 12; 
+
+var _1 = @static_assert @same_type(List<typeof a, u8, u8, u8, u32>, List<u8, u8, u8, u8, u32>);
+
+compt u64 b = 42; 
+
+var _2 = @static_assert @same_type(List<typeof b, u8, u8, u8, u32>, List<u64, u8, u8, u8, u32>);
+
+struct Foo<T> {
+    T a;
+    dne e; //oops
+}
+
+struct Bar {
+}
+
+Foo _3;
+
+Foo::Bar _4;

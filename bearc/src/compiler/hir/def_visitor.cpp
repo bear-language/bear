@@ -19,6 +19,7 @@
 #include "utils/data_arena.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
+#include <iostream>
 #include <optional>
 #include <stddef.h>
 
@@ -194,8 +195,9 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
     }
     case AST_STMT_STRUCT_DEF: {
         auto strct = stmt->stmt.struct_decl;
+        HirSize prior_diag_count = context.diagnostic_count();
         // delay resolution/instantiation until specialization
-        if (strct.is_generic) {
+        if (context.def(did).generic) {
             const auto maybe_generic_params = resolve_generic_params(
                 context.def(did).span.file_id, context.containing_scope(did), strct.generic_params);
             if (!maybe_generic_params.has_value()) {
@@ -287,6 +289,13 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         });
 
         try_satisfy_contracts(did, contracts);
+
+        const auto maybe_generic_args = context.search_for_gen_args_for_def(did);
+        HirSize posterior_diag_count = context.diagnostic_count();
+        if (posterior_diag_count > prior_diag_count && maybe_generic_args.has_value()) {
+            context.emplace_diagnostic(context.span_for_gen_args(maybe_generic_args.as_id()),
+                                       diag_code::in_generic_instantiated_here, diag_type::note);
+        }
 
         break;
     }
@@ -409,6 +418,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         const ast_stmt_fn_decl fn_decl = stmt->stmt.fn_decl;
         Def& def = context.def(did);
         const auto fid = def.span.file_id;
+        const HirSize prior_diag_count = context.diagnostic_count();
 
         if (def.compt && fn_decl.is_mut) {
             Span span = Span::find_between_tokens(context, fid, fn_decl.kw, fn_decl.name.start[0]);
@@ -432,19 +442,6 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                 diag_type::help,
                 DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"=> (Expression)">()});
             context.link_diagnostic(d0, d1);
-        }
-
-        if (def.generic) {
-            const auto maybe_generic_params
-                = resolve_generic_params(context.def(did).span.file_id,
-                                         context.containing_scope(did), fn_decl.generic_params);
-            if (!maybe_generic_params.has_value()) {
-                goto cleanup;
-            }
-            context.def(did).set_value(DefGenericFunction{
-                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
-                .generic_params = maybe_generic_params.value()});
-            goto cleanup;
         }
 
         OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl, def);
@@ -498,6 +495,28 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             context.report_invalid_return_type(return_tid.as_id());
         }
 
+        if (context.def(did).generic) {
+            const auto maybe_generic_params
+                = resolve_generic_params(context.def(did).span.file_id,
+                                         context.containing_scope(did), fn_decl.generic_params);
+            if (!maybe_generic_params.has_value()) {
+                goto cleanup;
+            }
+            context.def(did).set_value(DefGenericFunction{
+                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
+                .generic_params = maybe_generic_params.value()});
+            goto cleanup;
+        }
+
+        const HirSize posterior_diag_count = context.diagnostic_count();
+
+        const auto maybe_generic_args = context.search_for_gen_args_for_def(did);
+
+        if (posterior_diag_count > prior_diag_count && maybe_generic_args.has_value()) {
+            context.emplace_diagnostic(context.span_for_gen_args(maybe_generic_args.as_id()),
+                                       diag_code::in_generic_instantiated_here, diag_type::note);
+        }
+
         // handle methods explicitly
         def.set_value(DefFunction{.params = params,
                                   .param_types = param_types,
@@ -535,7 +554,9 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         break;
     }
     case AST_STMT_VARIANT_DEF: {
-        // TODO properly handle generics
+
+        HirSize prior_diag_count = context.diagnostic_count();
+
         if (context.def(did).generic) {
             const auto maybe_generic_params = resolve_generic_params(
                 context.def(did).span.file_id, context.containing_scope(did),
@@ -552,6 +573,16 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         for (auto didx = members.begin(); didx != members.end(); didx++) {
             visit_as_dependent(context.def_id(didx));
         }
+
+        const HirSize posterior_diag_count = context.diagnostic_count();
+
+        const auto maybe_generic_args = context.search_for_gen_args_for_def(did);
+
+        if (posterior_diag_count > prior_diag_count && maybe_generic_args.has_value()) {
+            context.emplace_diagnostic(context.span_for_gen_args(maybe_generic_args.as_id()),
+                                       diag_code::in_generic_instantiated_here, diag_type::note);
+        }
+
         context.def(did).set_value(DefVariant{
             .scope = context.scope_for_top_level_def(did),
             .ordered_members = members,

@@ -40,7 +40,7 @@ struct DefFunction {
     /// if this function was derived from an original generic function
     OptId<DefId> original;
     // generic args, if any
-    OptId<CanonicalGenericArgsId> maybe_generic_args;
+    OptId<GenericArgIdSliceId> maybe_generic_args;
     bool discardable = false;
     bool takes_self = false;
     bool posioned = false;
@@ -81,7 +81,7 @@ struct DefStruct {
     /// if this struct was derived from an original generic struct
     OptId<DefId> orginal;
     // generic args, if any
-    OptId<CanonicalGenericArgsId> maybe_generic_args;
+    OptId<GenericArgIdSliceId> maybe_generic_args;
 };
 
 struct DefGenericStruct {
@@ -97,7 +97,7 @@ struct DefVariant {
     /// if this variant was derived from an original generic variant
     OptId<DefId> orginal;
     // generic args, if any
-    OptId<CanonicalGenericArgsId> maybe_generic_args;
+    OptId<GenericArgIdSliceId> maybe_generic_args;
 };
 
 struct DefGenericVariant {
@@ -197,7 +197,7 @@ struct Def : NodeWithVariantValue<Def> {
     /// indicates static (storage duration)
     const bool statik = false;
     /// indicates generic
-    const bool generic = false;
+    bool generic = false;
     /// indicates alignment preference, 0 = default alignment
     const uint8_t alignment_preference = 0;
     /// indicates ABI

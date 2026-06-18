@@ -83,6 +83,18 @@ template <IsDefVisitor V> class TypeResolver {
                                             span, mut);
             }
 
+            if (context.def(did).generic) {
+                const Def& def = context.def(did);
+                const auto d0 = context.emplace_diagnostic_with_message_value(
+                    span, diag_code::raw_use_of_generic_type, diag_type::error,
+                    DiagnosticSymbolAfterMessage{.sid = def.name});
+                const auto d1 = context.emplace_diagnostic_with_message_value(
+                    def.span, diag_code::declared_here, diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = def.name});
+                context.link_diagnostic(d0, d1);
+                return {};
+            }
+
             if (context.is_struct(did)) {
                 return context.emplace_type(
                     TypeStruct{
@@ -307,7 +319,8 @@ template <IsDefVisitor V> class TypeResolver {
         return decay_type(maybe_tid.as_id(), Span{context, fid, type_node->first, type_node->last});
     }
 
-    OptId<TypeId> type_generic(FileId fid, ScopeId scope, const ast_type_t* type_node) {
+    OptId<TypeId> type_generic(FileId fid, ScopeId scope, const ast_type_t* type_node,
+                               bool need_layout_info) {
 
         assert(type_node->tag == AST_TYPE_GENERIC);
 
@@ -339,7 +352,8 @@ template <IsDefVisitor V> class TypeResolver {
             return {}; // poisoned
         }
 
-        const DefId did = def_visitor.visit_as_transparent(maybe_did.as_id());
+        const DefId did = (need_layout_info) ? def_visitor.visit_as_dependent(maybe_did.as_id())
+                                             : def_visitor.visit_as_transparent(maybe_did.as_id());
 
         const auto maybe_gen_args = ComptExprSolver{context, def_visitor}.lower_generic_args(
             fid, scope, type_node->type.generic.generic_args);
@@ -348,7 +362,7 @@ template <IsDefVisitor V> class TypeResolver {
         }
 
         const OptId<DefId> maybe_instant
-            = context.try_generic_instatiation(def_visitor, did, maybe_gen_args.as_id());
+            = context.try_generic_instantiation(def_visitor, did, maybe_gen_args.as_id());
 
         if (maybe_instant.empty()) {
             return {};
@@ -392,7 +406,7 @@ template <IsDefVisitor V> class TypeResolver {
             return type_slice(fid, scope, type);
 
         case AST_TYPE_GENERIC:
-            return type_generic(fid, scope, type);
+            return type_generic(fid, scope, type, need_layout_info);
 
         case AST_TYPE_FN_PTR:
             return type_fn_ptr(fid, scope, type);

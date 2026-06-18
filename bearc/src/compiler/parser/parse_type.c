@@ -268,7 +268,8 @@ ast_type_t* parse_type_ref_ptr(parser_t* p) {
 
 ast_type_t* parse_type_of(parser_t* p) {
     ast_type_t* outer = parser_alloc_type(p);
-    if (!parser_expect_token(p, TOK_TYPEOF)) {
+    token_t* to_tok = parser_expect_token(p, TOK_TYPEOF);
+    if (!to_tok) {
         return parser_sync_type(p);
     }
     outer->tag = AST_TYPE_TYPEOF;
@@ -279,7 +280,7 @@ ast_type_t* parse_type_of(parser_t* p) {
     }
     outer->type.type_of.of_expr = inner;
     outer->type.type_of.mut = parser_match_token(p, TOK_MUT);
-    outer->first = inner->first;
+    outer->first = to_tok;
     outer->last = parser_prev(p);
     return outer;
 }
@@ -287,7 +288,8 @@ ast_type_t* parse_type_of(parser_t* p) {
 ast_type_t* parse_type_decay(parser_t* p) {
     ast_type_t* outer = parser_alloc_type(p);
     outer->tag = AST_TYPE_DECAY;
-    if (!parser_expect_token(p, TOK_DECAY)) {
+    token_t* d_tok = parser_expect_token(p, TOK_DECAY);
+    if (!d_tok) {
         return parser_sync_type(p);
     }
     token_t* lparen = parser_match_token(p, TOK_LPAREN);
@@ -301,7 +303,7 @@ ast_type_t* parse_type_decay(parser_t* p) {
         valid = false;
     }
     outer->canonical_base = inner->canonical_base;
-    outer->first = inner->first;
+    outer->first = d_tok;
     outer->last = parser_prev(p);
     if (!valid) {
         outer->tag = AST_TYPE_INVALID;

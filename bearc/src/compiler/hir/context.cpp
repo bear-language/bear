@@ -32,8 +32,6 @@
 #include <cstddef>
 #include <cstring>
 #include <filesystem>
-#include <iostream>
-#include <iso646.h>
 #include <optional>
 #include <stddef.h>
 #include <string_view>
@@ -95,8 +93,10 @@ Context::Context(const bearc_args_t& args, instances instances)
       canonical_compt_args_table{*this, canonical_generic_args_table_arena,
                                  DEFAULT_CANONICAL_GEN_ARGS_CAP},
       generic_param_ids(DEFAULT_CANONICAL_GEN_ARGS_CAP),
-      generic_params(DEFAULT_CANONICAL_GEN_ARGS_CAP), diagnostics{DEFAULT_DIAG_NUM},
-      diagnostics_used{DEFAULT_DIAG_NUM},
+      generic_params(DEFAULT_CANONICAL_GEN_ARGS_CAP),
+      def_to_gen_args_arena(DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP),
+      def_to_gen_args(def_to_gen_args_arena, DEFAULT_CANONICAL_GEN_ARGS_CAP),
+      diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM},
       only_one_context_instance((instances == instances::one) && one_instance_status), args{args},
       compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]) {
 
@@ -113,6 +113,9 @@ Context::Context(const bearc_args_t& args, instances instances)
     if (!maybe_root_file) {
         return;
     }
+
+    static constexpr size_t STARTING_FUNCTION_CNT_APPROX = 1024;
+    all_function_dids.reserve(STARTING_FUNCTION_CNT_APPROX);
 
     const auto& root_file = maybe_root_file.value();
 
@@ -134,7 +137,13 @@ Context::Context(const bearc_args_t& args, instances instances)
     if (has_flag(CLI_FLAG_PARSE_ONLY)) {
         return;
     }
-    TopLevelDefVisitor{*this}.resolve_top_level_definitions();
+
+    TopLevelDefVisitor def_vis{*this};
+    def_vis.resolve_top_level_definitions();
+    // ensure all functions are lowered
+    for (DefId did : all_function_dids) {
+        def_vis.visit_as_independent(did);
+    }
 }
 
 int Context::diagnostic_count() const noexcept {
@@ -428,7 +437,7 @@ OptId<FileId> Context::try_file_from_import_statement(FileId importer_id,
 }
 
 DefId Context::register_top_level_def(SymbolId name, bool pub, bool compt, bool statik,
-                                      bool generic, Span span, ast_stmt_t* stmt,
+                                      bool generic, Span span, const ast_stmt_t* stmt,
                                       OptId<DefId> parent) {
     DefId def = defs.emplace_and_get_id(DefUnevaluated{}, name, pub, compt, statik, generic, span,
                                         parent);
@@ -812,6 +821,10 @@ CanonicalTypeId Context::emplace_and_get_canonical_type_id(TypeId first_structur
 CanonicalGenericArgsId Context::emplace_and_get_canonical_gen_args_slice_id(
     GenericArgIdSliceId first_structural_slice_id) {
     return canonical_generic_args_to_first_instance.emplace_and_get_id(first_structural_slice_id);
+}
+
+GenericArgIdSliceId Context::get_arg_id_for_canonical_arg_id(CanonicalGenericArgsId canon_id) {
+    return canonical_generic_args_to_first_instance.at(canon_id);
 }
 
 TypeId Context::emplace_type(const TypeValue& value, Span span, bool mut) {
@@ -1426,6 +1439,8 @@ bool Context::is_variant(DefId did) const {
     return def_ast_node(did)->type == AST_STMT_VARIANT_DEF;
 }
 
+bool Context::is_function(DefId did) const { return def_ast_node(did)->type == AST_STMT_FN_DECL; }
+
 bool Context::is_variant_field(DefId did) const {
     return def_ast_node(did)->type == AST_STMT_VARIANT_FIELD_DECL;
 }
@@ -1751,140 +1766,6 @@ CanonicalGenericArgsId Context::canonical_gen_args(GenericArgIdSliceId slice_id)
     return this->canonical_compt_args_table.canonical(slice_id);
 }
 
-// true on valid, else false
-[[nodiscard]] bool Context::validate_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id) {
-    if (!def(did).generic) {
-        emplace_diagnostic(span_for_gen_args(gen_args_id),
-                           diag_code::does_not_take_generic_arguments, diag_type::error,
-                           DiagnosticSymbolBeforeMessage{.sid = this->def(did).name},
-                           DiagnosticSubCode{.sub_code = diag_code::not_a_generic_type});
-        return false;
-    }
-
-    TopLevelDefVisitor{*this}.visit_as_dependent(did);
-    const auto maybe_gen_params = try_generic_params_for_def(did);
-    if (!maybe_gen_params.has_value()) {
-        return false; // this shouldn't happen, but we need to return false here to protect
-                      // invariance
-    }
-    const auto param_slice = maybe_gen_params.value();
-
-    const IdSlice<GenericArgId> arg_slice = gen_arg_id_slice(gen_args_id);
-
-    if (param_slice.len() != arg_slice.len()) {
-        Span span = span_for_gen_args(gen_args_id);
-        const auto d0 = emplace_diagnostic_with_message_value(
-            span, diag_code::only_message_value_is_meaningful, diag_type::error,
-            DiagnosticGenArgsExpectedButGotNumArgs{
-                .name = def(did).name,
-                .expected_sid = symbol_id(std::to_string(param_slice.len())),
-                .got_sid = symbol_id(std::to_string(arg_slice.len()))});
-        const auto d1 = emplace_diagnostic_with_message_value(
-            def(did).span, diag_code::declared_here, diag_type::note,
-            DiagnosticSymbolBeforeMessage{.sid = def(did).name});
-        link_diagnostic(d0, d1);
-        return {};
-    }
-
-    DiagLinker dl{*this};
-    auto validate_arg = [this, &dl](GenericArgId aid, GenericParamId pid) -> bool {
-        Ovld vs{
-            [this, pid, &dl](TypeId tid) -> bool {
-                GenericParam param = gen_param(pid);
-                if (param.holds<GenericParamVariable>()) {
-                    dl.link(emplace_diagnostic(
-                        type(tid).span, diag_code::gen_arg_expected_a_value_expression_not_a_type,
-                        diag_type::error));
-                    dl.link(emplace_diagnostic_with_message_value(
-                        type(tid).span, diag_code::should_a_compt_value_of_type, diag_type::note,
-                        DiagnosticTypeAfterMessage{.tid = param.as<GenericParamVariable>().type}));
-                    dl.link(emplace_diagnostic_with_message_value(
-                        param.span, diag_code::declared_here, diag_type::note,
-                        DiagnosticSymbolBeforeMessage{.sid = param.name}));
-                    return false;
-                }
-                if (param.holds<GenericParamType>()) {
-                    const auto contracts = param.as<GenericParamType>().contracts;
-                    bool cooked = false;
-                    for (auto didx = contracts.begin(); didx != contracts.end(); ++didx) {
-                        DefId contract_did = def_id(didx);
-                        if (!type_has_contract(tid, contract_did)) {
-                            dl.link(emplace_diagnostic_with_message_value(
-                                type(tid).span, diag_code::does_not_satisfy_contract,
-                                diag_type::error,
-                                DiagnosticTyperBeforeMessageAndSymbolAfter{
-                                    .sid = def(contract_did).name, .tid = tid}));
-                            cooked = true;
-                        }
-                    }
-                    if (cooked) {
-                        dl.link(emplace_diagnostic_with_message_value(
-                            param.span, diag_code::declared_here, diag_type::note,
-                            DiagnosticSymbolBeforeMessage{.sid = param.name}));
-                    }
-                    return !cooked;
-                }
-                return false; // fallback (unreachable)
-            },
-            [this, pid, &dl](ExecId eid) -> bool {
-                GenericParam param = gen_param(pid);
-                if (param.holds<GenericParamVariable>()) {
-                    TopLevelDefVisitor def_visitor{*this};
-                    OptId<TypeId> maybe_tid
-                        = ComptExprSolver{*this, def_visitor}.infer_type_from_exec(eid);
-
-                    const auto expected_tid = param.as<GenericParamVariable>().type;
-
-                    if (maybe_tid.empty()) {
-                        dl.link(emplace_diagnostic_with_message_value(
-                            exec(eid).span, diag_code::generic_argument_expected_value_of_type,
-                            diag_type::error, DiagnosticTypeAfterMessage{.tid = expected_tid}));
-                        dl.link(emplace_diagnostic_with_message_value(
-                            param.span, diag_code::declared_here, diag_type::note,
-                            DiagnosticSymbolBeforeMessage{.sid = param.name}));
-                        return false;
-                    }
-                    if (!equivalent_type(maybe_tid.as_id(), expected_tid)) {
-                        dl.link(emplace_diagnostic_with_message_value(
-                            exec(eid).span, diag_code::generic_argument_expected_value_of_type,
-                            diag_type::error,
-                            DiagnosticTyButGot{.expected_tid = expected_tid,
-                                               .got_tid = maybe_tid.as_id()}));
-                        dl.link(emplace_diagnostic_with_message_value(
-                            param.span, diag_code::declared_here, diag_type::note,
-                            DiagnosticSymbolBeforeMessage{.sid = param.name}));
-
-                        return false;
-                    }
-                    return true;
-                }
-                if (param.holds<GenericParamType>()) {
-                    dl.link(emplace_diagnostic(
-                        exec(eid).span, diag_code::gen_arg_expected_a_type_not_a_value_expression,
-                        diag_type::error));
-                    dl.link(emplace_diagnostic_with_message_value(
-                        param.span, diag_code::declared_here, diag_type::note,
-                        DiagnosticSymbolBeforeMessage{.sid = param.name}));
-
-                    return false;
-                }
-                return false; // fallback (unreachable)
-            }};
-        return gen_arg(aid).visit(vs);
-    };
-
-    bool cooked = false;
-    for (HirSize i = 0; i < arg_slice.len(); ++i) {
-        cooked |= !validate_arg(gen_arg_id(arg_slice.get(i)), gen_param_id(param_slice.get(i)));
-    }
-    if (cooked) {
-        dl.link(emplace_diagnostic_with_message_value(
-            def(did).span, diag_code::declared_here, diag_type::note,
-            DiagnosticSymbolBeforeMessage{.sid = def(did).name}));
-    }
-    return true;
-}
-
 [[nodiscard]] std::optional<IdSlice<GenericParamId>>
 Context::try_generic_params_for_def(DefId did) const {
     const Def& def = this->def(did);
@@ -1918,5 +1799,69 @@ Span Context::span_for_gen_args(GenericArgIdSliceId gen_arg_slice) const {
 
     return Span::combine(span1, span2);
 }
+
+void Context::record_function_def(DefId def_id) { all_function_dids.push_back(def_id); }
+
+void Context::register_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id) {
+    def_to_gen_args.insert(did, gen_args_id);
+}
+
+OptId<GenericArgIdSliceId> Context::try_gen_args_for_def(DefId did) const {
+    return def_to_gen_args.at(did);
+}
+
+[[nodiscard]] OptId<GenericArgIdSliceId> Context::search_for_gen_args_for_def(DefId did) const {
+    const auto maybe_args = try_gen_args_for_def(did);
+    if (maybe_args.has_value()) {
+        return maybe_args;
+    }
+
+    const Def& d = def(did);
+    if (d.parent.has_value()) {
+        return search_for_gen_args_for_def(d.parent.as_id());
+    }
+    return {};
+}
+
+void Context::insert_gen_args_into_scope(DefId orginal_generic_did, DefId instance_did,
+                                         ScopeId scope, GenericArgIdSliceId gen_args_id) {
+    const auto maybe_gen_params = try_generic_params_for_def(orginal_generic_did);
+    if (!maybe_gen_params.has_value()) {
+        return;
+    }
+    const auto param_slice = maybe_gen_params.value();
+    const auto args_slice = gen_arg_id_slice(gen_args_id);
+
+    auto emplace = [this, scope, instance_did](const GenericParam& param, GenericArg arg) {
+        Ovld vs{[this, scope, &param, arg, instance_did](GenericParamType t) {
+                    if (arg.holds<TypeId>()) {
+                        register_generated_deftype(scope, param.name, arg.as<TypeId>(),
+                                                   instance_did, type(arg.as<TypeId>()).span);
+                    }
+                },
+                [this, scope, instance_did, param, arg](GenericParamVariable v) {
+                    if (arg.holds<ExecId>()) {
+                        const auto p = register_compt_def(
+                            param.name, exec(arg.as<ExecId>()).span, instance_did,
+                            DefVariable{.type_id = v.type, .compt_value = arg.as<ExecId>()});
+                        insert_variable(scope, param.name, p);
+                    }
+                }};
+        param.visit(vs);
+    };
+
+    for (HirSize i = 0; i < param_slice.len(); ++i) {
+        const auto param = gen_param(param_slice.get(i));
+        const auto arg = gen_arg(args_slice.get(i));
+        emplace(param, arg);
+    }
+}
+template <IsDefVisitor V> OptId<TypeId> Context::infer_type_from_exec(V& def_visitor, ExecId eid) {
+    return ComptExprSolver<V>{*this, def_visitor}.infer_type_from_exec(eid);
+}
+template OptId<TypeId>
+Context::infer_type_from_exec<InsideBodyDefVisitor>(InsideBodyDefVisitor& def_visitor, ExecId eid);
+template OptId<TypeId>
+Context::infer_type_from_exec<TopLevelDefVisitor>(TopLevelDefVisitor& def_visitor, ExecId eid);
 
 } // namespace hir

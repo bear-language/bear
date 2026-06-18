@@ -1,0 +1,22 @@
+// tests/hir/90.br
+
+struct Int<i32 N> { 
+}
+
+var _0 = @static_assert @same_type(Int::1,Int::1); 
+
+var _1 = @static_assert @same_type(Int::1,Int::2); // oops
+
+compt i32 ONE = 1;
+
+var _2 = @static_assert @same_type(Int::1, Int::ONE);
+
+struct Foo<T> {
+    T a;
+}
+
+var _3 = @static_assert @same_type(Foo::i32, Foo::i32);
+
+var _4 = @static_assert @same_type(Foo::i32, Foo::u32); // oops
+
+var _5 = @static_assert @same_type(Foo::Int::ONE, Foo::Int::1.0 as i32);
