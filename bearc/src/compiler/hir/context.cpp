@@ -1841,6 +1841,21 @@ OptId<GenericArgIdSliceId> Context::try_gen_args_for_def(DefId did) const {
     return {};
 }
 
+[[nodiscard]] bool
+Context::def_or_recursive_parent_of_def_is_unspecialized_generic(DefId did) const {
+    const Def& d = def(did);
+    // positive base case: current def is generic itself
+    if (d.generic) {
+        return true;
+    }
+    // try recurse
+    if (d.parent.has_value()) {
+        return def_or_recursive_parent_of_def_is_unspecialized_generic(d.parent.as_id());
+    }
+    // negative base case: current def is not generic nor has parent
+    return false;
+}
+
 void Context::insert_gen_args_into_scope(DefId orginal_generic_did, DefId instance_did,
                                          ScopeId scope, GenericArgIdSliceId gen_args_id) {
     const auto maybe_gen_params = try_generic_params_for_def(orginal_generic_did);

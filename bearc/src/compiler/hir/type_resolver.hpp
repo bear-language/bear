@@ -83,7 +83,7 @@ template <IsDefVisitor V> class TypeResolver {
                                             span, mut);
             }
 
-            if (context.def(did).generic) {
+            if (context.def_or_recursive_parent_of_def_is_unspecialized_generic(did)) {
                 const Def& def = context.def(did);
                 const auto d0 = context.emplace_diagnostic_with_message_value(
                     span, diag_code::raw_use_of_generic_type, diag_type::error,

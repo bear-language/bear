@@ -481,6 +481,10 @@ class Context {
     /// recursively searches parents of Defs to find generic args
     [[nodiscard]] OptId<GenericArgIdSliceId> search_for_gen_args_for_def(DefId did) const;
 
+    /// recursively searches parents of Defs to check if any parent on the chain is a generic,
+    /// non-concrete def (which can be problematic if this is a raw use of a generic def)
+    [[nodiscard]] bool def_or_recursive_parent_of_def_is_unspecialized_generic(DefId did) const;
+
     /// checks if a struct has a contract
     /// - defaults to returning false if struct_did does not correspond to a struct and same with
     /// contract_did
