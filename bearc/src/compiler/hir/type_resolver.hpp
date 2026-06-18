@@ -352,8 +352,9 @@ template <IsDefVisitor V> class TypeResolver {
             return {}; // poisoned
         }
 
-        const DefId did = (need_layout_info) ? def_visitor.visit_as_dependent(maybe_did.as_id())
-                                             : def_visitor.visit_as_transparent(maybe_did.as_id());
+        const DefId orig_did = (need_layout_info)
+                                   ? def_visitor.visit_as_dependent(maybe_did.as_id())
+                                   : def_visitor.visit_as_transparent(maybe_did.as_id());
 
         const auto maybe_gen_args = ComptExprSolver{context, def_visitor}.lower_generic_args(
             fid, scope, type_node->type.generic.generic_args);
@@ -362,22 +363,25 @@ template <IsDefVisitor V> class TypeResolver {
         }
 
         const OptId<DefId> maybe_instant
-            = context.try_generic_instantiation(def_visitor, did, maybe_gen_args.as_id());
+            = context.try_generic_instantiation(def_visitor, orig_did, maybe_gen_args.as_id());
 
         if (maybe_instant.empty()) {
             return {};
         }
 
-        const Def& def = context.def(did);
+        (need_layout_info) ? def_visitor.visit_as_dependent(maybe_instant.as_id())
+                           : def_visitor.visit_as_transparent(maybe_instant.as_id());
 
-        if (def.holds<DefGenericStruct>()) {
+        const Def& orig_def = context.def(orig_did);
+
+        if (orig_def.holds<DefGenericStruct>()) {
             return context.emplace_type(TypeStruct{.def_id = maybe_instant.as_id(),
                                                    .gen_args_slice = maybe_gen_args.as_id(),
                                                    .generic = true},
                                         Span{context, fid, type_node->first, type_node->last},
                                         inner->type.base.mut);
         }
-        if (def.holds<DefGenericVariant>()) {
+        if (orig_def.holds<DefGenericVariant>()) {
             return context.emplace_type(TypeVariant{.def_id = maybe_instant.as_id(),
                                                     .gen_args_slice = maybe_gen_args.as_id(),
                                                     .generic = true},

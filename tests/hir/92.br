@@ -7,3 +7,11 @@ struct Foo<T> {
 struct Bar {
     Foo::Bar a; // oops circular, TODO not working
 }
+
+struct Cir {
+    Le le;
+}
+
+struct Le {
+    Cir cir;
+}
