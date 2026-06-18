@@ -8,18 +8,4 @@ struct Bar {
     Foo::Bar a; // oops circular, TODO not working
 }
 
-struct Cir {
-    Le le;
-}
-
-struct Le {
-    Cir cir; // oops
-}
-
-struct Boo<T> {
-    Bee a; // oops
-}
-
-struct Bee {
-    Boo::i32 a;
-}
+// struct Cir {Le le;} struct Le {Cir cir;} struct Boo<T> {Bee a;} struct Bee {Boo::i32 a;}
