@@ -960,19 +960,61 @@ OptId<DefId> Context::look_up_scoped(auto F, ScopeId scope, IdSlice<SymbolId> id
 OptId<DefId> Context::look_up_scoped_generic(auto F, IsDefVisitor auto& def_visitor, ScopeId scope,
                                              IdSlice<SymbolId> id_slice, Span id_span,
                                              GenericArgIdSliceId gen_args_id) {
-    const OptId<DefId> maybe_did = look_up_scoped(F, scope, id_slice, id_span); // TODO, placeholder
+    TickableGenArgSlice targs{gen_arg_id_slice(gen_args_id)};
+    ScopeId curr_scope = scope;
+    for (IdIdx<SymbolId> sidx = id_slice.begin(); sidx != id_slice.end(); sidx++) {
+        SymbolId sid = symbol_ids.at(sidx);
+        // base case, last elem should be the variable
+        if (sidx == id_slice.last_elem()) {
+            OptId<DefId> maybe_orig_did = F(curr_scope, sid);
+            if (maybe_orig_did.empty()) {
+                return {};
+            }
+            const DefId orig_did = def_visitor.visit_as_transparent(
+                guard_hid(F, scope, maybe_orig_did.as_id(), id_slice, id_span));
 
-    if (maybe_did.empty()) {
-        return {}; // poisoned
+            return check_to_instatiate_def_on_scoped_lookup(def_visitor, targs, orig_did);
+        }
+        if (auto maybe_mod = look_up_namespace(curr_scope, sid); maybe_mod.has_value()) {
+            // TODO check to instant here
+            curr_scope = def(guard_hid_namespace(
+                                 scope, maybe_mod.as_id(),
+                                 IdSlice<SymbolId>{id_slice.begin(),
+                                                   sidx.raw() + 1 - id_slice.begin().raw()},
+                                 id_span))
+                             .as<DefModule>()
+                             .scope;
+        } else if (auto maybe_type = look_up_type(curr_scope, sid); maybe_type.has_value()) {
+            // TODO check to instant here
+            curr_scope = scope_for_top_level_def(guard_hid_type(
+                scope, maybe_type.as_id(),
+                IdSlice<SymbolId>{id_slice.begin(), sidx.raw() + 1 - id_slice.begin().raw()},
+                id_span));
+        }
+    }
+    // never entered the loop, so not found
+    return OptId<DefId>{};
+}
+OptId<DefId> Context::check_to_instatiate_def_on_scoped_lookup(IsDefVisitor auto& def_visitor,
+                                                               TickableGenArgSlice& targs,
+                                                               DefId orig_did) {
+    const Def& orig_def = def(orig_did);
+    if (!orig_def.generic) {
+        return orig_did;
     }
 
-    const DefId orig_did = def_visitor.visit_as_transparent(maybe_did.as_id());
-
-    const OptId<DefId> maybe_instant
-        = try_generic_instantiation(def_visitor, orig_did, gen_args_id);
-
-    // TODO write logic (logic should mirror look_up_scoped but use TickableGenericArgs along the
-    // way)
+    const std::optional<IdSlice<GenericParamId>> maybe_gen_params
+        = try_generic_params_for_def(orig_did);
+    if (!maybe_gen_params.has_value()) {
+        return {};
+    }
+    IdSlice<GenericParamId> params = maybe_gen_params.value();
+    const std::optional<IdSlice<GenericArgId>> maybe_gen_args = targs.tick(params.len());
+    if (maybe_gen_args.has_value()) {
+        return try_generic_instantiation(def_visitor, orig_did,
+                                         emplace_generic_arg_id_slice(maybe_gen_args.value()));
+    }
+    return {};
 }
 
 OptId<DefId> Context::look_up_scoped_variable(ScopeId scope, IdSlice<SymbolId> id_slice,

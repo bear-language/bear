@@ -100,6 +100,9 @@ class Context {
                                                       ScopeId scope, IdSlice<SymbolId> id_slice,
                                                       Span id_span,
                                                       GenericArgIdSliceId gen_args_id);
+    [[nodiscard]] OptId<DefId>
+    check_to_instatiate_def_on_scoped_lookup(IsDefVisitor auto& def_visitor,
+                                             TickableGenArgSlice& targs, DefId orig_did);
 
     /// finds a variable and attempts to resolve definitions on the way to it
     [[nodiscard]] OptId<DefId> look_up_scoped_variable(ScopeId scope, IdSlice<SymbolId> id_slice,

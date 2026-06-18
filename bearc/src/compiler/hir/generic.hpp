@@ -48,9 +48,9 @@ class TickableGenArgSlice {
 
   public:
     explicit TickableGenArgSlice(IdSlice<GenericArgId> slice) : slice{slice} {}
-    [[nodiscard]] OptId<IdIdx<GenericArgId>> tick() {
+    [[nodiscard]] std::optional<IdSlice<GenericArgId>> tick(HirSize amount) {
         if (curr_idx < slice.len()) {
-            return slice.get(curr_idx++);
+            return IdSlice<GenericArgId>{slice.get(curr_idx += amount), amount};
         }
         return {};
     }
