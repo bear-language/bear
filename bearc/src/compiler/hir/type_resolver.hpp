@@ -345,6 +345,8 @@ template <IsDefVisitor V> class TypeResolver {
         const token_ptr_slice_t id_slice = inner->type.base.id;
         const Span span{context, fid, id_slice};
 
+        // @@@ TODO: factor out with routing look_up_scoped_generic logic ~~~~~~~~~~~~~~~~
+
         const OptId<DefId> maybe_did
             = context.look_up_scoped_type(scope, context.symbol_slice(id_slice), span);
 
@@ -352,9 +354,7 @@ template <IsDefVisitor V> class TypeResolver {
             return {}; // poisoned
         }
 
-        const DefId orig_did = (need_layout_info)
-                                   ? def_visitor.visit_as_dependent(maybe_did.as_id())
-                                   : def_visitor.visit_as_transparent(maybe_did.as_id());
+        const DefId orig_did = def_visitor.visit_as_transparent(maybe_did.as_id());
 
         const auto maybe_gen_args = ComptExprSolver{context, def_visitor}.lower_generic_args(
             fid, scope, type_node->type.generic.generic_args, need_layout_info);
@@ -364,6 +364,8 @@ template <IsDefVisitor V> class TypeResolver {
 
         const OptId<DefId> maybe_instant
             = context.try_generic_instantiation(def_visitor, orig_did, maybe_gen_args.as_id());
+
+        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         if (maybe_instant.empty()) {
             return {};

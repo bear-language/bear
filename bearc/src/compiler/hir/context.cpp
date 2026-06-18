@@ -957,6 +957,24 @@ OptId<DefId> Context::look_up_scoped(auto F, ScopeId scope, IdSlice<SymbolId> id
     return OptId<DefId>{};
 }
 
+OptId<DefId> Context::look_up_scoped_generic(auto F, IsDefVisitor auto& def_visitor, ScopeId scope,
+                                             IdSlice<SymbolId> id_slice, Span id_span,
+                                             GenericArgIdSliceId gen_args_id) {
+    const OptId<DefId> maybe_did = look_up_scoped(F, scope, id_slice, id_span); // TODO, placeholder
+
+    if (maybe_did.empty()) {
+        return {}; // poisoned
+    }
+
+    const DefId orig_did = def_visitor.visit_as_transparent(maybe_did.as_id());
+
+    const OptId<DefId> maybe_instant
+        = try_generic_instantiation(def_visitor, orig_did, gen_args_id);
+
+    // TODO write logic (logic should mirror look_up_scoped but use TickableGenericArgs along the
+    // way)
+}
+
 OptId<DefId> Context::look_up_scoped_variable(ScopeId scope, IdSlice<SymbolId> id_slice,
                                               Span id_span) {
     return look_up_scoped(
