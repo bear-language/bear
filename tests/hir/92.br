@@ -13,5 +13,13 @@ struct Cir {
 }
 
 struct Le {
-    Cir cir;
+    Cir cir; // oops
+}
+
+struct Boo<T> {
+    Bee a; // oops
+}
+
+struct Bee {
+    Boo::i32 a;
 }
