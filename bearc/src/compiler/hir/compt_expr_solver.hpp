@@ -152,6 +152,9 @@ template <IsDefVisitor V> class ComptExprSolver {
             if (expr->type == AST_EXPR_ID) {
                 return handle_any_id(fid, scope, expr->expr.id.slice);
             }
+            if (expr->type == AST_EXPR_GENERIC_ID) {
+                return handle_any_id(fid, scope, expr->expr.id.slice);
+            }
             if (expr->type == AST_EXPR_STRUCT_INIT) {
                 return solve_struct_or_union(
                     fid, scope, expr, context.emplace_type(TypeVar{}, Span::generated(), false));
@@ -172,6 +175,9 @@ template <IsDefVisitor V> class ComptExprSolver {
         // `var` provided as type, so try to infer
         if (into_type.holds<TypeVar>()) {
             if (expr->type == AST_EXPR_ID) {
+                return handle_any_id(fid, scope, expr->expr.id.slice);
+            }
+            if (expr->type == AST_EXPR_GENERIC_ID) {
                 return handle_any_id(fid, scope, expr->expr.id.slice);
             }
             if (expr->type == AST_EXPR_STRUCT_INIT) {
@@ -263,8 +269,13 @@ template <IsDefVisitor V> class ComptExprSolver {
             return list_eid;
         }
 
-        if (into_type.holds<TypeFnPtr>() && expr->type == AST_EXPR_ID) {
-            OptId<ExecId> maybe_fnp = handle_any_id(fid, scope, expr->expr.id.slice);
+        if (into_type.holds<TypeFnPtr>()
+            && (expr->type == AST_EXPR_ID || expr->type == AST_EXPR_GENERIC_ID)) {
+            OptId<ExecId> maybe_fnp
+                = (expr->type == AST_EXPR_ID)
+                      ? handle_any_id(fid, scope, expr->expr.id.slice)
+                      : handle_any_generic_id(fid, scope, expr->expr.generic_id.slice,
+                                              expr->expr.generic_id.args);
             if (maybe_fnp.empty()) {
                 return std::nullopt; // poisoned
             }
@@ -1162,24 +1173,11 @@ template <IsDefVisitor V> class ComptExprSolver {
         const Exec& lhs_exec = context.exec(lhs_eid);
         const Exec& rhs_exec = context.exec(rhs_eid);
 
-        auto handle_invalid_operand = [this, lhs_eid, rhs_eid, &lhs_exec, &rhs_exec](ExecId eid) {
-            auto d0 = context.emplace_diagnostic(context.exec(eid).span,
-                                                 diag_code::invalid_operand_for_binary_expression,
-                                                 diag_type::error);
-            OptId<TypeId> maybe_lhs_tid = infer_type_from_exec(lhs_eid);
-            OptId<TypeId> maybe_rhs_tid = infer_type_from_exec(rhs_eid);
-            if (maybe_lhs_tid.has_value() && maybe_rhs_tid.has_value()) {
-                const auto lhs_tid = maybe_lhs_tid.as_id();
-                const auto rhs_tid = maybe_rhs_tid.as_id();
-                auto d1 = context.emplace_diagnostic_with_message_value(
-                    lhs_exec.span, diag_code::value_is_of_type, diag_type::note,
-                    DiagnosticTypeAfterMessage{.tid = lhs_tid});
-                auto d2 = context.emplace_diagnostic_with_message_value(
-                    rhs_exec.span, diag_code::value_is_of_type, diag_type::note,
-                    DiagnosticTypeAfterMessage{.tid = rhs_tid});
-                context.link_diagnostic(d0, d1);
-                context.link_diagnostic(d1, d2);
-            }
+        DiagLinker dl{context};
+        auto handle_invalid_operand = [this, &dl](ExecId eid) {
+            dl.link(context.emplace_diagnostic(context.exec(eid).span,
+                                               diag_code::invalid_operand_for_binary_expression,
+                                               diag_type::error));
         };
 
         if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecExprListLiteral>(rhs_exec)) {
@@ -1204,6 +1202,18 @@ template <IsDefVisitor V> class ComptExprSolver {
             cooked = true;
         }
         if (cooked) {
+            OptId<TypeId> maybe_lhs_tid = infer_type_from_exec(lhs_eid);
+            OptId<TypeId> maybe_rhs_tid = infer_type_from_exec(rhs_eid);
+            if (maybe_lhs_tid.has_value() && maybe_rhs_tid.has_value()) {
+                const auto lhs_tid = maybe_lhs_tid.as_id();
+                const auto rhs_tid = maybe_rhs_tid.as_id();
+                dl.link(context.emplace_diagnostic_with_message_value(
+                    lhs_exec.span, diag_code::value_is_of_type, diag_type::note,
+                    DiagnosticTypeAfterMessage{.tid = lhs_tid}));
+                dl.link(context.emplace_diagnostic_with_message_value(
+                    rhs_exec.span, diag_code::value_is_of_type, diag_type::note,
+                    DiagnosticTypeAfterMessage{.tid = rhs_tid}));
+            }
             return std::nullopt;
         }
         switch (op) {
@@ -1835,15 +1845,21 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             Span span = Span::combine(expr_span, context.span_for_gen_args(maybe_gen_args.as_id()));
 
-            maybe_did = context.look_up_scoped_type_generic(def_visitor, scope, sid_slice, span,
-                                                            maybe_gen_args.as_id());
+            maybe_did = context.look_up_scoped_variable_generic(def_visitor, scope, sid_slice, span,
+                                                                maybe_gen_args.as_id());
+
+            // try to look up scoped type if needed so we can find variant fields
+            if (maybe_did.empty()) {
+                maybe_did = context.look_up_scoped_type_generic(def_visitor, scope, sid_slice, span,
+                                                                maybe_gen_args.as_id());
+            }
 
             const HirSize post_diag_cnt = context.diagnostic_count();
 
             // if no other issue and we just legit didn't find, then make sure to report, since that
             // means just straight up didn't find anything
             if (maybe_did.empty() && prior_diag_cnt == post_diag_cnt) {
-                context.emplace_diagnostic(span, diag_code::use_of_undefined_type,
+                context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
                                            diag_type::error);
             }
         }
@@ -1851,7 +1867,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             return {}; // some issue
         }
         const DefId did = maybe_did.as_id();
-        const Def& def = context.def(def_visitor.visit_as_transparent(did));
+        const Def& def = context.def(def_visitor.visit_as_dependent(did));
         if (def.holds<DefVariable>() && def.as<DefVariable>().compt_value.has_value()
             && def.compt) {
 
@@ -2383,7 +2399,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             // TODO: doesn't handle generic args
             maybe_func_did = context.try_func_did(maybe_func_did.as_id());
 
-            const Def& called_def = context.def(maybe_func_did.as_id());
+            const Def& called_def
+                = context.def(def_visitor.visit_as_dependent(maybe_func_did.as_id()));
             if (!called_def.holds<DefFunction>()) {
                 context.emplace_diagnostic(
                     called_span, diag_code::value_is_not_callable, diag_type::error,

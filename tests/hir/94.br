@@ -1,1 +1,19 @@
 // tests/hir/94.br
+
+struct Foo<T> {
+    compt fn get() -> Self => Self{}
+}
+
+struct Bar<T> {
+    compt fn get() -> T => T..get()
+}
+
+compt *fn()->Foo::i32 a = Foo..get::i32;
+
+compt *fn()->Foo::u8 b = Bar..get::Foo::u8;
+
+compt *fn()->Foo::u8 c = Bar..get::Foo::u8;
+
+var _0 = @static_assert(a() == b()); // oops
+
+var _1 = @static_assert(b() == c());

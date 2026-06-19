@@ -1,0 +1,18 @@
+// tests/hir/96.br
+struct Bar {
+    compt fn new() -> Self => Self{}
+}
+
+struct Boo<T, i32 val> {
+    T my_val;
+    compt fn get() -> i32 => val
+    compt fn new() -> T => T..new()
+}
+
+compt *fn()->Bar my_fn = Boo..new::<Bar,12>;
+
+var _0 = @static_assert my_fn() == Bar..new();
+
+compt *fn()->i32 my_other_fn = Boo..new::<i32,12>;
+
+var _1 = @static_assert my_fn() == my_other_fn; // oops

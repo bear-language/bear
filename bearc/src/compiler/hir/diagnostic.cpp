@@ -127,7 +127,7 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::guaranteed_narrowing_of_compt_value:
         return "guaranteed narrowing of compile-time expression with value";
     case diag_code::invalid_operand_for_binary_expression:
-        return "invalid operand for binary expression";
+        return "invalid operand(s) for binary expression";
     case diag_code::type_is_not_resolvable_at_compt:
         return "type is not resolvable at compile-time";
     case diag_code::is_declared_hid:

@@ -313,6 +313,12 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR_FROM_ARGS(args92, 9);
     char* args93[] = {"bearc", "tests/hir/93.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args93, 23);
+    char* args94[] = {"bearc", "tests/hir/94.br"};
+    ASSERT_EQ_ERR_FROM_ARGS(args94, 3);
+    char* args95[] = {"bearc", "tests/hir/95.br"};
+    ASSERT_EQ_ERR_FROM_ARGS(args95, 2);
+    char* args96[] = {"bearc", "tests/hir/96.br"};
+    ASSERT_EQ_ERR_FROM_ARGS(args96, 4);
 
     return TEST_RESULT;
 }
