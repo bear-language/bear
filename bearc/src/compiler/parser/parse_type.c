@@ -466,6 +466,9 @@ ast_slice_of_generic_args_t parse_slice_of_generic_args(parser_t* p) {
         parser_mode_set(p, saved_mode);
     }
     ast_slice_of_generic_args_t args = parser_freeze_generic_arg_spill_arr(p, &sarr);
+    if (!args.len) {
+        compiler_error_list_emplace(p->error_list, parser_prev(p), GENERIC_ARGS_CANNOT_BE_EMPTY);
+    }
     args.valid = valid;
     return args;
 }

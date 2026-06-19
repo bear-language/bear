@@ -18,7 +18,7 @@ struct B<T1,T2> {
 
 struct C {
     B<u8> a; //oops
-    B<u8,u8> b; //oops
+    B<u8,u8> b; 
     B<u8, u8, u8, u8> c; // oops
     B<> d; //oops
     B e; // oops

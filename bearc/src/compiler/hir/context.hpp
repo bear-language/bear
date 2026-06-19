@@ -956,7 +956,7 @@ class Context {
             return {};
         }
         const std::optional<IdSlice<GenericArgId>> maybe_gen_args = targs.tick(num_params);
-        if (!maybe_gen_args.has_value()) {
+        if (!maybe_gen_args.has_value() || maybe_gen_args.value().is_empty()) {
             GenericArg arg = gen_arg(targs.curr_arg());
             const Def& d = def(orig_did);
             Span span
