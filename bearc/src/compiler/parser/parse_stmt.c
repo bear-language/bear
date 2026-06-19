@@ -345,8 +345,9 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
     decl->stmt.fn_decl.is_generic = false;
     parser_match_token(p, TOK_GENERIC_SEP); // this is fine
     if (parser_match_token(p, TOK_LT)) {
-        decl->stmt.fn_decl.is_generic = true;
-        decl->stmt.fn_decl.generic_params = parse_generic_params(p);
+        ast_slice_of_generic_params_t params = parse_generic_params(p);
+        decl->stmt.fn_decl.generic_params = params;
+        decl->stmt.fn_decl.is_generic = params.len; // true when len != 0
         parser_expect_token(p, TOK_GT);
     }
 
@@ -1022,6 +1023,11 @@ ast_slice_of_generic_params_t parse_generic_params(parser_t* p) {
         }
     }
 
+    if (sarr.size == 0) {
+        compiler_error_list_emplace(p->error_list, parser_prev(p),
+                                    GENERIC_PARAMETERS_CANNOT_BE_EMPTY);
+    }
+
     parser_mode_set(p, saved);
     return parser_freeze_generic_param_spill_arr(p, &sarr);
 }
@@ -1037,8 +1043,9 @@ ast_stmt_t* parse_stmt_struct_decl(parser_t* p) {
     struct_stmt->stmt.struct_decl.is_generic = false;
     if (parser_match_token(p, TOK_LT)
         || (parser_match_token(p, TOK_GENERIC_SEP) && parser_match_token(p, TOK_LT))) {
-        struct_stmt->stmt.struct_decl.is_generic = true;
-        struct_stmt->stmt.struct_decl.generic_params = parse_generic_params(p);
+        ast_slice_of_generic_params_t params = parse_generic_params(p);
+        struct_stmt->stmt.struct_decl.is_generic = params.len; // true when len != 0
+        struct_stmt->stmt.struct_decl.generic_params = params;
         parser_expect_token(p, TOK_GT);
     }
 
@@ -1095,8 +1102,9 @@ ast_stmt_t* parse_fn_prototype(parser_t* p) {
 
     decl->stmt.fn_prototype.is_generic = false;
     if (parser_match_token(p, TOK_LT)) {
-        decl->stmt.fn_prototype.is_generic = true;
-        decl->stmt.fn_prototype.generic_params = parse_generic_params(p);
+        ast_slice_of_generic_params_t params = parse_generic_params(p);
+        decl->stmt.fn_prototype.is_generic = params.len; // params.len != 0
+        decl->stmt.fn_prototype.generic_params = params;
         parser_expect_token(p, TOK_GT);
     }
 
@@ -1219,8 +1227,9 @@ ast_stmt_t* parse_stmt_variant_decl(parser_t* p) {
     s->stmt.variant_decl.name = name;
     s->stmt.variant_decl.is_generic = false;
     if (parser_match_token(p, TOK_LT)) {
-        s->stmt.variant_decl.is_generic = true;
-        s->stmt.variant_decl.generic_params = parse_generic_params(p);
+        ast_slice_of_generic_params_t params = parse_generic_params(p);
+        s->stmt.variant_decl.generic_params = params;
+        s->stmt.variant_decl.is_generic = params.len;
         parser_expect_token(p, TOK_GT);
     }
     parser_expect_token(p, TOK_LBRACE);

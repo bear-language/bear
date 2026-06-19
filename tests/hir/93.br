@@ -1,0 +1,10 @@
+// tests/hir/93.br
+
+struct Foo<> {
+    i32 a;
+}
+
+struct Bar {
+    Foo foo0;
+    Foo<> foo1;
+}

@@ -100,9 +100,23 @@ class Context {
                                                       ScopeId scope, IdSlice<SymbolId> id_slice,
                                                       Span id_span,
                                                       GenericArgIdSliceId gen_args_id);
-    [[nodiscard]] OptId<DefId>
-    check_to_instatiate_def_on_scoped_lookup(IsDefVisitor auto& def_visitor,
-                                             TickableGenArgSlice& targs, DefId orig_did);
+
+    [[nodiscard]] OptId<DefId> look_up_scoped_type_generic(IsDefVisitor auto& def_visitor,
+                                                           ScopeId scope,
+                                                           IdSlice<SymbolId> id_slice, Span id_span,
+                                                           GenericArgIdSliceId gen_args_id);
+
+    [[nodiscard]] OptId<DefId> look_up_scoped_variable_generic(IsDefVisitor auto& def_visitor,
+                                                               ScopeId scope,
+                                                               IdSlice<SymbolId> id_slice,
+                                                               Span id_span,
+                                                               GenericArgIdSliceId gen_args_id);
+
+    [[nodiscard]] OptId<DefId> look_up_scoped_namespace_generic(IsDefVisitor auto& def_visitor,
+                                                                ScopeId scope,
+                                                                IdSlice<SymbolId> id_slice,
+                                                                Span id_span,
+                                                                GenericArgIdSliceId gen_args_id);
 
     /// finds a variable and attempts to resolve definitions on the way to it
     [[nodiscard]] OptId<DefId> look_up_scoped_variable(ScopeId scope, IdSlice<SymbolId> id_slice,
@@ -833,8 +847,15 @@ class Context {
     [[nodiscard]] std::optional<IdSlice<GenericParamId>>
     try_generic_params_for_def(DefId did) const;
 
+    /// returns 0 on none, else returns the number of generic params
+    [[nodiscard]] HirSize try_num_generic_params_for_def(DefId did) const;
+
     template <IsDefVisitor V>
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(V& def_visitor, ExecId eid);
+
+    [[nodiscard]] OptId<DefId>
+    check_to_instatiate_def_on_scoped_lookup(IsDefVisitor auto& def_visitor,
+                                             TickableGenArgSlice& targs, DefId orig_did);
 };
 
 } // namespace hir

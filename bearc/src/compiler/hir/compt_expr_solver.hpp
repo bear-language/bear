@@ -3187,7 +3187,7 @@ template <IsDefVisitor V> class ComptExprSolver {
     lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generic_args_t gen_args,
                        bool need_layout_info) {
 
-        if (!gen_args.valid) {
+        if (!gen_args.valid || gen_args.len == 0) {
             return {};
         }
         llvm::SmallVector<GenericArgId> gen_arg_ids{};

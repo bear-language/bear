@@ -951,6 +951,8 @@ OptId<DefId> Context::look_up_scoped(auto F, ScopeId scope, IdSlice<SymbolId> id
                 scope, maybe_type.as_id(),
                 IdSlice<SymbolId>{id_slice.begin(), sidx.raw() + 1 - id_slice.begin().raw()},
                 id_span));
+        } else {
+            return {}; // none of those
         }
     }
     // never entered the loop, so not found
@@ -984,17 +986,54 @@ OptId<DefId> Context::look_up_scoped_generic(auto F, IsDefVisitor auto& def_visi
                                  id_span))
                              .as<DefModule>()
                              .scope;
-        } else if (auto maybe_type = look_up_type(curr_scope, sid); maybe_type.has_value()) {
-            // TODO check to instant here
-            curr_scope = scope_for_top_level_def(guard_hid_type(
+        } else if (OptId<DefId> maybe_type = look_up_type(curr_scope, sid);
+                   maybe_type.has_value()) {
+            DefId orig_did = guard_hid_type(
                 scope, maybe_type.as_id(),
                 IdSlice<SymbolId>{id_slice.begin(), sidx.raw() + 1 - id_slice.begin().raw()},
-                id_span));
+                id_span);
+
+            OptId<DefId> maybe_instance_did
+                = check_to_instatiate_def_on_scoped_lookup(def_visitor, targs, orig_did);
+            if (maybe_instance_did.empty()) {
+                return {};
+            }
+            // TODO check to instant here
+            curr_scope = scope_for_top_level_def(maybe_instance_did.as_id());
         }
     }
     // never entered the loop, so not found
     return OptId<DefId>{};
 }
+
+[[nodiscard]] OptId<DefId> Context::look_up_scoped_type_generic(IsDefVisitor auto& def_visitor,
+                                                                ScopeId scope,
+                                                                IdSlice<SymbolId> id_slice,
+                                                                Span id_span,
+                                                                GenericArgIdSliceId gen_args_id) {
+    return look_up_scoped_generic(
+        [this](ScopeId scope, SymbolId sid) { return look_up_type(scope, sid); }, def_visitor,
+        scope, id_slice, id_span, gen_args_id);
+}
+
+[[nodiscard]] OptId<DefId>
+Context::look_up_scoped_variable_generic(IsDefVisitor auto& def_visitor, ScopeId scope,
+                                         IdSlice<SymbolId> id_slice, Span id_span,
+                                         GenericArgIdSliceId gen_args_id) {
+    return look_up_scoped_generic(
+        [this](ScopeId scope, SymbolId sid) { return look_up_variable(scope, sid); }, def_visitor,
+        scope, id_slice, id_span, gen_args_id);
+}
+
+[[nodiscard]] OptId<DefId>
+Context::look_up_scoped_namespace_generic(IsDefVisitor auto& def_visitor, ScopeId scope,
+                                          IdSlice<SymbolId> id_slice, Span id_span,
+                                          GenericArgIdSliceId gen_args_id) {
+    return look_up_scoped_generic(
+        [this](ScopeId scope, SymbolId sid) { return look_up_namespace(scope, sid); }, def_visitor,
+        scope, id_slice, id_span, gen_args_id);
+}
+
 OptId<DefId> Context::check_to_instatiate_def_on_scoped_lookup(IsDefVisitor auto& def_visitor,
                                                                TickableGenArgSlice& targs,
                                                                DefId orig_did) {
@@ -1003,18 +1042,16 @@ OptId<DefId> Context::check_to_instatiate_def_on_scoped_lookup(IsDefVisitor auto
         return orig_did;
     }
 
-    const std::optional<IdSlice<GenericParamId>> maybe_gen_params
-        = try_generic_params_for_def(orig_did);
-    if (!maybe_gen_params.has_value()) {
+    const HirSize num_params = try_num_generic_params_for_def(orig_did);
+    if (!num_params) {
         return {};
     }
-    IdSlice<GenericParamId> params = maybe_gen_params.value();
-    const std::optional<IdSlice<GenericArgId>> maybe_gen_args = targs.tick(params.len());
-    if (maybe_gen_args.has_value()) {
-        return try_generic_instantiation(def_visitor, orig_did,
-                                         emplace_generic_arg_id_slice(maybe_gen_args.value()));
+    const std::optional<IdSlice<GenericArgId>> maybe_gen_args = targs.tick(num_params);
+    if (!maybe_gen_args.has_value()) {
+        return {};
     }
-    return {};
+    return try_generic_instantiation(def_visitor, orig_did,
+                                     emplace_generic_arg_id_slice(maybe_gen_args.value()));
 }
 
 OptId<DefId> Context::look_up_scoped_variable(ScopeId scope, IdSlice<SymbolId> id_slice,
@@ -1839,6 +1876,22 @@ Context::try_generic_params_for_def(DefId did) const {
         return def.as<DefGenericVariant>().generic_params;
     }
     return {};
+}
+
+[[nodiscard]] HirSize Context::try_num_generic_params_for_def(DefId did) const {
+    const ast_stmt_t* st = def_ast_node(did);
+    switch (st->type) {
+    case AST_STMT_STRUCT_DEF: {
+        return st->stmt.struct_decl.generic_params.len;
+    }
+    case AST_STMT_VARIANT_DEF:
+        return st->stmt.variant_decl.generic_params.len;
+    case AST_STMT_FN_DECL:
+        return st->stmt.fn_decl.generic_params.len;
+    default:
+        break;
+    }
+    return 0;
 }
 
 Span Context::span_for_gen_args(GenericArgIdSliceId gen_arg_slice) const {
