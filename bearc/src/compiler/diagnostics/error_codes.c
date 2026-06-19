@@ -61,7 +61,7 @@ static const char* error_messages[ERR__COUNT] = {
     [WARN_TOP_LEVEL_USE_CAN_POLLUTE_THE_GLOBAL_NAMESPACE]
     = "top level `use` statement can pollute the global namespace",
     [GENERIC_PARAMETERS_CANNOT_BE_EMPTY] = "generic parameters cannot be empty",
-    [GENERIC_ARGS_CANNOT_BE_EMPTY] = "generic arguments canoot be empty",
+    [GENERIC_ARGS_CANNOT_BE_EMPTY] = "generic arguments cannot be empty",
 
 };
 const char* error_message_for_code(error_code_e error_code) { return error_messages[error_code]; }
