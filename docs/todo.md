@@ -7,8 +7,8 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
  
 - [x] fix `tests/hir/92.br` not detecting circularity
-- [ ] look up generic functions using `TickableGenericArgs`
-- [ ] handle generic routing for types (revise after finishing above)
+- [x] look up generic functions using `TickableGenericArgs`
+- [x] handle generic routing for types (revise after finishing above)
 - [ ] handle generic routing for functions 
 - [ ] generic routing for struct inits 
 - [ ] generic routing for variant inits
@@ -17,7 +17,7 @@ main quest
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
 
 - [ ] `compt` improvements:
-    - [ ] add `@return_type_of` 
+    - [ ] add `@return_type_of` (quite useful, especially in generics that might accept a compt fn ptr)
     - [ ] compt closures (pure-expr only)
         - [ ] allow capturing compt variables 
     - [ ] compt slices `[&]` so we can work with any dimensional lists at compt
@@ -31,6 +31,8 @@ main quest
 - [ ] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
 
 - [ ] finalize internal resolution logic on `hir::TopLevelVisitor` using all the lowering logic for every possible `ast_stmt_t`
+
+- [ ] generic argument deduction guides for struct inits, variant inits, and struct inits
 
 #### hir phase 2.b (function body resolution):
 - [ ] make sure assignment type checking is properly rigid especially around mutable references.
