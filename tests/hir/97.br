@@ -1,0 +1,20 @@
+// tests/hir/97.br
+
+
+struct Foo<T> {
+        T inst;
+        struct Barry<T> { // T is now shadowed
+            struct T {} // oops
+        }
+        struct Bar <P> {
+            hid Foo::T hid_inst;
+            pub Bar::T pub_inst; // Bar with T now
+            compt fn get() -> P => P..get() // TODO, this is getting eagerly instatiated even when only Foo<T> 
+                                            // should be getting instatiated
+        }
+    mod bar {
+        struct Bar<M> {}
+    }
+}
+
+var _0 = Foo..inst::i32; // oops

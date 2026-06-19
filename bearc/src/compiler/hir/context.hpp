@@ -137,6 +137,8 @@ class Context {
                     return {};
                 }
                 curr_scope = scope_for_top_level_def(maybe_instance_did.as_id());
+            } else {
+                return {}; // not found
             }
         }
         // never entered the loop, so not found

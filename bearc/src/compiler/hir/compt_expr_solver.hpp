@@ -153,7 +153,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                 return handle_any_id(fid, scope, expr->expr.id.slice);
             }
             if (expr->type == AST_EXPR_GENERIC_ID) {
-                return handle_any_id(fid, scope, expr->expr.id.slice);
+                return handle_any_generic_id(fid, scope, expr->expr.generic_id.slice,
+                                             expr->expr.generic_id.args);
             }
             if (expr->type == AST_EXPR_STRUCT_INIT) {
                 return solve_struct_or_union(
@@ -178,7 +179,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                 return handle_any_id(fid, scope, expr->expr.id.slice);
             }
             if (expr->type == AST_EXPR_GENERIC_ID) {
-                return handle_any_id(fid, scope, expr->expr.id.slice);
+                return handle_any_generic_id(fid, scope, expr->expr.generic_id.slice,
+                                             expr->expr.generic_id.args);
             }
             if (expr->type == AST_EXPR_STRUCT_INIT) {
                 return solve_struct_or_union(fid, scope, expr, into_tid);

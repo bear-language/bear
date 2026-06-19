@@ -1008,6 +1008,8 @@ OptId<DefId> Context::look_up_scoped_bypassing_visibility(auto F, ScopeId scope,
             curr_scope = def(maybe_mod.as_id()).as<DefModule>().scope;
         } else if (auto maybe_type = look_up_type(curr_scope, sid); maybe_type.has_value()) {
             curr_scope = scope_for_top_level_def(maybe_type.as_id());
+        } else {
+            return {}; // not found
         }
     }
     // not found fallback
