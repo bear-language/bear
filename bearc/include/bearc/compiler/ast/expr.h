@@ -18,6 +18,7 @@ extern "C" {
 typedef enum ast_expr_type {
     // atoms/primary exprs
     AST_EXPR_ID,
+    AST_EXPR_GENERIC_ID,
     AST_EXPR_LITERAL,
     AST_EXPR_LIST_LITERAL,
     // binary
@@ -234,10 +235,16 @@ typedef struct ast_expr_has_contract {
     token_ptr_slice_t contract_id_slice;
 } ast_expr_has_contract_t;
 
+typedef struct ast_expr_generic_id {
+    token_ptr_slice_t slice;
+    ast_slice_of_generic_args_t args;
+} ast_expr_generic_id_t;
+
 // ^^^^^^^^^^^^^^^^^^^^^^^^
 
 typedef union ast_expr_u {
     ast_expr_id_t id;
+    ast_expr_generic_id_t generic_id;
     ast_expr_literal_t literal;
     ast_expr_binary_t binary;
     ast_expr_grouping_t grouping;

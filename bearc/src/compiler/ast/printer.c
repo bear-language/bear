@@ -652,6 +652,24 @@ void pretty_print_expr(const ast_expr_t* expression) {
         print_closing_delim_from_type(TOK_LPAREN);
         print_closing_green_brace();
         break;
+    case AST_EXPR_GENERIC_ID: {
+        print_title("generic identifier");
+        printer_do_indent();
+        print_indent();
+        printf("id: ");
+        print_id_slice(expr.expr.generic_id.slice);
+        printer_deindent();
+        puts(",");
+        ast_slice_of_generic_args_t args = expr.expr.generic_id.args;
+        print_delineator_from_type(TOK_GENERIC_SEP);
+        print_opening_delim_from_type(TOK_LT);
+        for (size_t i = 0; i < args.len; i++) {
+            print_generic_type_arg(args.start[i]);
+        }
+        print_closing_delim_from_type(TOK_GT);
+        print_closing_green_brace();
+
+    } break;
     }
     puts(",");
     printer_deindent();

@@ -76,6 +76,9 @@ ast_expr_t* parse_expr_type(parser_t* p);
 ast_expr_t* parse_expr_struct_init(parser_t* p, ast_expr_t* id_lhs,
                                    ast_slice_of_generic_args_t* gen_args);
 
+ast_expr_t* parse_expr_generic_id(parser_t* p, token_ptr_slice_t id_slice,
+                                  ast_slice_of_generic_args_t gen_args);
+
 ast_expr_t* parse_expr_borrow(parser_t* p);
 
 ast_expr_t* parse_expr_variant_decomp(parser_t* p);

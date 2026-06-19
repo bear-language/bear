@@ -79,6 +79,8 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
                 // fn call
                 if (parser_peek_match(p, TOK_LPAREN)) {
                     lhs = parse_fn_call(p, lhs, &gen_args);
+                } else {
+                    lhs = parse_expr_generic_id(p, lhs->expr.id.slice, gen_args);
                 }
             } else {
                 // struct init
@@ -611,6 +613,21 @@ ast_expr_t* parse_expr_struct_init(parser_t* p, ast_expr_t* opt_id_lhs,
         = parse_slice_of_exprs_call(p, TOK_COMMA, TOK_RBRACE, &parse_expr_struct_member_init);
     parser_expect_token(p, TOK_RBRACE);
     s->first = id.start[0]; // safe becuz the id should be valid given the check passed
+    s->last = parser_prev(p);
+    return s;
+}
+
+ast_expr_t* parse_expr_generic_id(parser_t* p, token_ptr_slice_t id_slice,
+                                  ast_slice_of_generic_args_t gen_args) {
+    ast_expr_t* s = parser_alloc_expr(p);
+    if (!id_slice.len) {
+        s->type = AST_EXPR_INVALID;
+        return s;
+    }
+    s->type = AST_EXPR_GENERIC_ID;
+    s->expr.generic_id.slice = id_slice;
+    s->expr.generic_id.args = gen_args;
+    s->first = id_slice.start[0]; // fine cuz we previously validated id_slice.len
     s->last = parser_prev(p);
     return s;
 }

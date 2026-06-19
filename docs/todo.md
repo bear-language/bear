@@ -9,7 +9,8 @@ main quest
 - [x] fix `tests/hir/92.br` not detecting circularity
 - [x] look up generic functions using `TickableGenericArgs`
 - [x] handle generic routing for types (revise after finishing above)
-- [ ] handle generic routing for functions 
+- [ ] generic routing for generic identifiers
+- [ ] handle generic routing for function (calls)
 - [ ] generic routing for struct inits 
 - [ ] generic routing for variant inits
 - [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the above

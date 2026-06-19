@@ -150,7 +150,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         // no type provided, so try to infer
         if (!maybe_into_tid.has_value()) {
             if (expr->type == AST_EXPR_ID) {
-                return handle_any_id(fid, scope, expr->expr.id);
+                return handle_any_id(fid, scope, expr->expr.id.slice);
             }
             if (expr->type == AST_EXPR_STRUCT_INIT) {
                 return solve_struct_or_union(
@@ -172,7 +172,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         // `var` provided as type, so try to infer
         if (into_type.holds<TypeVar>()) {
             if (expr->type == AST_EXPR_ID) {
-                return handle_any_id(fid, scope, expr->expr.id);
+                return handle_any_id(fid, scope, expr->expr.id.slice);
             }
             if (expr->type == AST_EXPR_STRUCT_INIT) {
                 return solve_struct_or_union(fid, scope, expr, into_tid);
@@ -264,7 +264,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         if (into_type.holds<TypeFnPtr>() && expr->type == AST_EXPR_ID) {
-            OptId<ExecId> maybe_fnp = handle_any_id(fid, scope, expr->expr.id);
+            OptId<ExecId> maybe_fnp = handle_any_id(fid, scope, expr->expr.id.slice);
             if (maybe_fnp.empty()) {
                 return std::nullopt; // poisoned
             }
@@ -322,7 +322,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             OptId<ExecId> maybe_eid{};
 
             if (expr->type == AST_EXPR_ID) {
-                maybe_eid = handle_any_id(fid, scope, expr->expr.id);
+                maybe_eid = handle_any_id(fid, scope, expr->expr.id.slice);
             } else if (expr->type == AST_EXPR_MATCH) {
                 maybe_eid = handle_match(fid, scope, expr);
             }
@@ -368,9 +368,6 @@ template <IsDefVisitor V> class ComptExprSolver {
             return context.register_exec(
                 context, val, Span(fid, context.ast(fid).buffer(), expr->first, expr->last), true);
         };
-
-        auto visit_def
-            = [this](DefId did) { return context.def(def_visitor.visit_as_dependent(did)); };
 
         if (into_tid.has_value() && !into_builtin.has_value()
             && context.type(into_tid.as_id()).template holds<TypeBuiltin>()) {
@@ -432,40 +429,15 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_ID: {
             Span id_span{fid, context.ast(fid).buffer(), expr->expr.id.slice.start[0],
                          expr->expr.id.slice.start[expr->expr.id.slice.len - 1]};
-            auto maybe_def = context.look_up_scoped_variable(
-                scope, context.symbol_slice(expr->expr.id.slice), id_span);
-            if (maybe_def.has_value()) {
-                // happy path, canonicalize compt value
-                DefId did = maybe_def.as_id();
-                const Def& def = visit_def(did);
-                if (def.holds<DefVariable>()) {
-                    if (!def.compt) {
-                        auto diag_id = context.emplace_diagnostic(
-                            Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
-                            diag_code::cannot_init_with_non_compt_value, diag_type::error,
-                            DiagnosticSubCode{.sub_code = diag_code::not_a_compile_time_constant});
-                        auto sub_diag_id = context.emplace_diagnostic(
-                            def.span, diag_code::declared_here_without_compt, diag_type::note);
-                        context.link_diagnostic(diag_id, sub_diag_id);
-                        return std::nullopt;
-                    }
-                    if (!def.as<DefVariable>().compt_value.has_value()) {
-                        return std::nullopt; // this is already malformed (already been
-                                             // reported, so just return none)
-                    }
-                    auto exec = context.exec(def.as<DefVariable>().compt_value.as_id());
-
-                    maybe_value = exec.template try_as<ExecConst>();
-                }
-            } else {
-                auto sid_slice = context.symbol_slice(expr->expr.id.slice);
-                context.emplace_diagnostic(
-                    Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
-                    diag_code::use_of_undeclared_identifier, diag_type::error,
-                    DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice},
-                    DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
-                return std::nullopt;
+            OptId<ExecId> maybe_eid = handle_any_id(fid, scope, expr->expr.id.slice);
+            if (maybe_eid.empty()) {
+                return {};
             }
+            // happy path, canonicalize compt value
+            const Exec& exec = context.exec(maybe_eid.as_id());
+
+            maybe_value = exec.template try_as<ExecConst>();
+
             break;
         }
         case AST_EXPR_LITERAL: {
@@ -674,6 +646,18 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
             break;
         }
+        case AST_EXPR_GENERIC_ID: {
+            const auto gen_id = expr->expr.generic_id;
+            OptId<ExecId> maybe_eid = handle_any_generic_id(fid, scope, gen_id.slice, gen_id.args);
+            if (maybe_eid.empty()) {
+                return {};
+            }
+            // happy path, canonicalize compt value
+            const Exec& exec = context.exec(maybe_eid.as_id());
+
+            maybe_value = exec.template try_as<ExecConst>();
+            break;
+        }
         case AST_EXPR_TYPE:
         case AST_EXPR_BORROW:
         case AST_EXPR_STRUCT_MEMBER_INIT:
@@ -736,14 +720,11 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         OptId<ExecId> maybe_eid{};
 
-        switch (expr->type) {
-        case AST_EXPR_ID: {
-            Span id_span{fid, context.ast(fid).buffer(), expr->expr.id.slice.start[0],
-                         expr->expr.id.slice.start[expr->expr.id.slice.len - 1]};
-            auto maybe_def = context.look_up_scoped_variable(
-                scope, context.symbol_slice(expr->expr.id.slice), id_span);
-            if (!maybe_def.has_value()) {
-                auto sid_slice = context.symbol_slice(expr->expr.id.slice);
+        auto validate_lookup
+            = [this, into_tid, expr_span, visit_def](OptId<DefId> maybe_did,
+                                                     token_ptr_slice_t id_slice) -> OptId<ExecId> {
+            if (!maybe_did.has_value()) {
+                auto sid_slice = context.symbol_slice(id_slice);
                 context.emplace_diagnostic(
                     expr_span, diag_code::use_of_undeclared_identifier, diag_type::error,
                     DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice},
@@ -751,7 +732,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                 return std::nullopt;
             }
             // happy path, canonicalize compt value
-            DefId did = maybe_def.as_id();
+            DefId did = maybe_did.as_id();
             const Def& def = visit_def(did);
             if (!def.holds<DefVariable>()) {
                 context.emplace_diagnostic(
@@ -767,12 +748,12 @@ template <IsDefVisitor V> class ComptExprSolver {
                 auto d1 = context.emplace_diagnostic(
                     def.span, diag_code::declared_here_without_compt, diag_type::note);
                 context.link_diagnostic(d0, d1);
-                return {};
+                return std::nullopt;
             }
             if (!def_variable.compt_value.has_value()) {
                 // this means that this definition must have had an issue, and it was thus
                 // already reported, so just return a nullopt
-                return {};
+                return std::nullopt;
             }
             if (context.equivalent_type(def_variable.type_id, into_tid)) {
                 // since it's compt (immutable, it's perfectly fine to just share the
@@ -784,6 +765,15 @@ template <IsDefVisitor V> class ComptExprSolver {
                 DiagnosticTypeToType{.from = def_variable.type_id, .to = into_tid},
                 DiagnosticNoOtherInfo{});
             return std::nullopt;
+        };
+
+        switch (expr->type) {
+        case AST_EXPR_ID: {
+            const token_ptr_slice_t id_slice = expr->expr.id.slice;
+            Span id_span{context, fid, id_slice};
+            const auto maybe_did
+                = context.look_up_scoped_variable(scope, context.symbol_slice(id_slice), id_span);
+            return validate_lookup(maybe_did, id_slice);
         }
         case AST_EXPR_STRUCT_INIT: {
 
@@ -858,6 +848,18 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_MATCH:
             maybe_eid = handle_match(fid, scope, expr);
             break;
+        case AST_EXPR_GENERIC_ID: {
+            const token_ptr_slice_t id_slice = expr->expr.generic_id.slice;
+            Span id_span{context, fid, id_slice};
+            const OptId<GenericArgIdSliceId> maybe_args = lower_generic_args(
+                fid, scope, expr->expr.generic_id.args, false); // don't need layour info
+            if (maybe_args.empty()) {
+                return {};
+            }
+            const auto maybe_did = context.look_up_scoped_variable_generic(
+                def_visitor, scope, context.symbol_slice(id_slice), id_span, maybe_args.as_id());
+            return validate_lookup(maybe_did, id_slice);
+        }
         case AST_EXPR_SAME_TYPE:
         case AST_EXPR_HAS_CONTRACT:
         case AST_EXPR_DEFINED:
@@ -1617,7 +1619,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         switch (expr->type) {
         case AST_EXPR_ID: {
-            OptId<ExecId> maybe_eid = handle_any_id(fid, scope, expr->expr.id);
+            OptId<ExecId> maybe_eid = handle_any_id(fid, scope, expr->expr.id.slice);
             if (maybe_eid.empty()) {
                 break;
             }
@@ -1628,7 +1630,19 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
             break;
         }
-
+        case AST_EXPR_GENERIC_ID: {
+            const auto gen_id = expr->expr.generic_id;
+            OptId<ExecId> maybe_eid = handle_any_generic_id(fid, scope, gen_id.slice, gen_id.args);
+            if (maybe_eid.empty()) {
+                break;
+            }
+            auto eid = maybe_eid.as_id();
+            auto exec = context.exec(eid);
+            if (exec.template holds<ExecExprListLiteral>()) {
+                return context.emplace_exec(exec.value, expr_span, true);
+            }
+            break;
+        }
         case AST_EXPR_LIST_LITERAL:
             return handle_list_literal(fid, scope, expr, maybe_into_tid);
         case AST_EXPR_COMPT:
@@ -1782,23 +1796,61 @@ template <IsDefVisitor V> class ComptExprSolver {
             whole_list_span, true);
     }
 
+    [[nodiscard]] OptId<ExecId> handle_any_id(FileId fid, ScopeId scope,
+                                              token_ptr_slice_t id_slice) {
+        return handle_any_id(fid, scope, id_slice, OptId<GenericArgIdSliceId>{});
+    }
+
+    [[nodiscard]] OptId<ExecId> handle_any_generic_id(FileId fid, ScopeId scope,
+                                                      token_ptr_slice_t id_slice,
+                                                      ast_slice_of_generic_args_t gen_args) {
+        const OptId<GenericArgIdSliceId> maybe_gen_args
+            = lower_generic_args(fid, scope, gen_args, false); // don't need layout info
+        if (maybe_gen_args.empty()) {
+            return {}; // issue with gen args so we're posioned
+        }
+        return handle_any_id(fid, scope, id_slice, maybe_gen_args.as_id());
+    }
+
     // tries to get the const value corresponding to some variable's name, if it exists
-    [[nodiscard]] OptId<ExecId> handle_any_id(FileId fid, ScopeId scope, ast_expr_id id_expr) {
-        const auto id_slice = id_expr.slice;
+    [[nodiscard]] OptId<ExecId> handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_slice,
+                                              OptId<GenericArgIdSliceId> maybe_gen_args) {
         const auto sid_slice = context.symbol_slice(id_slice);
         const Span expr_span{context, fid, id_slice};
-        OptId<DefId> maybe_did = context.look_up_scoped_variable(scope, sid_slice, expr_span);
-        // try to look up scoped type if needed so we can find variant fields
-        if (maybe_did.empty()) {
-            maybe_did = context.look_up_scoped_type(scope, sid_slice, expr_span);
-        }
-        if (maybe_did.empty()) {
+        OptId<DefId> maybe_did{};
+        if (maybe_gen_args.empty()) {
+            maybe_did = context.look_up_scoped_variable(scope, sid_slice, expr_span);
+            // try to look up scoped type if needed so we can find variant fields
+            if (maybe_did.empty()) {
+                maybe_did = context.look_up_scoped_type(scope, sid_slice, expr_span);
+            }
+            if (maybe_did.empty()) {
 
-            context.emplace_diagnostic(Span{context, fid, id_slice},
-                                       diag_code::use_of_undeclared_identifier, diag_type::error);
-            return std::nullopt;
+                context.emplace_diagnostic(Span{context, fid, id_slice},
+                                           diag_code::use_of_undeclared_identifier,
+                                           diag_type::error);
+            }
+        } else {
+            const HirSize prior_diag_cnt = context.diagnostic_count();
+
+            Span span = Span::combine(expr_span, context.span_for_gen_args(maybe_gen_args.as_id()));
+
+            maybe_did = context.look_up_scoped_type_generic(def_visitor, scope, sid_slice, span,
+                                                            maybe_gen_args.as_id());
+
+            const HirSize post_diag_cnt = context.diagnostic_count();
+
+            // if no other issue and we just legit didn't find, then make sure to report, since that
+            // means just straight up didn't find anything
+            if (maybe_did.empty() && prior_diag_cnt == post_diag_cnt) {
+                context.emplace_diagnostic(span, diag_code::use_of_undefined_type,
+                                           diag_type::error);
+            }
         }
-        auto did = maybe_did.as_id();
+        if (maybe_did.empty()) {
+            return {}; // some issue
+        }
+        const DefId did = maybe_did.as_id();
         const Def& def = context.def(def_visitor.visit_as_transparent(did));
         if (def.holds<DefVariable>() && def.as<DefVariable>().compt_value.has_value()
             && def.compt) {
