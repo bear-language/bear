@@ -227,7 +227,8 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
     // don't evaulate variables/(functions)/variant fields when we're inside a generic that we're
     // not instatiating so that we don't try to make definitiosn with incomplete/non-instatiated
     // variables/fns/fields
-    if ((kind == scope_kind::variable || stmt->type == AST_STMT_VARIANT_FIELD_DECL)
+    if ((kind == scope_kind::variable || stmt->type == AST_STMT_VARIANT_FIELD_DECL
+         || stmt->type == AST_STMT_DEFTYPE || stmt->type == AST_STMT_USE)
         && gen_state.not_instantiating_but_in_generic()) {
         return {};
     }

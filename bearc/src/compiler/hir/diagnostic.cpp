@@ -328,8 +328,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot decompose multiple variants on the same match arm";
     case diag_code::does_not_take_generic_arguments:
         return "does not take generic arguments";
-    case diag_code::not_a_generic_type:
-        return "not a generic type";
+    case diag_code::is_not_a_generic_type:
+        return "is not a generic type";
     case diag_code::gen_arg_expected_a_value_expression_not_a_type:
         return "generic argument expected a value expression, not a type";
     case diag_code::should_a_compt_value_of_type:
@@ -344,6 +344,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "in generic instantiation requested here";
     case diag_code::raw_use_of_generic_type:
         return "raw use of generic type";
+    case diag_code::no_generic_args_provided_for:
+        return "no generic args provided for";
+    case diag_code::use_of_undefined_type:
+        return "use of undefined type";
     }
 
     std::unreachable();

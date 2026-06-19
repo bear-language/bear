@@ -99,25 +99,78 @@ class Context {
     [[nodiscard]] OptId<DefId> look_up_scoped_generic(auto F, IsDefVisitor auto& def_visitor,
                                                       ScopeId scope, IdSlice<SymbolId> id_slice,
                                                       Span id_span,
-                                                      GenericArgIdSliceId gen_args_id);
+                                                      GenericArgIdSliceId gen_args_id) {
+        TickableGenArgSlice targs{gen_arg_id_slice(gen_args_id)};
+        ScopeId curr_scope = scope;
+        for (IdIdx<SymbolId> sidx = id_slice.begin(); sidx != id_slice.end(); sidx++) {
+            SymbolId sid = symbol_ids.at(sidx);
+            // base case, last elem should be the variable
+            if (sidx == id_slice.last_elem()) {
+                OptId<DefId> maybe_orig_did = F(curr_scope, sid);
+                if (maybe_orig_did.empty()) {
+                    return {};
+                }
+                const DefId orig_did = def_visitor.visit_as_transparent(
+                    guard_hid(F, scope, maybe_orig_did.as_id(), id_slice, id_span));
+
+                return try_instatiate_def_on_scoped_lookup_if_needed(def_visitor, targs, orig_did,
+                                                                     true); // last
+            }
+            if (auto maybe_mod = look_up_namespace(curr_scope, sid); maybe_mod.has_value()) {
+                curr_scope = def(guard_hid_namespace(
+                                     scope, maybe_mod.as_id(),
+                                     IdSlice<SymbolId>{id_slice.begin(),
+                                                       sidx.raw() + 1 - id_slice.begin().raw()},
+                                     id_span))
+                                 .as<DefModule>()
+                                 .scope;
+            } else if (OptId<DefId> maybe_type = look_up_type(curr_scope, sid);
+                       maybe_type.has_value()) {
+                DefId orig_did = guard_hid_type(
+                    scope, maybe_type.as_id(),
+                    IdSlice<SymbolId>{id_slice.begin(), sidx.raw() + 1 - id_slice.begin().raw()},
+                    id_span);
+
+                OptId<DefId> maybe_instance_did = try_instatiate_def_on_scoped_lookup_if_needed(
+                    def_visitor, targs, orig_did, false); // not last
+                if (maybe_instance_did.empty()) {
+                    return {};
+                }
+                curr_scope = scope_for_top_level_def(maybe_instance_did.as_id());
+            }
+        }
+        // never entered the loop, so not found
+        return OptId<DefId>{};
+    }
 
     [[nodiscard]] OptId<DefId> look_up_scoped_type_generic(IsDefVisitor auto& def_visitor,
                                                            ScopeId scope,
                                                            IdSlice<SymbolId> id_slice, Span id_span,
-                                                           GenericArgIdSliceId gen_args_id);
+                                                           GenericArgIdSliceId gen_args_id) {
+        return look_up_scoped_generic(
+            [this](ScopeId scope, SymbolId sid) { return look_up_type(scope, sid); }, def_visitor,
+            scope, id_slice, id_span, gen_args_id);
+    }
 
     [[nodiscard]] OptId<DefId> look_up_scoped_variable_generic(IsDefVisitor auto& def_visitor,
                                                                ScopeId scope,
                                                                IdSlice<SymbolId> id_slice,
                                                                Span id_span,
-                                                               GenericArgIdSliceId gen_args_id);
+                                                               GenericArgIdSliceId gen_args_id) {
+        return look_up_scoped_generic(
+            [this](ScopeId scope, SymbolId sid) { return look_up_variable(scope, sid); },
+            def_visitor, scope, id_slice, id_span, gen_args_id);
+    }
 
     [[nodiscard]] OptId<DefId> look_up_scoped_namespace_generic(IsDefVisitor auto& def_visitor,
                                                                 ScopeId scope,
                                                                 IdSlice<SymbolId> id_slice,
                                                                 Span id_span,
-                                                                GenericArgIdSliceId gen_args_id);
-
+                                                                GenericArgIdSliceId gen_args_id) {
+        return look_up_scoped_generic(
+            [this](ScopeId scope, SymbolId sid) { return look_up_namespace(scope, sid); },
+            def_visitor, scope, id_slice, id_span, gen_args_id);
+    }
     /// finds a variable and attempts to resolve definitions on the way to it
     [[nodiscard]] OptId<DefId> look_up_scoped_variable(ScopeId scope, IdSlice<SymbolId> id_slice,
                                                        Span id_span);
@@ -126,8 +179,26 @@ class Context {
                                                    Span id_span);
     [[nodiscard]] OptId<DefId> look_up_scoped_namespace(ScopeId scope, IdSlice<SymbolId> id_slice,
                                                         Span id_span);
-    [[nodiscard]] DefId guard_hid(auto F, ScopeId scope, DefId did, IdSlice<SymbolId> id_slice,
-                                  Span id_span);
+    DefId guard_hid(auto F, ScopeId scope, DefId did, IdSlice<SymbolId> id_slice, Span id_span) {
+        const Def& defin = this->def(did);
+        if (defin.pub) {
+            return did;
+        }
+
+        const OptId<DefId> maybe_locally_availible = F(scope, defin.name);
+        if (!maybe_locally_availible.has_value() || maybe_locally_availible.as_id() != did) {
+            auto d0 = emplace_diagnostic_with_message_value(
+                id_span, diag_code::is_declared_hid, diag_type::error,
+                DiagnosticIdentifierBeforeMessage{.sid_slice = id_slice});
+
+            auto d1 = emplace_diagnostic_with_message_value(
+                defin.span, diag_code::declared_here, diag_type::note,
+                DiagnosticIdentifierBeforeMessage{.sid_slice = id_slice});
+
+            link_diagnostic(d0, d1);
+        }
+        return did;
+    }
     [[nodiscard]] DefId guard_hid_type(ScopeId scope, DefId did, IdSlice<SymbolId> id_slice,
                                        Span id_span);
     [[nodiscard]] DefId guard_hid_variable(ScopeId scope, DefId did, IdSlice<SymbolId> id_slice,
@@ -267,7 +338,8 @@ class Context {
     DefId register_compt_def(SymbolId name, Span span, OptId<DefId> parent,
                              DefValue value = DefUnevaluated{});
 
-    DefId register_def(SymbolId name, Span span, DefId parent, DefValue value = DefUnevaluated{});
+    DefId register_def(SymbolId name, Span span, DefId parent, const ast_stmt_t* stmt,
+                       DefValue value = DefUnevaluated{});
 
     void insert_variable(ScopeId scope_id, SymbolId sid, DefId did);
     void insert_type(ScopeId scope_id, SymbolId sid, DefId did);
@@ -439,6 +511,8 @@ class Context {
 
     /// checks if a (decayed) type matches a struct def
     [[nodiscard]] bool type_matches_struct_def(TypeId tid, DefId did);
+
+    [[nodiscard]] OptId<DefId> try_def_for_type(TypeId tid) const;
 
     [[nodiscard]] OptId<CanonicalGenericArgsId> generic_args_for_def(DefId did);
 
@@ -710,10 +784,15 @@ class Context {
     [[nodiscard]] bool validate_gen_args_for_def(V& def_visitor, DefId did,
                                                  GenericArgIdSliceId gen_args_id) {
         if (!def(did).generic) {
-            emplace_diagnostic(span_for_gen_args(gen_args_id),
-                               diag_code::does_not_take_generic_arguments, diag_type::error,
-                               DiagnosticSymbolBeforeMessage{.sid = this->def(did).name},
-                               DiagnosticSubCode{.sub_code = diag_code::not_a_generic_type});
+            const Def& d = def(did);
+            auto d0 = emplace_diagnostic(
+                span_for_gen_args(gen_args_id), diag_code::is_not_a_generic_type, diag_type::error,
+                DiagnosticSymbolBeforeMessage{.sid = d.name},
+                DiagnosticSubCode{.sub_code = diag_code::does_not_take_generic_arguments});
+            auto d1 = emplace_diagnostic_with_message_value(
+                d.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = d.name});
+            link_diagnostic(d0, d1);
             return false;
         }
 
@@ -853,9 +932,49 @@ class Context {
     template <IsDefVisitor V>
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(V& def_visitor, ExecId eid);
 
-    [[nodiscard]] OptId<DefId>
-    check_to_instatiate_def_on_scoped_lookup(IsDefVisitor auto& def_visitor,
-                                             TickableGenArgSlice& targs, DefId orig_did);
+    [[nodiscard]] OptId<DefId> try_instatiate_def_on_scoped_lookup_if_needed(
+        IsDefVisitor auto& def_visitor, TickableGenArgSlice& targs, DefId orig_did, bool last) {
+        const Def& orig_def = def(orig_did);
+        const IdSlice<GenericArgId> remaining_args = targs.remaining();
+        if (!orig_def.generic) {
+            const Def& d = def(orig_did);
+            if (remaining_args.len() > 0) {
+                auto d0 = emplace_diagnostic_with_message_value(
+                    span_for_gen_args(emplace_generic_arg_id_slice(remaining_args)),
+                    diag_code::does_not_take_generic_arguments, diag_type::error,
+                    DiagnosticSymbolBeforeMessage{.sid = d.name});
+                auto d1 = emplace_diagnostic_with_message_value(
+                    d.span, diag_code::declared_here, diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = d.name});
+                link_diagnostic(d0, d1);
+            }
+            return orig_did;
+        }
+
+        const HirSize num_params = try_num_generic_params_for_def(orig_did);
+        if (!num_params) {
+            return {};
+        }
+        const std::optional<IdSlice<GenericArgId>> maybe_gen_args = targs.tick(num_params);
+        if (!maybe_gen_args.has_value()) {
+            GenericArg arg = gen_arg(targs.curr_arg());
+            const Def& d = def(orig_did);
+            Span span
+                = arg.holds<ExecId>() ? exec(arg.as<ExecId>()).span : type(arg.as<TypeId>()).span;
+            auto d0 = emplace_diagnostic_with_message_value(
+                span, diag_code::no_generic_args_provided_for, diag_type::error,
+                DiagnosticSymbolAfterMessage{.sid = d.name});
+            auto d1 = emplace_diagnostic_with_message_value(
+                d.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = d.name});
+            link_diagnostic(d0, d1);
+            return {};
+        }
+        // if last, consume remaining args, else used the ticked args
+        return try_generic_instantiation(
+            def_visitor, orig_did,
+            emplace_generic_arg_id_slice(last ? remaining_args : (maybe_gen_args.value())));
+    }
 };
 
 } // namespace hir

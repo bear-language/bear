@@ -1,10 +1,46 @@
 // tests/hir/93.br
 
-struct Foo<> {
+struct Foo<> { // oops
     i32 a;
 }
 
 struct Bar {
     Foo foo0;
-    Foo<> foo1;
+    Foo<> foo1; //oops
+}
+
+struct A {
+    Bar<1> bar; // oops
+}
+
+struct B<T1,T2> {
+}
+
+struct C {
+    B<u8> a; //oops
+    B<u8,u8> b; //oops
+    B<u8, u8, u8, u8> c; // oops
+    B<> d; //oops
+    B e; // oops
+}
+
+struct D<T> {
+    struct E<P> {
+        struct F<L> {
+
+        }
+    }
+    use T;
+    deftype Foo = T;
+}
+
+struct G {
+    D..T<i32,i32> a; // oops tried to use raw T
+    D..E<i32,i32> b; // fine
+    D..Foo<i32> c;
+    D..Foo<i32, u8, u8, u32, u64, [&][&][&mut]u8> d; // oops
+    D..E..F<u8,u8,u8> e;
+    D..E..F<u8> f; //oops
+    D..E..F<u8,u8> g; //oops
+    D..E..F<u8,u8,u8,u8> h; //oops
 }

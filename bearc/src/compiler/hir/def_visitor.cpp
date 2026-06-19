@@ -612,7 +612,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             const auto tid = maybe_tid.as_id();
             param_vec.push_back(context.register_def(
                 context.symbol_id(param->name), Span{context, fid, param->first, param->last},
-                context.def(did).parent.as_id(), DefVariable{.type_id = tid}));
+                context.def(did).parent.as_id(), stmt, DefVariable{.type_id = tid}));
         }
 
         IdSlice<DefId> members = context.freeze_id_vec(param_vec);

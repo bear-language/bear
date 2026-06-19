@@ -44,21 +44,26 @@ struct GenericParam : NodeWithVariantValue<GenericParam> {
 
 class TickableGenArgSlice {
     IdSlice<GenericArgId> slice;
-    HirSize curr_idx;
+    HirSize curr_idx{};
 
   public:
     explicit TickableGenArgSlice(IdSlice<GenericArgId> slice) : slice{slice} {}
     [[nodiscard]] std::optional<IdSlice<GenericArgId>> tick(HirSize amount) {
         if (curr_idx < slice.len()) {
-            return IdSlice<GenericArgId>{slice.get(curr_idx += amount), amount};
+            const HirSize orig_idx = curr_idx;
+            curr_idx += amount;
+            return IdSlice<GenericArgId>{slice.get(orig_idx), amount};
         }
         return {};
     }
-    [[nodiscard]] IdIdx<GenericArgId> on_begin() const { return slice.get(curr_idx); }
-    [[nodiscard]] HirSize on_end_len() const { return curr_idx + 1; }
-    [[nodiscard]] TickableGenArgSlice remaining() const {
-        return TickableGenArgSlice(
-            IdSlice<GenericArgId>{slice.get(curr_idx), slice.len() - curr_idx});
+    [[nodiscard]] IdIdx<GenericArgId> curr_arg() const {
+        if (curr_idx < slice.len()) {
+            return slice.get(curr_idx);
+        }
+        return slice.begin();
+    }
+    [[nodiscard]] IdSlice<GenericArgId> remaining() const {
+        return IdSlice<GenericArgId>{slice.get(curr_idx), slice.len() - curr_idx};
     }
 };
 

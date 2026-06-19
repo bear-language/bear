@@ -335,26 +335,24 @@ template <IsDefVisitor V> class TypeResolver {
             }
             const auto inner_tid = maybe_inner_tid.as_id();
 
-            context.emplace_diagnostic(
-                context.type(inner_tid).span, diag_code::does_not_take_generic_arguments,
-                diag_type::error, DiagnosticTypeBeforeMessage{.tid = inner_tid},
-                DiagnosticSubCode{.sub_code = diag_code::not_a_generic_type});
+            auto d0 = context.emplace_diagnostic(
+                context.type(inner_tid).span, diag_code::is_not_a_generic_type, diag_type::error,
+                DiagnosticTypeBeforeMessage{.tid = inner_tid},
+                DiagnosticSubCode{.sub_code = diag_code::does_not_take_generic_arguments});
+            const auto maybe_did_for_tid = context.try_def_for_type(inner_tid);
+            if (maybe_did_for_tid.empty()) {
+                return {};
+            }
+            const Def& d = context.def(maybe_did_for_tid.as_id());
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                d.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = d.name});
+            context.link_diagnostic(d0, d1);
             return {};
         }
 
         const token_ptr_slice_t id_slice = inner->type.base.id;
         const Span span{context, fid, id_slice};
-
-        // @@@ TODO: factor out with routing look_up_scoped_generic logic ~~~~~~~~~~~~~~~~
-
-        const OptId<DefId> maybe_did
-            = context.look_up_scoped_type(scope, context.symbol_slice(id_slice), span);
-
-        if (maybe_did.empty()) {
-            return {}; // poisoned
-        }
-
-        const DefId orig_did = def_visitor.visit_as_transparent(maybe_did.as_id());
 
         const auto maybe_gen_args = ComptExprSolver{context, def_visitor}.lower_generic_args(
             fid, scope, type_node->type.generic.generic_args, need_layout_info);
@@ -362,28 +360,35 @@ template <IsDefVisitor V> class TypeResolver {
             return {};
         }
 
-        const OptId<DefId> maybe_instant
-            = context.try_generic_instantiation(def_visitor, orig_did, maybe_gen_args.as_id());
+        const HirSize prior_diag_cnt = context.diagnostic_count();
 
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        const auto sid_slice = context.symbol_slice(id_slice);
+
+        const OptId<DefId> maybe_instant = context.look_up_scoped_type_generic(
+            def_visitor, scope, sid_slice, span, maybe_gen_args.as_id());
+
+        const HirSize post_diag_cnt = context.diagnostic_count();
 
         if (maybe_instant.empty()) {
-            return {};
+            // if no other issue and we just legit didn't find, then make sure to report
+            if (prior_diag_cnt == post_diag_cnt) {
+                context.emplace_diagnostic(span, diag_code::use_of_undefined_type,
+                                           diag_type::error);
+            }
+            return {}; // some issue or not found
         }
 
         (need_layout_info) ? def_visitor.visit_as_dependent(maybe_instant.as_id())
                            : def_visitor.visit_as_transparent(maybe_instant.as_id());
 
-        const Def& orig_def = context.def(orig_did);
-
-        if (orig_def.holds<DefGenericStruct>()) {
+        if (context.is_struct(maybe_instant.as_id())) {
             return context.emplace_type(TypeStruct{.def_id = maybe_instant.as_id(),
                                                    .gen_args_slice = maybe_gen_args.as_id(),
                                                    .generic = true},
                                         Span{context, fid, type_node->first, type_node->last},
                                         inner->type.base.mut);
         }
-        if (orig_def.holds<DefGenericVariant>()) {
+        if (context.is_variant(maybe_instant.as_id())) {
             return context.emplace_type(TypeVariant{.def_id = maybe_instant.as_id(),
                                                     .gen_args_slice = maybe_gen_args.as_id(),
                                                     .generic = true},
