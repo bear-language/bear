@@ -928,18 +928,31 @@ OptId<DefId> Context::look_up_namespace(ScopeId scope, SymbolId sid) const {
     return Scope::look_up_namespace(*this, scope, sid);
 }
 
-OptId<DefId> Context::look_up_scoped(auto F, ScopeId scope, IdSlice<SymbolId> id_slice,
-                                     Span id_span) {
+OptId<DefId> Context::look_up_local_variable(ScopeId scope, SymbolId sid) const {
+    return Scope::look_up_local_variable(*this, scope, sid);
+}
+OptId<DefId> Context::look_up_local_type(ScopeId scope, SymbolId sid) const {
+    return Scope::look_up_local_type(*this, scope, sid);
+}
+OptId<DefId> Context::look_up_local_namespace(ScopeId scope, SymbolId sid) const {
+    return Scope::look_up_local_namespace(*this, scope, sid);
+}
+
+OptId<DefId> Context::look_up_scoped(auto on_first, auto on_last, ScopeId scope,
+                                     IdSlice<SymbolId> id_slice, Span id_span) {
     ScopeId curr_scope = scope;
     for (IdIdx<SymbolId> sidx = id_slice.begin(); sidx != id_slice.end(); sidx++) {
         SymbolId sid = symbol_ids.at(sidx);
         // base case, last elem should be the variable
         if (sidx == id_slice.last_elem()) {
-            OptId<DefId> maybe = F(curr_scope, sid);
-            return maybe.has_value() ? guard_hid(F, scope, maybe.as_id(), id_slice, id_span)
+            OptId<DefId> maybe
+                = (sidx == id_slice.begin()) ? on_first(curr_scope, sid) : on_last(curr_scope, sid);
+            return maybe.has_value() ? guard_hid(on_first, scope, maybe.as_id(), id_slice, id_span)
                                      : maybe;
         }
-        if (auto maybe_mod = look_up_namespace(curr_scope, sid); maybe_mod.has_value()) {
+        if (auto maybe_mod = (sidx == id_slice.begin()) ? look_up_namespace(curr_scope, sid)
+                                                        : look_up_local_namespace(curr_scope, sid);
+            maybe_mod.has_value()) {
             curr_scope = def(guard_hid_namespace(
                                  scope, maybe_mod.as_id(),
                                  IdSlice<SymbolId>{id_slice.begin(),
@@ -947,7 +960,10 @@ OptId<DefId> Context::look_up_scoped(auto F, ScopeId scope, IdSlice<SymbolId> id
                                  id_span))
                              .as<DefModule>()
                              .scope;
-        } else if (auto maybe_type = look_up_type(curr_scope, sid); maybe_type.has_value()) {
+        } else if (auto maybe_type = (sidx == id_slice.begin())
+                                         ? look_up_type(curr_scope, sid)
+                                         : look_up_local_type(curr_scope, sid);
+                   maybe_type.has_value()) {
             curr_scope = scope_for_top_level_def(guard_hid_type(
                 scope, maybe_type.as_id(),
                 IdSlice<SymbolId>{id_slice.begin(), sidx.raw() + 1 - id_slice.begin().raw()},
@@ -963,18 +979,22 @@ OptId<DefId> Context::look_up_scoped(auto F, ScopeId scope, IdSlice<SymbolId> id
 OptId<DefId> Context::look_up_scoped_variable(ScopeId scope, IdSlice<SymbolId> id_slice,
                                               Span id_span) {
     return look_up_scoped(
-        [this](ScopeId scope, SymbolId sid) { return look_up_variable(scope, sid); }, scope,
+        [this](ScopeId scope, SymbolId sid) { return look_up_variable(scope, sid); },
+        [this](ScopeId scope, SymbolId sid) { return look_up_local_variable(scope, sid); }, scope,
         id_slice, id_span);
 }
 
 OptId<DefId> Context::look_up_scoped_type(ScopeId scope, IdSlice<SymbolId> id_slice, Span id_span) {
-    return look_up_scoped([this](ScopeId scope, SymbolId sid) { return look_up_type(scope, sid); },
-                          scope, id_slice, id_span);
+    return look_up_scoped(
+        [this](ScopeId scope, SymbolId sid) { return look_up_type(scope, sid); },
+        [this](ScopeId scope, SymbolId sid) { return look_up_local_type(scope, sid); }, scope,
+        id_slice, id_span);
 }
 OptId<DefId> Context::look_up_scoped_namespace(ScopeId scope, IdSlice<SymbolId> id_slice,
                                                Span id_span) {
     return look_up_scoped(
-        [this](ScopeId scope, SymbolId sid) { return look_up_namespace(scope, sid); }, scope,
+        [this](ScopeId scope, SymbolId sid) { return look_up_namespace(scope, sid); },
+        [this](ScopeId scope, SymbolId sid) { return look_up_local_namespace(scope, sid); }, scope,
         id_slice, id_span);
 }
 DefId Context::guard_hid_type(ScopeId scope, DefId did, IdSlice<SymbolId> id_slice, Span id_span) {

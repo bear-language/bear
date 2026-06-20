@@ -92,13 +92,16 @@ class Context {
     [[nodiscard]] OptId<DefId> look_up_variable(ScopeId scope, SymbolId sid) const;
     [[nodiscard]] OptId<DefId> look_up_type(ScopeId scope, SymbolId sid) const;
     [[nodiscard]] OptId<DefId> look_up_namespace(ScopeId scope, SymbolId sid) const;
+    [[nodiscard]] OptId<DefId> look_up_local_variable(ScopeId scope, SymbolId sid) const;
+    [[nodiscard]] OptId<DefId> look_up_local_type(ScopeId scope, SymbolId sid) const;
+    [[nodiscard]] OptId<DefId> look_up_local_namespace(ScopeId scope, SymbolId sid) const;
 
-    [[nodiscard]] OptId<DefId> look_up_scoped(auto F, ScopeId scope, IdSlice<SymbolId> id_slice,
-                                              Span id_span);
+    [[nodiscard]] OptId<DefId> look_up_scoped(auto on_first, auto on_last, ScopeId scope,
+                                              IdSlice<SymbolId> id_slice, Span id_span);
 
-    [[nodiscard]] OptId<DefId> look_up_scoped_generic(auto F, IsDefVisitor auto& def_visitor,
-                                                      ScopeId scope, IdSlice<SymbolId> id_slice,
-                                                      Span id_span,
+    [[nodiscard]] OptId<DefId> look_up_scoped_generic(auto on_first, auto on_last,
+                                                      IsDefVisitor auto& def_visitor, ScopeId scope,
+                                                      IdSlice<SymbolId> id_slice, Span id_span,
                                                       GenericArgIdSliceId gen_args_id) {
         TickableGenArgSlice targs{gen_arg_id_slice(gen_args_id)};
         ScopeId curr_scope = scope;
@@ -106,17 +109,21 @@ class Context {
             SymbolId sid = symbol_ids.at(sidx);
             // base case, last elem should be the variable
             if (sidx == id_slice.last_elem()) {
-                OptId<DefId> maybe_orig_did = F(curr_scope, sid);
+                OptId<DefId> maybe_orig_did = (sidx == id_slice.begin()) ? on_first(curr_scope, sid)
+                                                                         : on_last(curr_scope, sid);
                 if (maybe_orig_did.empty()) {
                     return {};
                 }
                 const DefId orig_did = def_visitor.visit_as_transparent(
-                    guard_hid(F, scope, maybe_orig_did.as_id(), id_slice, id_span));
+                    guard_hid(on_first, scope, maybe_orig_did.as_id(), id_slice, id_span));
 
                 return try_instatiate_def_on_scoped_lookup_if_needed(def_visitor, targs, orig_did,
                                                                      true); // last
             }
-            if (auto maybe_mod = look_up_namespace(curr_scope, sid); maybe_mod.has_value()) {
+            if (auto maybe_mod = (sidx == id_slice.begin())
+                                     ? look_up_namespace(curr_scope, sid)
+                                     : look_up_local_namespace(curr_scope, sid);
+                maybe_mod.has_value()) {
                 curr_scope = def(guard_hid_namespace(
                                      scope, maybe_mod.as_id(),
                                      IdSlice<SymbolId>{id_slice.begin(),
@@ -124,7 +131,9 @@ class Context {
                                      id_span))
                                  .as<DefModule>()
                                  .scope;
-            } else if (OptId<DefId> maybe_type = look_up_type(curr_scope, sid);
+            } else if (OptId<DefId> maybe_type = (sidx == id_slice.begin())
+                                                     ? look_up_type(curr_scope, sid)
+                                                     : look_up_local_type(curr_scope, sid);
                        maybe_type.has_value()) {
                 DefId orig_did = guard_hid_type(
                     scope, maybe_type.as_id(),
@@ -150,8 +159,9 @@ class Context {
                                                            IdSlice<SymbolId> id_slice, Span id_span,
                                                            GenericArgIdSliceId gen_args_id) {
         return look_up_scoped_generic(
-            [this](ScopeId scope, SymbolId sid) { return look_up_type(scope, sid); }, def_visitor,
-            scope, id_slice, id_span, gen_args_id);
+            [this](ScopeId scope, SymbolId sid) { return look_up_type(scope, sid); },
+            [this](ScopeId scope, SymbolId sid) { return look_up_local_type(scope, sid); },
+            def_visitor, scope, id_slice, id_span, gen_args_id);
     }
 
     [[nodiscard]] OptId<DefId> look_up_scoped_variable_generic(IsDefVisitor auto& def_visitor,
@@ -161,6 +171,7 @@ class Context {
                                                                GenericArgIdSliceId gen_args_id) {
         return look_up_scoped_generic(
             [this](ScopeId scope, SymbolId sid) { return look_up_variable(scope, sid); },
+            [this](ScopeId scope, SymbolId sid) { return look_up_local_variable(scope, sid); },
             def_visitor, scope, id_slice, id_span, gen_args_id);
     }
 
@@ -171,6 +182,7 @@ class Context {
                                                                 GenericArgIdSliceId gen_args_id) {
         return look_up_scoped_generic(
             [this](ScopeId scope, SymbolId sid) { return look_up_namespace(scope, sid); },
+            [this](ScopeId scope, SymbolId sid) { return look_up_local_namespace(scope, sid); },
             def_visitor, scope, id_slice, id_span, gen_args_id);
     }
     /// finds a variable and attempts to resolve definitions on the way to it
@@ -208,8 +220,9 @@ class Context {
     [[nodiscard]] DefId guard_hid_namespace(ScopeId scope, DefId did, IdSlice<SymbolId> id_slice,
                                             Span id_span);
 
-    [[nodiscard]] OptId<DefId> look_up_scoped_bypassing_visibility(auto F, ScopeId scope,
-                                                                   IdSlice<SymbolId> id_slice);
+    [[nodiscard]] OptId<DefId> look_up_scoped_bypassing_visibility(
+        auto F, ScopeId scope,
+        IdSlice<SymbolId> id_slice); // TODO, do the on_first/on_last thing
 
     [[nodiscard]] OptId<DefId>
     look_up_scoped_variable_bypassing_visibility(ScopeId scope, IdSlice<SymbolId> id_slice);
