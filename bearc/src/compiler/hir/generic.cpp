@@ -12,6 +12,7 @@
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/type.hpp"
 #include "utils/hashing.hpp"
+#include <complex>
 #include <cstddef>
 
 namespace hir {
@@ -146,6 +147,34 @@ CanonicalGenericArgsId CanonicalComptArgsTable::canonical(GenericArgIdSliceId id
     const CanonicalGenericArgsId new_cid = context.emplace_and_get_canonical_gen_args_slice_id(id);
     this->insert(id, new_cid);
     return new_cid;
+}
+
+std::string gen_args_to_str(Context& ctx, GenericArgIdSliceId args_id) {
+    const auto args_slice = ctx.gen_arg_id_slice(args_id);
+    std::string str{};
+    str.reserve(static_cast<HirSize>(32 * args_slice.len())); // decent size, limit uneeded allocs
+    str += "::";
+    if (args_slice.len() > 1) {
+        str += "<";
+    }
+    for (HirSize i = 0; i < args_slice.len(); ++i) {
+        str += gen_arg_to_str(ctx, ctx.gen_arg_id(args_slice.get(i)));
+        if (i != args_slice.len() - 1) {
+            str += ", ";
+        }
+    }
+    if (args_slice.len() > 1) {
+        str += ">";
+    }
+    return str;
+}
+
+std::string gen_arg_to_str(Context& ctx, GenericArgId arg_id) {
+    GenericArg garg = ctx.gen_arg(arg_id);
+    if (garg.holds<TypeId>()) {
+        return type_to_string_as_mentioned(ctx, garg.as<TypeId>());
+    }
+    return exec_to_string(ctx, garg.as<ExecId>());
 }
 
 } // namespace hir

@@ -856,6 +856,20 @@ TypeId Context::emplace_type(const TypeValue& value, Span span, bool mut) {
     return generic_arg_id_slices.at(id);
 }
 
+[[nodiscard]] OptId<DefId> Context::try_def_id_for_type_id(TypeId tid) const {
+    const Type& ty = type(tid);
+    if (ty.holds<TypeStruct>()) {
+        return ty.as<TypeStruct>().def_id;
+    }
+    if (ty.holds<TypeVariant>()) {
+        return ty.as<TypeVariant>().def_id;
+    }
+    if (ty.holds<TypeUnion>()) {
+        return ty.as<TypeUnion>().def_id;
+    }
+    return {};
+}
+
 [[nodiscard]] GenericParam Context::gen_param(GenericParamId id) const {
     return this->generic_params.at(id);
 }
@@ -1116,8 +1130,7 @@ OptId<DefId> Context::look_up_member_var_guarding_hid(const Def& struct_def, Sym
 OptId<DefId> Context::look_up_member_function_guarding_hid(const Def& struct_def,
                                                            SymbolId symbol_id, Span id_span,
                                                            ScopeId local_scope) {
-    auto maybe_def
-        = Scope::look_up_local_variable(*this, struct_def.as<DefStruct>().scope, symbol_id);
+    auto maybe_def = look_up_local_variable(struct_def.as<DefStruct>().scope, symbol_id);
     if (maybe_def.empty()) {
         auto d0 = emplace_diagnostic_with_message_value(
             id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
@@ -1377,7 +1390,7 @@ bool Context::equivalent_type(TypeId tid1, TypeId tid2) const {
     return type(tid1).canonical == type(tid2).canonical;
 }
 
-bool Context::type_inferable_as(TypeId tid1, TypeId tid2) const {
+bool Context::type_inferable_as(TypeId tid1, TypeId tid2) {
     return TypeTransformer<TypeInferer<DoConsiderMut>>{*this}(tid1, tid2);
 }
 

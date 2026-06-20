@@ -10,9 +10,9 @@ main quest
 - [x] look up generic functions using `TickableGenericArgs`
 - [x] handle generic routing for types (revise after finishing above)
 - [x] generic routing for generic identifiers
-- [ ] handle generic routing for function (calls)
-- [ ] generic routing for struct inits 
+- [x] handle generic routing for function (calls)
 - [ ] generic routing for variant inits
+- [ ] generic routing for struct inits 
 - [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the above
 
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values

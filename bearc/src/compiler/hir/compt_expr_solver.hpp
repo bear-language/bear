@@ -87,11 +87,18 @@ template <IsDefVisitor V> class ComptExprSolver {
         if (exec.holds<ExecExprStructInit>()) {
             auto struct_did = exec.as<ExecExprStructInit>().struct_def_id;
 
-            return context.emplace_type(
-                TypeStruct{.def_id = struct_did,
-                           .gen_args_slice = {},
-                           .generic = context.generic_args_for_def(struct_did).has_value()},
-                Span::generated(), false);
+            const auto struct_def = context.def(struct_did);
+
+            if (!struct_def.holds<DefStruct>()) {
+                return {};
+            }
+
+            const auto maybe_gen_args = struct_def.as<DefStruct>().maybe_generic_args;
+
+            return context.emplace_type(TypeStruct{.def_id = struct_did,
+                                                   .gen_args_slice = maybe_gen_args,
+                                                   .generic = maybe_gen_args.has_value()},
+                                        Span::generated(), false);
         }
         if (exec.holds<ExecExprListLiteral>()) {
             auto list_exec = exec.as<ExecExprListLiteral>();
@@ -119,12 +126,19 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         if (exec.holds<ExecExprVariantInit>()) {
             const auto did = exec.as<ExecExprVariantInit>().variant_def_id;
-            return context.emplace_type(
-                TypeVariant{.def_id = did,
-                            .gen_args_slice = {},
-                            .generic = context.generic_args_for_def(did).has_value()},
+            const auto variant_def = context.def(did);
 
-                Span::generated(), false);
+            if (!variant_def.holds<DefVariant>()) {
+                return {};
+            }
+
+            const auto maybe_gen_args = variant_def.as<DefVariant>().maybe_generic_args;
+
+            return context.emplace_type(TypeVariant{.def_id = did,
+                                                    .gen_args_slice = maybe_gen_args,
+                                                    .generic = maybe_gen_args.has_value()},
+
+                                        Span::generated(), false);
         }
 
         // report issue
@@ -912,6 +926,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                 context.emplace_diagnostic_with_message_value(
                     expr_span, diag_code::cannot_convert_value_of_type, diag_type::error,
                     DiagnosticTypeToType{.from = inferred_tid, .to = into_tid});
+                return {};
             }
         }
         context.emplace_diagnostic(expr_span, diag_code::cannot_convert_expression_to_type,
@@ -1858,8 +1873,8 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             const HirSize post_diag_cnt = context.diagnostic_count();
 
-            // if no other issue and we just legit didn't find, then make sure to report, since that
-            // means just straight up didn't find anything
+            // if no other issue and we just legit didn't find, then make sure to report, since
+            // that means just straight up didn't find anything
             if (maybe_did.empty() && prior_diag_cnt == post_diag_cnt) {
                 context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
                                            diag_type::error);
@@ -1891,7 +1906,6 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         // we hit a def corresponding to a function, so a compt function pointer is quite
         // helpful here.
-        // TODO this doesn't consider generics
         if (def.holds<DefFunction>()) {
             const DefFunction& func_def = def.as<DefFunction>();
             return context.emplace_compt_exec(
@@ -1902,7 +1916,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                                                  Span::generated(), false)},
                 expr_span);
         }
-        // TODO this doesn't consider generics
+
         if (def.holds<DefVariantField>()) {
 
             const DefVariantField var_field = def.as<DefVariantField>();
@@ -2334,9 +2348,19 @@ template <IsDefVisitor V> class ComptExprSolver {
             const SymbolId func_name = context.symbol_id(id_tok);
             const Span fn_name_span{context, fid, id_tok};
 
-            maybe_func_did = context.look_up_member_function_guarding_hid(
-                context.def(exec.as<ExecExprStructInit>().struct_def_id), func_name, fn_name_span,
-                scope);
+            if ((expr->expr.fn_call.is_generic)) {
+                if (const auto maybe_gen_arg_id
+                    = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
+                    maybe_gen_arg_id.has_value()) {
+                    maybe_func_did = context.look_up_generic_member_function_guarding_hid(
+                        def_visitor, context.def(exec.as<ExecExprStructInit>().struct_def_id),
+                        func_name, func_span, scope, maybe_gen_arg_id.as_id());
+                }
+            } else {
+                maybe_func_did = context.look_up_member_function_guarding_hid(
+                    context.def(exec.as<ExecExprStructInit>().struct_def_id), func_name,
+                    fn_name_span, scope);
+            }
             if (maybe_func_did.empty()) {
                 return std::nullopt;
             }
@@ -2381,8 +2405,19 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             const auto sid_slice = context.symbol_slice(id_slice);
 
-            maybe_func_did = context.look_up_scoped_variable(scope, sid_slice, called_span);
+            if (expr->expr.fn_call.is_generic) {
+                if (const auto maybe_gen_arg_id
+                    = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
+                    maybe_gen_arg_id.has_value()) {
+                    maybe_func_did = context.look_up_scoped_variable_generic(
+                        def_visitor, scope, sid_slice, called_span, maybe_gen_arg_id.as_id());
+                }
+            } else {
+                maybe_func_did = context.look_up_scoped_variable(scope, sid_slice, called_span);
+            }
             if (maybe_func_did.empty()) {
+
+                // TODO: make this consider generics
 
                 // try as variant init, since they take the form of function calls
                 const auto maybe_variant_field_did
@@ -2391,14 +2426,14 @@ template <IsDefVisitor V> class ComptExprSolver {
                     return handle_variant_init(fid, scope, expr, maybe_variant_field_did.as_id());
                 }
 
-                // no corresponding variant either, so this is just the use_of_undeclared_identifier
+                // no corresponding variant either, so this is just the
+                // use_of_undeclared_identifier
                 context.emplace_diagnostic(called_span, diag_code::use_of_undeclared_identifier,
                                            diag_type::error);
 
                 return std::nullopt;
             }
 
-            // TODO: doesn't handle generic args
             maybe_func_did = context.try_func_did(maybe_func_did.as_id());
 
             const Def& called_def
@@ -3221,8 +3256,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             const ast_expr_t* expr = gen_arg->arg.expr;
             if (expr->type == AST_EXPR_ID) {
                 const auto id_slice = expr->expr.id.slice;
-                // only do this if a type actually exists for this identifer, otherwise treat it as
-                // an expression
+                // only do this if a type actually exists for this identifer, otherwise treat it
+                // as an expression
                 if (token_is_builtin_type(expr->expr.id.slice.start[0]->type)
                     || context
                            .look_up_scoped_type(scope, context.symbol_slice(id_slice),

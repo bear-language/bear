@@ -124,15 +124,14 @@ struct Type : NodeWithVariantValue<Type> {
     bool mut;
     void set_value(TypeValue value) { this->value = value; }
     // compares identical types (including mut)
-    static bool is_same(const Context& ctx, TypeId tid1, TypeId tid2);
+    static bool is_same(Context& ctx, TypeId tid1, TypeId tid2);
     // canonical should get immediately set by context
     Type(const TypeValue& value, Span span, bool mut)
         : value{value}, span{span}, canonical{HIR_ID_NONE}, mut{mut} {}
 };
 
 template <class F>
-concept TypeTransformerFunctor = requires(F f, const Context& context, const Type& t1,
-                                          const Type& t2) {
+concept TypeTransformerFunctor = requires(F f, Context& context, const Type& t1, const Type& t2) {
     typename F::value_type;
     // constructor must take a const ref to a context
     { F{context} };
@@ -146,7 +145,7 @@ concept TypeTransformerFunctor = requires(F f, const Context& context, const Typ
 };
 
 template <TypeTransformerFunctor F> class TypeTransformer {
-    const Context& context;
+    Context& context;
     OptId<TypeId> try_inner(const Type& type);
     Type get_type(TypeId tid) const noexcept;
     Type get_type_as_mentioned(TypeId tid) const noexcept;
@@ -155,7 +154,7 @@ template <TypeTransformerFunctor F> class TypeTransformer {
     typename F::value_type invoke(TypeId tid1, TypeId tid2, auto get_type_functor);
 
   public:
-    TypeTransformer(const Context& context) : context(context) {}
+    TypeTransformer(Context& context) : context(context) {}
     typename F::value_type operator()(TypeId tid1, TypeId tid2);
     typename F::value_type operator()(TypeId tid);
     typename F::value_type invoke_as_mentioned(TypeId tid);
@@ -177,11 +176,11 @@ struct DoNotConsiderMut {
 };
 
 template <ConsiderMut C> class TypeComparator {
-    const Context& context;
+    Context& context;
 
   public:
     using value_type = bool;
-    TypeComparator(const Context& context) : context(context) {}
+    TypeComparator(Context& context) : context(context) {}
     bool operator()(const Type& t1, const Type& t2) const;
     // single invocation -> mismatch => false
     bool operator()(const Type& t1) const { return false; } // NOLINT, intentionally taking t1
@@ -190,11 +189,11 @@ template <ConsiderMut C> class TypeComparator {
 };
 
 template <ConsiderMut C> class TypeInferer {
-    const Context& context;
+    Context& context;
 
   public:
     using value_type = bool;
-    TypeInferer(const Context& context) : context(context) {}
+    TypeInferer(Context& context) : context(context) {}
     bool operator()(const Type& t1, const Type& t2) const;
     // single invocation -> doesn't matter => true
     bool operator()(const Type& t1) const { return true; } // NOLINT, intentionally taking t1
@@ -203,11 +202,11 @@ template <ConsiderMut C> class TypeInferer {
 };
 
 class TypeContainsMut {
-    const Context& context;
+    Context& context;
 
   public:
     using value_type = bool;
-    TypeContainsMut(const Context& context) : context(context) {}
+    TypeContainsMut(Context& context) : context(context) {}
     bool
     operator()(const Type& t1,         // NOLINT
                const Type& t2) const { // NOLINT intentionally taking t1 and t2 here for the concept
@@ -220,11 +219,11 @@ class TypeContainsMut {
 };
 
 template <typename T> class TypeContainsSome {
-    const Context& context;
+    Context& context;
 
   public:
     using value_type = bool;
-    TypeContainsSome(const Context& context) : context(context) {}
+    TypeContainsSome(Context& context) : context(context) {}
     bool operator()(const Type& t1, const Type& t2) const { // NOLINT
         assert(
             false
@@ -240,11 +239,11 @@ using TypeContainsVar = TypeContainsSome<TypeVar>;
 using TypeContainsDeftype = TypeContainsSome<TypeDeftype>;
 
 template <ConsiderMut C> class TypeHasher {
-    const Context& context;
+    Context& context;
 
   public:
     using value_type = HirSize;
-    TypeHasher(const Context& context) : context(context) {}
+    TypeHasher(Context& context) : context(context) {}
     // probably not needed for the hasher
     size_t operator()(const Type& t1, const Type& t2) const { // NOLINT
         assert(false && "double invocation should not be called when hashing");
@@ -260,11 +259,11 @@ struct TypeToStringValue {
 };
 
 template <ConsiderMut C> class TypeToString {
-    const Context& context;
+    Context& context;
 
   public:
     using value_type = TypeToStringValue;
-    TypeToString(const Context& context) : context(context) {}
+    TypeToString(Context& context) : context(context) {}
     // probably not needed for the hasher
     TypeToStringValue operator()(const Type& t1, const Type& t2) const { // NOLINT
         assert(false && "double invocation should not be called when using ToString");
@@ -311,24 +310,24 @@ class CanonicalTypeTable {
 };
 
 // function to determine whether a type contains mut
-bool contains_mut(const Context& ctx, TypeId tid);
+bool contains_mut(Context& ctx, TypeId tid);
 
-bool contains_deftype(const Context& ctx, TypeId tid);
-
-// converts a TypeId to a string
-std::string type_to_string_with_akas(const Context& ctx, TypeId tid);
-// converts a TypeId to a string without any muts
-std::string type_to_string_with_akas_without_muts(const Context& ctx, TypeId tid);
+bool contains_deftype(Context& ctx, TypeId tid);
 
 // converts a TypeId to a string
-std::string type_to_string(const Context& ctx, TypeId tid);
+std::string type_to_string_with_akas(Context& ctx, TypeId tid);
 // converts a TypeId to a string without any muts
-std::string type_to_string_without_muts(const Context& ctx, TypeId tid);
+std::string type_to_string_with_akas_without_muts(Context& ctx, TypeId tid);
 
 // converts a TypeId to a string
-std::string type_to_string_as_mentioned(const Context& ctx, TypeId tid);
+std::string type_to_string(Context& ctx, TypeId tid);
 // converts a TypeId to a string without any muts
-std::string type_to_string_as_mentioned_without_muts(const Context& ctx, TypeId tid);
+std::string type_to_string_without_muts(Context& ctx, TypeId tid);
+
+// converts a TypeId to a string
+std::string type_to_string_as_mentioned(Context& ctx, TypeId tid);
+// converts a TypeId to a string without any muts
+std::string type_to_string_as_mentioned_without_muts(Context& ctx, TypeId tid);
 
 bool builtin_type_has_binary_op(builtin_type type, binary_op op);
 

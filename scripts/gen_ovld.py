@@ -11,7 +11,7 @@ types = """
     ExecExprFnCall, ExecExprBorrow, ExecExprDeref, ExecExprClosure, ExecExprVariantDecomp,
     ExecExprMatch, ExecExprMatchBranch, ExecFnPtr, ExecVariantFieldInit"""
 
-RETURN_TYPE = "size_t"
+RETURN_TYPE = "std::string"
 
 names = [t.strip() for t in types.replace("\n", "").split(",") if t.strip()]
 

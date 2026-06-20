@@ -332,8 +332,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "generic argument expected a value expression, not a type";
     case diag_code::should_a_compt_value_of_type:
         return "should be a compile-time value of type";
-    case diag_code::does_not_satisfy_contract:
-        return "does not satisfy contract";
+    case diag_code::does_not_have_contract:
+        return "does not have contract";
     case diag_code::gen_arg_expected_a_type_not_a_value_expression:
         return "generic argument expected a type, not a value expression";
     case diag_code::generic_argument_expected_value_of_type:
@@ -346,6 +346,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "no generic args provided for";
     case diag_code::use_of_undefined_type:
         return "use of undefined type";
+    case diag_code::declared_here_without_necessary_contracts:
+        return "declared here without necessary contracts";
     }
 
     std::unreachable();

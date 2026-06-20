@@ -244,6 +244,46 @@ class Context {
                                                                     SymbolId symbol_id,
                                                                     Span id_span,
                                                                     ScopeId local_scope);
+    [[nodiscard]] OptId<DefId> look_up_generic_member_function_guarding_hid(
+        IsDefVisitor auto& def_visitor, const Def& struct_def, SymbolId symbol_id, Span id_span,
+        ScopeId local_scope, GenericArgIdSliceId gen_args) {
+        auto maybe_did = look_up_local_variable(struct_def.as<DefStruct>().scope, symbol_id);
+        if (maybe_did.has_value()) {
+            maybe_did = try_generic_instantiation(def_visitor, maybe_did.as_id(), gen_args);
+        }
+        if (maybe_did.empty()) {
+            auto d0 = emplace_diagnostic_with_message_value(
+                id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
+                DiagnosticSymbolAfterMessage{.sid = struct_def.name});
+            auto d1 = emplace_diagnostic_with_message_value(
+                struct_def.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = struct_def.name});
+            link_diagnostic(d0, d1);
+            return std::nullopt;
+        }
+        const Def& def = this->try_func_def(maybe_did.as_id());
+        if (!def.holds<DefFunction>()) {
+            auto d0 = emplace_diagnostic_with_message_value(
+                id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
+                DiagnosticSymbolAfterMessage{.sid = struct_def.name});
+            auto d1 = emplace_diagnostic_with_message_value(
+                def.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = def.name});
+            link_diagnostic(d0, d1);
+            return std::nullopt;
+        }
+        if (!def.pub && !scope_has_parent(local_scope, struct_def.as<DefStruct>().scope)) {
+            auto d0 = emplace_diagnostic_with_message_value(
+                id_span, diag_code::is_declared_hid, diag_type::error,
+                DiagnosticSymbolBeforeMessage{.sid = symbol_id});
+            auto d1 = emplace_diagnostic_with_message_value(
+                def.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = symbol_id});
+            link_diagnostic(d0, d1);
+        }
+        return maybe_did;
+    }
+
     [[nodiscard]] OptId<DefId> look_up_member_function_no_diag_except_hid(const Def& struct_def,
                                                                           SymbolId symbol_id,
                                                                           Span id_span,
@@ -431,7 +471,7 @@ class Context {
 
     [[nodiscard]] bool equivalent_type(TypeId tid1, TypeId tid2) const;
 
-    [[nodiscard]] bool type_inferable_as(TypeId tid1, TypeId tid2) const;
+    [[nodiscard]] bool type_inferable_as(TypeId tid1, TypeId tid2);
 
     [[nodiscard]] bool equivalent_type_slice(IdSlice<TypeId> s1, IdSlice<TypeId> s2) const;
 
@@ -472,6 +512,8 @@ class Context {
     [[nodiscard]] GenericParamId gen_param_id(IdIdx<GenericParamId> id) const;
 
     [[nodiscard]] IdSlice<GenericArgId> gen_arg_id_slice(GenericArgIdSliceId id) const;
+
+    [[nodiscard]] OptId<DefId> try_def_id_for_type_id(TypeId tid) const;
 
     [[nodiscard]] ExecId exec_id(IdIdx<ExecId> id) const;
 
@@ -883,7 +925,7 @@ class Context {
                             DefId contract_did = def_id(didx);
                             if (!type_has_contract(tid, contract_did)) {
                                 dl.link(emplace_diagnostic_with_message_value(
-                                    type(tid).span, diag_code::does_not_satisfy_contract,
+                                    type(tid).span, diag_code::does_not_have_contract,
                                     diag_type::error,
                                     DiagnosticTyperBeforeMessageAndSymbolAfter{
                                         .sid = def(contract_did).name, .tid = tid}));
@@ -891,6 +933,13 @@ class Context {
                             }
                         }
                         if (cooked) {
+                            if (const auto maybe_did = try_def_id_for_type_id(tid);
+                                maybe_did.has_value()) {
+                                const Def& d = def(maybe_did.as_id());
+                                dl.link(emplace_diagnostic_with_message_value(
+                                    d.span, diag_code::declared_here_without_necessary_contracts,
+                                    diag_type::note, DiagnosticSymbolBeforeMessage{.sid = d.name}));
+                            }
                             dl.link(emplace_diagnostic_with_message_value(
                                 param.span, diag_code::declared_here, diag_type::note,
                                 DiagnosticSymbolBeforeMessage{.sid = param.name}));

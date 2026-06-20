@@ -1,0 +1,73 @@
+// tests/hir/a02.br
+
+struct A<T> {
+    i32 a = 4;
+    compt fn new() -> Self => Self{}
+}
+
+struct B<T> {
+    i32 a = 5;
+}
+
+struct C<[4]i8 V> {
+    compt i8 first_val = V[0];
+    compt usize len = V.len;
+}
+
+variant Vary {
+    A(i32 a),
+    B(u32 b),
+    C,
+    D,
+}
+
+
+compt A::i32 a = 42; //oops
+
+compt B::i32 b = A..new::<i32>(); // oops
+
+compt typeof(A..new::<i32>()) c = A..new::<B::u8>(); // oops
+
+compt typeof(A..new::<i32>()) d = A..new::<C::([1 as i8,2 as i8,3 as i8 ,4 as i8])>(); // oops
+
+var _0 = @static_assert @same_type(typeof A..new::<i32>(), A::i32);
+
+var _1 = @static_assert @same_type(typeof A..new::<i32>(), A::u32); // oops
+
+compt str my_str = D..my_str::<Vary..A(42)>;
+
+var _2 = @static_assert my_str == "A42";
+
+var _3 = @static_assert D..my_str::<Vary..B(42)> == "B42";
+
+var _4 = @static_assert D..my_str::<Vary..C()> == "C";
+
+var _5 = @static_assert D..my_str::<Vary..D()> == "D";
+
+var _6 = @static_assert D..my_str::<Vary..D()> == "A"; // oops
+
+var _7 = @static_assert D..calc_my_num::<Vary..D()>(47) == 47;
+
+compt i32 some_num = 12345;
+
+var _8 = @static_assert D..calc_my_num::<Vary..A(some_num)>() == 47; // oops
+
+var _9 = @static_assert match(Vary..A(12)) {Vary..A(var a) => a} == 12;
+
+struct D<Vary V> { // generic compt variant cuz why not
+    compt str my_str = match(V) {
+        Vary..A(i32 a) => "A" + a as str,
+        Vary..B(var b) => "B" + b as str,
+        Vary..C => "C",
+        Vary..D => "D",
+    };
+
+    compt fn calc_my_num(i32 add) -> i32 => {
+        match(V) {
+            Vary..A(i32 a) => a + add,
+            Vary..B(var b) => b + add,
+            Vary..C => add,
+            Vary..D => add,
+        }
+    };
+}

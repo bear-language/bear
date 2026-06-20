@@ -106,6 +106,9 @@ class CanonicalComptArgsTable {
     [[nodiscard]] CanonicalGenericArgsId canonical(GenericArgIdSliceId id);
 };
 
+std::string gen_args_to_str(Context& ctx, GenericArgIdSliceId args_id);
+std::string gen_arg_to_str(Context& ctx, GenericArgId arg_id);
+
 } // namespace hir
 
 #endif // !COMPILER_HIR_GENERICS_HPP

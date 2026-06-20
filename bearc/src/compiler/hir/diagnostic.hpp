@@ -169,13 +169,14 @@ enum class diag_code : uint8_t {
     is_not_a_generic_type,
     gen_arg_expected_a_value_expression_not_a_type,
     should_a_compt_value_of_type,
-    does_not_satisfy_contract,
+    does_not_have_contract,
     gen_arg_expected_a_type_not_a_value_expression,
     generic_argument_expected_value_of_type,
     in_generic_instantiated_here,
     raw_use_of_generic_type,
     no_generic_args_provided_for,
     use_of_undefined_type,
+    declared_here_without_necessary_contracts,
 
     count, // this must be last,
 

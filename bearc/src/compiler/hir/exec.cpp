@@ -12,6 +12,7 @@
 #include "compiler/hir/exec_ops.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/type.hpp"
+#include "compiler/hir/variant_helpers.hpp"
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -1152,7 +1153,7 @@ SymbolId ExecConst::to_symbol_id(Context& ctx) const {
     return ctx.symbol_id(str);
 }
 
-std::string ExecConst::to_string() {
+std::string ExecConst::to_string() const {
     switch (type_builtin()) {
     case builtin_type::u8:
         return std::to_string(static_cast<int>(as<uint8_t>()));
@@ -1182,6 +1183,45 @@ std::string ExecConst::to_string() {
         return "void";
     case builtin_type::str:
         return "<string>";
+    case builtin_type::nullpointer:
+        return "null";
+    case builtin_type::boolean:
+        return (as<bool>()) ? "true" : "false";
+    }
+    std::unreachable();
+    return "";
+}
+
+std::string ExecConst::to_string(const Context& ctx) const {
+    switch (type_builtin()) {
+    case builtin_type::u8:
+        return std::to_string(static_cast<int>(as<uint8_t>()));
+    case builtin_type::i8:
+        return std::to_string(static_cast<int>(as<int8_t>()));
+    case builtin_type::u16:
+        return std::to_string(static_cast<int>(as<uint16_t>()));
+    case builtin_type::i16:
+        return std::to_string(static_cast<int>(as<int16_t>()));
+    case builtin_type::u32:
+        return std::to_string(as<uint32_t>());
+    case builtin_type::i32:
+        return std::to_string(as<int32_t>());
+    case builtin_type::u64:
+        return std::to_string(as<uint64_t>());
+    case builtin_type::i64:
+        return std::to_string(as<int64_t>());
+    case builtin_type::usize:
+        return std::to_string(as<uint64_t>());
+    case builtin_type::charr:
+        return std::to_string(as<char>());
+    case builtin_type::f32:
+        return std::to_string(as<float>());
+    case builtin_type::f64:
+        return std::to_string(as<double>());
+    case builtin_type::voidd:
+        return "void";
+    case builtin_type::str:
+        return ctx.symbol_id_to_cstr(as<SymbolId>());
     case builtin_type::nullpointer:
         return "null";
     case builtin_type::boolean:
@@ -2070,5 +2110,173 @@ std::optional<ExecConst> ExecConst::preunary_bit_not(ExecConst ec) {
         break;
     }
     return std::nullopt;
+}
+
+std::string exec_to_string(Context& ctx, ExecId eid) {
+    auto vs = Ovld{
+        [](const ExecBlock& t) -> std::string { return "{...}"; },
+        [](const ExecExprStmt& t) -> std::string { return "(...)"; },
+        [](const ExecBreakStmt& t) -> std::string { return "break"; },
+        [](const ExecContinueStmt& t) -> std::string { return "continue"; },
+        [](const ExecIfStmt& t) -> std::string { return "if (...) {...} ..."; },
+        [](const ExecLoopStmt& t) -> std::string { return "loop {...}"; },
+        [](const ExecReturnStmt& t) -> std::string { return "return"; },
+        [](const ExecYieldStmt& t) -> std::string { return "yield"; },
+        [&ctx](const ExecExprUnionInit& t) -> std::string {
+            return std::string(ctx.symbol_id_to_cstr(ctx.def(t.union_def_id).name)) + "{...}";
+        },
+        [&ctx](const ExecExprVariantInit& t) -> std::string {
+            std::string str{};
+
+            str.reserve(128); // decent amount
+
+            str += ctx.symbol_id_to_cstr(ctx.def(t.variant_def_id).name);
+
+            str += "..";
+
+            str += exec_to_string(ctx, t.payload_init);
+
+            return str;
+        },
+        [&ctx](const ExecExprStructInit& t) -> std::string {
+            std::string str{};
+
+            str.reserve(256); // decent amount
+
+            str += ctx.symbol_id_to_cstr(ctx.def(t.struct_def_id).name);
+
+            str += "{";
+
+            for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
+                str += exec_to_string(ctx, ctx.exec_id(eidx));
+                if (eidx != t.member_inits.last_elem()) {
+                    str += ", ";
+                }
+            }
+
+            str += "}";
+
+            return str;
+        },
+        [&ctx](const ExecExprStructMemberInit& t) -> std::string {
+            return std::string(ctx.symbol_id_to_cstr(ctx.def(t.field_def).name))
+                   + ((t.move) ? " <- " : " = ") + exec_to_string(ctx, t.value);
+        },
+        [&ctx](const ExecExprVariable& t) -> std::string {
+            return ctx.symbol_id_to_cstr(ctx.def(t.def_id).name);
+        },
+        [&ctx](const ExecExprComptConstant& t) -> std::string { return t.to_string(ctx); },
+        [&ctx](const ExecExprListLiteral& t) -> std::string {
+            std::string str{};
+
+            str.reserve(512); // decent amount
+
+            str += "[";
+
+            for (auto eidx = t.elems.begin(); eidx != t.elems.end(); ++eidx) {
+                str += exec_to_string(ctx, ctx.exec_id(eidx));
+                if (eidx != t.elems.last_elem()) {
+                    str += ", ";
+                }
+            }
+
+            str += "]";
+
+            return str;
+        },
+        [](const ExecExprAssignMove& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprAssignEqual& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprIs& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprMemberAccess& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprPointerMemberAccess& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprBinary& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprCast& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprPreUnary& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprPostUnary& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprSubscript& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprFnCall& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprBorrow& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprDeref& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprClosure& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprVariantDecomp& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprMatch& t) -> std::string {
+            // todo
+            return {};
+        },
+        [](const ExecExprMatchBranch& t) -> std::string {
+            // todo
+            return {};
+        },
+        [&ctx](const ExecFnPtr& t) -> std::string {
+            // todo
+            return ctx.symbol_id_to_cstr(ctx.def(t.func_def_id).name);
+        },
+        [&ctx](const ExecVariantFieldInit& t) -> std::string {
+            std::string str{};
+
+            str.reserve(256); // decent amount
+
+            str += ctx.symbol_id_to_cstr(ctx.def(t.variant_field_def_id).name);
+
+            str += "(";
+
+            for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
+                str += exec_to_string(ctx, ctx.exec_id(eidx));
+                if (eidx != t.member_inits.last_elem()) {
+                    str += ", ";
+                }
+            }
+            str += ")";
+
+            return str;
+        },
+    };
+
+    return ctx.exec(eid).visit(vs);
 }
 } // namespace hir

@@ -298,10 +298,9 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         context.def(did).set_value(DefStruct{
             .scope = structs_scope,
             .ordered_members = ordered_defs,
-            /* .contracts = */
             .contracts = contracts,
             .orginal = {},
-            .maybe_generic_args = {}, // not generic
+            .maybe_generic_args = maybe_generic_args,
         });
 
         try_satisfy_contracts(did, contracts);
@@ -538,7 +537,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                                   .return_type = return_tid,
                                   .body = std::nullopt,
                                   .original = std::nullopt, // not generic
-                                  .maybe_generic_args = {}, // not generic
+                                  .maybe_generic_args = maybe_generic_args,
                                   .discardable = fn_decl.discardable,
                                   .takes_self = takes_self,
                                   .posioned = params_res.poisoned});
@@ -602,7 +601,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             .scope = context.scope_for_top_level_def(did),
             .ordered_members = members,
             .orginal = {},
-            .maybe_generic_args = {} // not generic
+            .maybe_generic_args = maybe_generic_args,
         });
 
         break;

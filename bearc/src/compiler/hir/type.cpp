@@ -165,8 +165,8 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
         },
         [&](const TypeStruct& t) {
             str += context.symbol_id_to_cstr(context.def(t.def_id).name);
-            if (t.generic) {
-                str += "::<>"; // TODO properly handle gen args
+            if (t.generic && t.gen_args_slice.has_value()) {
+                str += gen_args_to_str(context, t.gen_args_slice.as_id());
             }
             if constexpr (considers_mut()) {
                 if (t1.mut) {
@@ -176,8 +176,8 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
         },
         [&](const TypeVariant& t) {
             str += context.symbol_id_to_cstr(context.def(t.def_id).name);
-            if (t.generic) {
-                str += "::<>"; // TODO properly handle gen args
+            if (t.generic && t.gen_args_slice.has_value()) {
+                str += gen_args_to_str(context, t.gen_args_slice.as_id());
             }
             if constexpr (considers_mut()) {
                 if (t1.mut) {
@@ -515,7 +515,7 @@ const char* builtin_type_to_cstr(builtin_type t) {
     std::unreachable();
     return nullptr;
 }
-bool Type::is_same(const Context& ctx, TypeId tid1, TypeId tid2) {
+bool Type::is_same(Context& ctx, TypeId tid1, TypeId tid2) {
     return ctx.type(tid1).canonical == ctx.type(tid2).canonical;
     // to check structurally:
     // return TypeTransformer<TypeComparator<DoConsiderMut>>{ctx}(tid1, tid2);
@@ -562,17 +562,15 @@ std::optional<builtin_type> id_tkn_slice_to_maybe_builtin(token_ptr_slice_t tkn_
     return std::optional<builtin_type>{};
 }
 
-bool contains_mut(const Context& ctx, TypeId tid) {
-    return TypeTransformer<TypeContainsMut>{ctx}(tid);
-}
+bool contains_mut(Context& ctx, TypeId tid) { return TypeTransformer<TypeContainsMut>{ctx}(tid); }
 
-bool contains_deftype(const Context& ctx, TypeId tid) {
+bool contains_deftype(Context& ctx, TypeId tid) {
     return TypeTransformer<TypeContainsDeftype>{ctx}.invoke_as_mentioned(tid);
 }
 
 bool TypeContainsMut::operator()(const Type& t1) const { return t1.mut; }
 
-template <ConsiderMut C> std::string type_to_string_impl_with_akas(const Context& ctx, TypeId tid) {
+template <ConsiderMut C> std::string type_to_string_impl_with_akas(Context& ctx, TypeId tid) {
     std::string str_with_true_type{};
     str_with_true_type.reserve(128); // decently sized
     str_with_true_type += TypeTransformer<TypeToString<C>>{ctx}(tid).str;
@@ -587,29 +585,29 @@ template <ConsiderMut C> std::string type_to_string_impl_with_akas(const Context
     return str_with_true_type;
 }
 
-std::string type_to_string_with_akas(const Context& ctx, TypeId tid) {
+std::string type_to_string_with_akas(Context& ctx, TypeId tid) {
     return type_to_string_impl_with_akas<DoConsiderMut>(ctx, tid);
 }
 
-std::string type_to_string_with_akas_without_muts(const Context& ctx, TypeId tid) {
+std::string type_to_string_with_akas_without_muts(Context& ctx, TypeId tid) {
     return type_to_string_impl_with_akas<DoNotConsiderMut>(ctx, tid);
 }
 
 // converts a TypeId to a string
-std::string type_to_string(const Context& ctx, TypeId tid) {
+std::string type_to_string(Context& ctx, TypeId tid) {
     return TypeTransformer<TypeToString<DoConsiderMut>>{ctx}(tid).str;
 }
 // converts a TypeId to a string without any muts
-std::string type_to_string_without_muts(const Context& ctx, TypeId tid) {
+std::string type_to_string_without_muts(Context& ctx, TypeId tid) {
     return TypeTransformer<TypeToString<DoNotConsiderMut>>{ctx}(tid).str;
 }
 
 // converts a TypeId to a string
-std::string type_to_string_as_mentioned(const Context& ctx, TypeId tid) {
+std::string type_to_string_as_mentioned(Context& ctx, TypeId tid) {
     return TypeTransformer<TypeToString<DoConsiderMut>>{ctx}.invoke_as_mentioned(tid).str;
 }
 // converts a TypeId to a string without any muts
-std::string type_to_string_as_mentioned_without_muts(const Context& ctx, TypeId tid) {
+std::string type_to_string_as_mentioned_without_muts(Context& ctx, TypeId tid) {
     return TypeTransformer<TypeToString<DoNotConsiderMut>>{ctx}.invoke_as_mentioned(tid).str;
 }
 

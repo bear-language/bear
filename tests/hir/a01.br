@@ -1,0 +1,62 @@
+// tests/hir/a01.br
+
+mod compt_generics_test;
+
+struct Foo <T has ComptDefault, ToStr> {
+    T a = default();
+    compt fn make() -> Self => Self{}
+    compt fn iden(T val) -> T => val
+    compt fn default() -> T => T..compt_default()
+    compt fn default_to_str() -> str => Self..default().to_str()
+}
+
+contract ComptDefault {
+    compt fn compt_default() -> Self;
+}
+
+contract ToStr {
+    compt mt to_str() -> str;
+}
+
+struct Bar has ComptDefault, ToStr {
+    compt str DEFAULT_STR = "hello";
+    str a = DEFAULT_STR;
+    compt fn compt_default() -> Self => Self{}
+    compt mt to_str() -> str => self.a
+}
+
+struct Ben { // oops forgot to have
+    i32 a = 0;
+    compt fn compt_default() -> Self => Self{}
+    compt mt to_str() -> str => self.a as str
+}
+
+struct TheDog has ToStr, ComptDefault {
+    i32 a = 0;
+    compt fn compt_default() -> Self => Self{}
+    compt mt to_str() -> str => self.a as str
+}
+
+mod some_strs {
+    compt str a = "abcdefg";
+    compt str b = "ben the dog";
+}
+
+compt Bar foobar = Foo..default::<Bar>();
+
+var _0 = @static_assert Bar{} == foobar;
+
+var _1 = @static_assert Foo..default_to_str::<Bar>() == Bar..DEFAULT_STR;
+
+var _2 = @static_assert Foo..default_to_str::<Bar>() == some_strs..a; // oops
+
+var _3 = @static_assert Foo..default_to_str::<Ben>() == some_strs..a; // oops (contracts not satisfied)
+
+compt str the_dogs_str = Foo..default_to_str::<TheDog>();
+
+var _4 = @static_assert the_dogs_str == "0";
+
+var _5 = @static_assert the_dogs_str == "1"; // oops
+
+compt Bar _6 = Foo..default::<Bar>(); // fine
+compt Bar _7 = Foo..make::<Bar>(); // oops
