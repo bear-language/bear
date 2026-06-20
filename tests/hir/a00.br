@@ -20,7 +20,7 @@ struct Test {
 
     use c..d..E;
 
-    d..E d;
+    E d;
 
 }
 
