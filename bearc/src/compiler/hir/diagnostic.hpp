@@ -36,7 +36,6 @@ enum class diag_code : uint8_t {
     cannot_resolve_value_at_compt,
     cannot_convert_type,
     cannot_resolve_at_compt,
-    type_not_defined,
     compt_variable_should_be_immutable,
     must_initialize_global_variable,
     cannot_init_with_non_compt_value,

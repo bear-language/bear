@@ -59,8 +59,6 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "type conversion not possible";
     case diag_code::cannot_resolve_at_compt:
         return "cannot resolve expression at compile-time";
-    case diag_code::type_not_defined:
-        return "type not defined";
     case diag_code::must_initialize_global_variable:
         return "global variables must be initialized";
     case diag_code::compt_variable_should_be_immutable:

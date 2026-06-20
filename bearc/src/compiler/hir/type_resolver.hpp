@@ -17,7 +17,6 @@
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/token.h"
-#include <iostream>
 #include <optional>
 
 namespace hir {
@@ -133,7 +132,7 @@ template <IsDefVisitor V> class TypeResolver {
             }
         }
 
-        context.emplace_diagnostic(span, diag_code::type_not_defined, diag_type::error);
+        context.emplace_diagnostic(span, diag_code::use_of_undefined_type, diag_type::error);
         return {};
     }
 

@@ -30,7 +30,6 @@ struct D<T> {
 
         }
     }
-    use T;
     deftype Foo = T;
 }
 

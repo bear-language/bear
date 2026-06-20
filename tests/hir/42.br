@@ -47,14 +47,15 @@ var _1 = @static_assert KNOWN_ARCH;
 
 var _2 = @static_assert @defined(std..os..darwin);
 
+use std..String;
+
 // demo in a windowing system:
 struct DeviceIno {
     compt bool ON_MAC = @defined(std..os..darwin);
     compt bool ON_WIN32 = @defined(std..os..win32);
     compt bool ON_LINUX = @defined(std..os..linux);
     
-    use std..String;
-    
+ 
     mt print_os(&String st) {
         std..print("Currently on: ");
         if compt ON_MAC {

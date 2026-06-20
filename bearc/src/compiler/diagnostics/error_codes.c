@@ -14,7 +14,8 @@ static const uint8_t diag_types[ERR__COUNT]
        [NOTE_EXTRANEOUS_SEMICOLON] = DIAG_TYPE_WARNING,
        [HELP_REMOVE] = DIAG_TYPE_HELP,
        [WARN_TOP_LEVEL_USE_CAN_POLLUTE_THE_GLOBAL_NAMESPACE] = DIAG_TYPE_WARNING,
-       [HELP_REMOVE_SEMICOLON_TO_YIELD_EXPRESSION_VALUE] = DIAG_TYPE_HELP};
+       [HELP_REMOVE_SEMICOLON_TO_YIELD_EXPRESSION_VALUE] = DIAG_TYPE_HELP,
+       [USE_IS_ALLOWED_AT_MODULE_LEVEL_AND_INSIDE_FUNCTIONS] = DIAG_TYPE_HELP};
 bool is_non_error_diagnostic(error_code_e error_code) { return diag_types[error_code]; }
 static const char* error_messages[ERR__COUNT] = {
     [ERR_EXPECTED_IDENTIFER] = "expected identifier",
@@ -62,6 +63,11 @@ static const char* error_messages[ERR__COUNT] = {
     = "top level `use` statement can pollute the global namespace",
     [GENERIC_PARAMETERS_CANNOT_BE_EMPTY] = "generic parameters cannot be empty",
     [GENERIC_ARGS_CANNOT_BE_EMPTY] = "generic arguments cannot be empty",
+    [USE_DIRECTIVES_NOT_ALLOWED_IN_STRUCT_BODIES]
+    = "`use` directives are not allowed in struct bodies",
+    [USE_IS_ALLOWED_AT_MODULE_LEVEL_AND_INSIDE_FUNCTIONS]
+    = "move `use` outside of this scope since `use` is only allowed at the module-level and inside "
+      "function bodies",
 
 };
 const char* error_message_for_code(error_code_e error_code) { return error_messages[error_code]; }

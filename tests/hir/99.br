@@ -1,0 +1,49 @@
+// tests/hir/99.br
+
+mod test;
+
+struct A<T1> {
+    mod b {
+        struct C <T2> {
+            mod d {
+                struct E<T3> {
+                    T2 a;
+                }
+            }
+        }
+    }
+}
+
+mod a {
+    mod b {
+        struct C {
+            struct D<T> {
+                T a;
+            }
+        }
+    }
+}
+
+use A..b..C..d..E;
+
+struct Test { 
+    A..b..C..d..E<i8,i8,i8> a;
+    
+    use A;
+    A<u8,u8,u8> b; // oops
+
+    deftype MyE = A..b..C..d..E<i32,u8,u8>;
+    MyE c;
+    MyE::<i32,i32> d; // oops 
+
+    deftype MyCOops = A..b..C; // oops
+
+    deftype MyC = A..b..C<i32,i32>;
+
+    MyC e;
+
+    E::<i32,i32,i32> f; // oops 
+
+    E::i32 g; // oops
+
+}

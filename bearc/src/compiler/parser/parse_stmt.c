@@ -577,6 +577,16 @@ ast_stmt_t* parse_stmt_top_level_decl(parser_t* p) {
     return parse_stmt_decl(p);
 }
 
+ast_stmt_t* parse_stmt_inside_struct_decl(parser_t* p) {
+    if (parser_peek_match(p, TOK_USE)) {
+        compiler_error_list_emplace(p->error_list, parser_peek(p),
+                                    USE_DIRECTIVES_NOT_ALLOWED_IN_STRUCT_BODIES);
+        compiler_error_list_emplace(p->error_list, parser_peek(p),
+                                    USE_IS_ALLOWED_AT_MODULE_LEVEL_AND_INSIDE_FUNCTIONS);
+    }
+    return parse_stmt_decl(p);
+}
+
 ast_stmt_t* parse_stmt_decl(parser_t* p) {
 
     token_type_e next_type = parser_peek(p)->type;
@@ -1058,7 +1068,8 @@ ast_stmt_t* parse_stmt_struct_decl(parser_t* p) {
     }
 
     parser_expect_token(p, TOK_LBRACE);
-    struct_stmt->stmt.struct_decl.fields = parse_slice_of_decls(p, TOK_RBRACE);
+    struct_stmt->stmt.struct_decl.fields
+        = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_stmt_inside_struct_decl);
     parser_expect_token(p, TOK_RBRACE);
     struct_stmt->first = struct_tkn;
     struct_stmt->last = parser_prev(p);

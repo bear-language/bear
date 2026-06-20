@@ -1,0 +1,26 @@
+// tests/hir/a00.br
+
+mod test;
+
+mod a { struct B<T> {} }
+
+mod b { struct C {} }
+
+mod c { mod d { struct E {} } }
+
+use b..C; 
+
+use a..B;
+
+struct Test {
+    B::i32 a;
+    B b; // oops
+     
+    C c;
+
+    use c..d..E;
+
+    d..E d;
+
+}
+
