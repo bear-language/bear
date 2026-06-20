@@ -220,9 +220,9 @@ class Context {
     [[nodiscard]] DefId guard_hid_namespace(ScopeId scope, DefId did, IdSlice<SymbolId> id_slice,
                                             Span id_span);
 
-    [[nodiscard]] OptId<DefId> look_up_scoped_bypassing_visibility(
-        auto F, ScopeId scope,
-        IdSlice<SymbolId> id_slice); // TODO, do the on_first/on_last thing
+    [[nodiscard]] OptId<DefId> look_up_scoped_bypassing_visibility(auto on_first, auto on_last,
+                                                                   ScopeId scope,
+                                                                   IdSlice<SymbolId> id_slice);
 
     [[nodiscard]] OptId<DefId>
     look_up_scoped_variable_bypassing_visibility(ScopeId scope, IdSlice<SymbolId> id_slice);

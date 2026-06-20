@@ -1014,19 +1014,26 @@ DefId Context::guard_hid_namespace(ScopeId scope, DefId did, IdSlice<SymbolId> i
                      scope, did, id_slice, id_span);
 }
 
-OptId<DefId> Context::look_up_scoped_bypassing_visibility(auto F, ScopeId scope,
+OptId<DefId> Context::look_up_scoped_bypassing_visibility(auto on_first, auto on_last,
+                                                          ScopeId scope,
                                                           IdSlice<SymbolId> id_slice) {
     ScopeId curr_scope = scope;
     for (IdIdx<SymbolId> sidx = id_slice.begin(); sidx != id_slice.end(); sidx++) {
         SymbolId sid = symbol_ids.at(sidx);
         // base case, last elem should be the variable
         if (sidx == id_slice.last_elem()) {
-            OptId<DefId> maybe = F(curr_scope, sid);
+            OptId<DefId> maybe
+                = (sidx == id_slice.begin()) ? on_first(curr_scope, sid) : on_last(curr_scope, sid);
             return maybe;
         }
-        if (auto maybe_mod = look_up_namespace(curr_scope, sid); maybe_mod.has_value()) {
+        if (auto maybe_mod = (sidx == id_slice.begin()) ? look_up_namespace(curr_scope, sid)
+                                                        : look_up_local_namespace(curr_scope, sid);
+            maybe_mod.has_value()) {
             curr_scope = def(maybe_mod.as_id()).as<DefModule>().scope;
-        } else if (auto maybe_type = look_up_type(curr_scope, sid); maybe_type.has_value()) {
+        } else if (auto maybe_type = (sidx == id_slice.begin())
+                                         ? look_up_type(curr_scope, sid)
+                                         : look_up_local_type(curr_scope, sid);
+                   maybe_type.has_value()) {
             curr_scope = scope_for_top_level_def(maybe_type.as_id());
         } else {
             return {}; // not found
@@ -1038,19 +1045,23 @@ OptId<DefId> Context::look_up_scoped_bypassing_visibility(auto F, ScopeId scope,
 OptId<DefId> Context::look_up_scoped_variable_bypassing_visibility(ScopeId scope,
                                                                    IdSlice<SymbolId> id_slice) {
     return look_up_scoped_bypassing_visibility(
-        [this](ScopeId scope, SymbolId sid) { return look_up_variable(scope, sid); }, scope,
+        [this](ScopeId scope, SymbolId sid) { return look_up_variable(scope, sid); },
+        [this](ScopeId scope, SymbolId sid) { return look_up_local_variable(scope, sid); }, scope,
         id_slice);
 }
 
 OptId<DefId> Context::look_up_scoped_type_bypassing_visibility(ScopeId scope,
                                                                IdSlice<SymbolId> id_slice) {
     return look_up_scoped_bypassing_visibility(
-        [this](ScopeId scope, SymbolId sid) { return look_up_type(scope, sid); }, scope, id_slice);
+        [this](ScopeId scope, SymbolId sid) { return look_up_type(scope, sid); },
+        [this](ScopeId scope, SymbolId sid) { return look_up_local_type(scope, sid); }, scope,
+        id_slice);
 }
 OptId<DefId> Context::look_up_scoped_namespace_bypassing_visibility(ScopeId scope,
                                                                     IdSlice<SymbolId> id_slice) {
     return look_up_scoped_bypassing_visibility(
-        [this](ScopeId scope, SymbolId sid) { return look_up_namespace(scope, sid); }, scope,
+        [this](ScopeId scope, SymbolId sid) { return look_up_namespace(scope, sid); },
+        [this](ScopeId scope, SymbolId sid) { return look_up_local_namespace(scope, sid); }, scope,
         id_slice);
 }
 
