@@ -934,6 +934,34 @@ TopLevelDefVisitor::resolve_generic_param(FileId fid, ScopeId scope,
             return {};
         }
         SymbolId name = context.symbol_id(gen_var.name);
+        bool cooked = false;
+        DiagLinker dl{context};
+
+        auto on_not_already_cooked = [this, &dl, maybe_tid, name]() {
+            dl.link(context.emplace_diagnostic_with_message_value(
+                context.type(maybe_tid.as_id()).span, diag_code::invalid_type_for_generic_paramter,
+                diag_type::error, DiagnosticSymbolAfterMessage{.sid = name}));
+        };
+
+        if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())) {
+            on_not_already_cooked();
+            dl.link(context.emplace_diagnostic(
+                context.type(maybe_tid.as_id()).span,
+                diag_code::generic_parameter_variable_must_have_an_explicit_type, diag_type::note));
+            cooked = true;
+        }
+        if (TypeTransformer<TypeContainsMut>{context}(maybe_tid.as_id())) {
+            if (!cooked) {
+                on_not_already_cooked();
+            }
+            dl.link(context.emplace_diagnostic(
+                context.type(maybe_tid.as_id()).span,
+                diag_code::generic_parameter_variable_must_be_immutable, diag_type::note));
+            cooked = true;
+        }
+        if (cooked) {
+            return {};
+        }
         return context.emplace_generic_param(Span{context, fid, gen_param->first, gen_param->last},
                                              GenericParamVariable{.type = maybe_tid.as_id()}, name);
     }

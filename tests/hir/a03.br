@@ -1,0 +1,23 @@
+// tests/hir/a03.br
+
+struct Foo<T, var val> { // oops
+    var my_val = val;
+    fn get() -> Self => Self{}
+}
+
+
+struct Bar<T, mut i32 val> { // oops 
+    i32 my_val = val;
+    fn get() -> Self => Self{}
+}
+
+struct Boo<T, mut var val> { // oops
+    i32 my_val = val;
+    fn get() -> Self => Self{}
+}
+
+struct Tester {
+    Foo<i32,42> my_guy_0 = Foo..get::<i32,42>();
+    Bar<i32,42> my_guy_1 = Bar..get::<i32,42>();
+    Boo<i32,42> my_guy_2 = Boo..get::<i32,42>();
+}

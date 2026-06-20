@@ -348,6 +348,12 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "use of undefined type";
     case diag_code::declared_here_without_necessary_contracts:
         return "declared here without necessary contracts";
+    case diag_code::generic_parameter_variable_must_have_an_explicit_type:
+        return "generic parameter variable must have an explicit type";
+    case diag_code::generic_parameter_variable_must_be_immutable:
+        return "generic parameter variable must be immutable since it is a compile-time constant";
+    case diag_code::invalid_type_for_generic_paramter:
+        return "invalid type for generic parameter";
     }
 
     std::unreachable();
