@@ -566,9 +566,10 @@ class Context {
         if (maybe_instance.empty()) {
             if (resol_state_of(orig_def_id) == Def::resol_state::attempting_insantiation) {
                 if constexpr (std::same_as<V, TopLevelDefVisitor>) {
-                    static_cast<TopLevelDefVisitor>(def_visitor).visit_as_instantiator(orig_def_id);
+                    static_cast<TopLevelDefVisitor>(def_visitor)
+                        .visit_and_check_for_circular_instantiation(orig_def_id);
                 } else {
-                    TopLevelDefVisitor{*this}.visit_as_instantiator(
+                    TopLevelDefVisitor{*this}.visit_and_check_for_circular_instantiation(
                         orig_def_id); // TODO potentially problematic (no def stack has been built
                                       // up)
                 }

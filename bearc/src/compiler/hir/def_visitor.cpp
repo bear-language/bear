@@ -63,7 +63,7 @@ DefId TopLevelDefVisitor::visit_as_dependent(DefId def) {
     return def;
 }
 
-DefId TopLevelDefVisitor::visit_as_instantiator(DefId def) {
+DefId TopLevelDefVisitor::visit_and_check_for_circular_instantiation(DefId def) {
     if (context.resol_state_of(def) == Def::resol_state::attempting_insantiation) {
         // reports the double diagnostic revealing the origin of the circular def
         report_cycle(def);

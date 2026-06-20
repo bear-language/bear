@@ -11,3 +11,19 @@ struct Testing {
 
     A..B<u8, u8> _1; // oops (requested here)
 }
+
+struct B<T> {
+    C::T a;
+}
+
+struct C<T> {
+    D::T a;
+}
+
+struct D<T> {
+    B::T a;
+}
+
+struct Testing1 {
+    B::i32 a;
+}
