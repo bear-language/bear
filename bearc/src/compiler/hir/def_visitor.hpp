@@ -59,6 +59,8 @@ class TopLevelDefVisitor {
     /// visit a DefId where the def being visited is depended on by the visitor
     DefId visit_as_dependent(DefId def);
 
+    DefId visit_as_instantiator(DefId def);
+
     DefId visit_as_independent(DefId def);
 
     DefId visit_as_mutator(DefId def);

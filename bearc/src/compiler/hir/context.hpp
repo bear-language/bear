@@ -114,11 +114,11 @@ class Context {
                 if (maybe_orig_did.empty()) {
                     return {};
                 }
-                const DefId orig_did = def_visitor.visit_as_transparent(
+                const DefId orig_did = def_visitor.visit_as_dependent(
                     guard_hid(on_first, scope, maybe_orig_did.as_id(), id_slice, id_span));
 
-                return try_instatiate_def_on_scoped_lookup_if_needed(def_visitor, targs, orig_did,
-                                                                     true); // last
+                return try_instantiate_def_on_scoped_lookup_if_needed(def_visitor, targs, orig_did,
+                                                                      true); // last
             }
             if (auto maybe_mod = (sidx == id_slice.begin())
                                      ? look_up_namespace(curr_scope, sid)
@@ -140,7 +140,7 @@ class Context {
                     IdSlice<SymbolId>{id_slice.begin(), sidx.raw() + 1 - id_slice.begin().raw()},
                     id_span);
 
-                OptId<DefId> maybe_instance_did = try_instatiate_def_on_scoped_lookup_if_needed(
+                OptId<DefId> maybe_instance_did = try_instantiate_def_on_scoped_lookup_if_needed(
                     def_visitor, targs, orig_did, false); // not last
                 if (maybe_instance_did.empty()) {
                     return {};
@@ -539,13 +539,13 @@ class Context {
     [[nodiscard]] CanonicalGenericArgsId canonical_gen_args(GenericArgIdSliceId slice_id);
 
     template <IsDefVisitor V>
-    [[nodiscard]] OptId<DefId> try_generic_instantiation(V& def_visitor, DefId def_id,
+    [[nodiscard]] OptId<DefId> try_generic_instantiation(V& def_visitor, DefId orig_def_id,
                                                          GenericArgIdSliceId generic_args_id) {
-        if (!validate_gen_args_for_def(def_visitor, def_id, generic_args_id)) {
+        if (!validate_gen_args_for_def(def_visitor, orig_def_id, generic_args_id)) {
             return {};
         }
 
-        const Def& def = this->def(def_visitor.visit_as_dependent(def_id));
+        const Def& def = this->def(def_visitor.visit_as_dependent(orig_def_id));
         CanonicalGenericArgsIdMapId map_id{};
         if (def.holds<DefGenericFunction>()) {
             map_id = def.as<DefGenericFunction>().generics_args_to_concrete_defs_map;
@@ -564,8 +564,19 @@ class Context {
 
         // attempt new instatiation if there's not an existing one
         if (maybe_instance.empty()) {
+            if (resol_state_of(orig_def_id) == Def::resol_state::attempting_insantiation) {
+                if constexpr (std::same_as<V, TopLevelDefVisitor>) {
+                    static_cast<TopLevelDefVisitor>(def_visitor).visit_as_instantiator(orig_def_id);
+                } else {
+                    TopLevelDefVisitor{*this}.visit_as_instantiator(
+                        orig_def_id); // TODO potentially problematic (no def stack has been built
+                                      // up)
+                }
+                return {}; // cyclical
+            }
             const auto new_instance = make_new_generic_instantiation(
-                def_visitor, def_id, canonical_args, generic_args_id);
+                def_visitor, orig_def_id, canonical_args, generic_args_id);
+
             if (new_instance.empty()) {
                 return {};
             }
@@ -777,12 +788,19 @@ class Context {
         ScopeId instance_scope = scope_for_top_level_def(maybe_instance_did.as_id());
         insert_gen_args_into_scope(did, maybe_instance_did.as_id(), instance_scope, gen_args_id);
 
+        const auto og_resol = resol_state_of(did);
+
+        set_resol_state_of(did, Def::resol_state::attempting_insantiation);
+
         // this resolves the def
         if constexpr (std::same_as<V, TopLevelDefVisitor>) {
             def_visitor.visit_as_dependent(maybe_instance_did.as_id());
         } else {
             TopLevelDefVisitor{*this}.visit_as_dependent(maybe_instance_did.as_id());
         }
+
+        set_resol_state_of(did, og_resol);
+
         if (maybe_instance_did.empty()) {
             return {};
         }
@@ -947,9 +965,9 @@ class Context {
     template <IsDefVisitor V>
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(V& def_visitor, ExecId eid);
 
-    [[nodiscard]] OptId<DefId> try_instatiate_def_on_scoped_lookup_if_needed(
+    [[nodiscard]] OptId<DefId> try_instantiate_def_on_scoped_lookup_if_needed(
         IsDefVisitor auto& def_visitor, TickableGenArgSlice& targs, DefId orig_did, bool last) {
-        const Def& orig_def = def(orig_did);
+        const Def& orig_def = def(def_visitor.visit_as_dependent(orig_did));
         const IdSlice<GenericArgId> remaining_args = targs.remaining();
         if (!orig_def.generic) {
             const Def& d = def(orig_did);

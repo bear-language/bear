@@ -34,7 +34,8 @@ void TopLevelDefVisitor::resolve_top_level_definitions() {
 }
 DefId TopLevelDefVisitor::visit_and_resolve_if_needed(DefId def) {
     const auto resol_st = context.resol_state_of(def);
-    if (resol_st == Def::resol_state::resolved || resol_st == Def::resol_state::in_progress) {
+    if (resol_st == Def::resol_state::resolved || resol_st == Def::resol_state::in_progress
+        || resol_st == Def::resol_state::attempting_insantiation) {
         return def;
     }
     def_stack.push_back(def);
@@ -57,8 +58,21 @@ DefId TopLevelDefVisitor::visit_as_dependent(DefId def) {
         // return as to prevent infinite recursion
         return def;
     }
+    visit_and_resolve_if_needed(def);
     context.promote_mention_state_of(def, Def::mention_state::mentioned);
-    return visit_and_resolve_if_needed(def);
+    return def;
+}
+
+DefId TopLevelDefVisitor::visit_as_instantiator(DefId def) {
+    if (context.resol_state_of(def) == Def::resol_state::attempting_insantiation) {
+        // reports the double diagnostic revealing the origin of the circular def
+        report_cycle(def);
+        // return as to prevent infinite recursion
+        return def;
+    }
+    visit_and_resolve_if_needed(def);
+    context.promote_mention_state_of(def, Def::mention_state::mentioned);
+    return def;
 }
 
 DefId TopLevelDefVisitor::visit_as_independent(DefId def) {
@@ -72,8 +86,9 @@ DefId TopLevelDefVisitor::visit_as_mutator(DefId def) {
         return def;
     }
     // mutated
+    visit_and_resolve_if_needed(def);
     context.promote_mention_state_of(def, Def::mention_state::mutated);
-    return visit_and_resolve_if_needed(def);
+    return def;
 }
 
 DefId TopLevelDefVisitor::resolve_def(DefId did) {

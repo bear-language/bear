@@ -224,6 +224,13 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
         return OptId<DefId>{};
     }
 
+    // if we're already instantiating and inside a generic, we don't want to be instatiating anymore
+    // since we only want to instatiate one generic at a time
+    if (is_generic && gen_state.inst_state == gen_instatiation_state::instantiating
+        && gen_state.vis_state == gen_visit_state::inside_generic) {
+        gen_state.inst_state = gen_instatiation_state::not_instantiating;
+    }
+
     // don't evaulate variables/(functions)/variant fields when we're inside a generic that we're
     // not instatiating so that we don't try to make definitiosn with incomplete/non-instatiated
     // variables/fns/fields

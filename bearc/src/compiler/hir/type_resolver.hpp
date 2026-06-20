@@ -17,6 +17,7 @@
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/token.h"
+#include <iostream>
 #include <optional>
 
 namespace hir {

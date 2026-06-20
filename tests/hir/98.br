@@ -1,0 +1,13 @@
+// tests/hir/98.br
+struct A<T> {
+    A::T a; // oops
+    struct B<P> {
+        A::P a;
+    }
+}
+
+struct Testing {
+    A::i32 _0; // oops (requesed here)
+
+    A..B<u8, u8> _1; // oops (requested here)
+}

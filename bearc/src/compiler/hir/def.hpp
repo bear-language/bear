@@ -154,6 +154,7 @@ struct Def : NodeWithVariantValue<Def> {
         top_level_visited,
         // can help catch circular defintions
         in_progress,
+        attempting_insantiation,
         resolved,
     };
     static const char* resol_state_to_str(resol_state st) {
@@ -166,6 +167,8 @@ struct Def : NodeWithVariantValue<Def> {
             return "in_progress";
         case resol_state::resolved:
             return "resolved";
+        case resol_state::attempting_insantiation:
+            return "attempting insantiation";
         }
         std::unreachable();
         return nullptr;

@@ -2,16 +2,15 @@
 
 
 struct Foo<T> {
-        T inst;
-        struct Barry<T> { // T is now shadowed
-            struct T {} // oops
-        }
-        struct Bar <P> {
-            hid Foo::T hid_inst;
-            pub Bar::T pub_inst; // Bar with T now
-            compt fn get() -> P => P..get() // TODO, this is getting eagerly instatiated even when only Foo<T> 
-                                            // should be getting instatiated
-        }
+    T inst;
+    struct Barry<T> { // T is now shadowed
+        struct T {} // oops
+    }
+    struct Bar <P> {
+        hid Foo::T hid_inst;
+        pub Barry::T pub_inst; // Barry with T now
+        compt fn get() -> P => P..get() 
+    }
     mod bar {
         struct Bar<M> {}
     }
@@ -20,3 +19,7 @@ struct Foo<T> {
 var _0 = Foo..inst::i32; // oops
 
 var _1 = Foo..bar..inst::i32; // oops (dne)
+
+Foo..Bar<i32,i32> _2;
+
+var _3 = @static_assert @same_type(Foo..Bar::<i32,i32>, Foo..Bar::<i32,i32>);
