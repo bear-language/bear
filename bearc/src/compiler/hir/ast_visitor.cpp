@@ -249,6 +249,23 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
         bool no_struct = false;
         if (maybe_type_did.has_value()) {
             parent = maybe_type_did.as_id();
+            const auto parent_info = top_level_info_for(context.def_ast_node(parent.as_id()));
+            if (parent_info.is_generic) {
+                Span span{context, file, prefix};
+                const auto d0 = context.emplace_diagnostic(
+                    span,
+                    diag_code::out_of_line_scoped_member_functions_not_allowed_for_generic_structs,
+                    diag_type::error);
+                const auto d1 = context.emplace_diagnostic_with_message_value(
+                    context.def(parent.as_id()).span, diag_code::declared_here_as_generic,
+                    diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = context.def(parent.as_id()).name});
+                const auto d2 = context.emplace_diagnostic(
+                    span, diag_code::instead_take_the_generic_struct_as_a_first_argument,
+                    diag_type::help);
+                context.link_diagnostic(d0, d1);
+                context.link_diagnostic(d1, d2);
+            }
             if (auto s = context.defs_to_scopes().at(maybe_type_did.as_id()); s.has_value()) {
                 scope = s.as_id();
             } else {

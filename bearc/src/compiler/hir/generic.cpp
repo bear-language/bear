@@ -172,7 +172,7 @@ std::string gen_args_to_str(Context& ctx, GenericArgIdSliceId args_id) {
 std::string gen_arg_to_str(Context& ctx, GenericArgId arg_id) {
     GenericArg garg = ctx.gen_arg(arg_id);
     if (garg.holds<TypeId>()) {
-        return type_to_string_as_mentioned(ctx, garg.as<TypeId>());
+        return type_to_string(ctx, garg.as<TypeId>());
     }
     return exec_to_string(ctx, garg.as<ExecId>());
 }

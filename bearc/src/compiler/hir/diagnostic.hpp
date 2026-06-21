@@ -181,6 +181,9 @@ enum class diag_code : uint8_t {
     generic_parameter_variable_must_have_an_explicit_type,
     generic_parameter_variable_must_be_immutable,
     raw_use_of_generic_function,
+    out_of_line_scoped_member_functions_not_allowed_for_generic_structs,
+    instead_take_the_generic_struct_as_a_first_argument,
+    declared_here_as_generic,
 
     count, // this must be last,
 

@@ -356,6 +356,12 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "invalid type for generic parameter";
     case diag_code::raw_use_of_generic_function:
         return "raw use of generic function";
+    case diag_code::out_of_line_scoped_member_functions_not_allowed_for_generic_structs:
+        return "out-of-line scoped member functions not allowed for generic structs";
+    case diag_code::instead_take_the_generic_struct_as_a_first_argument:
+        return "instead take the generic struct as a first argument";
+    case diag_code::declared_here_as_generic:
+        return "declared here as generic";
     }
 
     std::unreachable();

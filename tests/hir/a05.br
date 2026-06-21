@@ -2,6 +2,8 @@
 
 struct Foo<T> {
     T a = 42;
+
+    deftype ValueType = T;
     
     fn new() -> Self => Self{}
 
@@ -14,7 +16,30 @@ fn Foo..bar<T>() -> T => 12;
 
 fn Foo..bing<T, i32 N>() -> T => 12 + N;
 
-compt i32 a = Foo..bar::<i32>(); // TODO: not working
+fn bee(Foo::i32 foo) -> Foo..ValueType::i32 => foo.a
+
+fn bi<T>(Foo::T foo) -> Foo..ValueType::T => foo.a
+
+fn bin<T, i64 N>(Foo::T foo) -> Foo..ValueType::T => foo.a + N
+
+compt i32 a = Foo..bar::<i32>(); 
 
 compt i32 b = Foo..bar::<i32, -42>(); // ^^^
 
+compt Foo::i32 my_foo = Foo..new::<i32>();
+
+compt i32 c = bee(my_foo);
+
+var _0 = @static_assert c == 42;
+
+var _1 = @static_assert c == 10; // oops
+
+var _2 = @static_assert bi::<u8>(Foo..new::<u8>()) == 42;
+
+var _3 = @static_assert bi::<u8>(Foo..new::<u8>()) == 12; // oops
+
+var _4 = @static_assert bin::<i16, 128>(Foo..new::<u8>()) == 128+42; // oops
+
+var _5 = @static_assert bin::<i16, 128 as i64>(Foo..new::<i16>()) == 128+42;
+
+var _6 = @static_assert bin::<i16, 128 as i64>(Foo..new::<i16>()) == 128-42; // oops

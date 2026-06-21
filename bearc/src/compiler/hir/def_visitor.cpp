@@ -475,6 +475,8 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
 
         bool takes_self = maybe_self_type.has_value();
 
+        scope = context.scope_for_top_level_def(did);
+
         DefFunction::ParamResolResult params_res
             = resolve_params(fid, scope, did, fn_decl.params, maybe_self_type);
 
