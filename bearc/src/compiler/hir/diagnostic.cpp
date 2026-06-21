@@ -202,8 +202,6 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "not a function";
     case diag_code::expected:
         return "expected";
-    case diag_code::free_function_called_as_a_method:
-        return "free function declared `fn` called as a method";
     case diag_code::only_message_value_is_meaningful:
         return "";
     case diag_code::compt_vars_should_not_be_move_initialized:

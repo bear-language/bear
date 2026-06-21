@@ -104,7 +104,6 @@ enum class diag_code : uint8_t {
     value_is_not_callable,
     not_a_function,
     expected,
-    free_function_called_as_a_method,
     only_message_value_is_meaningful,
     compt_vars_should_not_be_move_initialized,
     compile_time_constant_cannot_be_moved,

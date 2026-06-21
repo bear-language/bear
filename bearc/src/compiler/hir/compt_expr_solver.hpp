@@ -2372,20 +2372,6 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             func = func_def.as<DefFunction>();
 
-            /*
-            if (!func.takes_self) {
-                auto d0 = context.emplace_diagnostic(Span{context, fid, called},
-                                                     diag_code::free_function_called_as_a_method,
-                                                     diag_type::warning);
-                const ast_stmt_t* stmt = context.def_ast_node(func_did);
-                assert(stmt->type == AST_STMT_FN_DECL);
-                Span kw_span{context, fid, stmt->stmt.fn_decl.kw};
-                auto d1 = context.emplace_diagnostic_with_message_value(
-                    kw_span, diag_code::declared_here, diag_type::note,
-                    DiagnosticSymbolBeforeMessage{.sid = func_def.name});
-                context.link_diagnostic(d0, d1);
-            }
-            */
             mt_param_adjustment = 1;
 
             if (func.posioned) {
