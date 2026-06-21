@@ -15,6 +15,10 @@ main quest
 - [ ] generic routing for struct inits 
 - [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the above
 
+- [ ] clean up `use` semantics
+    - [ ] warn/error on `use` when used def is generic and also has some parent that is generic 
+    - [ ] allow `use` for just free functions
+
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
 
 - [ ] `compt` improvements:
@@ -24,7 +28,7 @@ main quest
     - [ ] compt slices `[&]` so we can work with any dimensional lists at compt
     - [ ] compt ranges `1...4` and make then work with compt matching
 
-- [ ] tighten up variadic type handling
+- [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
 
 - [ ] tighten up abi related stuff with hir::LayoutRules or something similar
     - [ ] properly impl `sizeof` and `alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
