@@ -167,7 +167,7 @@ enum class diag_code : uint8_t {
     cannot_match_type_for_decomposed_variant_from,
     cannot_decompose_multiple_variants_on_the_same_match_arm,
     does_not_take_generic_arguments,
-    is_not_a_generic_type,
+    is_not_generic,
     gen_arg_expected_a_value_expression_not_a_type,
     should_a_compt_value_of_type,
     does_not_have_contract,

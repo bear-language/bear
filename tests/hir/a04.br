@@ -1,0 +1,27 @@
+// tests/hir/a04.br 
+
+mod testing;
+
+struct Foo<T> {
+    T a = 42;
+    
+    fn new() -> Self => Self{}
+
+    mt boo() -> T => self.a; 
+}
+
+fn Foo..bar<T>() -> T => 12;
+
+fn Foo..boops() -> i32 => 12;
+
+compt Foo::i32 a = Foo..new::<i32>();
+
+compt Foo::i32 b = Foo..new::<i32>();
+
+compt i32 c = b.boo();
+
+compt Foo::i32 d = Foo..new(); // oops
+
+compt i32 e = Foo..boo::<i32>(b);
+
+compt i32 f = Foo..new::<i32>().boo();

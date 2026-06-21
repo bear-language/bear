@@ -336,7 +336,7 @@ template <IsDefVisitor V> class TypeResolver {
             const auto inner_tid = maybe_inner_tid.as_id();
 
             auto d0 = context.emplace_diagnostic(
-                context.type(inner_tid).span, diag_code::is_not_a_generic_type, diag_type::error,
+                context.type(inner_tid).span, diag_code::is_not_generic, diag_type::error,
                 DiagnosticTypeBeforeMessage{.tid = inner_tid},
                 DiagnosticSubCode{.sub_code = diag_code::does_not_take_generic_arguments});
             const auto maybe_did_for_tid = context.try_def_for_type(inner_tid);

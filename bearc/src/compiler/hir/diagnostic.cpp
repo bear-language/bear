@@ -326,8 +326,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot decompose multiple variants on the same match arm";
     case diag_code::does_not_take_generic_arguments:
         return "does not take generic arguments";
-    case diag_code::is_not_a_generic_type:
-        return "is not a generic type";
+    case diag_code::is_not_generic:
+        return "is not generic";
     case diag_code::gen_arg_expected_a_value_expression_not_a_type:
         return "generic argument expected a value expression, not a type";
     case diag_code::should_a_compt_value_of_type:

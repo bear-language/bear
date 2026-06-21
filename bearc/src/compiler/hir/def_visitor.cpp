@@ -458,6 +458,19 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             context.link_diagnostic(d0, d1);
         }
 
+        if (context.def(did).generic) {
+            const auto maybe_generic_params
+                = resolve_generic_params(context.def(did).span.file_id,
+                                         context.containing_scope(did), fn_decl.generic_params);
+            if (!maybe_generic_params.has_value()) {
+                goto cleanup;
+            }
+            context.def(did).set_value(DefGenericFunction{
+                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
+                .generic_params = maybe_generic_params.value()});
+            goto cleanup;
+        }
+
         OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl, def);
 
         bool takes_self = maybe_self_type.has_value();
@@ -507,19 +520,6 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                   : std::nullopt;
         if (return_tid.has_value()) {
             context.report_invalid_return_type(return_tid.as_id());
-        }
-
-        if (context.def(did).generic) {
-            const auto maybe_generic_params
-                = resolve_generic_params(context.def(did).span.file_id,
-                                         context.containing_scope(did), fn_decl.generic_params);
-            if (!maybe_generic_params.has_value()) {
-                goto cleanup;
-            }
-            context.def(did).set_value(DefGenericFunction{
-                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
-                .generic_params = maybe_generic_params.value()});
-            goto cleanup;
         }
 
         const HirSize posterior_diag_count = context.diagnostic_count();

@@ -929,9 +929,11 @@ template <IsDefVisitor V> class ComptExprSolver {
                 return {};
             }
         }
+        /*
         context.emplace_diagnostic(expr_span, diag_code::cannot_convert_expression_to_type,
                                    diag_type::error, DiagnosticTypeAfterMessage{into_tid},
                                    DiagnosticNoOtherInfo{});
+                                   */
         return std::nullopt;
     }
 
@@ -2358,8 +2360,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                 }
             } else {
                 maybe_func_did = context.look_up_member_function_guarding_hid(
-                    context.def(exec.as<ExecExprStructInit>().struct_def_id), func_name,
-                    fn_name_span, scope);
+                    def_visitor, context.def(exec.as<ExecExprStructInit>().struct_def_id),
+                    func_name, fn_name_span, scope);
             }
             if (maybe_func_did.empty()) {
                 return std::nullopt;
