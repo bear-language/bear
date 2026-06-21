@@ -1,0 +1,27 @@
+// tests/hir/a06.br
+
+mod test;
+
+struct Foo<T> {
+    T val;
+    fn new(T val) -> Self => Self{.val = val}
+    mt get() -> T => self.val
+}
+
+struct Bar {
+    i32 i = 42;
+}
+
+fn look<T>(Foo::T foo) -> T => foo.get()
+
+compt Foo::Bar a = Foo..new::<Bar>(Bar{});
+
+compt Bar b = a.get(); 
+
+compt Bar c = look::<Bar>(a);
+
+var _0 = @static_assert b == c;
+
+compt Bar d = a.look::<Bar>();
+
+compt Bar e = a.look::<Bar>(a); // oops

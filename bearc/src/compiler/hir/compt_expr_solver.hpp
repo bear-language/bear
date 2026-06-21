@@ -2372,6 +2372,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             func = func_def.as<DefFunction>();
 
+            /*
             if (!func.takes_self) {
                 auto d0 = context.emplace_diagnostic(Span{context, fid, called},
                                                      diag_code::free_function_called_as_a_method,
@@ -2383,10 +2384,9 @@ template <IsDefVisitor V> class ComptExprSolver {
                     kw_span, diag_code::declared_here, diag_type::note,
                     DiagnosticSymbolBeforeMessage{.sid = func_def.name});
                 context.link_diagnostic(d0, d1);
-                mt_param_adjustment = 0;
-            } else {
-                mt_param_adjustment = 1;
             }
+            */
+            mt_param_adjustment = 1;
 
             if (func.posioned) {
                 return std::nullopt;
