@@ -15,6 +15,9 @@ main quest
 - [ ] generic routing for struct inits 
 - [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the above
 
+- [ ] clean up generic resol for generic functions nested in generic structs 
+    - [ ] out-of-line (issue likely stems from not being in the slice_of_stmts(?), so it's not getting instantiated when the rest of the struct is)
+
 - [ ] clean up `use` semantics
     - [ ] warn/error on `use` when used def is generic and also has some parent that is generic 
     - [ ] allow `use` for just free functions

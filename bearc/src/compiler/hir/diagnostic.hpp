@@ -9,7 +9,6 @@
 #ifndef COMPILER_HIR_DIAGNOSTIC_HPP
 #define COMPILER_HIR_DIAGNOSTIC_HPP
 
-#include "compiler/ast/stmt.h"
 #include "compiler/hir/exec_ops.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/span.hpp"
@@ -181,6 +180,7 @@ enum class diag_code : uint8_t {
     invalid_type_for_generic_paramter,
     generic_parameter_variable_must_have_an_explicit_type,
     generic_parameter_variable_must_be_immutable,
+    raw_use_of_generic_function,
 
     count, // this must be last,
 

@@ -8,11 +8,13 @@ struct Foo<T> {
     fn new() -> Self => Self{}
 
     mt boo() -> T => self.a; 
+    
+    fn boops<i32 N>() -> T => 12 + N;
 }
 
 fn Foo..bar<T>() -> T => 12;
 
-fn Foo..boops() -> i32 => 12;
+fn Foo..bing<T, i32 N>() -> T => 12 + N;
 
 compt Foo::i32 a = Foo..new::<i32>();
 
@@ -25,3 +27,9 @@ compt Foo::i32 d = Foo..new(); // oops
 compt i32 e = Foo..boo::<i32>(b);
 
 compt i32 f = Foo..new::<i32>().boo();
+
+compt i32 g = Foo..boops(); // oops
+
+compt i32 h = Foo..boops::<i32, 12>();
+
+compt i32 i = Foo..boops::<i32>(); 

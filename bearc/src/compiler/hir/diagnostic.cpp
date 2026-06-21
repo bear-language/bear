@@ -354,6 +354,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "generic parameter variable must be immutable since it is a compile-time constant";
     case diag_code::invalid_type_for_generic_paramter:
         return "invalid type for generic parameter";
+    case diag_code::raw_use_of_generic_function:
+        return "raw use of generic function";
     }
 
     std::unreachable();

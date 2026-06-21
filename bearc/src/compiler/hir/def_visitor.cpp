@@ -812,12 +812,15 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
         const Def& matching_def = context.def(matched_fn_did);
 
         if (!matching_def.holds<DefFunction>()) {
+            const auto code = (matching_def.holds<DefGenericFunction>())
+                                  ? diag_code::raw_use_of_generic_function
+                                  : diag_code::not_a_function;
             auto d = context.emplace_diagnostic(
                 matching_def.span, diag_code::only_message_value_is_meaningful, diag_type::error,
                 DiagnosticStructDoesNotDefineBlankForContract{.struct_name = struct_def.name,
                                                               .func_name = ct_func_def.name,
                                                               .contract_name = contract_def.name},
-                DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+                DiagnosticSubCode{.sub_code = code});
             dlinker.link(d);
             cooked = true;
             continue;

@@ -433,7 +433,7 @@ class Context {
     void insert_type(ScopeId scope_id, SymbolId sid, DefId did);
 
     // should only be used for types
-    [[nodiscard]] IdHashMap<DefId, ScopeId>& defs_to_scopes_for_types();
+    [[nodiscard]] IdHashMap<DefId, ScopeId>& defs_to_scopes();
 
     template <typename... Args> [[nodiscard]] ExecId register_exec(Args&&... args) {
         return execs.emplace_and_get_id(std::forward<Args>(args)...);
@@ -766,7 +766,7 @@ class Context {
     IdVecMap<DefId, Def::mention_state> def_mention_states;
 
     /// for tracking DefId -> ScopeId for structs during the top level resolution
-    IdHashMap<DefId, ScopeId> def_to_scope_for_types;
+    IdHashMap<DefId, ScopeId> def_to_scope;
 
     IdHashMap<DefId, ScopeId> def_to_scope_for_funcs;
 

@@ -234,8 +234,9 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
     // don't evaulate variables/(functions)/variant fields when we're inside a generic that we're
     // not instatiating so that we don't try to make definitiosn with incomplete/non-instatiated
     // variables/fns/fields
-    if ((kind == scope_kind::variable || stmt->type == AST_STMT_VARIANT_FIELD_DECL
-         || stmt->type == AST_STMT_DEFTYPE || stmt->type == AST_STMT_USE)
+    if (!is_generic
+        && (kind == scope_kind::variable || stmt->type == AST_STMT_VARIANT_FIELD_DECL
+            || stmt->type == AST_STMT_DEFTYPE || stmt->type == AST_STMT_USE)
         && gen_state.not_instantiating_but_in_generic()) {
         return {};
     }
@@ -248,8 +249,7 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
         bool no_struct = false;
         if (maybe_type_did.has_value()) {
             parent = maybe_type_did.as_id();
-            if (auto s = context.defs_to_scopes_for_types().at(maybe_type_did.as_id());
-                s.has_value()) {
+            if (auto s = context.defs_to_scopes().at(maybe_type_did.as_id()); s.has_value()) {
                 scope = s.as_id();
             } else {
                 no_struct = true;
@@ -320,6 +320,14 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
             if (!currently_instatiating_a_specialized_generic) {
                 context.scope(scope).insert_variable(name, did);
             }
+            if (stmt->type == AST_STMT_FN_DECL || stmt->type == AST_STMT_FN_PROTOTYPE) {
+                const bool is_small_scope = !stmts.has_value();
+                ScopeId new_scope = (is_small_scope) ? context.make_small_scope(scope)
+                                                     : context.make_scope(scope);
+
+                context.defs_to_scopes().insert(did, new_scope);
+            }
+
             break;
         case scope_kind::type: {
             // specializations shouldn't map name to def_id since their generic args are how we look
@@ -333,7 +341,7 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
             ScopeId types_scope
                 = (is_small_scope) ? context.make_small_scope(scope) : context.make_scope(scope);
 
-            context.defs_to_scopes_for_types().insert(did, types_scope);
+            context.defs_to_scopes().insert(did, types_scope);
             // warn on lowercase structure definition
             if (is_lower(name_tkn)) {
                 context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),

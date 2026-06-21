@@ -1,0 +1,20 @@
+// tests/hir/a05.br
+
+struct Foo<T> {
+    T a = 42;
+    
+    fn new() -> Self => Self{}
+
+    mt boo() -> T => self.a; 
+    
+    fn boops<i32 N>() -> T => 12 + N;
+}
+
+fn Foo..bar<T>() -> T => 12;
+
+fn Foo..bing<T, i32 N>() -> T => 12 + N;
+
+compt i32 a = Foo..bar::<i32>(); // TODO: not working
+
+compt i32 b = Foo..bar::<i32, -42>(); // ^^^
+

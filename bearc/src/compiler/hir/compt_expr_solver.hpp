@@ -2407,6 +2407,8 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             const auto sid_slice = context.symbol_slice(id_slice);
 
+            const auto prior_diag_cnt = context.diagnostic_count();
+
             if (expr->expr.fn_call.is_generic) {
                 if (const auto maybe_gen_arg_id
                     = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
@@ -2430,8 +2432,10 @@ template <IsDefVisitor V> class ComptExprSolver {
 
                 // no corresponding variant either, so this is just the
                 // use_of_undeclared_identifier
-                context.emplace_diagnostic(called_span, diag_code::use_of_undeclared_identifier,
-                                           diag_type::error);
+                if (prior_diag_cnt == context.diagnostic_count()) {
+                    context.emplace_diagnostic(called_span, diag_code::use_of_undeclared_identifier,
+                                               diag_type::error);
+                }
 
                 return std::nullopt;
             }
@@ -2441,9 +2445,11 @@ template <IsDefVisitor V> class ComptExprSolver {
             const Def& called_def
                 = context.def(def_visitor.visit_as_dependent(maybe_func_did.as_id()));
             if (!called_def.holds<DefFunction>()) {
-                context.emplace_diagnostic(
-                    called_span, diag_code::value_is_not_callable, diag_type::error,
-                    DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+                const auto code = (called_def.holds<DefGenericFunction>())
+                                      ? diag_code::raw_use_of_generic_function
+                                      : diag_code::not_a_function;
+                context.emplace_diagnostic(called_span, diag_code::value_is_not_callable,
+                                           diag_type::error, DiagnosticSubCode{.sub_code = code});
                 return std::nullopt;
             }
             func = called_def.as<DefFunction>();
@@ -2544,8 +2550,12 @@ template <IsDefVisitor V> class ComptExprSolver {
             return std::nullopt;
         }
 
+        const auto maybe_existing = context.try_scope_for_top_level_def(func_did);
+
         ScopeId temp_scope
-            = context.make_compt_temp_scope(context.containing_scope(func_did), params.len());
+            = maybe_existing.has_value()
+                  ? context.make_compt_temp_scope(maybe_existing.as_id(), params.len())
+                  : context.make_compt_temp_scope(context.containing_scope(func_did), params.len());
 
         for (HirSize i = 0; i < params.len(); i++) {
             const Def& param_def = context.def(params.get(i));

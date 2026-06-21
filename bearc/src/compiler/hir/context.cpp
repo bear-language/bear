@@ -78,7 +78,7 @@ Context::Context(const bearc_args_t& args, instances instances)
       symbols{DEFAULT_SYMBOL_VEC_CAP}, exec_ids{DEFAULT_EXEC_VEC_CAP}, execs{DEFAULT_EXEC_VEC_CAP},
       def_ids{DEFAULT_DEF_CAP}, defs{DEFAULT_DEF_CAP}, def_resol_states{DEFAULT_DEF_CAP},
       def_ast_nodes(DEFAULT_DEF_CAP), def_mention_states{DEFAULT_DEF_CAP},
-      def_to_scope_for_types{id_map_arena, DEFAULT_DEF_CAP},
+      def_to_scope{id_map_arena, DEFAULT_DEF_CAP},
       def_to_scope_for_funcs{id_map_arena, DEFAULT_DEF_CAP}, ordered_def_slices{DEFAULT_DEF_CAP},
       def_to_ordered_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT}, type_ids{DEFAULT_DEF_CAP},
       types{DEFAULT_TYPE_VEC_CAP}, canonical_to_type_id(DEFAULT_CANONICAL_TYPE_VEC_CAP),
@@ -472,9 +472,7 @@ void Context::insert_type(ScopeId scope_id, SymbolId sid, DefId did) {
     scopes.at(scope_id).insert_type(sid, did);
 }
 
-[[nodiscard]] IdHashMap<DefId, ScopeId>& Context::defs_to_scopes_for_types() {
-    return def_to_scope_for_types;
-}
+[[nodiscard]] IdHashMap<DefId, ScopeId>& Context::defs_to_scopes() { return def_to_scope; }
 
 [[nodiscard]] DefId Context::begin_def_id() const { return defs.begin_id(); }
 [[nodiscard]] DefId Context::end_def_id() const { return defs.end_id(); }
@@ -746,11 +744,17 @@ OptId<ScopeId> Context::try_scope_for_top_level_def(DefId def_id) const {
     if (def.holds<DefDeftype>()) {
         const Type& type = this->type(try_decay_ref(def.as<DefDeftype>().type));
         if (type.holds<TypeStruct>()) {
-            return def_to_scope_for_types.at(type.as<TypeStruct>().def_id);
+            return def_to_scope.at(type.as<TypeStruct>().def_id);
+        }
+        if (type.holds<TypeVariant>()) {
+            return def_to_scope.at(type.as<TypeStruct>().def_id);
+        }
+        if (type.holds<TypeUnion>()) {
+            return def_to_scope.at(type.as<TypeStruct>().def_id);
         }
     }
     // hopefully found
-    return def_to_scope_for_types.at(def_id);
+    return def_to_scope.at(def_id);
 }
 
 bool Context::is_top_level_def_with_associated_scope(DefId def_id) const {
