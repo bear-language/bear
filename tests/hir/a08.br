@@ -1,0 +1,26 @@
+// tests/hir/a08.br
+
+fn apply<T>(T a, T b, *fn(T)->T f1, *fn(T,T)->T f2) -> T => f2(f1(a), f1(b))
+
+fn add<T>(T a, T b) -> T => a + b
+
+fn minus<T>(T a, T b) -> T => a - b
+
+fn square<T>(T i) -> T => i * i
+
+compt i32 res_2 = apply::<i32>(1, 1, square::i32, add::i32);
+
+var _0 = @static_assert res_2 == 2;
+
+compt i32 res_8 = apply::<i32>(2, 2, square::i32, add::i32);
+
+var _1 = @static_assert res_8 == res_2, "oops";
+
+compt u8 _2 = apply::<i32>(2, 2, square::u64, add::u8); // oops
+
+var _3 = @static_assert apply::<i8>(2, 2, square::i8, add::i8) 
+        == apply::<i8>(2, 2, square::i8, minus::i8)
+        , "oops";
+
+var _4 = @static_assert apply::<i8>(2, 2, square::i8, add::i8) - 8
+        == apply::<i8>(2, 2, square::i8, minus::i8);

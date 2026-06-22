@@ -87,6 +87,7 @@ enum class diag_code : uint8_t {
     array_cannot_have_size_zero,
     cannot_infer_type_at_compt,
     static_assertion_failed,
+    static_assertion_failed_colon,
     value_not_a_struct,
     value_does_not_refer_to_a_named_mem,
     id_does_not_name_a_member_variable_of,

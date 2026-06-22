@@ -336,6 +336,12 @@ ast_expr_t* parse_expr_static_assert(parser_t* p) {
     token_t* lparen = parser_match_token(p, TOK_LPAREN);
     ex->expr.static_assert_expr.inner = parse_expr(p);
 
+    ex->expr.static_assert_expr.maybe_string = NULL;
+
+    if (parser_match_token(p, TOK_COMMA)) {
+        ex->expr.static_assert_expr.maybe_string = parse_expr(p);
+    }
+
     if (lparen) {
         parser_expect_token(p, TOK_RPAREN);
     }

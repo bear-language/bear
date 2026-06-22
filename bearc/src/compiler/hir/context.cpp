@@ -742,7 +742,7 @@ OptId<ScopeId> Context::try_scope_for_top_level_def(DefId def_id) const {
         return def.as<DefModule>().scope;
     }
     if (def.holds<DefDeftype>()) {
-        const Type& type = this->type(try_decay_ref(def.as<DefDeftype>().type));
+        const Type& type = this->type(try_decay(def.as<DefDeftype>().type));
         if (type.holds<TypeStruct>()) {
             return def_to_scope.at(type.as<TypeStruct>().def_id);
         }
@@ -795,7 +795,7 @@ Type& Context::type(TypeId id) {
     return *t;
 }
 
-TypeId Context::try_decay_ref(TypeId tid) const {
+TypeId Context::try_decay(TypeId tid) const {
     const Type& type = this->type(tid);
     if (type.holds<TypeRef>()) {
         return type.as<TypeRef>().inner;
@@ -1256,7 +1256,7 @@ bool Context::scope_has_parent(ScopeId local_scope, ScopeId possible_parent) con
             // try get chained structs
             if (def.holds<DefVariable>()) {
                 const DefVariable var_def = def.as<DefVariable>();
-                const Type& type = this->type(try_decay_ref(def.as<DefVariable>().type_id));
+                const Type& type = this->type(try_decay(def.as<DefVariable>().type_id));
                 if (type.holds<TypeStruct>()) {
                     curr_did = type.as<TypeStruct>().def_id;
                 } else if (var_def.compt_value.has_value()) {
@@ -1402,7 +1402,7 @@ bool Context::compatible_contract_params(IdSlice<TypeId> s1, IdSlice<TypeId> s2,
 
 bool Context::report_invalid_return_type(TypeId return_tid) {
     const Type& ty = type(return_tid);
-    const Type& canon_ty = type(try_decay_ref(return_tid));
+    const Type& canon_ty = type(try_decay(return_tid));
     DiagLinker dlinker{*this};
     if (TypeTransformer<TypeContainsVar>{*this}(return_tid)) {
         dlinker.link(emplace_diagnostic_with_message_value(
@@ -1695,7 +1695,7 @@ bool Context::struct_has_contract(DefId struct_did, DefId contract_did) {
 }
 
 bool Context::type_has_contract(TypeId tid, DefId contract_did) {
-    TypeId canon_tid = try_decay_ref(tid);
+    TypeId canon_tid = try_decay(tid);
     const Type& ty = type(canon_tid);
     if (!ty.holds<TypeStruct>()) {
         return false;
@@ -1714,8 +1714,8 @@ bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) co
     if ((t1.holds<TypeRef>() || t2.holds<TypeRef>()) && !t1.holds_same_variant_type(t2)) {
         return false;
     }
-    const TypeId tid1_canonical = try_decay_ref(tid1);
-    const TypeId tid2_canonical = try_decay_ref(tid2);
+    const TypeId tid1_canonical = try_decay(tid1);
+    const TypeId tid2_canonical = try_decay(tid2);
     if (t1.holds<TypeVar>()) {
         const Type& t2 = type(tid2_canonical);
         if (!t2.holds<TypeStruct>()) {
@@ -1738,7 +1738,7 @@ bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) co
 }
 
 bool Context::type_matches_struct_def(TypeId tid, DefId did) {
-    const TypeId canon_tid = this->try_decay_ref(tid);
+    const TypeId canon_tid = this->try_decay(tid);
     const Type& ty = type(canon_tid);
     if (!ty.holds<TypeStruct>()) {
         return false;

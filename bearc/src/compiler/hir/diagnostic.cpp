@@ -360,6 +360,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "instead, take the generic struct as the first argument in your function";
     case diag_code::declared_here_as_generic:
         return "declared here as generic";
+    case diag_code::static_assertion_failed_colon:
+        return "static assertion failed:";
     }
 
     std::unreachable();

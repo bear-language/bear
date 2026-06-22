@@ -307,8 +307,9 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
 
         HirSize posterior_diag_count = context.diagnostic_count();
         if (posterior_diag_count > prior_diag_count && maybe_generic_args.has_value()) {
-            context.emplace_diagnostic(context.span_for_gen_args(maybe_generic_args.as_id()),
-                                       diag_code::in_generic_instantiated_here, diag_type::note);
+            context.force_link_diagnostic(context.emplace_diagnostic(
+                context.span_for_gen_args(maybe_generic_args.as_id()),
+                diag_code::in_generic_instantiated_here, diag_type::note));
         }
 
         break;
@@ -396,8 +397,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             assert(param_def.holds<DefVariable>());
 
             // guard run-time func with `var` typed params
-            if (func_is_runtime
-                && !(parent_is_contract(context.def(did)) && (didx == params.begin()))
+            if (func_is_runtime && !parent_is_contract(context.def(did))
                 && TypeTransformer<TypeContainsVar>{context}(param_def.as<DefVariable>().type_id)) {
                 const Span ty_span = context.type(param_def.as<DefVariable>().type_id).span;
                 auto d0 = context.emplace_diagnostic(
@@ -529,8 +529,9 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         const auto maybe_generic_args = context.search_for_gen_args_for_def(did);
 
         if (posterior_diag_count > prior_diag_count && maybe_generic_args.has_value()) {
-            context.emplace_diagnostic(context.span_for_gen_args(maybe_generic_args.as_id()),
-                                       diag_code::in_generic_instantiated_here, diag_type::note);
+            context.force_link_diagnostic(context.emplace_diagnostic(
+                context.span_for_gen_args(maybe_generic_args.as_id()),
+                diag_code::in_generic_instantiated_here, diag_type::note));
         }
 
         // handle methods explicitly
@@ -595,8 +596,9 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         const auto maybe_generic_args = context.search_for_gen_args_for_def(did);
 
         if (posterior_diag_count > prior_diag_count && maybe_generic_args.has_value()) {
-            context.emplace_diagnostic(context.span_for_gen_args(maybe_generic_args.as_id()),
-                                       diag_code::in_generic_instantiated_here, diag_type::note);
+            context.force_link_diagnostic(context.emplace_diagnostic(
+                context.span_for_gen_args(maybe_generic_args.as_id()),
+                diag_code::in_generic_instantiated_here, diag_type::note));
         }
 
         context.def(did).set_value(DefVariant{

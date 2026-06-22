@@ -1,0 +1,66 @@
+// tests/hir/a07.br
+
+// some ways to do stuff at compile time
+
+compt fn add_two(var i) => i + 2
+
+fn add_two_generic<T>(T i) -> T => i + 2
+
+compt i8 two = add_two(0) as i8;
+
+compt i8 negative_two = add_two(-4) as i8;
+
+compt i64 eight = add_two_generic::<i64>(6);
+
+compt u64 neg_eight_as_unsigned = add_two_generic::<u64>(-10); 
+
+var _0 = @static_assert @same_type(typeof neg_eight_as_unsigned, u64);
+
+var _1 = @static_assert neg_eight_as_unsigned == -8;
+
+var _2 = @static_assert @same_type(typeof add_two_generic::<u32>(-10 as i64), u32); // oops
+
+contract Numeric {
+    fn add(Self lhs, Self rhs) -> Self;
+    // elided ...
+}
+
+struct NumChecker<T> {
+    bool passes = value;
+    compt fn check() -> bool => {
+        @has_contract(decay T, Numeric) || 
+        @same_type(decay T, i64) || @same_type(decay T, u64) ||
+        @same_type(decay T, i32) || @same_type(decay T, u32) ||
+        @same_type(decay T, i16) || @same_type(decay T, u16) ||
+        @same_type(decay T, i8)  || @same_type(decay T, u8)
+    }
+    // this invokes the check
+    compt bool value = @static_assert 
+            check(), 
+            "Type `" + @type_to_str(decay T) + "` is not a number";
+    compt fn new() -> Self => Self{};
+}
+
+struct Bar has Numeric {
+    i32 a = 1;
+    fn add(Self lhs, Self rhs) -> Self => lhs.a + rhs.a
+}
+
+struct Boo has Numeric {
+    // oops forgot to have add
+}
+
+struct Doo {
+
+}
+
+var _3 = NumChecker..new::<i32>(); // oops 
+
+var _4 = NumChecker..new::<str>(); // oops
+
+var _5 = @static_assert NumChecker..value::<Bar>;
+
+var _6 = @static_assert NumChecker..value::<Boo>; // fine (Boo claims to have contract 
+                                                  // so issue will be reported inside Boo's decl)
+
+var _7 = @static_assert NumChecker..value::<Doo>, "Doo appears not to be a number"; // oops

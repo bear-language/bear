@@ -489,8 +489,8 @@ class Context {
     /// gets the canonical type value (bypassing deftypes)
     [[nodiscard]] Type& type(TypeId id);
 
-    // gets inner tid if tid corresponds to a TypeRef
-    [[nodiscard]] TypeId try_decay_ref(TypeId tid) const;
+    // gets inner tid if tid corresponds to a TypeRef, this also bypasses deftypes
+    [[nodiscard]] TypeId try_decay(TypeId tid) const;
 
     /// gets the type value without bypassing deftypes
     [[nodiscard]] const Type& type_as_mentioned(IdIdx<TypeId> ididx) const;

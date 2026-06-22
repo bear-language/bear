@@ -617,6 +617,9 @@ void pretty_print_expr(const ast_expr_t* expression) {
     case AST_EXPR_STATIC_ASSERT:
         print_title("@static_assert");
         pretty_print_expr(expr.expr.static_assert_expr.inner);
+        if (expr.expr.static_assert_expr.maybe_string) {
+            pretty_print_expr(expr.expr.static_assert_expr.maybe_string);
+        }
         print_closing_green_brace();
         break;
     case AST_EXPR_DEFINED:

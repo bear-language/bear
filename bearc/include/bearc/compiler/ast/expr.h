@@ -215,6 +215,11 @@ typedef struct ast_expr_wrapped {
     ast_expr_t* inner;
 } ast_expr_wrapped_t;
 
+typedef struct ast_expr_static_assert {
+    ast_expr_t* inner;
+    ast_expr_t* maybe_string;
+} ast_expr_static_assert_t;
+
 typedef struct ast_expr_two_types {
     ast_type_t* lhs_type;
     ast_type_t* rhs_type;
@@ -263,7 +268,7 @@ typedef union ast_expr_u {
     ast_expr_list_literal_t list_literal;
     ast_expr_ternary_if_t ternary_if;
     ast_expr_wrapped_t compt_expr;
-    ast_expr_wrapped_t static_assert_expr;
+    ast_expr_static_assert_t static_assert_expr;
     ast_expr_two_types_t inferable_as_expr;
     ast_expr_type_t type_to_str;
     ast_expr_two_types_t same_type;

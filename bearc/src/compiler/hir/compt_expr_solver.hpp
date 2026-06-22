@@ -184,7 +184,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         const Type& orig_can_be_ref = context.type(maybe_into_tid.as_id());
-        const auto into_tid = context.try_decay_ref(maybe_into_tid.as_id());
+        const auto into_tid = context.try_decay(maybe_into_tid.as_id());
         const Type& into_type = context.type(into_tid);
 
         // `var` provided as type, so try to infer
@@ -390,7 +390,7 @@ template <IsDefVisitor V> class ComptExprSolver {
     [[nodiscard]] OptId<ExecId> solve_builtin_compt_expr(FileId fid, ScopeId scope,
                                                          const ast_expr_t* expr,
                                                          std::optional<builtin_type> into_builtin,
-                                                         OptId<TypeId> into_tid) {
+                                                         OptId<TypeId> into_tid = {}) {
         auto emplace_e = [this, fid, expr](ExecValue val) {
             return context.register_exec(
                 context, val, Span(fid, context.ast(fid).buffer(), expr->first, expr->last), true);
@@ -2038,9 +2038,25 @@ template <IsDefVisitor V> class ComptExprSolver {
         const auto bool_val = inner_exec.as<ExecConst>().as<bool>();
 
         if (!bool_val) {
-            context.emplace_diagnostic(
-                inner_exec.span, diag_code::static_assertion_failed, diag_type::error,
-                DiagnosticSubCode{.sub_code = diag_code::condition_is_false});
+
+            OptId<SymbolId> maybe_sid{};
+            if (sass_expr->expr.static_assert_expr.maybe_string) {
+                OptId<ExecId> maybe_string_eid = solve_builtin_compt_expr(
+                    fid, scope, sass_expr->expr.static_assert_expr.maybe_string, builtin_type::str);
+                if (maybe_string_eid.has_value()) {
+                    maybe_sid
+                        = context.exec(maybe_string_eid.as_id()).as<ExecConst>().as<SymbolId>();
+                }
+            }
+            if (maybe_sid.has_value()) {
+                context.emplace_diagnostic_with_message_value(
+                    inner_exec.span, diag_code::static_assertion_failed_colon, diag_type::error,
+                    DiagnosticSymbolAfterMessage{.sid = maybe_sid.as_id()});
+            } else {
+                context.emplace_diagnostic(
+                    inner_exec.span, diag_code::static_assertion_failed, diag_type::error,
+                    DiagnosticSubCode{.sub_code = diag_code::condition_is_false});
+            }
         }
 
         return context.emplace_exec(ExecConst{bool_val}, Span{context, fid, sass_expr}, true);
@@ -2451,6 +2467,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         HirSize total_arg_cnt = 0;
         bool issue = false;
+        const auto prior_diag_cnt = context.diagnostic_count();
         for (HirSize i = 0; i < exprs.len; i++) {
             const ast_expr_t* arg = exprs.start[i];
 
@@ -2475,7 +2492,6 @@ template <IsDefVisitor V> class ComptExprSolver {
         auto adjusted_arg_len = total_arg_cnt;
         auto adjusted_param_len = params.len() - mt_param_adjustment;
 
-        OptId<DiagnosticId> maybe_d0{};
         if (adjusted_arg_len != adjusted_param_len) {
 
             auto params_len_sym_id = ExecConst{adjusted_param_len}.to_symbol_id(context);
@@ -2487,7 +2503,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                       : Span::combine(Span{context, fid, exprs.start[0]->first},
                                       Span{context, fid, exprs.start[exprs.len - 1]->last});
 
-            maybe_d0 = context.emplace_diagnostic_with_message_value(
+            context.emplace_diagnostic_with_message_value(
                 span_of_interest, diag_code::expected, diag_type::error,
                 DiagnosticSymButGotSym{
                     .leading = func_symbol, .sid1 = params_len_sym_id, .sid2 = args_len_sym_id});
@@ -2499,11 +2515,12 @@ template <IsDefVisitor V> class ComptExprSolver {
         assert(fn_stmt->type == AST_STMT_FN_DECL);
 
         if (!func.poisoned() && issue) {
-            auto d1 = context.emplace_diagnostic_with_message_value(
+            auto d = context.emplace_diagnostic_with_message_value(
                 {context, fid, fn_stmt->stmt.fn_decl.name}, diag_code::declared_here,
                 diag_type::note, DiagnosticSymbolBeforeMessage{.sid = func_symbol});
-            if (maybe_d0.has_value()) {
-                context.link_diagnostic(maybe_d0.as_id(), d1);
+
+            if (context.diagnostic_count() > prior_diag_cnt) {
+                context.force_link_diagnostic(d);
             }
         }
 
@@ -2587,9 +2604,12 @@ template <IsDefVisitor V> class ComptExprSolver {
         exit_compt_fn();
 
         if (!context.def(func_did).template as<DefFunction>().posioned && maybe_eid.empty()) {
-            context.emplace_diagnostic_with_message_value(
+            const auto d = context.emplace_diagnostic_with_message_value(
                 Span{context, fid, expr}, diag_code::called_here, diag_type::note,
                 DiagnosticSymbolBeforeMessage{.sid = func_symbol});
+            if (context.diagnostic_count() > prior_diag_cnt) {
+                context.force_link_diagnostic(d);
+            }
             return std::nullopt;
         }
 
