@@ -1,0 +1,58 @@
+// tests/hir/a10.br
+
+variant Cnt<T> {
+    Two(T two, T one),
+    One(T one),
+    None
+}
+
+compt Cnt::i32 a = Cnt..One::<i32>(1);
+
+compt Cnt::i32 b = Cnt..One::<i32>(1);
+
+var _0 = @static_assert a == b;
+
+compt Cnt::i32 c = Cnt..Two::<i32>(2, 1);
+
+var _1 = @static_assert a == c, "oops";
+
+compt i32 d = match(c) {
+    Two(var a, var b) => a + b,
+    One(var a) => a,
+    None => 0,
+};
+
+var _2 = @static_assert d == 3;
+
+compt i32 _3 = _3; // oops
+
+struct Wrap<T> {
+    T a;
+    fn new(T a) -> Self => Self{.a = a}
+    fn get(Self self) -> T => self.a
+}
+
+deftype WrapI32 = Wrap::i32;
+deftype CntWrapI32 = Cnt::WrapI32;
+deftype TwiceWrap = Wrap::CntWrapI32;
+deftype TwiceWrappped = Wrap::Cnt::Wrap::i32; // just to see it works
+
+mod factory {
+    fn make(i32 a) -> TwiceWrap => Wrap..new::<Cnt::Wrap::i32>(Cnt..One::<Wrap::i32>(Wrap..new::<i32>(a)))
+}
+
+compt TwiceWrap e = TwiceWrap..new(CntWrapI32..One(WrapI32..new(4)));
+
+compt i32 f = match(e.get()) {
+    Two(var a, WrapI32 b) => a.get() + b.get(),
+    One(WrapI32 a) => a.get(),
+    None => 0,
+};
+
+var _4 = @static_assert f == 4;
+
+var _5 = @static_assert f == 5, "oops";
+
+compt TwiceWrap g = factory..make(1);
+
+compt i32 h = g.get().get(); // oops

@@ -747,10 +747,10 @@ OptId<ScopeId> Context::try_scope_for_top_level_def(DefId def_id) const {
             return def_to_scope.at(type.as<TypeStruct>().def_id);
         }
         if (type.holds<TypeVariant>()) {
-            return def_to_scope.at(type.as<TypeStruct>().def_id);
+            return def_to_scope.at(type.as<TypeVariant>().def_id);
         }
         if (type.holds<TypeUnion>()) {
-            return def_to_scope.at(type.as<TypeStruct>().def_id);
+            return def_to_scope.at(type.as<TypeUnion>().def_id);
         }
     }
     // hopefully found

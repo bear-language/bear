@@ -28,6 +28,7 @@
 #include "compiler/token.h"
 #include "def_visitor.hpp"
 #include <cassert>
+#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -356,6 +357,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                 maybe_eid = handle_any_id(fid, scope, expr->expr.id.slice);
             } else if (expr->type == AST_EXPR_MATCH) {
                 maybe_eid = handle_match(fid, scope, expr);
+            } else {
+                maybe_eid = solve_expr(fid, scope, expr); // check type down at the guard
             }
 
             if (maybe_eid.empty()) {
@@ -2236,10 +2239,19 @@ template <IsDefVisitor V> class ComptExprSolver {
                 auto d0 = context.emplace_diagnostic(Span{context, fid, expr->expr.binary.op},
                                                      diag_code::cannot_access_a_member_value,
                                                      diag_type::error);
-                auto d1 = context.emplace_diagnostic(
-                    lhs_exec.span, diag_code::value_not_a_struct, diag_type::note,
-                    DiagnosticSubCode{.sub_code = diag_code::is_not_a_struct});
-                context.link_diagnostic(d0, d1);
+                if (const auto maybe_tid = infer_type_from_exec(lhs_eid); maybe_tid.has_value()) {
+                    auto d1 = context.emplace_diagnostic(
+                        lhs_exec.span, diag_code::value_is_of_type, diag_type::note,
+                        DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()},
+                        DiagnosticSubCode{.sub_code = diag_code::is_not_a_struct});
+                    context.link_diagnostic(d0, d1);
+                } else {
+                    auto d1 = context.emplace_diagnostic(
+                        lhs_exec.span, diag_code::value_not_a_struct, diag_type::note,
+                        DiagnosticSubCode{.sub_code = diag_code::is_not_a_struct});
+
+                    context.link_diagnostic(d0, d1);
+                }
                 return std::nullopt;
             }
             const Def& struct_def = context.def(lhs_exec.as<ExecExprStructInit>().struct_def_id);
@@ -2428,13 +2440,21 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
             if (maybe_func_did.empty()) {
 
-                // TODO: make this consider generics
+                // try as variant init, since they take the form of function calls but live in the
+                // "type" namespace
+                if (expr->expr.fn_call.is_generic) {
+                    if (const auto maybe_gen_arg_id
+                        = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
+                        maybe_gen_arg_id.has_value()) {
+                        maybe_func_did = context.look_up_scoped_type_generic(
+                            def_visitor, scope, sid_slice, called_span, maybe_gen_arg_id.as_id());
+                    }
+                } else {
+                    maybe_func_did = context.look_up_scoped_type(scope, sid_slice, called_span);
+                }
 
-                // try as variant init, since they take the form of function calls
-                const auto maybe_variant_field_did
-                    = context.look_up_scoped_type(scope, sid_slice, called_span);
-                if (maybe_variant_field_did.has_value()) {
-                    return handle_variant_init(fid, scope, expr, maybe_variant_field_did.as_id());
+                if (maybe_func_did.has_value()) {
+                    return handle_variant_init(fid, scope, expr, maybe_func_did.as_id());
                 }
 
                 // no corresponding variant either, so this is just the
@@ -2599,9 +2619,28 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         OptId<ExecId> maybe_eid = solve_expr(fid, temp_scope, body_expr, func.return_type);
 
+        if (maybe_eid.empty()) {
+            std::cout << "EMPTY\n"; // TODO debug
+        }
+
         // try to get proper return type if possible
         if (maybe_eid.has_value() && func.return_type.has_value()) {
+            const auto orig_eid = maybe_eid.as_id();
             maybe_eid = try_convert_to(maybe_eid.as_id(), func.return_type.as_id());
+            if (maybe_eid.empty()) {
+                if (const auto maybe_tid = infer_type_from_exec(orig_eid); maybe_tid.has_value()) {
+                    context.emplace_diagnostic_with_message_value(
+                        Span{context, fid, expr}, diag_code::cannot_convert_value_of_type,
+                        diag_type::error,
+                        DiagnosticTypeToType{.from = maybe_tid.as_id(),
+                                             .to = func.return_type.as_id()});
+                } else {
+                    context.emplace_diagnostic_with_message_value(
+                        Span{context, fid, expr}, diag_code::cannot_convert_expression_to_type,
+                        diag_type::error,
+                        DiagnosticTypeAfterMessage{.tid = func.return_type.as_id()});
+                }
+            }
         }
 
         // mark that we're done
@@ -2618,7 +2657,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         if (maybe_eid.empty()) {
-            return std::nullopt;
+            return {};
         }
 
         return context.emplace_exec(context.exec(maybe_eid.as_id()).value, Span{context, fid, expr},
@@ -3060,6 +3099,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         bool valid_branches_and_exhaustive = false;
         if (ty.holds<TypeVariant>()) {
             const auto variant_did = ty.as<TypeVariant>().def_id;
+            scope = context.def(variant_did).as<DefVariant>().scope;
             valid_branches_and_exhaustive
                 = valid_exhaustive_match_for_variant(*this, scope, fid, variant_did, match_expr);
         } else {
