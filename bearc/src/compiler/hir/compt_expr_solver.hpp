@@ -89,11 +89,11 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             const auto struct_def = context.def(struct_did);
 
-            if (!struct_def.holds<DefStruct>()) {
+            if (!struct_def.template holds<DefStruct>()) {
                 return {};
             }
 
-            const auto maybe_gen_args = struct_def.as<DefStruct>().maybe_generic_args;
+            const auto maybe_gen_args = struct_def.template as<DefStruct>().maybe_generic_args;
 
             return context.emplace_type(TypeStruct{.def_id = struct_did,
                                                    .gen_args_slice = maybe_gen_args,
@@ -128,11 +128,11 @@ template <IsDefVisitor V> class ComptExprSolver {
             const auto did = exec.as<ExecExprVariantInit>().variant_def_id;
             const auto variant_def = context.def(did);
 
-            if (!variant_def.holds<DefVariant>()) {
+            if (!variant_def.template holds<DefVariant>()) {
                 return {};
             }
 
-            const auto maybe_gen_args = variant_def.as<DefVariant>().maybe_generic_args;
+            const auto maybe_gen_args = variant_def.template as<DefVariant>().maybe_generic_args;
 
             return context.emplace_type(TypeVariant{.def_id = did,
                                                     .gen_args_slice = maybe_gen_args,
@@ -2048,8 +2048,9 @@ template <IsDefVisitor V> class ComptExprSolver {
                 OptId<ExecId> maybe_string_eid = solve_builtin_compt_expr(
                     fid, scope, sass_expr->expr.static_assert_expr.maybe_string, builtin_type::str);
                 if (maybe_string_eid.has_value()) {
-                    maybe_sid
-                        = context.exec(maybe_string_eid.as_id()).as<ExecConst>().as<SymbolId>();
+                    maybe_sid = context.exec(maybe_string_eid.as_id())
+                                    .template as<ExecConst>()
+                                    .template as<SymbolId>();
                 }
             }
             if (maybe_sid.has_value()) {
