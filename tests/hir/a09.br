@@ -1,0 +1,9 @@
+// tests/hir/a09.br
+
+var _0 = ();
+
+compt i32 _1 = ();
+
+struct Foo {}
+
+compt Foo _2 = ();

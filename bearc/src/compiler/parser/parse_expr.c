@@ -519,7 +519,11 @@ ast_expr_t* parse_grouping(parser_t* p) {
     grouping->type = AST_EXPR_GROUPING;
     token_t* lparen = parser_eat(p);
     grouping->expr.grouping.left_paren = lparen;
-    grouping->expr.grouping.expr = parse_expr(p);
+    ast_expr_t* expr = parse_expr(p);
+    if (expr->type == AST_EXPR_INVALID) {
+        grouping->type = AST_EXPR_INVALID;
+    }
+    grouping->expr.grouping.expr = expr;
     token_t* rparen = parser_expect_token(p, TOK_RPAREN);
     if (!rparen) {
         return parser_sync_expr(p);

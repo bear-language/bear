@@ -155,6 +155,8 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         // compt =/= mut guard
         check_to_err_when_compt_is_mut(maybe_tid.as_id(), context.def(did));
 
+        const auto prior_diag_count = context.diagnostic_count();
+
         const auto maybe_compt_eid
             = ComptExprSolver(context, *this)
                   .solve_expr(span.file_id, scope, stmt->stmt.var_init_decl.rhs, maybe_tid.as_id());
@@ -198,10 +200,13 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         // impl'd yet
         if (!maybe_compt_eid.has_value()) {
             if (!context.def(did).compt && var_init_decl.rhs->type != AST_EXPR_STATIC_ASSERT) {
-                context.emplace_diagnostic(
+                const auto d = context.emplace_diagnostic(
                     Span{context, context.def(did).span.file_id, stmt->stmt.var_init_decl.rhs},
                     diag_code::all_runtime_glob_and_mem_vars_need_compt_init, diag_type::note,
                     DiagnosticInfoDontDisplayFile{});
+                if (context.diagnostic_count() > prior_diag_count) {
+                    context.force_link_diagnostic(d);
+                }
             }
             goto cleanup;
         }

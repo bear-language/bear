@@ -153,8 +153,12 @@ template <IsDefVisitor V> class ComptExprSolver {
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr,
                                            OptId<TypeId> maybe_into_tid) {
 
-        if (expr->type == AST_EXPR_GROUPING) {
-            return solve_expr(fid, scope, expr->expr.grouping.expr, maybe_into_tid);
+        if (expr->type == AST_EXPR_INVALID) {
+            return {};
+        }
+
+        while (expr->type == AST_EXPR_GROUPING) {
+            expr = expr->expr.grouping.expr;
         }
 
         auto expr_is_mem_access = +[](const ast_expr_t* expr) {
@@ -2481,8 +2485,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             OptId<ExecId> maybe_arg_eid = solve_expr(fid, scope, arg, maybe_into_tid);
             if (maybe_arg_eid.empty()) {
-                issue = true; // TODO potentiall bad error, propagatiom, prob. better safe than
-                              // sorry to call this an invalid arg?
+                issue = true;
             } else {
                 arg_vec.push_back(maybe_arg_eid.as_id());
             }
@@ -2809,14 +2812,18 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         if (s1.struct_def_id != s2.struct_def_id) {
 
-            // TODO properly set gen args here! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            auto t1 = context.emplace_type(
-                TypeStruct{.def_id = s1.struct_def_id, .gen_args_slice = {}, .generic = false},
-                Span::generated(), false);
-            auto t2 = context.emplace_type(
-                TypeStruct{.def_id = s2.struct_def_id, .gen_args_slice = {}, .generic = false},
-                Span::generated(), false);
-            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            const auto gargs1
+                = context.def(s1.struct_def_id).template as<DefStruct>().maybe_generic_args;
+            auto t1 = context.emplace_type(TypeStruct{.def_id = s1.struct_def_id,
+                                                      .gen_args_slice = gargs1,
+                                                      .generic = gargs1.has_value()},
+                                           Span::generated(), false);
+            const auto gargs2
+                = context.def(s2.struct_def_id).template as<DefStruct>().maybe_generic_args;
+            auto t2 = context.emplace_type(TypeStruct{.def_id = s2.struct_def_id,
+                                                      .gen_args_slice = gargs2,
+                                                      .generic = gargs2.has_value()},
+                                           Span::generated(), false);
             auto d0 = context.emplace_diagnostic(Span::combine(list1.span, list2.span),
                                                  diag_code::invalid_operand_for_binary_expression,
                                                  diag_type::error);
