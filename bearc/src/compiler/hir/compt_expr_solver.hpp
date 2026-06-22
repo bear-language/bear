@@ -838,6 +838,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             auto maybe_struct_did = context.try_struct_def(did);
 
             if (maybe_struct_did.empty()) {
+                // TODO check for raw use of generic struct
                 auto did0 = context.emplace_diagnostic(
                     Span(fid, context.ast(fid).buffer(), id_slice.start[0],
                          id_slice.start[id_slice.len - 1]),

@@ -11,7 +11,7 @@ main quest
 - [x] handle generic routing for types (revise after finishing above)
 - [x] generic routing for generic identifiers
 - [x] handle generic routing for function (calls)
-- [ ] generic routing for variant inits
+- [x] generic routing for variant inits
 - [ ] generic routing for struct inits 
     - [ ] struct init struct name inference (will require modifying parser and `solve_struct_or_union` and `handle_struct_init` by passes in `into_tid`)
 - [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the above

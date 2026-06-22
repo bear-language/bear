@@ -8,7 +8,7 @@ compt Foo::i32 a = Foo::i32{}; // oops
 
 compt Foo::Ben b = Foo::Ben{};
 
-compt Bar<Ben, Ben> c = Bar..OptionThree;
+compt Bar<Ben, Ben> c = Bar..OptionThree::<Ben, Ben>;
 
-compt Bar<i32, str> d = Bar..OptionThree;
+compt Bar<i32, str> d = Bar..OptionThree::<Bar,Bar>;
 
