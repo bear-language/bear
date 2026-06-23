@@ -1163,8 +1163,8 @@ ast_stmt_t* parse_fn_prototype(parser_t* p) {
 ast_stmt_t* parse_stmt_contract_decl(parser_t* p) {
     ast_stmt_t* stmt = parser_alloc_stmt(p);
     stmt->type = AST_STMT_CONTRACT_DEF;
-    token_t* struct_tkn = parser_expect_token(p, TOK_CONTRACT);
-    if (!struct_tkn) {
+    token_t* contract_tkn = parser_expect_token(p, TOK_CONTRACT);
+    if (!contract_tkn) {
         return parser_sync_stmt(p);
     }
     token_t* name = parser_expect_token(p, TOK_IDENTIFIER);
@@ -1172,10 +1172,20 @@ ast_stmt_t* parse_stmt_contract_decl(parser_t* p) {
         return parser_sync_stmt(p);
     }
     stmt->stmt.contract_decl.name = name;
+
+    stmt->stmt.contract_decl.is_generic = false;
+    stmt->stmt.contract_decl.generic_params
+        = (ast_slice_of_generic_params_t){.start = NULL, .len = 0};
+
+    if (parser_peek_match(p, TOK_GENERIC_SEP) || parser_peek_match(p, TOK_LT)) {
+        stmt->stmt.contract_decl.generic_params = parse_generic_params(p);
+        stmt->stmt.contract_decl.is_generic = true;
+    }
+
     parser_expect_token(p, TOK_LBRACE);
     stmt->stmt.contract_decl.fields = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_fn_prototype);
     parser_expect_token(p, TOK_RBRACE);
-    stmt->first = struct_tkn;
+    stmt->first = contract_tkn;
     stmt->last = parser_prev(p);
     return stmt;
 }
@@ -1191,9 +1201,9 @@ ast_stmt_t* parse_stmt_union_decl(parser_t* p) {
     if (!name) {
         return parser_sync_stmt(p);
     }
-    s->stmt.contract_decl.name = name;
+    s->stmt.union_decl.name = name;
     parser_expect_token(p, TOK_LBRACE);
-    s->stmt.contract_decl.fields = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_var_decl);
+    s->stmt.union_decl.fields = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_var_decl);
     parser_expect_token(p, TOK_RBRACE);
     s->first = union_tkn;
     s->last = parser_prev(p);
