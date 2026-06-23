@@ -147,19 +147,30 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             goto cleanup; // maybe set a special value to indicate error differently
         }
         const bool type_contains_var = TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id());
-        if (context.def(did).compt && type_contains_var) {
-            context.emplace_diagnostic(context.type(maybe_tid.as_id()).span,
-                                       diag_code::compt_variable_should_have_an_explicit_type,
-                                       diag_type::error);
-        }
+
         // compt =/= mut guard
         check_to_err_when_compt_is_mut(maybe_tid.as_id(), context.def(did));
 
         const auto prior_diag_count = context.diagnostic_count();
 
-        const auto maybe_compt_eid
-            = ComptExprSolver(context, *this)
-                  .solve_expr(span.file_id, scope, stmt->stmt.var_init_decl.rhs, maybe_tid.as_id());
+        OptId<ExecId> maybe_compt_eid{};
+
+        if (context.def(did).compt && type_contains_var) {
+            ComptExprSolver solver{context, *this};
+            maybe_compt_eid = solver.solve_expr(span.file_id, scope, stmt->stmt.var_init_decl.rhs,
+                                                maybe_tid.as_id());
+            if (maybe_compt_eid.empty()) {
+                goto cleanup;
+            }
+            maybe_tid = solver.infer_type_from_exec(maybe_compt_eid.as_id());
+            if (maybe_tid.empty()) {
+                goto cleanup;
+            }
+        } else {
+            maybe_compt_eid = ComptExprSolver(context, *this)
+                                  .solve_expr(span.file_id, scope, stmt->stmt.var_init_decl.rhs,
+                                              maybe_tid.as_id());
+        }
 
         // error when struct member does not have an explicit type
         if (!context.def(did).statik && parent_is_struct(context.def(did)) && type_contains_var) {

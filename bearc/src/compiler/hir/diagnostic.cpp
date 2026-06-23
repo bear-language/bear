@@ -114,8 +114,6 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "compile-time values cannot be moved";
     case diag_code::var_cannot_be_part_of_a_scoped_identifier:
         return "`var` cannot be part of a scoped identifier";
-    case diag_code::compt_variable_should_have_an_explicit_type:
-        return "`compt` variables should have an explicit type";
     case diag_code::cannot_convert_value_of_type:
         return "cannot convert value of type";
     case diag_code::cannot_mutate_compt_const:
@@ -364,6 +362,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "static assertion failed:";
     case diag_code::in_generic_instantiation_of_type:
         return "in generic instantiation of type";
+    case diag_code::cannot_infer_type_for_initializer:
+        return "cannot infer type for initializer";
+    case diag_code::explicitly_specify_the_type_by_providing_its_name_before_the_braces:
+        return "explicitly specify the type by providing its name before the braces";
     }
 
     std::unreachable();

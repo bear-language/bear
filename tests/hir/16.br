@@ -20,11 +20,11 @@ compt Ben ben = Foo{.a = 12}; // bad
 
 compt Foo foo = Ben{}; // bad for multiple reasons
 
-compt var A = 12 as i8; // err 
+compt var A = 12 as i8;
 
-compt var B = 13; // err
+compt var B = 13;
 
-compt var S = "ABCEF"; // err
+compt var S = "ABCEF";
 
 struct Bear {
     i32 a;

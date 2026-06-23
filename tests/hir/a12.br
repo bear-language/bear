@@ -1,1 +1,60 @@
 // tests/hir/a12.br
+
+struct Foo<T1,T2,T3> {
+    T1 a;
+    T2 b;
+    T3 c;
+    compt fn get(Self self) => ThreeSameType..try::<T1,T2,T3>(self.a, self.b, self.c);
+} 
+
+struct ThreeSameType<T1, T2, T3> {
+    bool value = 
+        @err(
+            !(@same_type(T1, T2) && @same_type(T2, T3)),
+            @type_to_str(decay T1) + ", " + @type_to_str(decay T2) + ", and " + @type_to_str(decay T3) + " are not all the same type"
+        );
+    compt fn try(T1 a, T2 b, T3 c) => a + b + c if Self{}.value else 0
+}
+
+compt Foo<u32,u16,u8> a = Foo::<u32, u16, u8>{.a = 123, .b=321, .c=123 };
+
+var _0 = @static_assert a == Foo::<decay &u32, u16, u8>{.a = 123, .b=321, .c=123 };
+
+compt var b = a;
+
+var _1 = @static_assert @same_type(typeof b, typeof a);
+
+compt var c = 
+    Foo::<u8,u8,u8>{
+        .a = 1,
+        .b = 2,
+        .c = 3
+    }; 
+
+var _2 = @static_assert @same_type (typeof c, Foo<u8,u8,u8>);
+
+var _3 = @static_assert @same_type (typeof a, typeof c); // oops
+
+compt typeof(c) d = b; // oops
+
+compt typeof(c) e = {.a = 1, .b = 2, .c = 3};
+
+compt Foo<i64,i64,i64> f = {.a = 1, .b = 2, .c = 3};
+
+compt Foo g = {.a = 1, .b = 2, .c = 3}; // oops
+
+compt var h = {.a = 1, .b = 2, .c = 3}; // oops
+
+compt var f_get = f.get();
+
+compt var b_get = b.get(); // oops
+
+fn identity(Foo<i64, i64, i64> a) => a
+
+compt var i = identity({.a = 1, .b = 2, .c =3});
+
+var _4 = @static_assert i == Foo::<i64, i64, i64>{.a = 1, .b =2, .c = 3};
+
+compt var j = identity(i);
+
+var _5 = @static_assert i == j;

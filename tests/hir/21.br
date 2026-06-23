@@ -41,5 +41,5 @@ mod ben {
 
     var c = 12.0012; // fine
 
-    compt var d = 32; // oops, missing explicit type since it's compt
+    compt var d = 32; 
 }

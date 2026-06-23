@@ -62,7 +62,6 @@ enum class diag_code : uint8_t {
     too_many_initializers_given_for_struct_init,
     compt_values_cannot_be_moved,
     var_cannot_be_part_of_a_scoped_identifier,
-    compt_variable_should_have_an_explicit_type,
     cannot_convert_value_of_type,
     cannot_mutate_compt_const,
     cannot_cast_expr_to_type,
@@ -185,6 +184,8 @@ enum class diag_code : uint8_t {
     out_of_line_scoped_member_functions_not_allowed_for_generic_structs,
     instead_take_the_generic_struct_as_a_first_argument,
     declared_here_as_generic,
+    cannot_infer_type_for_initializer,
+    explicitly_specify_the_type_by_providing_its_name_before_the_braces,
 
     count, // this must be last,
 

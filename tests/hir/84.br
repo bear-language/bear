@@ -5,7 +5,7 @@ struct Foo<T> {
     mt get_foo() -> T => self.foo;
 }
 
-compt Foo<i32> a = Foo::<T>{.foo = 12};
+compt Foo<i32> a = Foo::<i32>{.foo = 12};
 
 compt [16]i32<i32><i32> b; // oops
 
@@ -24,9 +24,9 @@ variant Ben<T> {
     C(T c),
 }
 
-compt Ben<i32> e = Ben::i32(42);
+compt Ben<i32> e = Ben..A::<i32>(42);
 
-compt Ben::u8 f = Ben::u8(42);
+compt Ben::u8 f = Ben..B::<u8>(42);
 
 variant Bowie<B has(Cat), B, B, A, usize A, usize a> {
     Aa(A a),

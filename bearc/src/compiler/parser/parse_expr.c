@@ -77,7 +77,7 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
                     lhs = parse_expr_struct_init(p, lhs, &gen_args);
                 }
                 // fn call
-                if (parser_peek_match(p, TOK_LPAREN)) {
+                else if (parser_peek_match(p, TOK_LPAREN)) {
                     lhs = parse_fn_call(p, lhs, &gen_args);
                 } else {
                     lhs = parse_expr_generic_id(p, lhs->expr.id.slice, gen_args);
@@ -89,7 +89,7 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
                     lhs = parse_expr_struct_init(p, lhs, NULL); // no generic args
                 }
                 // fn call
-                if (parser_peek_match(p, TOK_LPAREN)) {
+                else if (parser_peek_match(p, TOK_LPAREN)) {
                     lhs = parse_fn_call(p, lhs, NULL); // no generic args
                 }
             }
@@ -100,6 +100,8 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
             lhs = parse_grouping(p);
         } else if (first_type == TOK_MATCH) {
             lhs = parse_expr_match(p);
+        } else if (first_type == TOK_LBRACE) {
+            lhs = parse_expr_struct_init(p, NULL, NULL);
         } else if (first_type == TOK_BAR || first_type == TOK_MOVE || first_type == TOK_BOOL_OR) {
             lhs = parse_expr_closure(p);
         } else if (first_type == TOK_LBRACK) {
@@ -653,6 +655,7 @@ ast_expr_t* parse_expr_struct_init(parser_t* p, ast_expr_t* opt_id_lhs,
                                    ast_slice_of_generic_args_t* gen_args) {
     ast_expr_t* s = parser_alloc_expr(p);
     s->type = AST_EXPR_STRUCT_INIT;
+    token_t* first = parser_peek(p);
 
     if (gen_args) {
         s->expr.struct_init.is_generic = true;
@@ -662,24 +665,30 @@ ast_expr_t* parse_expr_struct_init(parser_t* p, ast_expr_t* opt_id_lhs,
             = (ast_slice_of_generic_args_t){.valid = true, .len = 0, .start = NULL};
         s->expr.struct_init.is_generic = false;
     }
-
+    token_ptr_slice_t id = {.start = NULL, .len = 0};
     // if the optional id lhs is NULL, parse an id
     if (!opt_id_lhs) {
-        opt_id_lhs = parse_id(p);
+        if (parser_peek_match(p, TOK_IDENTIFIER)) {
+            opt_id_lhs = parse_id(p);
+            // verfify it's 100% an id (matters if passed in)
+            if (opt_id_lhs->type != AST_EXPR_ID) {
+                compiler_error_list_emplace(p->error_list, parser_prev(p), ERR_EXPECTED_IDENTIFER);
+                return parser_sync_expr(p);
+            }
+        }
     }
-    // verfify it's 100% an id (matters if passed in)
-    if (opt_id_lhs->type != AST_EXPR_ID) {
-        compiler_error_list_emplace(p->error_list, parser_prev(p), ERR_EXPECTED_IDENTIFER);
-        return parser_sync_expr(p);
+    if (opt_id_lhs) {
+        id = opt_id_lhs->expr.id.slice;
+        s->first = opt_id_lhs->first;
+    } else {
+        s->first = first;
     }
     // extract the id slice from the id, this should be safe given the above check
-    token_ptr_slice_t id = opt_id_lhs->expr.id.slice;
     s->expr.struct_init.id = id;
     parser_expect_token(p, TOK_LBRACE);
     s->expr.struct_init.member_inits
         = parse_slice_of_exprs_call(p, TOK_COMMA, TOK_RBRACE, &parse_expr_struct_member_init);
     parser_expect_token(p, TOK_RBRACE);
-    s->first = id.start[0]; // safe becuz the id should be valid given the check passed
     s->last = parser_prev(p);
     return s;
 }

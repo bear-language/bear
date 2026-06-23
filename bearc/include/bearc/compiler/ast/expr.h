@@ -157,6 +157,7 @@ typedef struct ast_expr_struct_member_init {
 } ast_expr_struct_member_init_t;
 
 typedef struct ast_expr_struct_init {
+    // can be of len 0 if no identifer was provided
     token_ptr_slice_t id;
     ast_slice_of_generic_args_t generic_args;
     ast_slice_of_exprs_t member_inits;
