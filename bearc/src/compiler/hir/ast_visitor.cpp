@@ -460,7 +460,6 @@ void FileAstVisitor::register_top_level_stmts_registering_ordered_members(
     }
     // try register static defs
     if (!static_def_vec.empty()) {
-        std::cout << "REGISTERED STATIC DEFS\n"; // TODO debug
         context.register_static_defs(parent_def, static_def_vec);
     }
 }

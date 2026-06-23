@@ -14,19 +14,21 @@ var _4 = @static_assert @help @help @help @help true, "help, i need somebody";
 
 // some approaches: ~~~~~~~~~
 struct DecayedSameType<A,B> {
-    compt bool a = !@same_type(decay A, decay B);
-    compt bool b = @err a, @type_to_str(decay A) + " and " + @type_to_str(decay B) + " are not the same after being decayed";
-    compt bool c = @note b, "the two passed-in types, A and B, should" 
-            + " be the same type after decaying-away reference and type-aliases";
-    compt bool value = c;
+    compt bool value = 
+            @note(
+                @err (!@same_type(decay A, decay B), @type_to_str(decay A) 
+                    + " and " + @type_to_str(decay B) 
+                    + " are not the same after being decayed"), 
+                "the two passed-in types, A and B, should" 
+                + " be the same type after decaying-away reference and type-aliases"
+            );
 }
 
 struct DecayedSameTypeWithAssert<A,B> {
     compt bool a = @static_assert @same_type(decay A, decay B), "the two passed-in types, " 
             + @type_to_str(A) + " " + @type_to_str(B) + ", should" 
             + " be the same type after decaying-away reference and type-aliases, but were not";
-    compt bool b = @note !a, "failed because, when decayed, " + @type_to_str(decay A) + " != " + @type_to_str(decay B);
-    compt bool value = b;
+    compt bool value = @note !a, "failed because, when decayed, " + @type_to_str(decay A) + " != " + @type_to_str(decay B);
 }
 
 struct Foo<T> {
