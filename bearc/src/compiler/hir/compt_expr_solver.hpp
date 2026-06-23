@@ -2108,7 +2108,8 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         const auto str_exec = context.exec(maybe_string_eid.as_id());
 
-        if (!str_exec.holds<ExecConst>() || !str_exec.as<ExecConst>().holds<SymbolId>()) {
+        if (!str_exec.template holds<ExecConst>()
+            || !str_exec.template as<ExecConst>().template holds<SymbolId>()) {
             return {}; // poisoned
         }
 
@@ -2126,7 +2127,8 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             const Exec& inner_exec = context.exec(maybe_bool_eid.as_id());
 
-            if (!inner_exec.holds<ExecConst>() || !inner_exec.as<ExecConst>().holds<bool>()) {
+            if (!inner_exec.holds<ExecConst>()
+                || !inner_exec.template as<ExecConst>().template holds<bool>()) {
                 return {}; // poisoned
             }
 
@@ -3186,7 +3188,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         bool valid_branches_and_exhaustive = false;
         if (ty.holds<TypeVariant>()) {
             const auto variant_did = ty.as<TypeVariant>().def_id;
-            scope = context.def(variant_did).as<DefVariant>().scope;
+            scope = context.def(variant_did).template as<DefVariant>().scope;
             valid_branches_and_exhaustive
                 = valid_exhaustive_match_for_variant(*this, scope, fid, variant_did, match_expr);
         } else {
