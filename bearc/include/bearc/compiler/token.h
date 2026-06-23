@@ -128,6 +128,10 @@ typedef enum token_type {
     TOK_DEFINED,       // @defined
     TOK_HAS_CONTRACT,  // @has_contract
     TOK_INFERABLE_AS,  // @inferable_as
+    TOK_ERR,           // @err
+    TOK_WARN,          // @warn
+    TOK_NOTE,          // @note
+    TOK_HELP,          // @help
 
     // constructs
     TOK_REQUIRES,

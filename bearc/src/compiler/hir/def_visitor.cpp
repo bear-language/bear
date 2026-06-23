@@ -203,7 +203,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                 const auto d = context.emplace_diagnostic(
                     Span{context, context.def(did).span.file_id, stmt->stmt.var_init_decl.rhs},
                     diag_code::all_runtime_glob_and_mem_vars_need_compt_init, diag_type::note,
-                    DiagnosticInfoDontDisplayFile{});
+                    DiagnosticDontDisplayFile{});
                 if (context.diagnostic_count() > prior_diag_count) {
                     context.force_link_diagnostic(d);
                 }
@@ -244,6 +244,12 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         // defs
         for (auto didx = ordered_defs.begin(); didx != ordered_defs.end(); didx++) {
             visit_as_dependent(context.def_id(didx));
+        }
+        // record each static member/sub-def to ensure it eventually gets lowered. Avoid lowering it
+        // now because that could lead to unnecessary circular def issues
+        const auto static_defs = context.static_defs_for(did);
+        for (auto didx = static_defs.begin(); didx != static_defs.end(); ++didx) {
+            context.record_static_struct_member_def(context.def_id(didx));
         }
 
         llvm::SmallVector<DefId> contract_dids{};

@@ -692,6 +692,14 @@ template <IsDefVisitor V> class ComptExprSolver {
             maybe_value = exec.template try_as<ExecConst>();
             break;
         }
+        case AST_EXPR_DIAGNOSTIC: {
+            const auto maybe_eid = handle_diag_expr(fid, scope, expr);
+            if (maybe_eid.empty()) {
+                return {};
+            }
+            maybe_value = context.exec(maybe_eid.as_id()).template as<ExecConst>();
+            break;
+        }
         case AST_EXPR_TYPE:
         case AST_EXPR_BORROW:
         case AST_EXPR_STRUCT_MEMBER_INIT:
@@ -706,6 +714,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                 Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
                 diag_code::cannot_resolve_at_compt, diag_type::error);
             return std::nullopt;
+            break;
         }
 
         if (maybe_value.has_value()) {
@@ -913,6 +922,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_MATCH_BRANCH:
         case AST_EXPR_ELSE_MATCH_PATTERN:
         case AST_EXPR_INFERABLE_AS:
+        case AST_EXPR_DIAGNOSTIC:
         case AST_EXPR_INVALID:
             break;
         }
@@ -1711,6 +1721,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_TYPE_TO_STR:
         case AST_EXPR_HAS_CONTRACT:
         case AST_EXPR_INFERABLE_AS:
+        case AST_EXPR_DIAGNOSTIC:
         case AST_EXPR_STATIC_ASSERT:
             break;
         }
@@ -1841,12 +1852,21 @@ template <IsDefVisitor V> class ComptExprSolver {
     [[nodiscard]] OptId<ExecId> handle_any_generic_id(FileId fid, ScopeId scope,
                                                       token_ptr_slice_t id_slice,
                                                       ast_slice_of_generic_args_t gen_args) {
+        const auto prior_diag_cnt = context.diagnostic_count();
         const OptId<GenericArgIdSliceId> maybe_gen_args
             = lower_generic_args(fid, scope, gen_args, false); // don't need layout info
         if (maybe_gen_args.empty()) {
             return {}; // issue with gen args so we're posioned
         }
-        return handle_any_id(fid, scope, id_slice, maybe_gen_args.as_id());
+        const auto res = handle_any_id(fid, scope, id_slice, maybe_gen_args.as_id());
+
+        if (prior_diag_cnt < context.diagnostic_count()) {
+            context.force_link_diagnostic(context.emplace_diagnostic(
+                context.span_for_gen_args(maybe_gen_args.as_id()),
+                diag_code::in_generic_instantiated_here, diag_type::note));
+        }
+
+        return res;
     }
 
     // tries to get the const value corresponding to some variable's name, if it exists
@@ -2070,6 +2090,77 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         return context.emplace_exec(ExecConst{bool_val}, Span{context, fid, sass_expr}, true);
     }
+    [[nodiscard]] OptId<ExecId> handle_diag_expr(FileId fid, ScopeId scope,
+                                                 const ast_expr_t* expr) {
+        assert(expr->type == AST_EXPR_DIAGNOSTIC);
+
+        OptId<ExecId> maybe_string_eid{};
+        if (expr->expr.diagnostic.maybe_second_expr) {
+            maybe_string_eid = solve_builtin_compt_expr(
+                fid, scope, expr->expr.diagnostic.maybe_second_expr, builtin_type::str);
+        } else {
+            maybe_string_eid = solve_builtin_compt_expr(
+                fid, scope, expr->expr.diagnostic.first_expr, builtin_type::str);
+        }
+
+        if (maybe_string_eid.empty()) {
+            return {};
+        }
+
+        const auto str_exec = context.exec(maybe_string_eid.as_id());
+
+        if (!str_exec.holds<ExecConst>() || !str_exec.as<ExecConst>().holds<SymbolId>()) {
+            return {}; // poisoned
+        }
+
+        SymbolId sid = str_exec.template as<ExecConst>().template as<SymbolId>();
+
+        auto bool_val = false;
+
+        OptId<ExecId> maybe_bool_eid{};
+        if (expr->expr.diagnostic.maybe_second_expr) {
+            maybe_bool_eid = solve_builtin_compt_expr(fid, scope, expr->expr.diagnostic.first_expr,
+                                                      builtin_type::boolean);
+            if (maybe_bool_eid.empty()) {
+                return std::nullopt;
+            }
+
+            const Exec& inner_exec = context.exec(maybe_bool_eid.as_id());
+
+            if (!inner_exec.holds<ExecConst>() || !inner_exec.as<ExecConst>().holds<bool>()) {
+                return {}; // poisoned
+            }
+
+            bool_val = inner_exec.as<ExecConst>().as<bool>();
+        } else {
+            bool_val = true;
+        }
+
+        diag_type t = diag_type::error;
+        switch (expr->expr.diagnostic.diag_type) {
+        case DIAG_TYPE_ERROR:
+            t = diag_type::error;
+            break;
+        case DIAG_TYPE_NOTE:
+            t = diag_type::note;
+            break;
+        case DIAG_TYPE_WARNING:
+            t = diag_type::warning;
+            break;
+        case DIAG_TYPE_HELP:
+            t = diag_type::help;
+            break;
+        }
+
+        if (bool_val) {
+            context.try_link_custom_diagnostic(context.emplace_diagnostic(
+                Span{context, fid, expr}, diag_code::only_message_value_is_meaningful, t,
+                DiagnosticCustomComptDiag{.sid = sid}, DiagnosticInfoNoPreview{}));
+        }
+
+        return context.emplace_compt_exec(ExecConst{bool_val}, Span{context, fid, expr});
+    }
+
     [[nodiscard]] OptId<ExecId> solve_expr_binary(FileId fid, ScopeId scope,
                                                   const ast_expr_t* expr) {
         assert(expr->type == AST_EXPR_BINARY);
@@ -2619,10 +2710,6 @@ template <IsDefVisitor V> class ComptExprSolver {
         const ast_expr_t* body_expr = fn_stmt->stmt.fn_decl.expr;
 
         OptId<ExecId> maybe_eid = solve_expr(fid, temp_scope, body_expr, func.return_type);
-
-        if (maybe_eid.empty()) {
-            std::cout << "EMPTY\n"; // TODO debug
-        }
 
         // try to get proper return type if possible
         if (maybe_eid.has_value() && func.return_type.has_value()) {

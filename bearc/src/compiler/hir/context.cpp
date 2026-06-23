@@ -35,6 +35,7 @@
 #include <optional>
 #include <stddef.h>
 #include <string_view>
+#include <variant>
 namespace hir {
 
 static constexpr size_t DEFAULT_SYMBOL_ARENA_CAP = 0x10000;
@@ -42,7 +43,7 @@ static constexpr size_t DEFAULT_SCOPE_ARENA_CAP = 0x10000;
 static constexpr size_t DEFAULT_CANONICAL_TYPE_ARENA_CAP = 0x10000;
 static constexpr size_t DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP = 0x10000;
 static constexpr size_t DEFAULT_ID_MAP_ARENA_CAP
-    = 0x8000; // increase if any other top level maps need to be mades
+    = 0x10000; // increase if any other top level maps need to be mades
 static constexpr size_t DEFAULT_TEMP_SCOPE_ARENA_CAP = 0x10000;
 static constexpr size_t DEFAULT_SYM_TO_FILE_ID_MAP_CAP = 0x80;
 static constexpr size_t DEFAULT_SCOPE_VEC_CAP = 0x80;
@@ -80,7 +81,8 @@ Context::Context(const bearc_args_t& args, instances instances)
       def_ast_nodes(DEFAULT_DEF_CAP), def_mention_states{DEFAULT_DEF_CAP},
       def_to_scope{id_map_arena, DEFAULT_DEF_CAP},
       def_to_scope_for_funcs{id_map_arena, DEFAULT_DEF_CAP}, ordered_def_slices{DEFAULT_DEF_CAP},
-      def_to_ordered_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT}, type_ids{DEFAULT_DEF_CAP},
+      def_to_ordered_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT},
+      def_to_static_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT}, type_ids{DEFAULT_DEF_CAP},
       types{DEFAULT_TYPE_VEC_CAP}, canonical_to_type_id(DEFAULT_CANONICAL_TYPE_VEC_CAP),
       canonical_type_table_arena{DEFAULT_CANONICAL_TYPE_ARENA_CAP},
       canonical_type_table(*this, canonical_type_table_arena, DEFAULT_CANONICAL_TT_CAP),
@@ -114,8 +116,10 @@ Context::Context(const bearc_args_t& args, instances instances)
         return;
     }
 
-    static constexpr size_t STARTING_FUNCTION_CNT_APPROX = 1024;
+    static constexpr size_t STARTING_FUNCTION_CNT_APPROX = 0x1000; // play it safe
     all_function_dids.reserve(STARTING_FUNCTION_CNT_APPROX);
+    static constexpr size_t STARTING_STRUCT_STATIC_DID_CNT = 0x1000; // ^^^
+    static_struct_member_dids.reserve(STARTING_STRUCT_STATIC_DID_CNT);
 
     const auto& root_file = maybe_root_file.value();
 
@@ -141,8 +145,32 @@ Context::Context(const bearc_args_t& args, instances instances)
     TopLevelDefVisitor def_vis{*this};
     def_vis.resolve_top_level_definitions();
     // ensure all functions are lowered
-    for (DefId did : all_function_dids) {
+    for (const DefId did : all_function_dids) {
         def_vis.visit_as_independent(did);
+    }
+
+    // ensure all static struct member dids are lowered, these are predominately generic
+    for (const DefId did : static_struct_member_dids) {
+        const auto prior_diag_cnt = diagnostic_count();
+        def_vis.visit_as_independent(did);
+        if (prior_diag_cnt < diagnostic_count()) {
+            const OptId<DefId> maybe_gen_parent = try_generic_parent_for_def(did);
+            if (maybe_gen_parent.has_value() && def(maybe_gen_parent.as_id()).holds<DefStruct>()) {
+                const Def& d = def(maybe_gen_parent.as_id());
+                force_link_diagnostic(emplace_diagnostic(
+                    d.span, diag_code::in_generic_instantiation_of_type, diag_type::note,
+                    DiagnosticTypeAfterMessage{
+                        .tid = emplace_type(TypeStruct{.def_id = maybe_gen_parent.as_id(),
+                                                       .gen_args_slice = generic_args_for_def(
+                                                           maybe_gen_parent.as_id()),
+                                                       .generic = true},
+                                            Span::generated(), false)},
+                    DiagnosticInfoNoPreview{}));
+                force_link_diagnostic(emplace_diagnostic_with_message_value(
+                    d.span, diag_code::declared_here_as_generic, diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = d.name}));
+            }
+        }
     }
 }
 
@@ -667,6 +695,22 @@ void Context::force_link_diagnostic(DiagnosticId diag) {
     diagnostics.at(DiagnosticId{prev_val}).set_next(diag);
 }
 
+void Context::try_link_custom_diagnostic(DiagnosticId diag) {
+    HirId prev_val = diag.raw() - 1;
+    if (prev_val == HIR_ID_NONE) {
+        return;
+    }
+    const DiagnosticId prev{prev_val};
+    const Diagnostic& prev_diag = diagnostics.at(prev);
+    // if the previous was a failed staic assertion or custom diagnostics, assume they were being
+    // chained so the reporting is prettier
+    if (std::holds_alternative<DiagnosticCustomComptDiag>(prev_diag.message_value)
+        || prev_diag.code == diag_code::static_assertion_failed
+        || prev_diag.code == diag_code::static_assertion_failed_colon) {
+        diagnostics.at(prev).set_next(diag);
+    }
+}
+
 Def& Context::def(DefId def_id) { return defs.at(def_id); }
 
 const Def& Context::try_func_def(DefId def_id) const { return def(try_func_did(def_id)); }
@@ -694,8 +738,23 @@ void Context::register_ordered_defs(DefId def, llvm::SmallVectorImpl<DefId>& vec
     def_to_ordered_def_slice_id.insert(def, ord_def_slice_id);
 }
 
+void Context::register_static_defs(DefId def, llvm::SmallVectorImpl<DefId>& vec) {
+    IdSlice<DefId> def_slice = freeze_id_vec(vec);
+    OrderedDefSliceId ord_def_slice_id = ordered_def_slices.emplace_and_get_id(def_slice);
+    def_to_static_def_slice_id.insert(def, ord_def_slice_id);
+}
+
 IdSlice<DefId> Context::ordered_defs_for(DefId def_id) {
     auto maybe_odef_slice_id = def_to_ordered_def_slice_id.at(def_id);
+    if (!maybe_odef_slice_id.has_value()) {
+        // empty slice
+        return IdSlice<DefId>{};
+    }
+    return ordered_def_slices.at(maybe_odef_slice_id.as_id());
+}
+
+[[nodiscard]] IdSlice<DefId> Context::static_defs_for(DefId def_id) {
+    auto maybe_odef_slice_id = def_to_static_def_slice_id.at(def_id);
     if (!maybe_odef_slice_id.has_value()) {
         // empty slice
         return IdSlice<DefId>{};
@@ -1760,7 +1819,7 @@ OptId<DefId> Context::try_def_for_type(TypeId tid) const {
     return {};
 }
 
-OptId<CanonicalGenericArgsId> Context::generic_args_for_def(DefId did) {
+OptId<CanonicalGenericArgsId> Context::generic_args_for_def(DefId did) const {
     const Def& d = def(did);
     if (d.holds<DefFunction>()) {
         return d.as<DefFunction>().maybe_generic_args;
@@ -1814,6 +1873,39 @@ Context::try_generic_params_for_def(DefId did) const {
     return {};
 }
 
+[[nodiscard]] OptId<GenericArgIdSliceId>
+Context::try_generic_args_for_def_recursive(DefId did) const {
+    const Def* curr_def = &def(did);
+    while (true) {
+        auto maybe_generic_args = generic_args_for_def(did);
+        if (maybe_generic_args.has_value()) {
+            return maybe_generic_args;
+        }
+        if (curr_def->parent.empty()) {
+            return {};
+        }
+        did = curr_def->parent.as_id();
+        curr_def = &def(did);
+    }
+    return {};
+}
+
+[[nodiscard]] OptId<DefId> Context::try_generic_parent_for_def(DefId did) const {
+    const Def* curr_def = &def(did);
+    while (true) {
+        auto maybe_generic_args = generic_args_for_def(did);
+        if (maybe_generic_args.has_value()) {
+            return did;
+        }
+        if (curr_def->parent.empty()) {
+            return {};
+        }
+        did = curr_def->parent.as_id();
+        curr_def = &def(did);
+    }
+    return {};
+}
+
 [[nodiscard]] HirSize Context::try_num_generic_params_for_def(DefId did) const {
     const ast_stmt_t* st = def_ast_node(did);
     switch (st->type) {
@@ -1850,6 +1942,10 @@ Span Context::span_for_gen_args(GenericArgIdSliceId gen_arg_slice) const {
 }
 
 void Context::record_function_def(DefId def_id) { all_function_dids.push_back(def_id); }
+
+void Context::record_static_struct_member_def(DefId def_id) {
+    static_struct_member_dids.push_back(def_id);
+}
 
 void Context::register_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id) {
     def_to_gen_args.insert(did, gen_args_id);

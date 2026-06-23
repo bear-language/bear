@@ -10,9 +10,9 @@ main quest
 - [x] look up generic functions using `TickableGenericArgs`
 - [x] handle generic routing for types (revise after finishing above)
 - [x] generic routing for generic identifiers
-- [x] handle generic routing for function (calls)
-- [x] generic routing for variant inits
-- [ ] generic routing for struct inits 
+- [x] handle generic routing for compt function (calls)
+- [x] generic routing for compt variant inits
+- [ ] generic routing for compt struct inits 
     - [ ] struct init struct name inference (will require modifying parser and `solve_struct_or_union` and `handle_struct_init` by passes in `into_tid`)
 - [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the above
 
@@ -23,7 +23,16 @@ main quest
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
 
 - [ ] `compt` improvements:
-    - [ ] add `@return_type_of` (quite useful, especially in generics that might accept a compt fn ptr)
+    - [ ] compile-time diagnostic composition
+        - [ ] `@error`, `@warn`, `@note`, `@help` expressions which either take 1 argument (a compt str) or two arguments: condition, str
+    - [ ] fn ptr reflection:
+        - [ ] `return_type_of` (quite useful, especially in generics that might accept a compt fn ptr)
+        - [ ] `type_of_arg(fn_ptr, i)`
+        - [ ] `@arity`
+    - [ ] struct member reflection 
+        - [ ] add `@members_of` -> list of strs, which can be iterated over
+        - [ ] add `foo.@member(str_val)` to compile-time reflect on members 
+    - [ ] add all those builtins to bear.nvim
     - [ ] compt closures (pure-expr only)
         - [ ] allow capturing compt variables 
     - [ ] compt slices `[&]` so we can work with any dimensional lists at compt
@@ -36,9 +45,8 @@ main quest
 
 - [ ] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
 
-- [ ] finalize internal resolution logic on `hir::TopLevelVisitor` using all the lowering logic for every possible `ast_stmt_t`
-
-- [ ] generic argument deduction guides for struct inits, variant inits, and struct inits
+- [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
+    - [ ] use positional type inference for each decayed argument
 
 #### hir phase 2.b (function body resolution):
 - [ ] make sure assignment type checking is properly rigid especially around mutable references.

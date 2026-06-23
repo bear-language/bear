@@ -352,8 +352,14 @@ class Context {
     /// record ordered definitions to be frozen as an IdSlice<DefId> corresponding to a DefId
     /// (particularly requiring ordered members, like a struct)
     void register_ordered_defs(DefId def, llvm::SmallVectorImpl<DefId>& vec);
-    /// gets the ordered def for a structure's def
+    /// record static definitions to be frozen as an IdSlice<DefId> corresponding to a DefId
+    /// (particularly requiring ordered members, like a struct)
+    void register_static_defs(DefId def, llvm::SmallVectorImpl<DefId>& vec);
+
+    /// gets the ordered def for a structure's DefId
     [[nodiscard]] IdSlice<DefId> ordered_defs_for(DefId def);
+    /// gets the static defs for a structure's DefId
+    [[nodiscard]] IdSlice<DefId> static_defs_for(DefId def);
     /// indicates resolution state of a definition
     [[nodiscard]] Def::resol_state resol_state_of(DefId def) const;
     void set_resol_state_of(DefId def, Def::resol_state resol_state);
@@ -382,6 +388,8 @@ class Context {
     // only use when this diagnostic is known to follow another diagnostic but the previous
     // diagnostic's id is unavailable
     void force_link_diagnostic(DiagnosticId diag);
+    // try to chain custom diagnostics in a pretty way (link them only with each other)
+    void try_link_custom_diagnostic(DiagnosticId diag);
     void print_diagnostic(DiagnosticId diag, bool print_file = true);
     // type emplacer
     /// emplaces and gets the id from a new CanonicalTypeId c
@@ -605,7 +613,7 @@ class Context {
 
     [[nodiscard]] OptId<DefId> try_def_for_type(TypeId tid) const;
 
-    [[nodiscard]] OptId<CanonicalGenericArgsId> generic_args_for_def(DefId did);
+    [[nodiscard]] OptId<CanonicalGenericArgsId> generic_args_for_def(DefId did) const;
 
     [[nodiscard]] CanonicalGenericArgsIdMapId make_generic_args_map_and_get_id();
 
@@ -667,6 +675,8 @@ class Context {
 
     /// adds a function to the vector acting as a list of all functions
     void record_function_def(DefId def_id);
+
+    void record_static_struct_member_def(DefId def_id);
 
     void register_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id);
 
@@ -738,6 +748,7 @@ class Context {
 
     // for tracking all functions (which are rather important)
     std::vector<DefId> all_function_dids;
+    std::vector<DefId> static_struct_member_dids;
 
     // ~~~~~~~~~~~~~~~~~~~~~ scopes ~~~~~~~~~~~~~~~~~~~~~~~
     DataArena scope_arena;
@@ -775,6 +786,9 @@ class Context {
     IdVecMap<OrderedDefSliceId, IdSlice<DefId>> ordered_def_slices;
     // for accessing ordered def slices corresponding to a given DefId
     IdHashMap<DefId, OrderedDefSliceId> def_to_ordered_def_slice_id;
+
+    // for accessing static def slices corresponding to a given DefId (namely structs)
+    IdHashMap<DefId, OrderedDefSliceId> def_to_static_def_slice_id;
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // types ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1042,6 +1056,10 @@ class Context {
 
     [[nodiscard]] std::optional<IdSlice<GenericParamId>>
     try_generic_params_for_def(DefId did) const;
+
+    [[nodiscard]] OptId<GenericArgIdSliceId> try_generic_args_for_def_recursive(DefId did) const;
+
+    [[nodiscard]] OptId<DefId> try_generic_parent_for_def(DefId did) const;
 
     /// returns 0 on none, else returns the number of generic params
     [[nodiscard]] HirSize try_num_generic_params_for_def(DefId did) const;

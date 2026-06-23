@@ -673,6 +673,33 @@ void pretty_print_expr(const ast_expr_t* expression) {
         print_closing_green_brace();
 
     } break;
+    case AST_EXPR_DIAGNOSTIC:
+        print_title("diagnostic expr");
+        token_type_e t = TOK_ERR;
+        switch (expr.expr.diagnostic.diag_type) {
+        case DIAG_TYPE_ERROR:
+            t = TOK_ERR;
+            break;
+        case DIAG_TYPE_NOTE:
+            t = TOK_NOTE;
+            break;
+        case DIAG_TYPE_WARNING:
+            t = TOK_WARN;
+            break;
+        case DIAG_TYPE_HELP:
+            t = TOK_HELP;
+            break;
+        }
+        print_delineator_from_type(t);
+        print_opening_delim_from_type(TOK_LPAREN);
+        pretty_print_expr(expr.expr.diagnostic.first_expr);
+        if (expr.expr.diagnostic.maybe_second_expr) {
+            pretty_print_expr(expr.expr.diagnostic.maybe_second_expr);
+        }
+        print_closing_delim_from_type(TOK_LPAREN);
+        print_closing_green_brace();
+
+        break;
     }
     puts(",");
     printer_deindent();

@@ -19,6 +19,7 @@
 #include "compiler/token.h"
 #include "llvm/ADT/SmallVector.h"
 #include <cstdint>
+#include <iostream>
 #include <variant>
 
 namespace hir {
@@ -36,10 +37,10 @@ void FileAstVisitor::register_top_level_declarations() {
                                           .vis_state = gen_visit_state::outside_generic});
 }
 
-OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt,
-                                                     OptId<DefId> parent, abi_lang abi,
-                                                     GenericState gen_state,
-                                                     bool force_return_did) {
+FileAstVisitor::RegisteredDefResult
+FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, OptId<DefId> parent,
+                                        abi_lang abi, GenericState gen_state,
+                                        bool force_return_did) {
     // get first and last token before adjustments so we get the true full span
     const token_t* first_tkn = stmt->first;
     const token_t* last_tkn = stmt->last;
@@ -183,7 +184,7 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
         register_top_level_stmts(mod_scope, stmt->stmt.module.decls, mod_def, abi,
                                  gen_state); // pass in this module def as parent
 
-        return OptId<DefId>{};
+        return {};
     }
     // handle extern block
     if (stmt->type == AST_STMT_EXTERN_BLOCK) {
@@ -209,7 +210,7 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
             enum abi_lang abi = maybe_abi.value();
             register_top_level_stmts(scope, stmt->stmt.extern_block.decls, parent, abi, gen_state);
         }
-        return OptId<DefId>{};
+        return {};
     }
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -221,7 +222,7 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
 
     // if this wasn't named definition, then RETURN so we don't try to make a new hir::Def
     if (name_tkn == nullptr) {
-        return OptId<DefId>{};
+        return {};
     }
 
     // if we're already instantiating and inside a generic, we don't want to be instatiating anymore
@@ -315,7 +316,7 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
                 = context.emplace_diagnostic(Span(orig_file, context.ast(orig_file).buffer(), t),
                                              diag_code::previous_def_here, diag_type::note);
             context.link_diagnostic(d1, d2);
-            return OptId<DefId>{};
+            return {};
         }
     }
 
@@ -382,17 +383,23 @@ OptId<DefId> FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_st
     }
     // return the DefId since this is an orderable definition
     if (info.is_orderable_var && !statik && !compt) {
-        return did;
+        return RegisteredDefResult{.maybe_did = did};
     }
-    // always order contract fields
-    if (parent.has_value() && context.def_ast_node(parent.as_id())->type == AST_STMT_CONTRACT_DEF) {
-        return did;
+    if (parent.has_value()) {
+        const auto parent_node_type = context.def_ast_node(parent.as_id())->type;
+        // always order contract fields
+        if (parent_node_type == AST_STMT_CONTRACT_DEF) {
+            return RegisteredDefResult{.maybe_did = did};
+        }
+        // always return non-orderable defs as "static" sub-defs of structs
+        if (parent_node_type == AST_STMT_STRUCT_DEF) {
+            return RegisteredDefResult{.maybe_did = did, .statik = true};
+        }
     }
     if (force_return_did) {
-        return did;
+        return RegisteredDefResult{.maybe_did = did};
     }
-
-    return OptId<DefId>{};
+    return {};
 }
 
 void FileAstVisitor::register_top_level_stmts(ScopeId scope, ast_slice_of_stmts_t stmts,
@@ -405,44 +412,56 @@ void FileAstVisitor::register_top_level_stmts(ScopeId scope, ast_slice_of_stmts_
 void FileAstVisitor::register_top_level_stmts_registering_ordered_members(
     DefId parent_def, ScopeId scope, ast_slice_of_stmts_t stmts, OptId<DefId> parent, abi_lang abi,
     GenericState gen_state) {
-    llvm::SmallVector<DefId> def_vec{};
+    llvm::SmallVector<DefId> ordered_def_vec{};
+    llvm::SmallVector<DefId> static_def_vec{};
     for (size_t i = 0; i < stmts.len; i++) {
-        OptId<DefId> maybe_def
+        const auto res
             = register_top_level_stmt(scope, stmts.start[i], parent, abi, gen_state, false);
-        if (maybe_def.has_value()) {
-            context.def(maybe_def.as_id()).member_idx = def_vec.size(); // set member_idx
-            def_vec.emplace_back(maybe_def.as_id());
+        if (res.maybe_did.has_value()) {
+            if (res.statik) {
+                // sets static sub-defs
+                static_def_vec.push_back(res.maybe_did.as_id());
+            } else {
+                // set ordered defs for things like unions, structs, and variants
+                context.def(res.maybe_did.as_id()).member_idx
+                    = ordered_def_vec.size(); // set member_idx
+                ordered_def_vec.push_back(res.maybe_did.as_id());
+            }
         }
     }
 
     // handle no members
-    if (def_vec.empty() && !gen_state.not_instantiating_but_in_generic()) {
+    if (ordered_def_vec.empty() && !gen_state.not_instantiating_but_in_generic()) {
         const ast_stmt_t* st = context.def_ast_node(parent_def);
         const ast_stmt_type_e statement_type = st->type;
-        const Span span{file, context.ast(file).buffer(), top_level_info_for(st).name_tkn};
-        diag_code code = diag_code::empty_variant;
         switch (statement_type) {
         case AST_STMT_STRUCT_DEF:
-            // fine, just return
-            return;
+            break;
         case AST_STMT_UNION_DEF:
-            code = diag_code::empty_union;
+            context.emplace_diagnostic(Span{context, file, top_level_info_for(st).name_tkn},
+                                       diag_code::empty_union, diag_type::error);
+
             break;
         case AST_STMT_VARIANT_DEF:
-            code = diag_code::empty_variant;
+            context.emplace_diagnostic(Span{context, file, top_level_info_for(st).name_tkn},
+                                       diag_code::empty_variant, diag_type::error);
             break;
         case AST_STMT_CONTRACT_DEF:
             // this is actually expected to be empty since it's just method decls
-            return; // we're done here
+            break; // we're done here
         default:
             pretty_print_stmt(st);
             assert(false && "tried to register ordered defs for an invalid type");
             break;
         }
-        context.emplace_diagnostic(span, code, diag_type::error);
     } else {
         // register the defs
-        context.register_ordered_defs(parent_def, def_vec);
+        context.register_ordered_defs(parent_def, ordered_def_vec);
+    }
+    // try register static defs
+    if (!static_def_vec.empty()) {
+        std::cout << "REGISTERED STATIC DEFS\n"; // TODO debug
+        context.register_static_defs(parent_def, static_def_vec);
     }
 }
 TopLevelInfo FileAstVisitor::top_level_info_for(const ast_stmt_t* stmt) {
@@ -592,7 +611,8 @@ std::optional<abi_lang> abi_for_extern_stmt(const ast_stmt_t* stmt) {
     return register_top_level_stmt(scope, stmt, parent, abi_lang::bear,
                                    GenericState{.inst_state = gen_instatiation_state::instantiating,
                                                 .vis_state = gen_visit_state::outside_generic},
-                                   true);
+                                   true)
+        .maybe_did;
 }
 
 } // namespace hir

@@ -9,6 +9,7 @@
 #ifndef AST_EXPRESSIONS_H
 #define AST_EXPRESSIONS_H
 #include "compiler/ast/stmt_slice.h"
+#include "compiler/diagnostics/error_codes.h"
 #include "compiler/token.h"
 #include "params.h"
 #ifdef __cplusplus
@@ -49,6 +50,7 @@ typedef enum ast_expr_type {
     AST_EXPR_DEFINED,
     AST_EXPR_HAS_CONTRACT,
     AST_EXPR_INFERABLE_AS,
+    AST_EXPR_DIAGNOSTIC,
 
     // structs
     AST_EXPR_STRUCT_INIT,
@@ -245,6 +247,12 @@ typedef struct ast_expr_generic_id {
     ast_slice_of_generic_args_t args;
 } ast_expr_generic_id_t;
 
+typedef struct ast_expr_diagnostic {
+    ast_expr_t* first_expr;
+    ast_expr_t* maybe_second_expr;
+    error_diag_type_e diag_type;
+} ast_expr_diagnostic_t;
+
 // ^^^^^^^^^^^^^^^^^^^^^^^^
 
 typedef union ast_expr_u {
@@ -274,6 +282,7 @@ typedef union ast_expr_u {
     ast_expr_two_types_t same_type;
     ast_expr_defined_t defined;
     ast_expr_has_contract_t has_contract;
+    ast_expr_diagnostic_t diagnostic;
 } ast_expr_u;
 
 /// underlying expr is 0-offset aligned so this struct can be safely downcasted

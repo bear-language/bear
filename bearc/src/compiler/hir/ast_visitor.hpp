@@ -52,9 +52,13 @@ struct GenericState {
 class FileAstVisitor {
     Context& context;
     FileId file;
-    OptId<DefId> register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, OptId<DefId> parent,
-                                         abi_lang abi, GenericState gen_state,
-                                         bool force_return_did);
+    struct RegisteredDefResult {
+        OptId<DefId> maybe_did{};
+        bool statik = false;
+    };
+    RegisteredDefResult register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt,
+                                                OptId<DefId> parent, abi_lang abi,
+                                                GenericState gen_state, bool force_return_did);
     void register_top_level_stmts(ScopeId scope, ast_slice_of_stmts_t stmts, OptId<DefId> parent,
                                   abi_lang abi, GenericState gen_state);
     void register_top_level_stmts_registering_ordered_members(DefId parent_def, ScopeId scope,

@@ -174,6 +174,11 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
         return parse_expr_type_to_str(p);
     case TOK_DEFINED:
         return parse_expr_defined(p);
+    case TOK_ERR:
+    case TOK_WARN:
+    case TOK_NOTE:
+    case TOK_HELP:
+        return parse_expr_diagnostic(p);
     default:
         break;
     }
@@ -347,6 +352,56 @@ ast_expr_t* parse_expr_static_assert(parser_t* p) {
     }
 
     ex->first = stass_tkn;
+    ex->last = parser_prev(p);
+    return ex;
+}
+
+ast_expr_t* parse_expr_diagnostic(parser_t* p) {
+    ast_expr_t* ex = parser_alloc_expr(p);
+
+    ex->type = AST_EXPR_DIAGNOSTIC;
+
+    token_t* tkn = parser_eat(p); // fine since we knew to call this function
+
+    if (!tkn) {
+        return parser_sync_expr(p);
+    }
+
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
+
+    ex->expr.diagnostic.first_expr = parse_expr(p);
+
+    ex->expr.diagnostic.maybe_second_expr = NULL;
+
+    if (parser_match_token(p, TOK_COMMA)) {
+        ex->expr.diagnostic.maybe_second_expr = parse_expr(p);
+    }
+
+    if (lparen) {
+        parser_expect_token(p, TOK_RPAREN);
+    }
+
+    error_diag_type_e ty = DIAG_TYPE_ERROR;
+    switch (tkn->type) {
+    case TOK_ERR:
+        ty = DIAG_TYPE_ERROR;
+        break;
+    case TOK_WARN:
+        ty = DIAG_TYPE_WARNING;
+        break;
+    case TOK_NOTE:
+        ty = DIAG_TYPE_NOTE;
+        break;
+    case TOK_HELP:
+        ty = DIAG_TYPE_HELP;
+        break;
+    default:
+        break;
+    }
+
+    ex->expr.diagnostic.diag_type = ty;
+
+    ex->first = tkn;
     ex->last = parser_prev(p);
     return ex;
 }

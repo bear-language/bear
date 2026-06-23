@@ -362,6 +362,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "declared here as generic";
     case diag_code::static_assertion_failed_colon:
         return "static assertion failed:";
+    case diag_code::in_generic_instantiation_of_type:
+        return "in generic instantiation of type";
     }
 
     std::unreachable();
@@ -472,7 +474,7 @@ void Diagnostic::print_info_value(Context& context, HirSize min_width,
                       << ansi_reset() << '\n';
         },
         [](DiagnosticInfoNoPreview) {},
-        [](DiagnosticInfoDontDisplayFile) { std::cout << '\n'; },
+        [](DiagnosticDontDisplayFile) { std::cout << '\n'; },
     };
     this->visit(vs);
     if (!holds<DiagnosticNoOtherInfo>() && !context.compact_diagnostics_enabled()) {
@@ -493,8 +495,8 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
     const char* message
         = has_complex_message() ? complex_message_str.c_str() : message_for_code(code);
     print_file = print_file && !this->holds<DiagnosticInfoNoPreview>()
-                 && !this->holds<DiagnosticInfoDontDisplayFile>(); // no preview means file location
-                                                                   // is irrelvant
+                 && !this->holds<DiagnosticDontDisplayFile>(); // no preview means file location
+                                                               // is irrelvant
     if (context.compact_diagnostics_enabled()) {
         if (print_file) {
             printf("%s%s:%u:%u: ", ansi_bold_reset(), file_name, adjusted_line, adjusted_col);
@@ -702,7 +704,7 @@ bool Diagnostic::has_complex_message() const {
 }
 
 void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
-    str.reserve(64); // decent size
+    str.reserve(128); // decent size
 
     auto type_helper_color = [&ctx, &str](TypeId tid, const char* color) {
         if (contains_deftype(ctx, tid)) {
@@ -790,6 +792,11 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        str += ctx.symbol_id_to_cstr(d.sid);
                        str += ansi_bold_reset();
                        str += '`';
+                   },
+                   [&](DiagnosticCustomComptDiag d) {
+                       str += message_for_code(code);
+                       str += ansi_bold_reset();
+                       str += ctx.symbol_id_to_cstr(d.sid);
                    },
                    [&](DiagnosticSymbolBeforeMessage d) {
                        str += '`';

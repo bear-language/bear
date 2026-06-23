@@ -173,6 +173,7 @@ enum class diag_code : uint8_t {
     gen_arg_expected_a_type_not_a_value_expression,
     generic_argument_expected_value_of_type,
     in_generic_instantiated_here,
+    in_generic_instantiation_of_type,
     raw_use_of_generic_type,
     no_generic_args_provided_for,
     use_of_undefined_type,
@@ -305,6 +306,10 @@ struct DiagnosticSymbolBeforeAndAfterMessage {
     SymbolId after_sid;
 };
 
+struct DiagnosticCustomComptDiag {
+    SymbolId sid;
+};
+
 using DiagnosticMessageValue = std::variant<
     DiagnosticNoOtherInfo, DiagnosticIdentifierAfterMessage, DiagnosticSymbolAfterMessage,
     DiagnosticSymbolAfterMessageNoQuotes, DiagnosticIdentifierBeforeMessage,
@@ -316,7 +321,7 @@ using DiagnosticMessageValue = std::variant<
     DiagnosticContractFnExpectedRetTyButGot, DiagnosticVariantInitExpectedButGotNumArgs,
     DiagnosticSymbolBeforeAndAfterMessage, DiagnosticTypeBeforeMessage,
     DiagnosticGenArgsExpectedButGotNumArgs, DiagnosticTyperBeforeMessageAndSymbolAfter,
-    DiagnosticTyButGot>;
+    DiagnosticTyButGot, DiagnosticCustomComptDiag>;
 
 struct DiagnosticImportStack {
     IdSlice<FileId> files;
@@ -324,7 +329,7 @@ struct DiagnosticImportStack {
 
 struct DiagnosticInfoNoPreview {};
 
-struct DiagnosticInfoDontDisplayFile {};
+struct DiagnosticDontDisplayFile {};
 
 struct DiagnosticSubCode {
     diag_code sub_code;
@@ -332,7 +337,7 @@ struct DiagnosticSubCode {
 
 using DiagnosticInfoValue
     = std::variant<DiagnosticNoOtherInfo, DiagnosticImportStack, DiagnosticTypeToType,
-                   DiagnosticSubCode, DiagnosticInfoNoPreview, DiagnosticInfoDontDisplayFile>;
+                   DiagnosticSubCode, DiagnosticInfoNoPreview, DiagnosticDontDisplayFile>;
 
 struct Diagnostic : NodeWithVariantValue<Diagnostic> {
 
