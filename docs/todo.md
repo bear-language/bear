@@ -23,8 +23,6 @@ main quest
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
 
 - [ ] `compt` improvements:
-    - [ ] compile-time diagnostic composition
-        - [ ] `@error`, `@warn`, `@note`, `@help` expressions which either take 1 argument (a compt str) or two arguments: condition, str
     - [ ] fn ptr reflection:
         - [ ] `return_type_of` (quite useful, especially in generics that might accept a compt fn ptr)
         - [ ] `type_of_arg(fn_ptr, i)`

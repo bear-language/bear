@@ -28,7 +28,6 @@
 #include "compiler/token.h"
 #include "def_visitor.hpp"
 #include <cassert>
-#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {

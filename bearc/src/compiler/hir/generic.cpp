@@ -112,7 +112,7 @@ void CanonicalComptArgsTable::insert(GenericArgIdSliceId id, CanonicalGenericArg
 
 CanonicalComptArgsTable::CanonicalComptArgsTable(Context& context, DataArena& arena,
                                                  HirSize capacity)
-    : context{context}, arena{arena}, capacity{capacity} {
+    : context{context}, arena{arena}, count{}, capacity{capacity} {
     this->capacity = (capacity > DEFAULT_CAP) ? capacity : DEFAULT_CAP;
     buckets = arena.alloc_as<Entry**>(this->capacity * sizeof(Entry*));
 

@@ -88,9 +88,9 @@ class CanonicalComptArgsTable {
     Context& context;
     DataArena& arena;
 
-    Entry** buckets;
-    size_t count;
-    size_t capacity;
+    Entry** buckets{};
+    size_t count{};
+    size_t capacity{};
 
     void rehash(size_t new_capacity);
     bool same_structure(GenericArgIdSliceId gid1, GenericArgIdSliceId gid2) const;
