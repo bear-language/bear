@@ -6,19 +6,28 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
  
-- [x] fix `tests/hir/92.br` not detecting circularity
 - [x] look up generic functions using `TickableGenericArgs`
 - [x] handle generic routing for types (revise after finishing above)
 - [x] generic routing for generic identifiers
 - [x] handle generic routing for compt function (calls)
 - [x] generic routing for compt variant inits
+- [ ] add diagnostic exprs to bear.nvim
 - [ ] generic routing for compt struct inits 
     - [ ] struct init struct name inference (will require modifying parser and `solve_struct_or_union` and `handle_struct_init` by passes in `into_tid`)
 - [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the above
 
+- [ ] contract improvements
+    - [ ] move contract look-up off of the (look up symbol then check if DefIds are equal) and instead:
+    - [ ] have a double hash-table look-up that allows DefId (of struct) -> hash-table or set of DefIds of contracts for it 
+    - [ ] maintain functionality for `struct_has_contract` and `type_has_contract` -> ensure tests pass
+    - [ ] make contracts be able to take generic params (adjust parser and `DefContract`, also add `DefGenericContract`)
+    - [ ] allow `has` clauses to contain generic id_slices for generic contract look-up so contract mentions can have gen args 
+    - [ ] adjust generic instantiation logic and look-up logic to account for generic contracts (easy to mess up, write tests)
+
 - [ ] clean up `use` semantics
     - [ ] warn/error on `use` when used def is generic and also has some parent that is generic 
     - [ ] allow `use` for just free functions
+    - [ ] clamp down on problematic nesting of definitions (primarily for structs)
 
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
 
