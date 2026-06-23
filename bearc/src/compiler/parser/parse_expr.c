@@ -318,9 +318,11 @@ ast_expr_t* parse_expr_type_to_str(parser_t* p) {
         return parser_sync_expr(p);
     }
 
-    parser_expect_token(p, TOK_LPAREN);
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
     ex->expr.type_to_str.type = parse_type(p);
-    parser_expect_token(p, TOK_RPAREN);
+    if (lparen) {
+        parser_expect_token(p, TOK_RPAREN);
+    }
 
     ex->first = tts_tkn;
     ex->last = parser_prev(p);

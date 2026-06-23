@@ -57,9 +57,12 @@
             - YieldStatement: `yield` Expression
     - Reflection:
         - `@same_type` `(` Type `,` Type `)` 
-        - `@type_to_str` `(` Type `)` 
-        - `@static_assert` `(` Expression `)` 
-        - `@defined` `(` Identifier | MemberAccess(es)... `)`
+        - `@type_to_str` `(` Type `)` , parentheses may be elided
+        - `@static_assert` `(` Expression \[, Expression]? `)`, parentheses may be elided 
+        - `@defined` `(` Identifier | MemberAccess(es)... `)`, parentheses may be elided
+        - `@has_contract` `(` Identifier, Identifer `)`
+        - `@inferable_as` `(` Type, Type `)`
+        - `@err` | `@warn` | `@note` | `@help` `(` Expression \[`,` Expression]? `)`, parentheses may be elided
 
 #### Statements
 - *File*: TopLevelStatement(s)
