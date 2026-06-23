@@ -15,6 +15,7 @@ main quest
 - [ ] generic routing for compt struct inits 
     - [ ] struct init struct name inference (will require modifying parser and `solve_struct_or_union` and `handle_struct_init` by passes in `into_tid`)
 - [ ] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the above
+- [ ] allow type inference for compt variables, ensure that type is set to the deduced type, not the type containing var
 
 - [ ] contract improvements
     - [ ] move contract look-up off of the (look up symbol then check if DefIds are equal) and instead:
