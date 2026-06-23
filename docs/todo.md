@@ -6,16 +6,6 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
  
-- [x] look up generic functions using `TickableGenericArgs`
-- [x] handle generic routing for types (revise after finishing above)
-- [x] generic routing for generic identifiers
-- [x] handle generic routing for compt function (calls)
-- [x] generic routing for compt variant inits
-- [x] generic routing for compt struct inits 
-    - [x] struct init struct name inference (will require modifying parser and `solve_struct_or_union` and `handle_struct_init` by passes in `into_tid`)
-- [x] check up on "failing" (really just out of date) 84.br-88.br test cases, will probably benefit from finishing the above
-- [x] allow type inference for compt variables, ensure that type is set to the deduced type, not the type containing var
-
 - [ ] contract improvements
     - [ ] move contract look-up off of the (look up symbol then check if DefIds are equal) and instead:
     - [ ] have a double hash-table look-up that allows DefId (of struct) -> hash-table or set of DefIds of contracts for it 
