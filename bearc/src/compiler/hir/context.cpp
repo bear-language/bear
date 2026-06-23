@@ -38,10 +38,11 @@
 #include <variant>
 namespace hir {
 
-static constexpr size_t DEFAULT_SYMBOL_ARENA_CAP = 0x10000;
-static constexpr size_t DEFAULT_SCOPE_ARENA_CAP = 0x10000;
-static constexpr size_t DEFAULT_CANONICAL_TYPE_ARENA_CAP = 0x10000;
-static constexpr size_t DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP = 0x10000;
+static constexpr size_t DEFAULT_ARENA_CAP = 0x10000;
+static constexpr size_t DEFAULT_SYMBOL_ARENA_CAP = DEFAULT_ARENA_CAP;
+static constexpr size_t DEFAULT_SCOPE_ARENA_CAP = DEFAULT_ARENA_CAP;
+static constexpr size_t DEFAULT_CANONICAL_TYPE_ARENA_CAP = DEFAULT_ARENA_CAP;
+static constexpr size_t DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP = DEFAULT_ARENA_CAP;
 static constexpr size_t DEFAULT_ID_MAP_ARENA_CAP
     = 0x10000; // increase if any other top level maps need to be mades
 static constexpr size_t DEFAULT_TEMP_SCOPE_ARENA_CAP = 0x10000;
@@ -82,8 +83,12 @@ Context::Context(const bearc_args_t& args, instances instances)
       def_to_scope{id_map_arena, DEFAULT_DEF_CAP},
       def_to_scope_for_funcs{id_map_arena, DEFAULT_DEF_CAP}, ordered_def_slices{DEFAULT_DEF_CAP},
       def_to_ordered_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT},
-      def_to_static_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT}, type_ids{DEFAULT_DEF_CAP},
-      types{DEFAULT_TYPE_VEC_CAP}, canonical_to_type_id(DEFAULT_CANONICAL_TYPE_VEC_CAP),
+      def_to_static_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT},
+      struct_did_to_contract_set_id_arena{DEFAULT_ARENA_CAP},
+      struct_did_to_contract_set_id(struct_did_to_contract_set_id_arena, DEFAULT_DEF_CAP),
+      contract_set_arena{DEFAULT_ARENA_CAP}, contract_sets{DEFAULT_DEF_CAP},
+      type_ids{DEFAULT_DEF_CAP}, types{DEFAULT_TYPE_VEC_CAP},
+      canonical_to_type_id(DEFAULT_CANONICAL_TYPE_VEC_CAP),
       canonical_type_table_arena{DEFAULT_CANONICAL_TYPE_ARENA_CAP},
       canonical_type_table(*this, canonical_type_table_arena, DEFAULT_CANONICAL_TT_CAP),
       generic_arg_ids{DEFAULT_GENERIC_ARG_VEC_CAP}, generic_args{DEFAULT_GENERIC_ARG_VEC_CAP},
@@ -1745,12 +1750,11 @@ bool Context::struct_has_contract(DefId struct_did, DefId contract_did) {
     if (!struct_def.holds<DefStruct>() || !contract_def.holds<DefContract>()) {
         return false;
     }
-    const SymbolId contract_sid = contract_def.name;
-    auto maybe_corresponding_contract_did
-        = Scope::look_up_local_type(*this, struct_def.as<DefStruct>().scope, contract_sid);
 
-    return maybe_corresponding_contract_did.has_value()
-           && contract_did == maybe_corresponding_contract_did.as_id();
+    if (struct_did_to_contract_set_id.at(struct_did).has_value()) {
+        return contract_set_for_struct_did(struct_did).contains(contract_did);
+    }
+    return false;
 }
 
 bool Context::type_has_contract(TypeId tid, DefId contract_did) {
@@ -1760,6 +1764,18 @@ bool Context::type_has_contract(TypeId tid, DefId contract_did) {
         return false;
     }
     return struct_has_contract(ty.as<TypeStruct>().def_id, contract_did);
+}
+
+IdSet<DefId>& Context::contract_set_for_struct_did(DefId struct_did) {
+    const auto maybe_set_id = struct_did_to_contract_set_id.at(struct_did);
+    // one doesn't already exist, so make one
+    if (maybe_set_id.empty()) {
+        const auto set_id
+            = contract_sets.emplace_and_get_id(contract_set_arena, 32); // decent capacity
+        struct_did_to_contract_set_id.insert(struct_did, set_id);
+        return contract_sets.at(set_id);
+    }
+    return contract_sets.at(maybe_set_id.as_id());
 }
 
 bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) const {

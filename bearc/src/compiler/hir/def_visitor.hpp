@@ -52,6 +52,9 @@ class TopLevelDefVisitor {
     resolve_generic_param(FileId fid, ScopeId scope, const ast_generic_parameter_t* gen_param);
     [[nodiscard]] IdSlice<DefId>
     resolve_contracts_for_generic_param(FileId fid, ScopeId scope, ast_slice_of_exprs_t contracts);
+    [[nodiscard]] IdSlice<DefId>
+    supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId did,
+                                        ast_slice_of_exprs_t contracts);
 
   public:
     TopLevelDefVisitor(Context& context) : context{context}, began_resolution{false} {}

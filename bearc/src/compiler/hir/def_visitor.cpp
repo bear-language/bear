@@ -263,59 +263,8 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             context.record_static_struct_member_def(context.def_id(didx));
         }
 
-        llvm::SmallVector<DefId> contract_dids{};
-        DiagLinker dlinker{context};
-        for (HirSize i = 0; i < strct.contracts.len; i++) {
-            const ast_expr_t* contract = strct.contracts.start[i];
-            if (contract->type != AST_EXPR_ID) {
-                continue;
-            }
-            Span ctr_span{context, context.def(did).span.file_id, contract->expr.id.slice};
-            auto maybe_contract_did = context.look_up_scoped_type(
-                scope, context.symbol_slice(contract->expr.id.slice), ctr_span);
-            if (maybe_contract_did.empty()) {
-                auto d = context.emplace_diagnostic(
-                    ctr_span, diag_code::use_of_undeclared_identifier, diag_type::error,
-                    DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
-                dlinker.link(d);
-                continue;
-            }
-            auto contract_did = visit_and_resolve_if_needed(maybe_contract_did.as_id());
-            const Def& contract_def = context.def(contract_did);
-
-            if (!contract_def.holds<DefContract>()) {
-                auto d = context.emplace_diagnostic(
-                    ctr_span, diag_code::invalid_contract, diag_type::error,
-                    DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
-                dlinker.link(d);
-                auto d1 = context.emplace_diagnostic(context.def(did).span,
-                                                     diag_code::declared_here, diag_type::note);
-                dlinker.link(d1);
-                continue;
-            }
-            // try to insert contract into struct's scope
-            auto already_defined
-                = Scope::look_up_local_type(context, structs_scope, contract_def.name);
-            if (already_defined.has_value()) {
-                // do diagnostics for the redefinition
-                if (context.def(already_defined.as_id()).holds<DefContract>()) {
-                    dlinker.link(context.emplace_diagnostic_with_message_value(
-                        ctr_span, diag_code::struct_already_has_contract, diag_type::error,
-                        DiagnosticSymbolAfterMessage{contract_def.name}));
-                } else {
-                    dlinker.link(context.emplace_diagnostic(ctr_span, diag_code::redefined_symbol,
-                                                            diag_type::error));
-                    dlinker.link(context.emplace_diagnostic(
-                        context.name_span_for_def(already_defined.as_id()),
-                        diag_code::previous_def_here, diag_type::note));
-                }
-                continue;
-            }
-            context.insert_type(structs_scope, contract_def.name, contract_did);
-            contract_dids.push_back(contract_did);
-        }
-
-        auto contracts = context.freeze_id_vec(contract_dids);
+        const IdSlice<DefId> contracts
+            = supply_and_get_contracts_for_struct(scope, did, strct.contracts);
 
         context.def(did).set_value(DefStruct{
             .scope = structs_scope,
@@ -1037,6 +986,59 @@ TopLevelDefVisitor::resolve_contracts_for_generic_param(FileId fid, ScopeId scop
         contract_vec.push_back(maybe_did.as_id());
     }
     return context.freeze_id_vec(contract_vec);
+}
+
+[[nodiscard]] IdSlice<DefId>
+TopLevelDefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId did,
+                                                        ast_slice_of_exprs_t contracts) {
+    if (contracts.len == 0) {
+        return {};
+    }
+    llvm::SmallVector<DefId> contract_dids{};
+    DiagLinker dlinker{context};
+    for (HirSize i = 0; i < contracts.len; i++) {
+        const ast_expr_t* contract = contracts.start[i];
+        if (contract->type != AST_EXPR_ID) {
+            continue;
+        }
+        Span ctr_span{context, context.def(did).span.file_id, contract->expr.id.slice};
+        auto maybe_contract_did = context.look_up_scoped_type(
+            containing_scope, context.symbol_slice(contract->expr.id.slice), ctr_span);
+        if (maybe_contract_did.empty()) {
+            auto d = context.emplace_diagnostic(
+                ctr_span, diag_code::use_of_undeclared_identifier, diag_type::error,
+                DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
+            dlinker.link(d);
+            continue;
+        }
+        auto contract_did = visit_and_resolve_if_needed(maybe_contract_did.as_id());
+        const Def& contract_def = context.def(contract_did);
+
+        if (!contract_def.holds<DefContract>()) {
+            auto d = context.emplace_diagnostic(
+                ctr_span, diag_code::invalid_contract, diag_type::error,
+                DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
+            dlinker.link(d);
+            auto d1 = context.emplace_diagnostic(context.def(did).span, diag_code::declared_here,
+                                                 diag_type::note);
+            dlinker.link(d1);
+            continue;
+        }
+        // try to insert contract into struct's scope
+        auto& contract_set = context.contract_set_for_struct_did(did);
+        bool already_defined = contract_set.contains(contract_did);
+        if (already_defined) {
+            // do diagnostics for the redefinition
+            dlinker.link(context.emplace_diagnostic_with_message_value(
+                ctr_span, diag_code::struct_already_has_contract, diag_type::error,
+                DiagnosticSymbolAfterMessage{contract_def.name}));
+            continue;
+        }
+        contract_set.insert(contract_did);
+        contract_dids.push_back(contract_did);
+    }
+
+    return context.freeze_id_vec(contract_dids);
 }
 
 DefId InsideBodyDefVisitor::visit_as_dependent(DefId def) {

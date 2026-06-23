@@ -6,6 +6,9 @@
 // Copyright (C) 2025-2026 Zachary Mahan
 // Licensed under the GNU GPL v3. See LICENSE for details.
 
+#ifndef COMPILER_HIR_ID_SET_HPP
+#define COMPILER_HIR_ID_SET_HPP
+
 #include "compiler/hir/id_hash_map.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "utils/data_arena.hpp"
@@ -42,3 +45,5 @@ template <IsId T> class IdSet {
 };
 
 } // namespace hir
+
+#endif // !COMPILER_HIR_ID_SET_HPP

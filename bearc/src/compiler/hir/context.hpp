@@ -20,6 +20,7 @@
 #include "compiler/hir/file.hpp"
 #include "compiler/hir/generic.hpp"
 #include "compiler/hir/id_hash_map.hpp"
+#include "compiler/hir/id_set.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/node_vector.hpp"
 #include "compiler/hir/scope.hpp"
@@ -408,7 +409,7 @@ class Context {
     [[nodiscard]] TypeId emplace_type(const TypeValue& value, Span span, bool mut);
 
     /// accessfor for a def thru a DefId
-    Def& def(DefId def_id);
+    [[nodiscard]] Def& def(DefId def_id);
 
     /// trys to access a direct function def or a compt function ptr
     /// basically, if a value is a know compt variable pointing to some known function, we will get
@@ -696,6 +697,8 @@ class Context {
 
     [[nodiscard]] bool type_has_contract(TypeId tid, DefId contract_did);
 
+    [[nodiscard]] IdSet<DefId>& contract_set_for_struct_did(DefId struct_did);
+
     [[nodiscard]] OptId<TypeId> self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t* fn_decl,
                                                  Def& def);
 
@@ -789,6 +792,13 @@ class Context {
 
     // for accessing static def slices corresponding to a given DefId (namely structs)
     IdHashMap<DefId, OrderedDefSliceId> def_to_static_def_slice_id;
+
+    using ContractSet = IdSet<DefId>;
+    using ContractSetId = Id<ContractSet>;
+    DataArena struct_did_to_contract_set_id_arena;
+    IdHashMap<DefId, ContractSetId> struct_did_to_contract_set_id;
+    DataArena contract_set_arena;
+    IdVecMap<ContractSetId, ContractSet> contract_sets;
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // types ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

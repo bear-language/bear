@@ -5,7 +5,7 @@ contract Copy {
 }
 
 struct Foo has Copy {
-    struct Copy {} // oops
+    struct Copy {} // fine
 }
 
 struct Bar has Copy {
