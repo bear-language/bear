@@ -13,9 +13,11 @@ main quest
 - [ ] clean up `use` semantics
     - [ ] warn/error on `use` when used def is generic and also has some parent that is generic 
     - [ ] allow `use` for just free functions
-    - [ ] clamp down on problematic nesting of definitions (primarily for structs)
+    - [ ] clamp down on problematic nesting of definitions (primarily within structs)
 
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
+
+- [ ] contract diagnostics for per-param disagreements
 
 - [ ] `compt` improvements:
     - [ ] fn ptr reflection:
@@ -113,7 +115,6 @@ lexer & parser
 
 hir & later 
 ----------- 
-- [ ] contract diagnostics for per-param disagreements
 - [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps
 - [ ] add an Exec Stringifier (tedious)
 - [ ] add a Def Stringifier (tedious)  
