@@ -12,7 +12,6 @@
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/type.hpp"
 #include "utils/hashing.hpp"
-#include <complex>
 #include <cstddef>
 
 namespace hir {

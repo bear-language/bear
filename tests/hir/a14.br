@@ -1,0 +1,27 @@
+// tests/hir/a13.br
+
+contract Foo<T> {
+    fn foo() -> T;
+}
+
+struct Ben has Foo<i32> {
+    fn foo() -> i32 => 42
+}
+
+struct Boo has Foo<i32> {
+
+}
+
+struct No {
+
+}
+
+struct Bar<T has(Foo<i32>)> {
+    fn get() -> T => foo();
+}
+
+compt Bar<Ben> a = {};
+
+compt Bar<Boo> b = {}; // oops
+
+compt Bar<No> c = {}; // oops

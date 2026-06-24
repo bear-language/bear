@@ -992,6 +992,11 @@ void pretty_print_stmt(const ast_stmt_t* stmt) {
         print_delineator_from_type(TOK_CONTRACT);
         print_var_name(con.name);
         printer_do_indent();
+        if (con.is_generic) {
+            print_generic_params(con.generic_params);
+        }
+        printer_deindent();
+        printer_do_indent();
         print_indent();
         print_title("fields");
         printer_do_indent();

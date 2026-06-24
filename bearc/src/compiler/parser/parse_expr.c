@@ -25,6 +25,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #define PREC_INIT UINT8_MAX
@@ -921,6 +922,22 @@ ast_expr_t* parse_expr_before_opening_brace(parser_t* p) {
     return expr;
 }
 
+ast_expr_t* parse_expr_contract(parser_t* p) {
+    ast_expr_t* id = parse_id(p);
+    if (id->type == AST_EXPR_INVALID) {
+        return id;
+    }
+
+    if (parser_peek_match(p, TOK_GENERIC_SEP) || parser_peek_match(p, TOK_LT)) {
+        parser_mode_e saved = parser_mode(p);
+        parser_mode_set(p, PARSER_MODE_BAN_ANGLE_BRACKETS_IN_EXPRS);
+        ast_slice_of_generic_args_t args = parse_slice_of_generic_args(p);
+        parser_mode_set(p, saved);
+        return parse_expr_generic_id(p, id->expr.id.slice, args);
+    }
+    return id;
+}
+
 ast_slice_of_exprs_t parse_has_contracts_clause(parser_t* p) {
     spill_arr_ptr_t ids;
     spill_arr_ptr_init(&ids);
@@ -928,7 +945,7 @@ ast_slice_of_exprs_t parse_has_contracts_clause(parser_t* p) {
     token_t* l_paren = parser_match_token(p, TOK_LPAREN);
     if (!parser_peek_match(p, TOK_RPAREN)) {
         do {
-            *((ast_expr_t**)spill_arr_ptr_emplace(&ids)) = parse_id(p);
+            *((ast_expr_t**)spill_arr_ptr_emplace(&ids)) = parse_expr_contract(p);
         } while (parser_match_token(p, TOK_COMMA));
     }
     if (l_paren) {

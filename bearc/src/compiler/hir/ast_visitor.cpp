@@ -483,6 +483,7 @@ TopLevelInfo FileAstVisitor::top_level_info_for(const ast_stmt_t* stmt) {
     case AST_STMT_CONTRACT_DEF: {
         name_tkn = stmt->stmt.contract_decl.name;
         stmts = stmt->stmt.contract_decl.fields;
+        is_generic = stmt->stmt.contract_decl.is_generic;
         kind = scope_kind::type;
         break;
     }

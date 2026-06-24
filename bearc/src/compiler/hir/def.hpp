@@ -121,6 +121,14 @@ struct DefUnion {
 struct DefContract {
     IdSlice<DefId> funcs;
     ScopeId scope;
+    OptId<DefId> original;
+    OptId<GenericArgIdSliceId> maybe_generic_args;
+};
+
+struct DefGenericContract {
+    /// maps canonical lists of generics args to concrete instatiations
+    CanonicalGenericArgsIdMapId generics_args_to_concrete_defs_map;
+    IdSlice<GenericParamId> generic_params;
 };
 
 struct DefDeftype {
@@ -136,10 +144,11 @@ struct DefUnevaluated {};
 // ^^^^^^ struct impls ^^^^^^^^
 
 /// main exec variant
-using DefValue = std::variant<DefModule, DefFunction, DefGenericFunction, DefFunctionPrototype,
-                              DefVariable, DefStruct, DefGenericStruct, DefVariant,
-                              DefGenericVariant, DefVariantField, DefUnion, DefContract, DefDeftype,
-                              DefScopeWrapper, DefUnevaluated, DefMalformed>;
+using DefValue
+    = std::variant<DefModule, DefFunction, DefGenericFunction, DefFunctionPrototype, DefVariable,
+                   DefStruct, DefGenericStruct, DefVariant, DefGenericVariant, DefVariantField,
+                   DefUnion, DefGenericContract, DefContract, DefDeftype, DefScopeWrapper,
+                   DefUnevaluated, DefMalformed>;
 
 enum class abi_lang : uint8_t {
     bear = 0,

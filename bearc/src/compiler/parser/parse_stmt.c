@@ -1177,9 +1177,13 @@ ast_stmt_t* parse_stmt_contract_decl(parser_t* p) {
     stmt->stmt.contract_decl.generic_params
         = (ast_slice_of_generic_params_t){.start = NULL, .len = 0};
 
-    if (parser_peek_match(p, TOK_GENERIC_SEP) || parser_peek_match(p, TOK_LT)) {
+    token_t* maybe_lt = NULL;
+    if (parser_match_token(p, TOK_GENERIC_SEP) || (maybe_lt = parser_match_token(p, TOK_LT))) {
         stmt->stmt.contract_decl.generic_params = parse_generic_params(p);
         stmt->stmt.contract_decl.is_generic = true;
+        if (maybe_lt) {
+            parser_expect_token(p, TOK_GT);
+        }
     }
 
     parser_expect_token(p, TOK_LBRACE);

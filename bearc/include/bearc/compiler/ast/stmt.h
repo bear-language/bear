@@ -245,8 +245,10 @@ typedef struct ast_stmt_struct_decl {
 } ast_stmt_struct_decl_t;
 
 typedef struct ast_stmt_contract_decl {
-    token_t* name;
     ast_slice_of_stmts_t fields;
+    ast_slice_of_generic_params_t generic_params;
+    token_t* name;
+    bool is_generic;
 } ast_stmt_contract_decl_t;
 
 typedef struct ast_stmt_empty {

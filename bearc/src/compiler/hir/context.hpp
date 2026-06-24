@@ -30,6 +30,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include <cstdint>
 #include <filesystem>
+#include <iostream>
 #include <type_traits>
 
 namespace hir {
@@ -638,6 +639,8 @@ class Context {
             map_id = def.as<DefGenericStruct>().generics_args_to_concrete_defs_map;
         } else if (def.holds<DefGenericVariant>()) {
             map_id = def.as<DefGenericVariant>().generics_args_to_concrete_defs_map;
+        } else if (def.holds<DefGenericContract>()) {
+            map_id = def.as<DefGenericContract>().generics_args_to_concrete_defs_map;
         } else {
             return {};
         }
@@ -959,7 +962,7 @@ class Context {
         auto validate_arg
             = [this, &dl, &def_visitor](GenericArgId aid, GenericParamId pid) -> bool {
             Ovld vs{
-                [this, pid, &dl](TypeId tid) -> bool {
+                [this, pid, &dl, &def_visitor](TypeId tid) -> bool {
                     GenericParam param = gen_param(pid);
                     if (param.holds<GenericParamVariable>()) {
                         dl.link(emplace_diagnostic(
@@ -981,7 +984,8 @@ class Context {
                         bool cooked = false;
                         for (auto didx = contracts.begin(); didx != contracts.end(); ++didx) {
                             DefId contract_did = def_id(didx);
-                            if (!type_has_contract(tid, contract_did)) {
+                            if (!type_has_contract(tid,
+                                                   def_visitor.visit_as_dependent(contract_did))) {
                                 dl.link(emplace_diagnostic_with_message_value(
                                     type(tid).span, diag_code::does_not_have_contract,
                                     diag_type::error,

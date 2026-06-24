@@ -1846,6 +1846,10 @@ OptId<CanonicalGenericArgsId> Context::generic_args_for_def(DefId did) const {
     if (d.holds<DefStruct>()) {
         return d.as<DefStruct>().maybe_generic_args;
     }
+    if (d.holds<DefContract>()) {
+        return d.as<DefContract>().maybe_generic_args;
+    }
+
     return {};
 }
 
@@ -1886,6 +1890,10 @@ Context::try_generic_params_for_def(DefId did) const {
     if (def.holds<DefGenericVariant>()) {
         return def.as<DefGenericVariant>().generic_params;
     }
+    if (def.holds<DefGenericContract>()) {
+        return def.as<DefGenericContract>().generic_params;
+    }
+
     return {};
 }
 
@@ -1932,6 +1940,8 @@ Context::try_generic_args_for_def_recursive(DefId did) const {
         return st->stmt.variant_decl.generic_params.len;
     case AST_STMT_FN_DECL:
         return st->stmt.fn_decl.generic_params.len;
+    case AST_STMT_CONTRACT_DEF:
+        return st->stmt.contract_decl.generic_params.len;
     default:
         break;
     }

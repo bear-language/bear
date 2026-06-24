@@ -518,6 +518,21 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         break;
     }
     case AST_STMT_CONTRACT_DEF: {
+        HirSize prior_diag_count = context.diagnostic_count();
+        // delay resolution/instantiation until specialization
+        if (context.def(did).generic) {
+            const auto maybe_generic_params = resolve_generic_params(
+                context.def(did).span.file_id, context.containing_scope(did),
+                stmt->stmt.contract_decl.generic_params);
+            if (!maybe_generic_params.has_value()) {
+                goto cleanup;
+            }
+            context.def(did).set_value(DefGenericContract{
+                .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
+                .generic_params = maybe_generic_params.value()});
+            goto cleanup;
+        }
+
         ScopeId contract_scope = context.scope_for_top_level_def(did);
         context.register_generated_deftype(
             contract_scope, context.symbol_id<"Self">(),
@@ -527,7 +542,17 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         for (auto didx = ordered_fns.begin(); didx != ordered_fns.end(); ++didx) {
             visit_as_transparent(context.def_id(didx));
         }
-        context.def(did).set_value(DefContract{.funcs = ordered_fns, .scope = contract_scope});
+        const auto maybe_generic_args = context.try_gen_args_for_def(did);
+        context.def(did).set_value(DefContract{.funcs = ordered_fns,
+                                               .scope = contract_scope,
+                                               .original = {},
+                                               .maybe_generic_args = maybe_generic_args});
+        HirSize posterior_diag_count = context.diagnostic_count();
+        if (posterior_diag_count > prior_diag_count && maybe_generic_args.has_value()) {
+            context.force_link_diagnostic(context.emplace_diagnostic(
+                context.span_for_gen_args(maybe_generic_args.as_id()),
+                diag_code::in_generic_instantiated_here, diag_type::note));
+        }
         break;
     }
     case AST_STMT_UNION_DEF: {
@@ -956,17 +981,33 @@ TopLevelDefVisitor::resolve_contracts_for_generic_param(FileId fid, ScopeId scop
 
     llvm::SmallVector<DefId> contract_vec{};
 
-    auto valid = +[](const ast_expr_t* expr) -> bool { return expr->type == AST_EXPR_ID; };
+    auto valid = +[](const ast_expr_t* expr) -> bool {
+        return expr->type == AST_EXPR_ID || expr->type == AST_EXPR_GENERIC_ID;
+    };
 
     for (size_t i = 0; i < contracts.len; ++i) {
         const ast_expr_t* contract = contracts.start[i];
         if (!valid(contract)) {
             return {};
         }
-        const auto id_slice = contract->expr.id.slice;
-        Span span{context, fid, id_slice};
-        const auto sid_slice = context.symbol_slice(id_slice);
-        const auto maybe_did = context.look_up_scoped_type(scope, sid_slice, span);
+        Span span{context, fid, contract};
+        IdSlice<SymbolId> sid_slice{};
+        OptId<DefId> maybe_did{};
+        if (contract->type == AST_EXPR_ID) {
+            const auto id_slice = contract->expr.id.slice;
+            sid_slice = context.symbol_slice(id_slice);
+            maybe_did = context.look_up_scoped_type(scope, sid_slice, span);
+        } else {
+            const auto id_slice = contract->expr.generic_id.slice;
+            sid_slice = context.symbol_slice(id_slice);
+            const auto maybe_generic_args = ComptExprSolver{context, *this}.lower_generic_args(
+                fid, scope, contract->expr.generic_id.args, false);
+            if (maybe_generic_args.empty()) {
+                return {};
+            }
+            maybe_did = context.look_up_scoped_type_generic(*this, scope, sid_slice, span,
+                                                            maybe_generic_args.as_id());
+        }
         if (maybe_did.empty()) {
             context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
                                        diag_type::error,
@@ -998,12 +1039,29 @@ TopLevelDefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope
     DiagLinker dlinker{context};
     for (HirSize i = 0; i < contracts.len; i++) {
         const ast_expr_t* contract = contracts.start[i];
-        if (contract->type != AST_EXPR_ID) {
+        const auto t = contract->type;
+        if (t != AST_EXPR_ID && t != AST_EXPR_GENERIC_ID) {
             continue;
         }
-        Span ctr_span{context, context.def(did).span.file_id, contract->expr.id.slice};
-        auto maybe_contract_did = context.look_up_scoped_type(
-            containing_scope, context.symbol_slice(contract->expr.id.slice), ctr_span);
+        Span ctr_span
+            = (t == AST_EXPR_ID)
+                  ? Span{context, context.def(did).span.file_id, contract->expr.id.slice}
+                  : Span{context, context.def(did).span.file_id, contract->expr.generic_id.slice};
+
+        OptId<DefId> maybe_contract_did{};
+        if (t == AST_EXPR_ID) {
+            maybe_contract_did = context.look_up_scoped_type(
+                containing_scope, context.symbol_slice(contract->expr.id.slice), ctr_span);
+        } else {
+            const auto maybe_gen_args = ComptExprSolver{context, *this}.lower_generic_args(
+                ctr_span.file_id, containing_scope, contract->expr.generic_id.args, false);
+            if (maybe_gen_args.empty()) {
+                return {};
+            }
+            maybe_contract_did = context.look_up_scoped_type_generic(
+                *this, containing_scope, context.symbol_slice(contract->expr.generic_id.slice),
+                ctr_span, maybe_gen_args.as_id());
+        }
         if (maybe_contract_did.empty()) {
             auto d = context.emplace_diagnostic(
                 ctr_span, diag_code::use_of_undeclared_identifier, diag_type::error,
