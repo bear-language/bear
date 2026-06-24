@@ -1,0 +1,59 @@
+// tests/hir/a20.br
+
+variant Opt<T> {
+    Some(T val),
+    None,
+}
+
+compt fn is_num<T>() -> bool => {
+    @same_type(decay T, i64) || @same_type(decay T, u64) ||
+    @same_type(decay T, i32) || @same_type(decay T, u32) ||
+    @same_type(decay T, i16) || @same_type(decay T, u16) ||
+    @same_type(decay T, i8) || @same_type(decay T, u8) ||
+    @same_type(decay T, f32) || @same_type(decay T, f64)
+}
+
+// this struct is not really necessary, but it is convenient  
+struct Handler<T> {
+    compt fn get_default() -> T => 
+        0 if is_num::<T>() 
+        else "" if @same_type(T, str)
+        else false if @same_type(T, bool)
+        else null if @inferable_as(T, *var)
+        else T..default() if @has_contract(T, Default)
+        else @err("no viable default for type " + @type_to_str(decay T))
+    fn has_value(Opt<T> val) -> bool => match(val) {
+        Some => true,
+        None => false,
+    }
+    compt fn static_unwrap(Opt<T> val) -> T => match(val) {
+        Some(T v) => v,
+        None => get_default() if @err("static unwrap failed since value was of value `Opt..None::" + @type_to_str(decay T) + "`") 
+            else @err("bad unwrap") // that first err always fires so this else won't get evaluated
+    }
+}
+
+deftype HI32 = Handler<i32>; 
+
+compt var a = Opt..Some::<i32>(12);
+
+compt var b = HI32..static_unwrap(a);
+
+var _0 = @static_assert b == 12;
+
+compt Opt<i32> c = Opt..None::<i32>();
+
+compt var d = HI32..static_unwrap(c); //oops
+
+// wrap Handler logic in more convenient free-function:
+compt fn static_unwrap<T>(Opt<T> opt) -> T => Handler..static_unwrap::<T>(opt)
+
+compt var e = static_unwrap::<i32>(c); // oops
+
+compt var f = static_unwrap::<u64>(Opt..None::<u64>()); // oops
+
+compt var g = static_unwrap::<u64>(Opt..None::<u64>(12345)); // oops
+
+compt var h = static_unwrap::<u64>(Opt..Some::<u64>(12345, 123, 1231, -2)); // oops
+
+compt var hi= static_unwrap::<u64>(Opt..Some::<u64>("rut roh")); // oops

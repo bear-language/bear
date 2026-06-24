@@ -3084,7 +3084,6 @@ template <IsDefVisitor V> class ComptExprSolver {
         return context.emplace_exec(ExecConst{context.type_has_contract(tid, did)}, span, true);
     }
 
-    // TODO: doesn't handle generic args
     [[nodiscard]] OptId<ExecId> handle_variant_init(FileId fid, ScopeId scope,
                                                     const ast_expr_t* fn_call_expr,
                                                     DefId variant_field_did) {
@@ -3131,6 +3130,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             context.force_link_diagnostic(context.emplace_diagnostic_with_message_value(
                 def.span, diag_code::declared_here, diag_type::note,
                 DiagnosticSymbolBeforeMessage{.sid = def.name}));
+            return {};
         }
         const auto member_inits = context.freeze_id_vec(member_init_vec);
         const Span span{context, fid, fn_call_expr};
@@ -3225,11 +3225,12 @@ template <IsDefVisitor V> class ComptExprSolver {
         const Type& ty = context.type(matched_tid);
 
         bool valid_branches_and_exhaustive = false;
+        OptId<ScopeId> maybe_pattern_scope{};
         if (ty.holds<TypeVariant>()) {
             const auto variant_did = ty.as<TypeVariant>().def_id;
-            scope = context.def(variant_did).template as<DefVariant>().scope;
-            valid_branches_and_exhaustive
-                = valid_exhaustive_match_for_variant(*this, scope, fid, variant_did, match_expr);
+            maybe_pattern_scope = context.def(variant_did).template as<DefVariant>().scope;
+            valid_branches_and_exhaustive = valid_exhaustive_match_for_variant(
+                *this, maybe_pattern_scope.as_id(), fid, variant_did, match_expr);
         } else {
             valid_branches_and_exhaustive
                 = valid_exhaustive_match_for_non_variant(*this, scope, fid, match_expr);
@@ -3262,10 +3263,12 @@ template <IsDefVisitor V> class ComptExprSolver {
                     return {}; // malformed decomps on this branch
                 }
 
-                if (pattern_matches(fid, scope, pattern_expr, matched_eid)) {
+                const ScopeId pattern_scope
+                    = maybe_pattern_scope.has_value() ? maybe_pattern_scope.as_id() : scope;
+                if (pattern_matches(fid, pattern_scope, pattern_expr, matched_eid)) {
                     const ScopeId branch_scope
                         = context.make_compt_temp_scope(scope, 8); // decently sized
-                    try_variant_decomp(fid, branch_scope, pattern_expr, matched_eid);
+                    try_variant_decomp(fid, pattern_scope, branch_scope, pattern_expr, matched_eid);
                     return solve_expr(fid, branch_scope, val_expr);
                 }
             }
@@ -3322,8 +3325,8 @@ template <IsDefVisitor V> class ComptExprSolver {
     }
 
     /// returns true on variant decomp, else false
-    bool try_variant_decomp(FileId fid, ScopeId scope, const ast_expr_t* pattern_expr,
-                            ExecId variant_eid) {
+    bool try_variant_decomp(FileId fid, ScopeId pattern_scope, ScopeId branch_scope,
+                            const ast_expr_t* pattern_expr, ExecId variant_eid) {
         if (pattern_expr->type != AST_EXPR_VARIANT_DECOMP) {
             return false;
         }
@@ -3332,7 +3335,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         Span decomp_span{context, fid, pattern_expr};
         OptId<DefId> maybe_variant_field_did = context.look_up_scoped_type(
-            scope, context.symbol_slice(pattern_expr->expr.variant_decomp.id), decomp_span);
+            pattern_scope, context.symbol_slice(pattern_expr->expr.variant_decomp.id), decomp_span);
 
         if (maybe_variant_field_did.empty()) {
             return false;
@@ -3365,7 +3368,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                 continue;
             }
 
-            const OptId<TypeId> maybe_tid = resolve_type(fid, scope, decomped_var->type);
+            const OptId<TypeId> maybe_tid = resolve_type(fid, branch_scope, decomped_var->type);
             if (maybe_tid.empty()) {
                 continue;
             }
@@ -3395,17 +3398,21 @@ template <IsDefVisitor V> class ComptExprSolver {
                 continue;
             }
 
-            ExecId value = context.exec_id(
-                context
-                    .exec(context.exec(variant_eid).template as<ExecExprVariantInit>().payload_init)
-                    .template as<ExecVariantFieldInit>()
-                    .member_inits.get(i));
+            const auto members
+                = context
+                      .exec(
+                          context.exec(variant_eid).template as<ExecExprVariantInit>().payload_init)
+                      .template as<ExecVariantFieldInit>()
+                      .member_inits;
+            if (i < members.len()) {
+                ExecId value = context.exec_id(members.get(i));
 
-            const DefId did = context.register_compt_def(
-                name, span, {},
-                DefVariable{.type_id = needed_tid, .compt_value = value, .moved = false});
+                const DefId did = context.register_compt_def(
+                    name, span, {},
+                    DefVariable{.type_id = needed_tid, .compt_value = value, .moved = false});
 
-            context.insert_variable(scope, name, did);
+                context.insert_variable(branch_scope, name, did);
+            }
         }
 
         return true;
