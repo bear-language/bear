@@ -447,8 +447,8 @@ ast_expr_t* parse_id(parser_t* p) {
     }
     id_expr->expr.id.slice = id_slice;
     id_expr->type = AST_EXPR_ID;
-    id_expr->first = id_expr->expr.id.slice.start[0];
-    id_expr->last = id_expr->expr.id.slice.start[id_expr->expr.id.slice.len - 1];
+    id_expr->first = id_slice.start[0];
+    id_expr->last = id_slice.start[id_slice.len - 1];
     return id_expr;
 }
 

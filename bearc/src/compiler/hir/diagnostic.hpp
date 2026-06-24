@@ -348,7 +348,8 @@ struct Diagnostic : NodeWithVariantValue<Diagnostic> {
     DiagnosticMessageValue message_value = DiagnosticNoOtherInfo{};
     DiagnosticInfoValue value = DiagnosticNoOtherInfo{};
     Span span;
-    OptId<DiagnosticId> next;
+    OptId<DiagnosticId> next{};
+    OptId<DiagnosticId> prev{};
     diag_code code;
     diag_type type;
     void print(Context& context, bool print_file) const;
@@ -364,6 +365,7 @@ struct Diagnostic : NodeWithVariantValue<Diagnostic> {
         : message_value(message_value), value(value), span(span), next(next), code(code),
           type(type) {}
     void set_next(DiagnosticId next) { this->next = next; }
+    void set_prev(DiagnosticId prev) { this->prev = prev; }
 
   private:
     bool has_complex_message() const;

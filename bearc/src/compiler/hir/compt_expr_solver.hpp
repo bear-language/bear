@@ -60,7 +60,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                                            diag_type::error);
                 return std::nullopt;
             }
-            const Def& def = context.def(maybe_did.as_id());
+            const Def& def = context.def(def_visitor.visit_as_dependent(maybe_did.as_id()));
             if (!def.holds<DefVariable>()) {
                 return std::nullopt;
             }
@@ -180,6 +180,9 @@ template <IsDefVisitor V> class ComptExprSolver {
             if (expr->type == AST_EXPR_LIST_LITERAL) {
                 return solve_list(fid, scope, expr, maybe_into_tid);
             }
+            if (expr->type == AST_EXPR_MATCH) {
+                return handle_match(fid, scope, expr);
+            }
             if (expr_is_mem_access(expr)) {
                 return solve_expr_binary(fid, scope, expr);
             }
@@ -204,6 +207,9 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
             if (expr->type == AST_EXPR_LIST_LITERAL) {
                 return solve_list(fid, scope, expr, into_tid);
+            }
+            if (expr->type == AST_EXPR_MATCH) {
+                return handle_match(fid, scope, expr);
             }
             if (expr_is_mem_access(expr)) {
                 return solve_expr_binary(fid, scope, expr);
@@ -2737,7 +2743,9 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         const ast_expr_t* body_expr = fn_stmt->stmt.fn_decl.expr;
 
-        OptId<ExecId> maybe_eid = solve_expr(fid, temp_scope, body_expr, func.return_type);
+        // make sure to use the file_id for the function's expression
+        OptId<ExecId> maybe_eid = solve_expr(context.def(func_did).span.file_id, temp_scope,
+                                             body_expr, func.return_type);
 
         // try to get proper return type if possible
         if (maybe_eid.has_value() && func.return_type.has_value()) {
@@ -3321,6 +3329,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             return {};
         }
 
+        // TODO consider giving diagnostics to warn that patterns will never match if types do not
+        // match
         return equivalent_exec(context, maybe_pattern_val.as_id(), matched_eid);
     }
 

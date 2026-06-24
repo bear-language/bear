@@ -1,0 +1,99 @@
+// tests/lib/compt_game.br 
+
+mod game;
+
+variant Choice {
+    Rock,
+    Paper,
+    Scissors,
+    ViewInstructions,
+}
+
+compt bool game_fine = @static_assert(
+    (@defined(player..random_code) && @same_type(typeof player..random_code,i32)) &&
+    (@defined(player..current_state) && @same_type(typeof player..current_state,i32)) &&
+    (@defined(player..choice) && @same_type(typeof player..choice,Choice))
+);
+
+compt fn get_choice() -> Choice => match((player..random_code ^ ((player..current_state as u32 ^ 12312)) >> 1) as i32 % 3) {
+    0 => Choice..Rock,
+    1 => Choice..Paper,
+    2 => Choice..Scissors,
+    else => @err "game somehow broke" // not possible
+}
+
+compt fn chose(Choice c) -> str => match(c) {
+    Rock => "rock",
+    Paper => "paper",
+    Scissors => "scissors",
+    else => ""
+}
+
+compt fn view_instr() -> bool => @note("make your choice and see if you win!")
+
+variant Result {
+    Won,
+    Lost,
+    Draw
+}
+
+compt fn result(Choice c) -> Result => match(c) {
+    Rock => match(player..choice) {
+        Rock => Result..Draw,
+        Paper => Result..Lost,
+        Scissors => Result..Won,
+        else => Result..Draw,
+    },
+    Paper => match(player..choice) {
+        Rock => Result..Won,
+        Paper => Result..Draw,
+        Scissors => Result..Lost,
+        else => Result..Draw,
+    },
+    Scissors => match(player..choice) {
+        Rock => Result..Lost,
+        Paper => Result..Won,
+        Scissors => Result..Draw,
+        else => Result..Draw,
+    },
+    else => Result..Draw,
+}
+
+compt fn get_outcome(Result r) -> str => match(r) {
+    Won => "i won",
+    Lost => "i lost",
+    Draw => "we drew",
+}
+
+compt fn new_state() -> str => (player..current_state + 1) as str
+
+
+fn greet() -> bool 
+           =>  (@note "#   # ##### #     #     ######") &&
+               (@note "#   # #     #     #     #    #") &&
+               (@note "##### ##### #     #     #    #") &&
+               (@note "#   # #     #     #     #    #") &&
+               (@note "#   # ##### ##### ##### ######") &&
+               (@note("new state to copy into your src code is: " + new_state())) &&
+               (@note "make sure choice is set to one of Rock, Paper, Scissors, or ViewInstructions")
+
+fn gg() -> bool
+        =>     (@note "##### #####") &&
+               (@note "#     #    ") &&
+               (@note "# ### #  ##") &&
+               (@note "#   # #   #") &&
+               (@note "##### #####") 
+
+
+fn play() -> bool => game_fine && match(player..current_state) {
+    0 => greet(),
+    else => match(player..choice) {
+        ViewInstructions => view_instr(),
+        else => @note(
+            @note ("i chose " + chose(get_choice()) + " and you chose " + chose(player..choice) + " so " + get_outcome(result(get_choice()))), 
+            "new state is: " + new_state()
+        ) && 
+        gg()
+        ,
+    },
+}

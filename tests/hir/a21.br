@@ -1,0 +1,12 @@
+// tests/hir/a21.br
+
+import "compt_game.br";
+
+mod player;
+
+compt var p = game..play();
+
+// enter a random code and make sure current_state starts on 0
+compt i32 random_code = 123492; compt i32 current_state = 22;
+
+compt game..Choice choice = game..Choice..Paper;

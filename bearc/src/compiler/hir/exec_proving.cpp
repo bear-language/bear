@@ -107,11 +107,10 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
                 return false;
             }
             const auto o = other.as<ExecExprComptConstant>();
-            if (!o.holds_same_variant_type(t)) {
+            if (o.hash_identity() != t.hash_identity()) {
                 return false;
             }
-            const auto res = ExecConst::equal(t, o);
-            return res.has_value() && res.value().as<bool>();
+            return t.to_size() == o.to_size();
         },
         [&other, &ctx](const ExecExprListLiteral& t) -> bool {
             if (!other.holds<ExecExprListLiteral>()) {

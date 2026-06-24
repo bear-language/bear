@@ -525,7 +525,14 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
 
     const char* src_buf_span_start = span_start; // start here before adjusting
     size_t src_buf_span_len = span.len;
-    const char* src_buf_start = context.ast(span.file_id).buffer();
+    const auto* const src_buf = context.ast(span.file_id).src();
+    const char* src_buf_start = src_buf->data;
+
+    if (src_buf_span_start > src_buf_start + src_buf->size) {
+        assert(false && "some span mostly was provided for the wrong file");
+        return; // definitely malformed
+    }
+
     // find start of src
     while (src_buf_span_start > src_buf_start && *src_buf_span_start != '\n') {
         --src_buf_span_start;

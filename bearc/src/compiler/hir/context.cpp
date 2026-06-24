@@ -673,6 +673,12 @@ void Context::print_diagnostic(DiagnosticId diag_id, bool print_file) {
         return;
     }
     const Diagnostic& diag = diagnostics.at(diag_id);
+    // make sure we always start printing at the start of the chain (even if diagnostics are in
+    // different files)
+    if (diag.prev.has_value() && !diagnostics_used.at(diag.prev.as_id())) {
+        print_diagnostic(diag.prev.as_id());
+        return;
+    }
     // if terse, only print errors and warnings
     if (!terse || diag.type == diag_type::error || diag.type == diag_type::warning) {
         diag.print(*this, print_file);
@@ -694,6 +700,7 @@ void Context::print_diagnostic(DiagnosticId diag_id, bool print_file) {
 
 void Context::link_diagnostic(DiagnosticId diag, DiagnosticId next) {
     diagnostics.at(diag).set_next(next);
+    diagnostics.at(next).set_prev(diag);
 }
 
 void Context::force_link_diagnostic(DiagnosticId diag) {
@@ -702,6 +709,7 @@ void Context::force_link_diagnostic(DiagnosticId diag) {
         return;
     }
     diagnostics.at(DiagnosticId{prev_val}).set_next(diag);
+    diagnostics.at(diag).set_prev(DiagnosticId{prev_val});
 }
 
 void Context::try_link_custom_diagnostic(DiagnosticId diag) {
@@ -717,6 +725,7 @@ void Context::try_link_custom_diagnostic(DiagnosticId diag) {
         || prev_diag.code == diag_code::static_assertion_failed
         || prev_diag.code == diag_code::static_assertion_failed_colon) {
         diagnostics.at(prev).set_next(diag);
+        diagnostics.at(diag).set_prev(prev);
     }
 }
 
