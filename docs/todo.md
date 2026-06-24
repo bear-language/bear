@@ -9,6 +9,7 @@ main quest
 - [ ] contract improvements
     - [ ] update `@has_contract` to allow for generic contracts
     - [ ] give contract generic args for `Foo` doesn't have contract `Bar` 
+    - [ ] consider eagerly insert generic args into scope to allow something like `<T, R has Into<T>>`
 
 - [ ] clean up `use` semantics
     - [ ] warn/error on `use` when used def is generic and also has some parent that is generic 
