@@ -80,8 +80,9 @@ main quest
     # note make sure dtor of files inside context properly handle being moved (no double frees, etc.)
 ```
 #### long term (compiler)
-- [ ] MIR? (compile-time ctrl flow and better optimizations)
-- [ ] LLVM IR (most likely lower directly from HIR)
+- [ ] LLVM IR
+- [ ] automatic extern functions and struct definition exports for static libraries
+- [ ] C header parsing -> extern functions
 
 #### tools 
 - [ ] cave package-manager
