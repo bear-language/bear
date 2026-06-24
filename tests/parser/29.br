@@ -1,5 +1,5 @@
 struct Foo<T, var B> 
-has(Bar, Copy)
+has(Bar + Copy)
 {
     i32 a;
     fn foo(i32 a, i32 b) {

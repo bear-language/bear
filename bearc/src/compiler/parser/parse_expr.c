@@ -940,7 +940,7 @@ ast_slice_of_exprs_t parse_has_contracts_clause(parser_t* p) {
     if (!parser_peek_match(p, TOK_RPAREN)) {
         do {
             *((ast_expr_t**)spill_arr_ptr_emplace(&ids)) = parse_expr_contract(p);
-        } while (parser_match_token(p, TOK_COMMA));
+        } while (parser_match_token(p, TOK_PLUS));
     }
     if (l_paren) {
         parser_expect_token(p, TOK_RPAREN);

@@ -12,7 +12,7 @@ contract Get<T> {
     mt get() -> T;
 }
 
-struct Foo<T has Get<i32>> has Into<T>, From<T>, Get<i32> { 
+struct Foo<T has Get<i32>> has Into<T> + From<T> + Get<i32> { 
     i32 val;
     fn from(&T value) -> Self => Self{.val = value.get()};
     mt into() -> T => T..from(self.get());
@@ -20,14 +20,14 @@ struct Foo<T has Get<i32>> has Into<T>, From<T>, Get<i32> {
     fn new(i32 val) -> Self => Self{.val = val}
 }
 
-struct Bar has Get<i32>, From<i32> {
+struct Bar has Get<i32> + From<i32> {
     i32 val;
     mt get() -> i32 => self.val;
     fn new(i32 val) -> Self => Self{.val = val}
     fn from(&i32 val) -> Self => Self{.val = val}
 }
 
-struct Boo has Get<i32>, From<i32> { // oops, has problems
+struct Boo has Get<i32> + From<i32> { // oops, has problems
     i32 val;
     mt get(i32 yabadaba) -> u64 => self.val;
     fn new(i32 val) -> Self => Self{.val = val}

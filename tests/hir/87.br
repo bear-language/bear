@@ -2,7 +2,7 @@
 
 import "86.br";
 
-struct Ben has A, B, C {}
+struct Ben has A + B + C {}
 
 compt Foo::i32 a = Foo::i32{}; // oops
 

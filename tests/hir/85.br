@@ -47,6 +47,6 @@ compt Goo<i32, 123> e = Goo::<i32, 123>{}; //oops
 
 contract A {} contract B {} contract C {}
 
-struct Boo<T has(A, B, C), P has(C)> {}
+struct Boo<T has(A + B + C), P has(C)> {}
 
 compt Boo<i32, [&mut]u8> boo = Boo::<i32, [&mut]u8>{};

@@ -2,7 +2,7 @@
 
 mod compt_generics_test;
 
-struct Foo <T has ComptDefault, ToStr> {
+struct Foo <T has ComptDefault + ToStr> { // TODO changing `+` to `,` nukes the compiler
     T a = default();
     compt fn make() -> Self => Self{}
     compt fn iden(T val) -> T => val
@@ -18,7 +18,7 @@ contract ToStr {
     compt mt to_str() -> str;
 }
 
-struct Bar has ComptDefault, ToStr {
+struct Bar has ComptDefault + ToStr {
     compt str DEFAULT_STR = "hello";
     str a = DEFAULT_STR;
     compt fn compt_default() -> Self => Self{}
@@ -31,7 +31,7 @@ struct Ben { // oops forgot to have
     compt mt to_str() -> str => self.a as str
 }
 
-struct TheDog has ToStr, ComptDefault {
+struct TheDog has ToStr + ComptDefault {
     i32 a = 0;
     compt fn compt_default() -> Self => Self{}
     compt mt to_str() -> str => self.a as str

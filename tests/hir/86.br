@@ -2,7 +2,7 @@
 
 contract A {} contract B {} contract C {}
 
-struct Foo<T has(A, B, C)> {}
+struct Foo<T has(A + B + C)> {}
 
 variant Bar<T has (A), M has(B)> {
     OptionOne(T one),

@@ -12,7 +12,7 @@ var _0 = @static_assert @has_contract(Foo, Bar);
 
 var _1 = @static_assert @has_contract(Foo, Foo); // oops
 
-struct Fooey has Bar, Bar {
+struct Fooey has Bar + Bar {
     
 }
 

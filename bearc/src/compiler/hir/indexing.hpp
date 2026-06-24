@@ -163,8 +163,8 @@ template <hir::IsId T> class OptId {
 
 template <hir::IsId T> class IdSlice {
     using points_to_type = T;
-    IdIdx<T> first_;
-    HirSize len_;
+    IdIdx<T> first_{};
+    HirSize len_{};
 
   public:
     constexpr IdSlice() : first_(IdIdx<T>{}), len_{0} {}

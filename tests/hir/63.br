@@ -6,7 +6,7 @@ contract Foo {
     fn oopsie();
 }
 
-struct Fooey has Foo, Bar, Cat, Bob {
+struct Fooey has Foo+Bar+Cat+Bob {
     i32 oopsie; // oops, not a function
 
     compt 
