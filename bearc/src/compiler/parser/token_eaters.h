@@ -83,7 +83,7 @@ bool is_legal_binary_op(parser_t* p, token_type_e type);
 /// This resolves issues surrounding
 token_t* parser_expect_generic_closing_delim(parser_t* p);
 
-token_t* parser_peak_generic_closing_delims(parser_t* p);
+token_t* parser_peek_generic_closing_delims(parser_t* p);
 
 /// returns true when tkn type is builtin
 bool token_is_builtin_type(token_type_e t);

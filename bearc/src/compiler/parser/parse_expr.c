@@ -635,7 +635,7 @@ ast_expr_t* parse_expr_struct_member_init(parser_t* p) {
     token_t* first = parser_prev(p);
     token_t* name = parser_match_token(p, TOK_IDENTIFIER);
     if (!name) {
-        compiler_error_list_emplace(p->error_list, name, ERR_EXPECTED_IDENTIFER);
+        compiler_error_list_emplace(p->error_list, parser_peek(p), ERR_EXPECTED_IDENTIFER);
         return parser_sync_expr(p);
     }
     token_t* assign_op = parser_match_token_call(p, &token_is_assignment_init);

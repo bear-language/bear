@@ -451,11 +451,11 @@ ast_slice_of_generic_args_t parse_slice_of_generic_args(parser_t* p) {
         parser_mode_e saved_mode = parser_mode(p);
         parser_mode_set(p, PARSER_MODE_BAN_ANGLE_BRACKETS_IN_EXPRS);
 
-        while (!parser_peak_generic_closing_delims(p) && !parser_eof(p)) {
+        while (!parser_peek_generic_closing_delims(p) && !parser_eof(p)) {
             arg = parse_generic_arg(p);
             valid |= arg->valid;
             spill_arr_ptr_push(&sarr, arg);
-            if (!parser_peak_generic_closing_delims(p) && !parser_peek_match(p, TOK_GENERIC_SEP)) {
+            if (!parser_peek_generic_closing_delims(p) && !parser_peek_match(p, TOK_GENERIC_SEP)) {
                 parser_expect_token(p, TOK_COMMA);
             }
         }

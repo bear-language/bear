@@ -1025,10 +1025,11 @@ ast_slice_of_generic_params_t parse_generic_params(parser_t* p) {
     parser_mode_e saved = parser_mode(p);
     parser_mode_set(p, PARSER_MODE_BAN_ANGLE_BRACKETS_IN_EXPRS);
 
-    while (!(parser_peek_match(p, TOK_GT) || parser_eof(p)) // while !eof (edge-case handling)
+    while (
+        !(parser_peek_generic_closing_delims(p) || parser_eof(p)) // while !eof (edge-case handling)
     ) {
         spill_arr_ptr_push(&sarr, parse_generic_param(p));
-        if (!parser_peek_match(p, TOK_GT)) {
+        if (!parser_peek_generic_closing_delims(p)) {
             parser_expect_token(p, TOK_COMMA);
         }
     }
@@ -1056,7 +1057,7 @@ ast_stmt_t* parse_stmt_struct_decl(parser_t* p) {
         ast_slice_of_generic_params_t params = parse_generic_params(p);
         struct_stmt->stmt.struct_decl.is_generic = params.len; // true when len != 0
         struct_stmt->stmt.struct_decl.generic_params = params;
-        parser_expect_token(p, TOK_GT);
+        parser_expect_generic_closing_delim(p);
     }
 
     // check for contracts clause

@@ -1,0 +1,58 @@
+// tests/hir/a15.br
+
+contract Into<T> {
+    mt into() -> T;
+}
+
+contract From<T> {
+    fn from(&T value) -> Self;
+}
+
+contract Get<T> {
+    mt get() -> T;
+}
+
+struct Foo<T has Get<i32>> has Into<T>, From<T>, Get<i32> { 
+    i32 val;
+    fn from(&T value) -> Self => Self{.val = value.get()};
+    mt into() -> T => T..from(self.get());
+    mt get() -> i32 => self.val;
+    fn new(i32 val) -> Self => Self{.val = val}
+}
+
+struct Bar has Get<i32>, From<i32> {
+    i32 val;
+    mt get() -> i32 => self.val;
+    fn new(i32 val) -> Self => Self{.val = val}
+    fn from(&i32 val) -> Self => Self{.val = val}
+}
+
+struct Boo has Get<i32>, From<i32> { // oops, has problems
+    i32 val;
+    mt get(i32 yabadaba) -> u64 => self.val;
+    fn new(i32 val) -> Self => Self{.val = val}
+    fn from(i32 val) -> Self => Self{.val = val}
+}
+
+
+compt var a = Foo..new::<Bar>(42);
+
+compt var b = a.into();
+
+compt var c = Foo..new::<u64>(42); // oops
+
+compt var d = Foo..new::<Foo::Bar>(12);
+
+compt typeof(d) e = {.val = 12}; // type inference power
+
+var _0 = @static_assert d == e;
+
+var _1 = @static_assert b == e; // oops
+
+compt Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Bar obscene = {.val = 42}; // stress test
+
+compt typeof(obscene) f = {.val = 42}; // wow, that saved a lot of writing
+
+var _2 = @static_assert obscene == f;
+
+var _3 = @static_assert f == d; // oops

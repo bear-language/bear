@@ -520,7 +520,7 @@ class Context {
     [[nodiscard]] bool equivalent_type_slice(IdSlice<TypeId> s1, IdSlice<TypeId> s2) const;
 
     [[nodiscard]] bool compatible_contract_params(IdSlice<TypeId> s1, IdSlice<TypeId> s2,
-                                                  DefId struct_id) const;
+                                                  DefId struct_id);
 
     // returns true on an invalid return type
     bool report_invalid_return_type(TypeId return_tid);
@@ -597,7 +597,7 @@ class Context {
 
     /// checks if a type can be inferred as another
     /// - ordering of the arguments doesn't matter
-    [[nodiscard]] bool inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) const;
+    [[nodiscard]] bool inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did);
 
     /// checks if two functions signatures match
     /// returns true on match, else false (also returns false if either DefId does not correspond to

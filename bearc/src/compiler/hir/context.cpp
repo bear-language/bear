@@ -1441,8 +1441,7 @@ bool Context::equivalent_type_slice(IdSlice<TypeId> s1, IdSlice<TypeId> s2) cons
     return true;
 }
 
-bool Context::compatible_contract_params(IdSlice<TypeId> s1, IdSlice<TypeId> s2,
-                                         DefId struct_id) const {
+bool Context::compatible_contract_params(IdSlice<TypeId> s1, IdSlice<TypeId> s2, DefId struct_id) {
     if (s1.len() != s2.len()) {
         return false;
     }
@@ -1705,7 +1704,8 @@ DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_
     }
 
     if (ct_return_tid.has_value() && fn_return_tid.has_value()
-        && !equivalent_type(ct_return_tid.as_id(), fn_return_tid.as_id())) {
+        && !inferable_as_struct(ct_return_tid.as_id(), fn_return_tid.as_id(),
+                                def(function_did).parent.as_id())) {
         dlinker.link(emplace_diagnostic_with_message_value(
             type(fn_return_tid.as_id()).span, diag_code::only_message_value_is_meaningful,
             diag_type::note,
@@ -1778,7 +1778,7 @@ IdSet<DefId>& Context::contract_set_for_struct_did(DefId struct_did) {
     return contract_sets.at(maybe_set_id.as_id());
 }
 
-bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) const {
+bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) {
     const Type& t1 = type(tid1);
     const Type& t2 = type(tid2);
     if (t1.mut != t2.mut) {
@@ -1809,7 +1809,7 @@ bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) co
             return false;
         }
     }
-    return true;
+    return type_inferable_as(tid1, tid2);
 }
 
 bool Context::type_matches_struct_def(TypeId tid, DefId did) {

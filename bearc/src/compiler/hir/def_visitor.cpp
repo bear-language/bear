@@ -264,7 +264,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         }
 
         const IdSlice<DefId> contracts
-            = supply_and_get_contracts_for_struct(scope, did, strct.contracts);
+            = supply_and_get_contracts_for_struct(structs_scope, did, strct.contracts);
 
         context.def(did).set_value(DefStruct{
             .scope = structs_scope,

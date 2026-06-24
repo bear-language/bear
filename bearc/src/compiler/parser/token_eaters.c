@@ -241,7 +241,7 @@ token_t* parser_expect_generic_closing_delim(parser_t* p) {
     return parser_expect_token(p, TOK_GT);
 }
 
-token_t* parser_peak_generic_closing_delims(parser_t* p) {
+token_t* parser_peek_generic_closing_delims(parser_t* p) {
     token_type_e type = parser_peek(p)->type;
     if (type == TOK_GT || type == TOK_RSHA || type == TOK_RSHL) {
         return parser_peek(p);
