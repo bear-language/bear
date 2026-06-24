@@ -7,12 +7,8 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
  
 - [ ] contract improvements
-    - [x] move contract look-up off of the (look up symbol then check if DefIds are equal) and instead:
-    - [x] have a double hash-table look-up that allows DefId (of struct) -> hash-table or set of DefIds of contracts for it 
-    - [x] maintain functionality for `struct_has_contract` and `type_has_contract` -> ensure tests pass
-    - [x] make contracts be able to take generic params (adjust parser and `DefContract`, also add `DefGenericContract`)
-    - [x] allow `has` clauses to contain generic id_slices for generic contract look-up so contract mentions can have gen args 
-    - [x] adjust generic instantiation logic and look-up logic to account for generic contracts (easy to mess up, write tests)
+    - [ ] update `@has_contract` to allow for generic contracts
+    - [ ] give contract generic args for `Foo` doesn't have contract `Bar` 
 
 - [ ] clean up `use` semantics
     - [ ] warn/error on `use` when used def is generic and also has some parent that is generic 
