@@ -1,0 +1,9 @@
+// tests/hir/a16
+
+compt i32 a = 42
+
+compt i32 b = 33;
+
+i32 c = 12345;
+
+compt var d = c;

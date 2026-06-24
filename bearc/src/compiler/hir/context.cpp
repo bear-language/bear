@@ -105,7 +105,8 @@ Context::Context(const bearc_args_t& args, instances instances)
       def_to_gen_args(def_to_gen_args_arena, DEFAULT_CANONICAL_GEN_ARGS_CAP),
       diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM},
       only_one_context_instance((instances == instances::one) && one_instance_status), args{args},
-      compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]) {
+      compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]), terse{args.flags[CLI_FLAG_TERSE]},
+      strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]} {
 
     one_instance_status = false; // we exist now
 
@@ -143,7 +144,7 @@ Context::Context(const bearc_args_t& args, instances instances)
         this->note_cnt += ast.diagnostic_count() - ast.error_count();
         this->fatal_error_cnt += ast.error_count();
     }
-    if (has_flag(CLI_FLAG_PARSE_ONLY)) {
+    if (has_flag(CLI_FLAG_PARSE_ONLY) || (strict_syntax && error_count())) {
         return;
     }
 
@@ -672,7 +673,10 @@ void Context::print_diagnostic(DiagnosticId diag_id, bool print_file) {
         return;
     }
     const Diagnostic& diag = diagnostics.at(diag_id);
-    diag.print(*this, print_file);
+    // if terse, only print errors and warnings
+    if (!terse || diag.type == diag_type::error || diag.type == diag_type::warning) {
+        diag.print(*this, print_file);
+    }
     // mark used
     diagnostics_used.at(diag_id) = true;
     // try print next

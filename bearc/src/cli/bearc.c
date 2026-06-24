@@ -145,12 +145,15 @@ void cli_help(void) {
                           "        [--help | -h]     display this help message\n";
     const char* flags_title = "flags:\n";
     const char* flags
-        = "        [--silent]        suppress all compiler messages\n"
-          "        [--token-table]   print a list of lexed tokens\n"
-          "        [--pretty-print]  print a syntax tree diagram\n"
-          "        [--file-graph]    list all compiled files with their dependencies\n"
-          "        [--parse-only]    stop compilation after parsing\n"
-          "        [--compact-diags] print diagnostics that are vertically compact\n";
+        = "        [--silent]             suppress all compiler diagnostics\n"
+          "        [--token-table]        print a list of lexed tokens\n"
+          "        [--pretty-print]       print a syntax tree diagram\n"
+          "        [--file-graph]         list all compiled files with their dependencies\n"
+          "        [--parse-only]         stop compilation after parsing\n"
+          "        [--compact-diags]      print diagnostics that are vertically compact\n"
+          "        [--terse | -t]         only print error and warning diagnostics\n"
+          "        [--strict-syntax | -s] stop compilation after parsing when syntax errors are "
+          "present\n";
     const char* flags_w_args_title = "flags with arguments:\n";
     const char* flags_w_args
         = "        [--import-path | -I] <import_dirs...>  supply import paths\n"

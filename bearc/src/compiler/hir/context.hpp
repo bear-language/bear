@@ -863,7 +863,9 @@ class Context {
 
     // args
     const bearc_args_t& args;
-    bool compact_diagnostics = false;
+    bool compact_diagnostics{false};
+    bool terse{false};
+    bool strict_syntax{false};
 
     [[nodiscard]] FileId provide_root_file(const char* file_name);
     /// forceably emplaces ast, not checking if it has already been processed. This function is

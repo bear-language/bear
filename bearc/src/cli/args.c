@@ -17,8 +17,9 @@ bool is_valid_cli_flag_long(const char* flag);
 cli_flag_e search_cli_long_flags_for_valid_flag(const char* flag);
 
 const cli_flag_e short_flag_map[UCHAR_MAX] = {
-    ['h'] = CLI_FLAG_HELP,        ['v'] = CLI_FLAG_VERSION, ['c'] = CLI_FLAG_COMPILE,
-    ['I'] = CLI_FLAG_IMPORT_PATH, ['o'] = CLI_FLAG_OUTPUT,
+    ['h'] = CLI_FLAG_HELP,          ['v'] = CLI_FLAG_VERSION, ['c'] = CLI_FLAG_COMPILE,
+    ['I'] = CLI_FLAG_IMPORT_PATH,   ['o'] = CLI_FLAG_OUTPUT,  ['t'] = CLI_FLAG_TERSE,
+    ['s'] = CLI_FLAG_STRICT_SYNTAX,
 };
 
 // LONG FLAG NAME MAP
@@ -32,7 +33,9 @@ cli_flag_long_mapping_t cli_flag_long_map[] = {{"help", CLI_FLAG_HELP},
                                                {"compile", CLI_FLAG_COMPILE},
                                                {"parse-only", CLI_FLAG_PARSE_ONLY},
                                                {"output", CLI_FLAG_OUTPUT},
-                                               {"compact-diags", CLI_FLAG_COMPACT_DIAGS}};
+                                               {"compact-diags", CLI_FLAG_COMPACT_DIAGS},
+                                               {"terse", CLI_FLAG_TERSE},
+                                               {"strict-syntax", CLI_FLAG_TERSE}};
 static bool is_valid_cli_flag_short(const char* arg) {
     return strlen(arg) == 2 && arg[0] == '-' && short_flag_map[(unsigned char)arg[1]];
 }

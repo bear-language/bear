@@ -13,10 +13,10 @@
 #define BEARC_ARCH "x86"
 
 #elif defined(__x86_64__)
-#define BEARC_ARCH "intel x64"
+#define BEARC_ARCH "x64"
 
 #elif defined(__amd64__)
-#define BEARC_ARCH "amd x64"
+#define BEARC_ARCH "x64"
 
 #elif defined(__arm__)
 #define BEARC_ARCH "aarach32"
