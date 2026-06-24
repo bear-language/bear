@@ -66,7 +66,7 @@ DefId TopLevelDefVisitor::visit_as_dependent(DefId def) {
 DefId TopLevelDefVisitor::visit_and_check_for_circular_instantiation(DefId def) {
     if (context.resol_state_of(def) == Def::resol_state::attempting_insantiation) {
         // reports the double diagnostic revealing the origin of the circular def
-        report_cycle(def);
+        report_cycle(def, diag_code::circular_generic_instantiation);
         // return as to prevent infinite recursion
         return def;
     }
@@ -665,14 +665,13 @@ cleanup:
     return did;
 }
 
-void TopLevelDefVisitor::report_cycle(DefId culprit) {
+void TopLevelDefVisitor::report_cycle(DefId culprit, diag_code code) {
     // culprit is the origin, but accomplice has just referred to the culprit
     assert(!def_stack.empty());
     DefId accomplice = def_stack[def_stack.size() - 1];
 
-    DiagnosticId accomplice_diag
-        = context.emplace_diagnostic(context.make_top_level_def_name_span(accomplice),
-                                     diag_code::circular_definition, diag_type::error);
+    DiagnosticId accomplice_diag = context.emplace_diagnostic(
+        context.make_top_level_def_name_span(accomplice), code, diag_type::error);
 
     DiagnosticId prev_diag = accomplice_diag;
 

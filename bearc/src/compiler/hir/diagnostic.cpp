@@ -49,7 +49,7 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "empty union not permitted";
     case diag_code::circular_definition_origin:
         return "circular definition origin here";
-    case diag_code::circular_definition:
+    case diag_code::circular_definition_layout_cannot_be_resolved:
         return "circular definition; layout cannot be resolved";
     case diag_code::circular_definition_passes_thru:
         return "circular definition passes through this definition";
@@ -366,6 +366,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot infer type for initializer";
     case diag_code::explicitly_specify_the_type_by_providing_its_name_before_the_braces:
         return "explicitly specify the type by providing its name before the braces";
+    case diag_code::circular_generic_instantiation:
+        return "circular generic instantiation";
     }
 
     std::unreachable();

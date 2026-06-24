@@ -11,6 +11,7 @@
 
 #include "compiler/ast/stmt.h"
 #include "compiler/hir/def.hpp"
+#include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
@@ -45,7 +46,8 @@ class TopLevelDefVisitor {
 
     DefId resolve_def(DefId did);
     DefId visit_and_resolve_if_needed(DefId def);
-    void report_cycle(DefId culprit);
+    void report_cycle(DefId culprit,
+                      diag_code code = diag_code::circular_definition_layout_cannot_be_resolved);
     [[nodiscard]] std::optional<IdSlice<GenericParamId>>
     resolve_generic_params(FileId fid, ScopeId scope, ast_slice_of_generic_params_t gen_params);
     [[nodiscard]] OptId<GenericParamId>

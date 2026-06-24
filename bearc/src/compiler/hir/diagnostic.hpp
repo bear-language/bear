@@ -30,7 +30,7 @@ enum class diag_code : uint8_t {
     cyclical_import,
     empty_variant,
     empty_union,
-    circular_definition,
+    circular_definition_layout_cannot_be_resolved,
     circular_definition_passes_thru,
     circular_definition_origin,
     cannot_resolve_value_at_compt,
@@ -186,6 +186,7 @@ enum class diag_code : uint8_t {
     declared_here_as_generic,
     cannot_infer_type_for_initializer,
     explicitly_specify_the_type_by_providing_its_name_before_the_braces,
+    circular_generic_instantiation,
 
     count, // this must be last,
 

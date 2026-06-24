@@ -8,8 +8,10 @@ main quest
  
 - [ ] contract improvements
     - [x] update `@has_contract` to allow for generic contracts
-    - [ ] make has clauses of the form `has A + B + C`
+    - [x] make has clauses of the form `has A + B + C`
     - [ ] give contract generic args for diagnostics `Foo` doesn't have contract `Bar` 
+
+- [ ] give diagnostics for `->`/`=>` accidents on function signatures
 
 - [ ] clean up `use` semantics
     - [ ] warn/error on `use` when used def is generic and also has some parent that is generic 

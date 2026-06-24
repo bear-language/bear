@@ -2424,9 +2424,9 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
             // try short circuit
             const binary_op op = maybe_bin_op.as<binary_op>();
-            if (lhs.has_value() && (op == binary_op::bool_and || op == binary_op::bool_and)) {
+            if (lhs.has_value() && (op == binary_op::bool_or || op == binary_op::bool_and)) {
                 const Exec& lhs_exec = context.exec(lhs.as_id());
-                if (lhs_exec.holds<ExecConst>() && lhs_exec.holds<ExecConst>()) {
+                if (lhs_exec.holds<ExecConst>()) {
                     const std::optional<ExecConst> econst
                         = lhs_exec.as<ExecConst>().try_safe_convert_to(builtin_type::boolean);
                     if (econst.has_value()) {
@@ -2438,7 +2438,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                         }
                         // true || ____ => always true
                         if ((op == binary_op::bool_or) && bval) {
-                            return context.emplace_compt_exec(ExecConst{false},
+                            return context.emplace_compt_exec(ExecConst{true},
                                                               Span{context, fid, expr});
                         }
                     }

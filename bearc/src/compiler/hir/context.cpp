@@ -1749,9 +1749,8 @@ OptId<TypeId> Context::self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t*
 }
 
 bool Context::struct_has_contract(DefId struct_did, DefId contract_did) {
-    const Def& struct_def = def(struct_did);
     const Def& contract_def = def(contract_did);
-    if (!struct_def.holds<DefStruct>() || !contract_def.holds<DefContract>()) {
+    if (!contract_def.holds<DefContract>()) {
         return false;
     }
 
