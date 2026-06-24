@@ -1,0 +1,135 @@
+// tests/hir/a18.br
+
+contract Ctr<T has Other> {}
+
+contract Other {}
+
+struct Foo has Ctr<Foo> + Other {} // oops
+
+struct Bar has Other + Ctr<Bar> {} // nice, evaluates Other, then Ctr knows Bar already has Other
+
+compt Foo a = {};
+
+compt Bar b = {};
+
+var _0 = @static_assert !@same_type(typeof a, typeof b);
+
+contract Plus {
+    fn plus(Self lhs, Self rhs) -> Self;
+}
+
+contract Minus {
+    fn minus(Self lhs, Self rhs) -> Self;
+}
+
+contract Multiply {
+    fn multiply(Self lhs, Self rhs) -> Self;
+}
+
+contract Divide {
+    fn divide(Self lhs, Self rhs) -> Self;
+}
+
+contract Arithmetic<T has Plus + Minus + Multiply + Divide> {
+}
+
+compt fn is_arith<T>() -> bool => {
+    @has_contract(decay T, Plus) && 
+    @has_contract(decay T, Minus) && 
+    @has_contract(decay T, Multiply) &&
+    @has_contract(decay T, Divide)
+}
+
+compt fn is_num<T>() -> bool => {
+    @same_type(decay T, i64) || @same_type(decay T, u64) ||
+    @same_type(decay T, i32) || @same_type(decay T, u32) ||
+    @same_type(decay T, i16) || @same_type(decay T, u16) ||
+    @same_type(decay T, i8) || @same_type(decay T, u8) ||
+    @same_type(decay T, f32) || @same_type(decay T, f64) || 
+    is_arith::<T>()
+}
+
+fn square<T has Multiply>(T val) -> T => T..multiply(val, val)
+
+struct NumWrapper<T> 
+has Plus + Minus + Multiply + Divide + Arithmetic<NumWrapper<T>> // oops, circular instant/definition
+{
+    T val = 0 if is_num::<T>() else @err("`" + @type_to_str(decay T) + "` is not a numeric type so instatiation of " + @type_to_str(decay Self) + " is invalid") as T; // default value
+    fn plus(Self lhs, Self rhs) -> Self => lhs.val + rhs.val 
+    fn minus(Self lhs, Self rhs) -> Self => lhs.val - rhs.val
+    fn multiply(Self lhs, Self rhs) -> Self => lhs.val * rhs.val
+    fn divide(Self lhs, Self rhs) -> Self => lhs.val / rhs.val
+
+}
+
+// error recover is quite good, this all still instatiates, that one circular contract just cannot be evaluated:
+
+compt NumWrapper<i32> c = {.val = 42};
+
+var _1 = @static_assert c != c; // oops
+
+var _2 = @static_assert c == NumWrapper::<i32>{.val = 42};
+
+compt var d = NumWrapper::<i64>{.val = 42};
+
+var _3 = @static_assert c == d; // oops
+
+var _4 = @static_assert !@same_type(NumWrapper::i32, NumWrapper::i32); // oops 
+
+var __4 = @note "Here are some types:";
+
+var _5 = @note @type_to_str NumWrapper::i32;
+
+var _6 = @note @type_to_str typeof c.val;
+
+var _7 = @note @type_to_str typeof d.val;
+
+
+// This almost CRTP-esque construct works for non-generic structs, although this isn't as powerful as CRTP since it cannot derive impls since contracts cannot supply implementations.
+// Although it does work as way to provide approximated contract inheritance
+struct IntWrapper 
+has Plus + Minus + Multiply + Divide + Arithmetic<IntWrapper> // oops, circular instant/definition
+{
+    i64 val;
+    fn new(i64 val) -> Self => Self{.val = val}
+    fn plus(Self lhs, Self rhs) -> Self => new(lhs.val + rhs.val)
+    fn minus(Self lhs, Self rhs) -> Self => new(lhs.val - rhs.val)
+    fn multiply(Self lhs, Self rhs) -> Self => new(lhs.val * rhs.val)
+    fn divide(Self lhs, Self rhs) -> Self => new(lhs.val / rhs.val)
+    fn equal(Self lhs, Self rhs) -> bool => lhs.val == rhs.val
+
+}
+
+compt IntWrapper e = {.val = 64};
+
+compt typeof(e) f = {.val = 63};
+
+var _8 = @static_assert e != f;
+
+var _9 = @static_assert e == f; // oops
+
+compt NumWrapper::bool g = {};
+
+compt NumWrapper::str h = {};
+
+compt var _10 = @static_assert is_num::<i32>();
+
+var _11 = @static_assert @has_contract(typeof e, Arithmetic<typeof e>);
+
+var _12 = @static_assert @has_contract(typeof e, Arithmetic<typeof f>);
+
+var _13 = @static_assert @has_contract(typeof e, Arithmetic<i32>); // oops
+
+deftype I = IntWrapper;
+
+compt I i = I..new(8);
+
+compt I j = I..new(12);
+
+compt var ij = I..plus(i, j);
+
+var _14 = @static_assert I..equal(ij, I..new(20));
+
+compt var k = I..plus(I..new(i.val + 20), j);
+
+var _15 = @static_assert I..equal(ij, k); // oops
