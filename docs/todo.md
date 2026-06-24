@@ -7,7 +7,8 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
  
 - [ ] contract improvements
-    - [ ] update `@has_contract` to allow for generic contracts
+    - [x] update `@has_contract` to allow for generic contracts
+    - [ ] make has clauses of the form `has A + B + C`
     - [ ] give contract generic args for diagnostics `Foo` doesn't have contract `Bar` 
 
 - [ ] clean up `use` semantics

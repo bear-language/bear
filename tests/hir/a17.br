@@ -1,0 +1,21 @@
+// tests/hir/a17.br
+
+mod test;
+
+contract CanBeCool<T> {
+    fn is_cool() -> bool;
+    fn cool(T a) -> bool;
+}
+
+struct Ice has CanBeCool<i32> {
+    fn is_cool() -> bool => true 
+    fn cool(i32 a) -> bool => a % 2 == 0;
+}
+
+var _0 = @static_assert @has_contract(Ice, CanBeCool<i32>);
+
+var _1 = @static_assert @has_contract(Ice, CanBeCool<i64>); // oops
+
+deftype MyInt = i32;
+
+var _2 = @static_assert @has_contract(Ice, CanBeCool<MyInt>);

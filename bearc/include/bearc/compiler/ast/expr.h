@@ -240,7 +240,7 @@ typedef struct ast_expr_defined {
 
 typedef struct ast_expr_has_contract {
     ast_type_t* type;
-    token_ptr_slice_t contract_id_slice;
+    ast_expr_t* contract;
 } ast_expr_has_contract_t;
 
 typedef struct ast_expr_generic_id {

@@ -3046,16 +3046,26 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         const auto tid = maybe_tid.as_id();
 
-        token_ptr_slice_t id_slice = has_ctr.contract_id_slice;
-
-        Span contract_id_span{context, fid, id_slice};
-
-        OptId<DefId> maybe_did
-            = context.look_up_scoped_type(scope, context.symbol_slice(id_slice), contract_id_span);
+        Span contract_id_span{context, fid, has_ctr.contract};
+        OptId<DefId> maybe_did{};
+        if (has_ctr.contract->type == AST_EXPR_ID) {
+            maybe_did = context.look_up_scoped_type(
+                scope, context.symbol_slice(has_ctr.contract->expr.id.slice), contract_id_span);
+        } else if (has_ctr.contract->type == AST_EXPR_GENERIC_ID) {
+            const auto maybe_generic_args
+                = lower_generic_args(fid, scope, has_ctr.contract->expr.generic_id.args, false);
+            if (maybe_generic_args.empty()) {
+                return {}; // poisoned
+            }
+            maybe_did = context.look_up_scoped_type_generic(
+                def_visitor, scope, context.symbol_slice(has_ctr.contract->expr.generic_id.slice),
+                contract_id_span, maybe_generic_args.as_id());
+        }
 
         if (maybe_did.empty()) {
             context.emplace_diagnostic(contract_id_span, diag_code::use_of_undeclared_identifier,
-                                       diag_type::error);
+                                       diag_type::error,
+                                       DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
             return std::nullopt;
         }
 

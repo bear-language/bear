@@ -289,19 +289,13 @@ ast_expr_t* parse_expr_has_contract(parser_t* p) {
 
     parser_expect_token(p, TOK_COMMA);
 
-    ast_expr_t* id_expr = parse_id(p);
+    ast_expr_t* id_expr = parse_expr_contract(p);
 
-    if (id_expr->type != AST_EXPR_ID) {
+    if (id_expr->type != AST_EXPR_ID && id_expr->type != AST_EXPR_GENERIC_ID) {
         return parser_sync_expr(p);
     }
 
-    token_ptr_slice_t id_slice = id_expr->expr.id.slice;
-
-    if (id_slice.len == 0) {
-        ex->type = AST_EXPR_INVALID;
-        return ex;
-    }
-    ex->expr.has_contract.contract_id_slice = id_slice;
+    ex->expr.has_contract.contract = id_expr;
 
     if (lparen) {
         parser_expect_token(p, TOK_RPAREN);

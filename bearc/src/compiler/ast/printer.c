@@ -636,14 +636,7 @@ void pretty_print_expr(const ast_expr_t* expression) {
         print_delineator_from_type(TOK_LPAREN);
         print_type(expr.expr.has_contract.type);
         print_delineator_from_type(TOK_COMMA);
-        printer_do_indent();
-        printer_do_indent();
-        print_indent();
-        printf("contract: ");
-        print_id_slice(expr.expr.has_contract.contract_id_slice);
-        puts(",");
-        printer_deindent();
-        printer_deindent();
+        pretty_print_expr(expr.expr.has_contract.contract);
         print_delineator_from_type(TOK_RPAREN);
         print_closing_green_brace();
         break;
