@@ -492,8 +492,6 @@ const char* builtin_type_to_cstr(builtin_type t) {
         return "u64";
     case builtin_type::i64:
         return "i64";
-    case builtin_type::usize:
-        return "usize";
     case builtin_type::charr:
         return "char";
     case builtin_type::f32:
@@ -542,8 +540,6 @@ std::optional<builtin_type> id_tkn_slice_to_maybe_builtin(token_ptr_slice_t tkn_
         return builtin_type::i64;
     case TOK_U64:
         return builtin_type::u64;
-    case TOK_USIZE:
-        return builtin_type::usize;
     case TOK_CHAR:
         return builtin_type::charr;
     case TOK_F32:
@@ -678,7 +674,6 @@ bool builtin_type_has_binary_op(builtin_type type, binary_op op) {
     // u32
     case builtin_type::u32:
     // u64
-    case builtin_type::usize:
     case builtin_type::u64: {
         switch (op) {
         case binary_op::plus:
@@ -866,7 +861,6 @@ bool builtin_type_has_unary_op(builtin_type type, unary_op op) {
         return op == unary_op::bool_not;
         break;
     }
-    case builtin_type::usize:
     case builtin_type::voidd:
         return false;
     }

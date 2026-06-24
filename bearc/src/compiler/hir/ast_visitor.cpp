@@ -361,7 +361,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
 
             context.defs_to_scopes().insert(did, types_scope);
             // warn on lowercase structure definition
-            if (is_lower(name_tkn)) {
+            if (stmt->type != AST_STMT_DEFTYPE && is_lower(name_tkn)) {
                 context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
                                            diag_code::lowercase_structure, diag_type::warning);
             }

@@ -1,0 +1,4 @@
+// tests/lib/size.br
+
+deftype usize = u64;
+deftype isize = i64;

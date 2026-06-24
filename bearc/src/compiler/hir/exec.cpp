@@ -14,7 +14,6 @@
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/variant_helpers.hpp"
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -44,7 +43,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
         case builtin_type::i32:
         case builtin_type::u64:
         case builtin_type::i64:
-        case builtin_type::usize:
         case builtin_type::charr:
         case builtin_type::f32:
         case builtin_type::f64:
@@ -74,8 +72,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
             return to_optconst(ConstantValue{static_cast<uint64_t>(val)});
         case builtin_type::i64:
             return to_optconst(ConstantValue{static_cast<int64_t>(val)});
-        case builtin_type::usize:
-            return to_optconst(ConstantValue{static_cast<size_t>(val)});
         case builtin_type::charr:
             return to_optconst(ConstantValue{static_cast<char>(val)});
         case builtin_type::f32:
@@ -111,8 +107,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
             return to_optconst(ConstantValue{static_cast<uint64_t>(val)});
         case builtin_type::i64:
             return to_optconst(ConstantValue{static_cast<int64_t>(val)});
-        case builtin_type::usize:
-            return to_optconst(ConstantValue{static_cast<size_t>(val)});
         case builtin_type::charr:
             return to_optconst(ConstantValue{static_cast<char>(val)});
         case builtin_type::f32:
@@ -148,8 +142,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
             return to_optconst(ConstantValue{static_cast<uint64_t>(val)});
         case builtin_type::i64:
             return to_optconst(ConstantValue{static_cast<int64_t>(val)});
-        case builtin_type::usize:
-            return to_optconst(ConstantValue{static_cast<size_t>(val)});
         case builtin_type::f32:
             return to_optconst(ConstantValue{static_cast<float>(val)});
         case builtin_type::f64:
@@ -184,8 +176,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
             return to_optconst(ConstantValue{static_cast<uint64_t>(val)});
         case builtin_type::i64:
             return to_optconst(ConstantValue{static_cast<int64_t>(val)});
-        case builtin_type::usize:
-            return to_optconst(ConstantValue{static_cast<size_t>(val)});
         case builtin_type::f32:
             return to_optconst(ConstantValue{static_cast<float>(val)});
         case builtin_type::f64:
@@ -218,8 +208,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
             return to_optconst(ConstantValue{static_cast<uint64_t>(val)});
         case builtin_type::i64:
             return to_optconst(ConstantValue{static_cast<int64_t>(val)});
-        case builtin_type::usize:
-            return to_optconst(ConstantValue{static_cast<size_t>(val)});
         case builtin_type::f32:
             return to_optconst(ConstantValue{static_cast<float>(val)});
         case builtin_type::f64:
@@ -252,8 +240,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
             return to_optconst(ConstantValue{static_cast<uint64_t>(val)});
         case builtin_type::i64:
             return to_optconst(ConstantValue{static_cast<int64_t>(val)});
-        case builtin_type::usize:
-            return to_optconst(ConstantValue{static_cast<size_t>(val)});
         case builtin_type::f32:
             return to_optconst(ConstantValue{static_cast<float>(val)});
         case builtin_type::f64:
@@ -284,8 +270,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
             return to_optconst(ConstantValue{static_cast<uint64_t>(val)});
         case builtin_type::i64:
             return *this;
-        case builtin_type::usize:
-            return to_optconst(ConstantValue{static_cast<size_t>(val)});
         case builtin_type::f32:
             return to_optconst(ConstantValue{static_cast<float>(val)});
         case builtin_type::f64:
@@ -316,8 +300,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
             return *this;
         case builtin_type::i64:
             return to_optconst(ConstantValue{static_cast<int64_t>(val)});
-        case builtin_type::usize:
-            return to_optconst(ConstantValue{static_cast<size_t>(val)});
         case builtin_type::f32:
             return to_optconst(ConstantValue{static_cast<float>(val)});
         case builtin_type::f64:
@@ -352,8 +334,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
             return to_optconst(ConstantValue{static_cast<uint64_t>(val)});
         case builtin_type::i64:
             return to_optconst(ConstantValue{static_cast<int64_t>(val)});
-        case builtin_type::usize:
-            return to_optconst(ConstantValue{static_cast<size_t>(val)});
         case builtin_type::charr:
             return to_optconst(ConstantValue{static_cast<char>(val)});
         case builtin_type::f32:
@@ -382,7 +362,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
         case builtin_type::i32:
         case builtin_type::u64:
         case builtin_type::i64:
-        case builtin_type::usize:
         case builtin_type::charr:
             return none();
         case builtin_type::f32:
@@ -414,7 +393,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
         case builtin_type::i32:
         case builtin_type::u64:
         case builtin_type::i64:
-        case builtin_type::usize:
         case builtin_type::charr:
         case builtin_type::f32:
             return none();
@@ -444,7 +422,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
         case builtin_type::i32:
         case builtin_type::u64:
         case builtin_type::i64:
-        case builtin_type::usize:
         case builtin_type::charr:
         case builtin_type::f32:
         case builtin_type::f64:
@@ -472,7 +449,6 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
         case builtin_type::i32:
         case builtin_type::u64:
         case builtin_type::i64:
-        case builtin_type::usize:
         case builtin_type::charr:
         case builtin_type::f32:
         case builtin_type::f64:
@@ -1171,8 +1147,6 @@ std::string ExecConst::to_string() const {
         return std::to_string(as<uint64_t>());
     case builtin_type::i64:
         return std::to_string(as<int64_t>());
-    case builtin_type::usize:
-        return std::to_string(as<uint64_t>());
     case builtin_type::charr:
         return std::to_string(as<char>());
     case builtin_type::f32:
@@ -1210,8 +1184,6 @@ std::string ExecConst::to_string(const Context& ctx) const {
         return std::to_string(as<uint64_t>());
     case builtin_type::i64:
         return std::to_string(as<int64_t>());
-    case builtin_type::usize:
-        return std::to_string(as<uint64_t>());
     case builtin_type::charr:
         return std::to_string(as<char>());
     case builtin_type::f32:
@@ -1341,8 +1313,6 @@ std::optional<ExecConst> ExecConst::plus(Context& ctx, ExecConst lhs, ExecConst 
         return e_plus<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_plus<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_plus<usize>(lhs, rhs);
     case builtin_type::f32:
         return e_plus<f32>(lhs, rhs);
     case builtin_type::f64:
@@ -1377,8 +1347,6 @@ std::optional<ExecConst> ExecConst::minus(ExecConst lhs, ExecConst rhs) {
         return e_minus<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_minus<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_minus<usize>(lhs, rhs);
     case builtin_type::f32:
         return e_minus<f32>(lhs, rhs);
     case builtin_type::f64:
@@ -1411,8 +1379,6 @@ std::optional<ExecConst> ExecConst::multiply(ExecConst lhs, ExecConst rhs) {
         return e_multiply<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_multiply<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_multiply<usize>(lhs, rhs);
     case builtin_type::f32:
         return e_multiply<f32>(lhs, rhs);
     case builtin_type::f64:
@@ -1446,8 +1412,6 @@ std::optional<ExecConst> ExecConst::divide(ExecConst lhs, ExecConst rhs) {
         return e_divide<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_divide<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_divide<usize>(lhs, rhs);
     case builtin_type::f32:
         return e_divide<f32>(lhs, rhs);
     case builtin_type::f64:
@@ -1482,8 +1446,6 @@ std::optional<ExecConst> ExecConst::mod(ExecConst lhs, ExecConst rhs) {
         return e_mod<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_mod<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_mod<usize>(lhs, rhs);
     case builtin_type::f32:
     case builtin_type::f64:
     case builtin_type::charr:
@@ -1514,8 +1476,6 @@ bool ExecConst::equals_zero() const {
         return as<u64>() == 0;
     case builtin_type::i64:
         return as<i64>() == 0;
-    case builtin_type::usize:
-        return as<usize>() == 0;
     case builtin_type::charr:
         return as<char>() == '\0';
     case builtin_type::f32:
@@ -1552,8 +1512,6 @@ std::optional<ExecConst> ExecConst::bit_and(ExecConst lhs, ExecConst rhs) {
         return e_bit_and<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_bit_and<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_bit_and<usize>(lhs, rhs);
     case builtin_type::f32:
     case builtin_type::f64:
     case builtin_type::charr:
@@ -1585,8 +1543,6 @@ std::optional<ExecConst> ExecConst::bit_or(ExecConst lhs, ExecConst rhs) {
         return e_bit_or<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_bit_or<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_bit_or<usize>(lhs, rhs);
     case builtin_type::f32:
     case builtin_type::f64:
     case builtin_type::charr:
@@ -1618,8 +1574,6 @@ std::optional<ExecConst> ExecConst::bit_xor(ExecConst lhs, ExecConst rhs) {
         return e_bit_xor<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_bit_xor<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_bit_xor<usize>(lhs, rhs);
     case builtin_type::f32:
     case builtin_type::f64:
     case builtin_type::charr:
@@ -1651,8 +1605,6 @@ std::optional<ExecConst> ExecConst::bit_lsh(ExecConst lhs, ExecConst rhs) {
         return e_lsh<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_lsh<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_lsh<usize>(lhs, rhs);
     case builtin_type::f32:
     case builtin_type::f64:
     case builtin_type::charr:
@@ -1675,7 +1627,6 @@ std::optional<ExecConst> ExecConst::bit_rsha(ExecConst lhs, ExecConst rhs) {
         return e_rsha<i32>(lhs, rhs);
     case builtin_type::i64:
         return e_rsha<i64>(lhs, rhs);
-    case builtin_type::usize:
     case builtin_type::u8:
     case builtin_type::u16:
     case builtin_type::u32:
@@ -1694,8 +1645,6 @@ std::optional<ExecConst> ExecConst::bit_rsha(ExecConst lhs, ExecConst rhs) {
 std::optional<ExecConst> ExecConst::bit_rshl(ExecConst lhs, ExecConst rhs) {
     assert(lhs.holds_same_variant_type(rhs));
     switch (lhs.type_builtin()) {
-    case builtin_type::usize:
-        return e_rshl<usize>(lhs, rhs);
     case builtin_type::u8:
         return e_rshl<u8>(lhs, rhs);
     case builtin_type::u16:
@@ -1739,8 +1688,6 @@ std::optional<ExecConst> ExecConst::greater_than(ExecConst lhs, ExecConst rhs) {
         return e_greater_than<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_greater_than<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_greater_than<usize>(lhs, rhs);
     case builtin_type::f32:
         return e_greater_than<f32>(lhs, rhs);
     case builtin_type::f64:
@@ -1774,8 +1721,6 @@ std::optional<ExecConst> ExecConst::less_than(ExecConst lhs, ExecConst rhs) {
         return e_less_than<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_less_than<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_less_than<usize>(lhs, rhs);
     case builtin_type::f32:
         return e_less_than<f32>(lhs, rhs);
     case builtin_type::f64:
@@ -1809,8 +1754,6 @@ std::optional<ExecConst> ExecConst::greater_than_or_equal(ExecConst lhs, ExecCon
         return e_greater_than_or_equal<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_greater_than_or_equal<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_greater_than_or_equal<usize>(lhs, rhs);
     case builtin_type::f32:
         return e_greater_than_or_equal<f32>(lhs, rhs);
     case builtin_type::f64:
@@ -1844,8 +1787,6 @@ std::optional<ExecConst> ExecConst::less_than_or_equal(ExecConst lhs, ExecConst 
         return e_less_than_or_equal<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_less_than_or_equal<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_less_than_or_equal<usize>(lhs, rhs);
     case builtin_type::f32:
         return e_less_than_or_equal<f32>(lhs, rhs);
     case builtin_type::f64:
@@ -1879,8 +1820,6 @@ std::optional<ExecConst> ExecConst::equal(ExecConst lhs, ExecConst rhs) {
         return e_equal<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_equal<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_equal<usize>(lhs, rhs);
     case builtin_type::f32:
         return e_equal<f32>(lhs, rhs);
     case builtin_type::f64:
@@ -1918,8 +1857,6 @@ std::optional<ExecConst> ExecConst::not_equal(ExecConst lhs, ExecConst rhs) {
         return e_not_equal<u64>(lhs, rhs);
     case builtin_type::i64:
         return e_not_equal<i64>(lhs, rhs);
-    case builtin_type::usize:
-        return e_not_equal<usize>(lhs, rhs);
     case builtin_type::f32:
         return e_not_equal<f32>(lhs, rhs);
     case builtin_type::f64:
@@ -1943,7 +1880,6 @@ std::optional<ExecConst> ExecConst::bool_and(ExecConst lhs, ExecConst rhs) {
     switch (lhs.type_builtin()) {
     case builtin_type::boolean:
         return e_and<bool>(lhs, rhs);
-    case builtin_type::usize:
     case builtin_type::u8:
     case builtin_type::u16:
     case builtin_type::u32:
@@ -1968,7 +1904,6 @@ std::optional<ExecConst> ExecConst::bool_or(ExecConst lhs, ExecConst rhs) {
     switch (lhs.type_builtin()) {
     case builtin_type::boolean:
         return e_or<bool>(lhs, rhs);
-    case builtin_type::usize:
     case builtin_type::u8:
     case builtin_type::u16:
     case builtin_type::u32:
@@ -2006,8 +1941,6 @@ std::optional<ExecConst> ExecConst::preunary_plus(ExecConst ec) {
         return e_preun_plus<u64>(ec);
     case builtin_type::i64:
         return e_preun_plus<i64>(ec);
-    case builtin_type::usize:
-        return e_preun_plus<usize>(ec);
     case builtin_type::f32:
         return e_preun_plus<f32>(ec);
     case builtin_type::f64:
@@ -2040,8 +1973,6 @@ std::optional<ExecConst> ExecConst::preunary_minus(ExecConst ec) {
         return e_preun_minus<u64>(ec);
     case builtin_type::i64:
         return e_preun_minus<i64>(ec);
-    case builtin_type::usize:
-        return e_preun_minus<usize>(ec);
     case builtin_type::f32:
         return e_preun_minus<f32>(ec);
     case builtin_type::f64:
@@ -2068,7 +1999,6 @@ std::optional<ExecConst> ExecConst::preunary_bool_not(ExecConst ec) {
     case builtin_type::i32:
     case builtin_type::u64:
     case builtin_type::i64:
-    case builtin_type::usize:
     case builtin_type::f32:
     case builtin_type::f64:
     case builtin_type::charr:
@@ -2098,8 +2028,6 @@ std::optional<ExecConst> ExecConst::preunary_bit_not(ExecConst ec) {
         return e_bit_not<u64>(ec);
     case builtin_type::i64:
         return e_bit_not<i64>(ec);
-    case builtin_type::usize:
-        return e_bit_not<usize>(ec);
     case builtin_type::charr:
     case builtin_type::f32:
     case builtin_type::f64:

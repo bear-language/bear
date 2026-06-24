@@ -1,0 +1,28 @@
+// tests/hir/a19.br
+
+import "size.br";
+
+mod test;
+
+compt fn is_ref<T>() -> bool => @inferable_as(T, &var)
+
+compt fn is_ptr<T>() -> bool => @inferable_as(T, *var)
+
+var _0 = @static_assert is_ref::<&i32>();
+
+var _1 = @static_assert is_ref::<*i32>(), @type_to_str(*i32) + " is not a reference"; // oops
+
+compt var a = null;
+
+compt *i32 b = a;
+
+var _2 = @static_assert is_ptr::<typeof b>();
+
+compt fn is_arr_of_size<T, usize N>() -> bool => @inferable_as(T, [N]var) 
+
+compt fn is_arr_of_type_and_size<T, O, usize N>() -> bool => @same_type(T, [N]O) 
+
+var _3 = @static_assert is_arr_of_size::<[4]i32, 4 as usize>();
+
+var _4 = @static_assert is_arr_of_type_and_size::<[4]i32, i32, 4 as usize>();
+

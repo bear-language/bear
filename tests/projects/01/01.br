@@ -1,5 +1,7 @@
 // 01.br
 
+deftype usize = u64;
+
 variant BinButGood { // fine
     Boo(i32 binben),
     Bob(usize benbin),

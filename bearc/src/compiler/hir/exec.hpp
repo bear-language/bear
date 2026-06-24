@@ -103,7 +103,7 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
         case 7:
             return type == builtin_type::i64;
         case 8:
-            return type == builtin_type::u64 || type == builtin_type::usize;
+            return type == builtin_type::u64;
         case 9:
             return type == builtin_type::charr;
         case 10:
@@ -172,8 +172,6 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
             return as<u64>();
         case builtin_type::i64:
             return as<i64>();
-        case builtin_type::usize:
-            return as<usize>();
         case builtin_type::charr:
             return as<char>();
         case builtin_type::f32:
@@ -212,8 +210,6 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
             return 0;
         case builtin_type::i64:
             return 1;
-        case builtin_type::usize:
-            return 0;
         case builtin_type::charr:
             return 2;
         case builtin_type::f32:

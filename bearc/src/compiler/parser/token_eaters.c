@@ -257,11 +257,10 @@ bool is_legal_binary_op(parser_t* p, token_type_e type) {
 
 // map containing look-ups for builtin types
 static const bool parser_builtin_type_map[TOK__NUM]
-    = {[TOK_CHAR] = true,     [TOK_U8] = true,    [TOK_I8] = true,  [TOK_I16] = true,
-       [TOK_U16] = true,      [TOK_I32] = true,   [TOK_U32] = true, [TOK_I64] = true,
-       [TOK_U64] = true,      [TOK_USIZE] = true, [TOK_F32] = true, [TOK_F64] = true,
-       [TOK_BOOL] = true,     [TOK_STR] = true,   [TOK_VAR] = true, [TOK_VOID] = true,
-       [TOK_SELF_TYPE] = true};
+    = {[TOK_CHAR] = true, [TOK_U8] = true,  [TOK_I8] = true,   [TOK_I16] = true,
+       [TOK_U16] = true,  [TOK_I32] = true, [TOK_U32] = true,  [TOK_I64] = true,
+       [TOK_U64] = true,  [TOK_F32] = true, [TOK_F64] = true,  [TOK_BOOL] = true,
+       [TOK_STR] = true,  [TOK_VAR] = true, [TOK_VOID] = true, [TOK_SELF_TYPE] = true};
 
 // match helpers
 bool token_is_builtin_type(token_type_e t) { return parser_builtin_type_map[t]; }

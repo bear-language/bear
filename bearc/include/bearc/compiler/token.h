@@ -86,7 +86,6 @@ typedef enum token_type {
     TOK_U32,
     TOK_I64,
     TOK_U64,
-    TOK_USIZE,
     // char
     TOK_CHAR, // 32 bit unicode character
     // floating

@@ -38,7 +38,6 @@ enum class builtin_type : uint8_t {
     i32,
     u64,
     i64,
-    usize,
     charr,
     f32,
     f64,

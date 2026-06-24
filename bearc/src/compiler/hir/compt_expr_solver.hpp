@@ -28,7 +28,6 @@
 #include "compiler/token.h"
 #include "def_visitor.hpp"
 #include <cassert>
-#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -2835,7 +2834,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             ExecExprListLiteral list = ordered_exec.as<ExecExprListLiteral>();
             OptId<ExecId> maybe_idx
                 = solve_expr(fid, scope, expr->expr.subscript.subexpr,
-                             context.emplace_type(TypeBuiltin{.type = builtin_type::usize},
+                             context.emplace_type(TypeBuiltin{.type = builtin_type::u64},
                                                   Span::generated(), false));
             if (maybe_idx.empty()) {
                 return std::nullopt; // poisoned
@@ -2860,7 +2859,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             SymbolId sid = ordered_exec.as<ExecConst>().as<SymbolId>();
             OptId<ExecId> maybe_idx
                 = solve_expr(fid, scope, expr->expr.subscript.subexpr,
-                             context.emplace_type(TypeBuiltin{.type = builtin_type::usize},
+                             context.emplace_type(TypeBuiltin{.type = builtin_type::u64},
                                                   Span::generated(), false));
             if (maybe_idx.empty()) {
                 return std::nullopt; // poisoned

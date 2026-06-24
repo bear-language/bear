@@ -1,5 +1,7 @@
 // 00.br
 
+deftype usize = u64;
+
 fn main() {
     Foo foo = Foo{.data = 42};
     return foo.get_data();

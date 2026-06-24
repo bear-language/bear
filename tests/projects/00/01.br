@@ -1,5 +1,7 @@
 import "00.br"; // circular
 
+deftype usize = u64;
+
 struct Foo {
     hid mut i32 bar_;
     fn do_work() -> i32 {

@@ -98,8 +98,6 @@ static void string_to_token_map_init(void) {
     strimap_emplace(&string_to_token_map, "i64", TOK_I64);
     strimap_emplace(&string_to_token_map, "u64", TOK_U64);
 
-    strimap_emplace(&string_to_token_map, "usize", TOK_USIZE);
-
     strimap_emplace(&string_to_token_map, "char", TOK_CHAR);
     strimap_emplace(&string_to_token_map, "f32", TOK_F32);
     strimap_emplace(&string_to_token_map, "f64", TOK_F64);
@@ -274,8 +272,6 @@ static const char* token_to_string_map_impl[TOK__NUM] = {
 
     [TOK_I64] = "i64",
     [TOK_U64] = "u64",
-
-    [TOK_USIZE] = "usize",
 
     [TOK_CHAR] = "char",
 

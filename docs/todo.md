@@ -108,6 +108,10 @@ side quests
 
 #### chores
 
+tools
+----- 
+- [ ] highlighing for isize
+
 lexer & parser 
 --------------
 - [ ] improve numerical literal handling 

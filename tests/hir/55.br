@@ -2,6 +2,8 @@
 
 mod strlist_demo;
 
+deftype usize = u64;
+
 fn streq(&str a, &str b) => a == b 
 
 fn streq_at(&str a, &mut str b, usize at) => a[at] == b[at]

@@ -1,5 +1,7 @@
 // tests/hir/28.br 
 
+deftype usize = u64;
+
 compt i32 z = 0x10 & 0x10;
 compt u32 z1 = 0x11 | 0x10;
 compt u8 z2 = 0x11 ^ 0x01;
