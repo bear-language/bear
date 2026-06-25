@@ -712,6 +712,26 @@ void Context::force_link_diagnostic(DiagnosticId diag) {
     diagnostics.at(diag).set_prev(DiagnosticId{prev_val});
 }
 
+bool Context::last_diagnostic_chain_contains(diag_code code) {
+    if (diagnostics.empty()) {
+        return false;
+    }
+    DiagnosticId curr
+        = DiagnosticId{static_cast<HirSize>(diagnostics.size())}; // since diagnostics are 1-indexed
+    while (true) {
+        const Diagnostic& d = diagnostics.at(curr);
+        if (d.code == code) {
+            return true;
+        }
+        if (d.prev.has_value()) {
+            curr = d.prev.as_id();
+        } else {
+            break;
+        }
+    }
+    return false;
+}
+
 void Context::try_link_custom_diagnostic(DiagnosticId diag) {
     HirId prev_val = diag.raw() - 1;
     if (prev_val == HIR_ID_NONE) {

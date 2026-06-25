@@ -393,6 +393,10 @@ class Context {
     // try to chain custom diagnostics in a pretty way (link them only with each other)
     void try_link_custom_diagnostic(DiagnosticId diag);
     void print_diagnostic(DiagnosticId diag, bool print_file = true);
+
+    // check if the most recent diagnostic chain contains a particular code
+    [[nodiscard]] bool last_diagnostic_chain_contains(diag_code code);
+
     // type emplacer
     /// emplaces and gets the id from a new CanonicalTypeId c
     /// orresponding to a TypeId which points

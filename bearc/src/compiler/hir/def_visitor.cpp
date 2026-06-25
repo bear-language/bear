@@ -210,7 +210,8 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         // will require trying to do a run-time expr lowering on the init expression, which isn't
         // impl'd yet
         if (!maybe_compt_eid.has_value()) {
-            if (!context.def(did).compt && var_init_decl.rhs->type != AST_EXPR_STATIC_ASSERT) {
+            if (!context.def(did).compt && var_init_decl.rhs->type != AST_EXPR_STATIC_ASSERT
+                && context.last_diagnostic_chain_contains(diag_code::cannot_resolve_at_compt)) {
                 const auto d = context.emplace_diagnostic(
                     Span{context, context.def(did).span.file_id, stmt->stmt.var_init_decl.rhs},
                     diag_code::all_runtime_glob_and_mem_vars_need_compt_init, diag_type::note,

@@ -1,0 +1,12 @@
+// tests/hir/a22.br
+
+mod test;
+
+var my_i32 = 123;
+
+compt var my_compt_i32 = my_i32;
+
+
+struct Foo {
+    i32 a = my_i32;
+}
