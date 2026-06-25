@@ -3170,7 +3170,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             return {}; // poisoned
         }
         const auto sid_slice = context.symbol_slice(pattern_expr->expr.variant_decomp.id);
-        scope = context.def(var_init.variant_def_id).as<DefVariant>().scope;
+        scope = context.def(var_init.variant_def_id).template as<DefVariant>().scope;
         const auto maybe_var_field
             = context.look_up_scoped_type(scope, sid_slice, Span{context, fid, pattern_expr});
         if (maybe_var_field.empty()) {
