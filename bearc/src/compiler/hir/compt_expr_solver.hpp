@@ -167,26 +167,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         // no type provided, so try to infer
         if (!maybe_into_tid.has_value()) {
-            if (expr->type == AST_EXPR_ID) {
-                return handle_any_id(fid, scope, expr->expr.id.slice);
-            }
-            if (expr->type == AST_EXPR_GENERIC_ID) {
-                return handle_any_generic_id(fid, scope, expr->expr.generic_id.slice,
-                                             expr->expr.generic_id.args);
-            }
-            if (expr->type == AST_EXPR_STRUCT_INIT) {
-                return solve_struct_or_union(fid, scope, expr, {});
-            }
-            if (expr->type == AST_EXPR_LIST_LITERAL) {
-                return solve_list(fid, scope, expr, maybe_into_tid);
-            }
-            if (expr->type == AST_EXPR_MATCH) {
-                return handle_match(fid, scope, expr);
-            }
-            if (expr_is_mem_access(expr)) {
-                return solve_expr_binary(fid, scope, expr);
-            }
-            return solve_builtin_compt_expr(fid, scope, expr, std::nullopt, maybe_into_tid);
+            return handle_any_typed_expr(fid, scope, expr);
         }
 
         const Type& orig_can_be_ref = context.type(maybe_into_tid.as_id());
@@ -195,26 +176,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         // `var` provided as type, so try to infer
         if (into_type.holds<TypeVar>()) {
-            if (expr->type == AST_EXPR_ID) {
-                return handle_any_id(fid, scope, expr->expr.id.slice);
-            }
-            if (expr->type == AST_EXPR_GENERIC_ID) {
-                return handle_any_generic_id(fid, scope, expr->expr.generic_id.slice,
-                                             expr->expr.generic_id.args);
-            }
-            if (expr->type == AST_EXPR_STRUCT_INIT) {
-                return solve_struct_or_union(fid, scope, expr, into_tid);
-            }
-            if (expr->type == AST_EXPR_LIST_LITERAL) {
-                return solve_list(fid, scope, expr, into_tid);
-            }
-            if (expr->type == AST_EXPR_MATCH) {
-                return handle_match(fid, scope, expr);
-            }
-            if (expr_is_mem_access(expr)) {
-                return solve_expr_binary(fid, scope, expr);
-            }
-            return solve_builtin_compt_expr(fid, scope, expr, std::nullopt, into_tid);
+            return handle_any_typed_expr(fid, scope, expr);
         }
 
         if (orig_can_be_ref.holds<TypeRef>() && expr->type == AST_EXPR_BORROW) {
@@ -392,6 +354,56 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         builtin_type into_builtin_type = into_type.as<TypeBuiltin>().type;
         return solve_builtin_compt_expr(fid, scope, expr, into_builtin_type, into_tid);
+    }
+
+    [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, ScopeId scope,
+                                                      const ast_expr_t* expr) {
+        switch (expr->type) {
+        case AST_EXPR_ID:
+            return handle_any_id(fid, scope, expr->expr.id.slice);
+        case AST_EXPR_GENERIC_ID:
+            return handle_any_generic_id(fid, scope, expr->expr.generic_id.slice,
+                                         expr->expr.generic_id.args);
+        case AST_EXPR_STRUCT_INIT:
+            return solve_struct_or_union(fid, scope, expr, {});
+        case AST_EXPR_LIST_LITERAL:
+            return solve_list(fid, scope, expr, {});
+        case AST_EXPR_MATCH:
+            return handle_match(fid, scope, expr);
+        case AST_EXPR_SUBSCRIPT:
+            return solve_expr_subscript(fid, scope, expr);
+        case AST_EXPR_TERNARY_IF:
+            return solve_ternary_if(fid, scope, expr, {});
+        case AST_EXPR_FN_CALL:
+            return solve_fn_call(fid, scope, expr, {});
+        case AST_EXPR_BINARY:
+            return solve_expr_binary(fid, scope, expr);
+        case AST_EXPR_COMPT:
+            return solve_expr(fid, scope, expr->expr.compt_expr.inner);
+        case AST_EXPR_GROUPING:
+        case AST_EXPR_PRE_UNARY:
+        case AST_EXPR_POST_UNARY:
+        case AST_EXPR_LITERAL:
+        case AST_EXPR_TYPE:
+        case AST_EXPR_BORROW:
+        case AST_EXPR_SAME_TYPE:
+        case AST_EXPR_TYPE_TO_STR:
+        case AST_EXPR_STATIC_ASSERT:
+        case AST_EXPR_DEFINED:
+        case AST_EXPR_HAS_CONTRACT:
+        case AST_EXPR_INFERABLE_AS:
+        case AST_EXPR_DIAGNOSTIC:
+        case AST_EXPR_STRUCT_MEMBER_INIT:
+        case AST_EXPR_CLOSURE:
+        case AST_EXPR_VARIANT_DECOMP:
+        case AST_EXPR_BLOCK:
+        case AST_EXPR_MATCH_BRANCH:
+        case AST_EXPR_ELSE_MATCH_PATTERN:
+        case AST_EXPR_INVALID:
+            break;
+        }
+
+        return solve_builtin_compt_expr(fid, scope, expr, {}, {});
     }
 
     void enter_compt_fn() { ++call_depth; }

@@ -1,0 +1,26 @@
+// tests/hir/a25.br
+
+contract ComptGet {
+    compt fn get(); // compt fns don't need an explicit return type in order to return a value
+}
+
+
+struct AnyCompt<T has ComptGet> {
+    compt fn get() => T..get();
+}
+
+struct I32Transform<*fn(i32)->i32 F> has ComptGet {
+    compt fn get() => F
+}
+
+compt fn double(i32 a) -> i32 => a + a
+
+compt fn square(i32 a) -> i32 => a * a
+
+compt fn cancel(i32 a) -> i32 => a - a
+
+compt AnyCompt::I32Transform::(double) a = {};
+
+compt var b = (a.get())(12); // TODO not getting resolved at compt
+
+var _0 = @static_assert b == 24;
