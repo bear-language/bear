@@ -245,8 +245,11 @@ class Context {
     [[nodiscard]] OptId<DefId>
     look_up_member_function_guarding_hid(IsDefVisitor auto& def_visitor, const Def& struct_def,
                                          SymbolId symbol_id, Span id_span, ScopeId local_scope) {
-        auto maybe_def = look_up_local_variable(struct_def.as<DefStruct>().scope, symbol_id);
-        if (maybe_def.empty()) {
+        auto maybe_did = look_up_local_variable(struct_def.as<DefStruct>().scope, symbol_id);
+        if (maybe_did.has_value()) {
+            maybe_did = try_func_did(maybe_did.as_id());
+        }
+        if (maybe_did.empty()) {
             auto d0 = emplace_diagnostic_with_message_value(
                 id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
                 DiagnosticSymbolAfterMessage{.sid = struct_def.name});
@@ -256,7 +259,7 @@ class Context {
             link_diagnostic(d0, d1);
             return std::nullopt;
         }
-        const Def& def = this->try_func_def(def_visitor.visit_as_dependent(maybe_def.as_id()));
+        const Def& def = this->try_func_def(def_visitor.visit_as_dependent(maybe_did.as_id()));
         if (!def.holds<DefFunction>()) {
             auto d0 = emplace_diagnostic_with_message_value(
                 id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
@@ -276,7 +279,7 @@ class Context {
                 DiagnosticSymbolBeforeMessage{.sid = symbol_id});
             link_diagnostic(d0, d1);
         }
-        return maybe_def;
+        return maybe_did;
     }
 
     [[nodiscard]] OptId<DefId> look_up_generic_member_function_guarding_hid(
@@ -285,6 +288,9 @@ class Context {
         auto maybe_did = look_up_variable(struct_def.as<DefStruct>().scope, symbol_id);
         if (maybe_did.has_value()) {
             maybe_did = try_generic_instantiation(def_visitor, maybe_did.as_id(), gen_args);
+            if (maybe_did.has_value()) {
+                maybe_did = try_func_did(maybe_did.as_id());
+            }
         }
         if (maybe_did.empty()) {
             auto d0 = emplace_diagnostic_with_message_value(
@@ -605,13 +611,13 @@ class Context {
     /// checks if two functions signatures match
     /// returns true on match, else false (also returns false if either DefId does not correspond to
     /// a function)
-    [[nodiscard]] bool func_sigs_match_for_contract(DefId did1, DefId did2);
+    [[nodiscard]] bool func_sigs_match_for_contract(DefId did1, DefId did2, DefId struct_did);
 
     /// does nothing if either passed in DefId isn't a DefFunction or DefFunctionPrototype
     /// - emplaces notes and assumes that an initial primary error has already been emplaced
     /// - returns the first DiagnosticId (to be linked) if it exists
     DiagRange report_function_disagreement_with_contract(DefId contract_fn_proto_did,
-                                                         DefId function_did);
+                                                         DefId function_did, DefId struct_did);
 
     /// checks if a (decayed) type matches a struct def
     [[nodiscard]] bool type_matches_struct_def(TypeId tid, DefId did);

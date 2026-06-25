@@ -263,9 +263,19 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             context.record_static_struct_member_def(context.def_id(didx));
         }
 
+        // set all values besides contracts, so it can be available during contract satisfaction
+        context.def(did).set_value(DefStruct{
+            .scope = structs_scope,
+            .ordered_members = ordered_defs,
+            .contracts = {},
+            .orginal = {},
+            .maybe_generic_args = maybe_generic_args,
+        });
+
         const IdSlice<DefId> contracts
             = supply_and_get_contracts_for_struct(structs_scope, did, strct.contracts);
 
+        // now set contracts
         context.def(did).set_value(DefStruct{
             .scope = structs_scope,
             .ordered_members = ordered_defs,
@@ -789,6 +799,14 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
         OptId<DefId> maybe_matching_named_func_in_struct
             = context.look_up_variable(struct_scope, ct_func_def.name);
 
+        if (maybe_matching_named_func_in_struct.has_value()) {
+            // allow compt function pointer variables to be used like normal functions and work to
+            // satisfy contracts
+
+            maybe_matching_named_func_in_struct = context.try_func_did(visit_and_resolve_if_needed(
+                maybe_matching_named_func_in_struct.as_id())); // make sure fn is resolved
+        }
+
         if (maybe_matching_named_func_in_struct.empty()) {
             auto d = context.emplace_diagnostic_with_message_value(
                 context.name_span_for_def(struct_did), diag_code::only_message_value_is_meaningful,
@@ -804,7 +822,7 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
             continue;
         }
 
-        // make sure fn is resolved
+        // ensure resolved
         auto matched_fn_did
             = visit_and_resolve_if_needed(maybe_matching_named_func_in_struct.as_id());
 
@@ -834,7 +852,7 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
                 DiagnosticSymbolBeforeMessage{.sid = ct_func_def.name}));
         }
 
-        if (!context.func_sigs_match_for_contract(ct_func_did, matched_fn_did)) {
+        if (!context.func_sigs_match_for_contract(ct_func_did, matched_fn_did, struct_did)) {
             dlinker.link(context.emplace_diagnostic(
                 context.name_span_for_def(matched_fn_did),
                 diag_code::only_message_value_is_meaningful, diag_type::error,
@@ -844,8 +862,8 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
                 DiagnosticSubCode{.sub_code
                                   = diag_code::function_signature_does_not_match_contract}));
 
-            dlinker.link(
-                context.report_function_disagreement_with_contract(ct_func_did, matched_fn_did));
+            dlinker.link(context.report_function_disagreement_with_contract(
+                ct_func_did, matched_fn_did, struct_did));
 
             dlinker.link(context.emplace_diagnostic_with_message_value(
                 ct_func_def.span, diag_code::declared_in_contract_here, diag_type::note,

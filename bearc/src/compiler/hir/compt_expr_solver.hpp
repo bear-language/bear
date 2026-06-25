@@ -803,7 +803,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                 return std::nullopt;
             }
             if (into_tid.has_value()
-                && context.equivalent_type(def_variable.type_id, into_tid.as_id())) {
+                && context.equivalent_type(context.try_decay(def_variable.type_id),
+                                           into_tid.as_id())) {
                 // since it's compt (immutable, it's perfectly fine to just share the
                 // original exec value here)
                 return def_variable.compt_value;
@@ -2779,7 +2780,6 @@ template <IsDefVisitor V> class ComptExprSolver {
             if (post_diag_cnt > prior_diag_cnt) {
                 context.force_link_diagnostic(d);
             }
-            return std::nullopt;
         }
 
         if (maybe_eid.empty()) {

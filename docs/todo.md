@@ -9,6 +9,7 @@ main quest
 - [ ] contract improvements
     - [x] update `@has_contract` to allow for generic contracts
     - [x] make has clauses of the form `has A + B + C`
+    - [x] allow contract satisfaction thru `compt var my_fn = (some_fn_ptr)`
     - [ ] give contract generic args for diagnostics `Foo` doesn't have contract `Bar` 
 
 - [ ] give diagnostics for `->`/`=>` accidents on function signatures
@@ -34,7 +35,7 @@ main quest
     - [ ] compt closures (pure-expr only)
         - [ ] allow capturing compt variables 
     - [ ] compt slices `[&]` so we can work with any dimensional lists at compt
-    - [ ] compt ranges `1...4` and make then work with compt matching
+    - [ ] compt ranges `1...4` and make then work with compt matching, better type-checking/reporting for scalar matched values
 
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
 

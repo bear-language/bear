@@ -1610,7 +1610,7 @@ bool Context::check_variant_field_has_parent(DefId variant_field_did, DefId vari
     return true;
 }
 
-bool Context::func_sigs_match_for_contract(DefId did1, DefId did2) {
+bool Context::func_sigs_match_for_contract(DefId did1, DefId did2, DefId struct_did) {
     const Def& def1 = def(did1);
     const Def& def2 = def(did2);
 
@@ -1619,11 +1619,9 @@ bool Context::func_sigs_match_for_contract(DefId did1, DefId did2) {
     IdSlice<TypeId> param_tids2;
     OptId<TypeId> return_tid2;
 
-    OptId<DefId> struct_did{};
     if (def1.holds<DefFunction>()) {
         param_tids1 = def1.as<DefFunction>().param_types;
         return_tid1 = def1.as<DefFunction>().return_type;
-        struct_did = def1.parent; // since the function's parent_should be a struct
     } else if (def1.holds<DefFunctionPrototype>()) {
         param_tids1 = def1.as<DefFunctionPrototype>().param_types;
         return_tid1 = def1.as<DefFunctionPrototype>().return_type;
@@ -1633,7 +1631,6 @@ bool Context::func_sigs_match_for_contract(DefId did1, DefId did2) {
     if (def2.holds<DefFunction>()) {
         param_tids2 = def2.as<DefFunction>().param_types;
         return_tid2 = def2.as<DefFunction>().return_type;
-        struct_did = def2.parent; // since the function's parent_should be a struct
     } else if (def2.holds<DefFunctionPrototype>()) {
         param_tids2 = def2.as<DefFunctionPrototype>().param_types;
         return_tid2 = def2.as<DefFunctionPrototype>().return_type;
@@ -1654,20 +1651,17 @@ bool Context::func_sigs_match_for_contract(DefId did1, DefId did2) {
         return false;
     }
 
-    if (struct_did.empty()) {
-        return false;
-    }
-
     if (return_tid1.has_value() && return_tid2.has_value()
-        && !inferable_as_struct(return_tid1.as_id(), return_tid2.as_id(), struct_did.as_id())) {
+        && !inferable_as_struct(return_tid1.as_id(), return_tid2.as_id(), struct_did)) {
         return false;
     }
 
-    return compatible_contract_params(param_tids1, param_tids2, struct_did.as_id());
+    return compatible_contract_params(param_tids1, param_tids2, struct_did);
 }
 
 DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_proto_did,
-                                                              DefId function_did) {
+                                                              DefId function_did,
+                                                              DefId struct_did) {
     const Def& contracts_def = def(contract_fn_proto_did);
     const Def& fn_def = def(function_did);
 
@@ -1737,8 +1731,7 @@ DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_
     }
 
     if (ct_return_tid.has_value() && fn_return_tid.has_value()
-        && !inferable_as_struct(ct_return_tid.as_id(), fn_return_tid.as_id(),
-                                def(function_did).parent.as_id())) {
+        && !inferable_as_struct(ct_return_tid.as_id(), fn_return_tid.as_id(), struct_did)) {
         dlinker.link(emplace_diagnostic_with_message_value(
             type(fn_return_tid.as_id()).span, diag_code::only_message_value_is_meaningful,
             diag_type::note,

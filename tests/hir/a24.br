@@ -1,0 +1,66 @@
+// tests/hir/a24.br 
+
+variant Opt<T> {
+    Some(T val),
+    None
+}
+
+fn to_opt_impl<T>(&T self) -> Opt<T> => Opt..Some::<T>(self)
+
+contract ToOpt<T> {
+    fn to_opt(&Self self) -> Opt<T>;
+}
+
+contract Default {
+    fn default() -> Self;
+}
+
+struct Boo has ToOpt<Boo> {} // oops
+
+struct Bar has ToOpt<Bar> + Default {
+    i32 val;
+    fn new(i32 v) -> Self => Self{.val = v}
+    fn default() -> Self => Self{.val = 0}
+    compt var to_opt = to_opt_impl::Bar; // satisfy the contract by defining the struct's function as a compt fn-ptr
+}
+
+struct Foo has ToOpt<Foo> {
+    compt var to_opt = to_opt_impl::Bar; // oops (should've put Foo)
+}
+
+compt Bar a = Bar..new(42);
+
+compt var b = a.to_opt();
+
+var _0 = @static_assert(
+    a 
+    ==
+    match(b) {
+        Some(var v) => v,
+        None => Bar..new(0),
+    }
+);
+
+compt fn static_unwrap<T has Default>(Opt<T> val) -> T => { 
+    match(val) {
+        Some(T v) => v,
+        None => T..default() if @err("static unwrap failed since value was of none value `Opt..None::" + @type_to_str(decay T) + "`") 
+            else @err("bad unwrap") // that first err always fires so this else won't get evaluated
+    }
+}
+
+compt Bar c = Bar..new(62);
+
+compt var d = Bar..new(124).to_opt();
+
+var _1 = @static_assert c != static_unwrap::<Bar>(d);
+
+var _2 = @static_assert c == static_unwrap::<Bar>(d); // oops
+
+compt typeof(d) e = Opt..None::Bar;
+
+compt Bar f = static_unwrap::<Bar>(e); // oops
+
+var _3 = @static_assert f == Bar..default(); // we still got our default value
+
+compt Foo g = static_unwrap::<Foo>(Opt..None::Foo); // oops, lots of problems: Foo doesn't have default and held none
