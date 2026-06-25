@@ -2,7 +2,7 @@
 
 mod compt_generics_test;
 
-struct Foo <T has ComptDefault + ToStr> { // TODO changing `+` to `,` nukes the compiler
+struct Foo <T has ComptDefault, ToStr> { 
     T a = default();
     compt fn make() -> Self => Self{}
     compt fn iden(T val) -> T => val

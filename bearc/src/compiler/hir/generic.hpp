@@ -52,7 +52,8 @@ class TickableGenArgSlice {
         if (curr_idx < slice.len()) {
             const HirSize orig_idx = curr_idx;
             curr_idx += amount;
-            return IdSlice<GenericArgId>{slice.get(orig_idx), amount};
+            const auto max_amount = slice.len() - orig_idx;
+            return IdSlice<GenericArgId>{slice.get(orig_idx), std::min(max_amount, amount)};
         }
         return {};
     }
