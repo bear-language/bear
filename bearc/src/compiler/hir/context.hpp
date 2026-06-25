@@ -282,8 +282,7 @@ class Context {
     [[nodiscard]] OptId<DefId> look_up_generic_member_function_guarding_hid(
         IsDefVisitor auto& def_visitor, const Def& struct_def, SymbolId symbol_id, Span id_span,
         ScopeId local_scope, GenericArgIdSliceId gen_args) {
-        auto maybe_did = look_up_variable(struct_def.as<DefStruct>().scope,
-                                          symbol_id); // TODO maybe look up local?
+        auto maybe_did = look_up_variable(struct_def.as<DefStruct>().scope, symbol_id);
         if (maybe_did.has_value()) {
             maybe_did = try_generic_instantiation(def_visitor, maybe_did.as_id(), gen_args);
         }

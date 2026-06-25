@@ -1,0 +1,31 @@
+// tests/hir/a23.br
+
+variant Multi<T, R> {
+    TwoOfOneAndHalfADozeOfTheOther(T one, T two, R a, R b, R c, R d, R e, R f),
+    Two(T one, T two),
+    None,
+}
+
+deftype M32 = Multi<i32, u32>;
+
+compt M32 a = M32..Two(123, 321);
+
+var _0 = @static_assert a is Two;
+
+var _1 = @static_assert a is TwoOfOneAndHalfADozeOfTheOther; // oops
+
+var _2 = @static_assert a is Two(var a, var b); // oops
+
+compt M32 b = match(a) {
+    TwoOfOneAndHalfADozeOfTheOther(var one, var two, var a, var b) => M32..Two(one + two, a + b), // partial decomposition
+    Two(var a, i32 b) => M32..Two(b, a),
+    None => M32..None,
+};
+
+var _3 = @static_assert b == M32..Two(321, 123);
+
+compt var c = a;
+
+compt typeof(b) d = b;
+
+var _4 = @static_assert c == d; // oops

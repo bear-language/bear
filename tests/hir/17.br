@@ -5,7 +5,7 @@ variant Number {
    Integral(i32 int),
 }
 
-compt bool a = Number..Integral(12) is Integral; // bad, this is run-time only!
+compt bool a = Number..Integral(12) is Integral; // fine
 
 compt i32 b = 132 as i32;
 

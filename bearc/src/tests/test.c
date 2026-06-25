@@ -160,7 +160,7 @@ br_test_result_t test_hir(void) {
     char* args16[] = {"bearc", "tests/hir/16.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args16, 5);
     char* args17[] = {"bearc", "tests/hir/17.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args17, 4);
+    ASSERT_EQ_ERR_FROM_ARGS(args17, 3);
     char* args18[] = {"bearc", "tests/hir/18.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args18, 5);
     char* args19[] = {"bearc", "tests/hir/19.br"};

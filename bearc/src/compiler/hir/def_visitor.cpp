@@ -206,9 +206,8 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                 context.link_diagnostic(d0, d1);
             }
         }
-        // TODO only issue this if expr is a valid run-time statement, but not compt statement, this
-        // will require trying to do a run-time expr lowering on the init expression, which isn't
-        // impl'd yet
+        // if something about the most recent diagnostics involved not being resovable at
+        // compile-time
         if (!maybe_compt_eid.has_value()) {
             if (!context.def(did).compt && var_init_decl.rhs->type != AST_EXPR_STATIC_ASSERT
                 && context.last_diagnostic_chain_contains(diag_code::cannot_resolve_at_compt)) {
