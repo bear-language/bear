@@ -13,6 +13,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define SCALE_FACTOR 2
+
 // ctor for an arena chunk, private helper
 arena_chunk_t* arena_chunk_new(size_t chunk_cap_bytes) {
     // meta data head + data
@@ -62,8 +64,8 @@ void* arena_alloc(arena_t* arena, size_t req_size_bytes) {
         }
 
         // scale x2 every alloc ~~~
-        alloc_size *= 2;
-        arena->chunk_size *= 2;
+        alloc_size *= SCALE_FACTOR;
+        arena->chunk_size *= SCALE_FACTOR;
         // ~~~~~~~~~~~~~~~~~~~~~~~~
 
         arena_chunk_t* new_chunk = arena_chunk_new(alloc_size);
