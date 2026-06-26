@@ -187,6 +187,7 @@ enum class diag_code : uint8_t {
     cannot_infer_type_for_initializer,
     explicitly_specify_the_type_by_providing_its_name_before_the_braces,
     circular_generic_instantiation,
+    free_function_taking_zero_arguments_called_as_method,
 
     count, // this must be last,
 

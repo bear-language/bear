@@ -2509,36 +2509,47 @@ template <IsDefVisitor V> class ComptExprSolver {
             assert(exec.holds<ExecExprStructInit>());
             arg_vec.push_back(self_val);
             const ast_expr_t* called = expr->expr.fn_call.left_expr;
-            if (called->type != AST_EXPR_ID) {
-                context.emplace_diagnostic(Span{context, fid, called},
-                                           diag_code::cannot_resolve_at_compt, diag_type::error);
-                return std::nullopt;
-            }
-            token_ptr_slice_t id_slice = called->expr.id.slice;
-            if (id_slice.len > 1) {
-                context.emplace_diagnostic(Span{context, fid, called},
-                                           diag_code::scoped_identifer_not_allowed_here,
-                                           diag_type::error);
-            }
-            const token_t* id_tok = id_slice.start[0];
-            const SymbolId func_name = context.symbol_id(id_tok);
-            const Span fn_name_span{context, fid, id_tok};
+            if (called->type == AST_EXPR_ID) {
 
-            if ((expr->expr.fn_call.is_generic)) {
-                if (const auto maybe_gen_arg_id
-                    = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
-                    maybe_gen_arg_id.has_value()) {
-                    maybe_func_did = context.look_up_generic_member_function_guarding_hid(
+                token_ptr_slice_t id_slice = called->expr.id.slice;
+                if (id_slice.len > 1) {
+                    context.emplace_diagnostic(Span{context, fid, called},
+                                               diag_code::scoped_identifer_not_allowed_here,
+                                               diag_type::error);
+                }
+                const token_t* id_tok = id_slice.start[0];
+                const SymbolId func_name = context.symbol_id(id_tok);
+                const Span fn_name_span{context, fid, id_tok};
+
+                if ((expr->expr.fn_call.is_generic)) {
+                    if (const auto maybe_gen_arg_id
+                        = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
+                        maybe_gen_arg_id.has_value()) {
+                        maybe_func_did = context.look_up_generic_member_function_guarding_hid(
+                            def_visitor, context.def(exec.as<ExecExprStructInit>().struct_def_id),
+                            func_name, func_span, scope, maybe_gen_arg_id.as_id());
+                    }
+                } else {
+                    maybe_func_did = context.look_up_member_function_guarding_hid(
                         def_visitor, context.def(exec.as<ExecExprStructInit>().struct_def_id),
-                        func_name, func_span, scope, maybe_gen_arg_id.as_id());
+                        func_name, fn_name_span, scope);
+                }
+                if (maybe_func_did.empty()) {
+                    return std::nullopt;
                 }
             } else {
-                maybe_func_did = context.look_up_member_function_guarding_hid(
-                    def_visitor, context.def(exec.as<ExecExprStructInit>().struct_def_id),
-                    func_name, fn_name_span, scope);
-            }
-            if (maybe_func_did.empty()) {
-                return std::nullopt;
+                const auto maybe_callable_eid = solve_expr(fid, scope, called);
+                if (maybe_callable_eid.empty()) {
+                    return {}; // posioned
+                }
+                const Exec& e = context.exec(maybe_callable_eid.as_id());
+                if (!e.holds<ExecFnPtr>()) {
+                    context.emplace_diagnostic(
+                        e.span, diag_code::value_is_not_callable, diag_type::error,
+                        DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+                    return {};
+                }
+                maybe_func_did = e.as<ExecFnPtr>().func_def_id;
             }
             auto func_did = maybe_func_did.as_id();
             const Def& func_def = context.def(func_did);
@@ -2556,56 +2567,68 @@ template <IsDefVisitor V> class ComptExprSolver {
             func_symbol = func_def.name;
         } else {
             const ast_expr_t* called = expr->expr.fn_call.left_expr;
-            if (called->type != AST_EXPR_ID) {
-                context.emplace_diagnostic(Span{context, fid, called},
-                                           diag_code::cannot_resolve_at_compt, diag_type::error);
-                return std::nullopt;
-            }
-            token_ptr_slice_t id_slice = called->expr.id.slice;
+            if (called->type == AST_EXPR_ID) {
+                token_ptr_slice_t id_slice = called->expr.id.slice;
 
-            const Span called_span{context, fid, id_slice};
+                const Span called_span{context, fid, id_slice};
 
-            const auto sid_slice = context.symbol_slice(id_slice);
+                const auto sid_slice = context.symbol_slice(id_slice);
 
-            const auto prior_diag_cnt = context.diagnostic_count();
+                const auto prior_diag_cnt = context.diagnostic_count();
 
-            if (expr->expr.fn_call.is_generic) {
-                if (const auto maybe_gen_arg_id
-                    = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
-                    maybe_gen_arg_id.has_value()) {
-                    maybe_func_did = context.look_up_scoped_variable_generic(
-                        def_visitor, scope, sid_slice, called_span, maybe_gen_arg_id.as_id());
-                }
-            } else {
-                maybe_func_did = context.look_up_scoped_variable(scope, sid_slice, called_span);
-            }
-            if (maybe_func_did.empty()) {
-
-                // try as variant init, since they take the form of function calls but live in the
-                // "type" namespace
                 if (expr->expr.fn_call.is_generic) {
                     if (const auto maybe_gen_arg_id
                         = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
                         maybe_gen_arg_id.has_value()) {
-                        maybe_func_did = context.look_up_scoped_type_generic(
+                        maybe_func_did = context.look_up_scoped_variable_generic(
                             def_visitor, scope, sid_slice, called_span, maybe_gen_arg_id.as_id());
                     }
                 } else {
-                    maybe_func_did = context.look_up_scoped_type(scope, sid_slice, called_span);
+                    maybe_func_did = context.look_up_scoped_variable(scope, sid_slice, called_span);
                 }
 
-                if (maybe_func_did.has_value()) {
-                    return handle_variant_init(fid, scope, expr, maybe_func_did.as_id());
-                }
+                if (maybe_func_did.empty()) {
 
-                // no corresponding variant either, so this is just the
-                // use_of_undeclared_identifier
-                if (prior_diag_cnt == context.diagnostic_count()) {
-                    context.emplace_diagnostic(called_span, diag_code::use_of_undeclared_identifier,
-                                               diag_type::error);
-                }
+                    // try as variant init, since they take the form of function calls but live in
+                    // the "type" namespace
+                    if (expr->expr.fn_call.is_generic) {
+                        if (const auto maybe_gen_arg_id = lower_generic_args(
+                                fid, scope, expr->expr.fn_call.generic_args, false);
+                            maybe_gen_arg_id.has_value()) {
+                            maybe_func_did = context.look_up_scoped_type_generic(
+                                def_visitor, scope, sid_slice, called_span,
+                                maybe_gen_arg_id.as_id());
+                        }
+                    } else {
+                        maybe_func_did = context.look_up_scoped_type(scope, sid_slice, called_span);
+                    }
 
-                return std::nullopt;
+                    if (maybe_func_did.has_value()) {
+                        return handle_variant_init(fid, scope, expr, maybe_func_did.as_id());
+                    }
+
+                    // no corresponding variant either, so this is just the
+                    // use_of_undeclared_identifier
+                    if (prior_diag_cnt == context.diagnostic_count()) {
+                        context.emplace_diagnostic(
+                            called_span, diag_code::use_of_undeclared_identifier, diag_type::error);
+                    }
+
+                    return std::nullopt;
+                }
+            } else {
+                const auto maybe_callable_eid = solve_expr(fid, scope, called);
+                if (maybe_callable_eid.empty()) {
+                    return {}; // posioned
+                }
+                const Exec& e = context.exec(maybe_callable_eid.as_id());
+                if (!e.holds<ExecFnPtr>()) {
+                    context.emplace_diagnostic(
+                        e.span, diag_code::value_is_not_callable, diag_type::error,
+                        DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+                    return {};
+                }
+                maybe_func_did = e.as<ExecFnPtr>().func_def_id;
             }
 
             maybe_func_did = context.try_func_did(maybe_func_did.as_id());
@@ -2616,8 +2639,9 @@ template <IsDefVisitor V> class ComptExprSolver {
                 const auto code = (called_def.holds<DefGenericFunction>())
                                       ? diag_code::raw_use_of_generic_function
                                       : diag_code::not_a_function;
-                context.emplace_diagnostic(called_span, diag_code::value_is_not_callable,
-                                           diag_type::error, DiagnosticSubCode{.sub_code = code});
+                context.emplace_diagnostic(Span{context, fid, called},
+                                           diag_code::value_is_not_callable, diag_type::error,
+                                           DiagnosticSubCode{.sub_code = code});
                 return std::nullopt;
             }
             func = called_def.as<DefFunction>();
@@ -2658,19 +2682,27 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         if (adjusted_arg_len != adjusted_param_len) {
 
-            auto params_len_sym_id = ExecConst{adjusted_param_len}.to_symbol_id(context);
-            auto args_len_sym_id = ExecConst{adjusted_arg_len}.to_symbol_id(context);
+            if (params.len() != 0) {
+                auto params_len_sym_id = ExecConst{adjusted_param_len}.to_symbol_id(context);
+                auto args_len_sym_id = ExecConst{adjusted_arg_len}.to_symbol_id(context);
 
-            Span span_of_interest
-                = ((adjusted_arg_len < adjusted_param_len) || exprs.len == 0)
-                      ? Span{context, fid, expr->last}
-                      : Span::combine(Span{context, fid, exprs.start[0]->first},
-                                      Span{context, fid, exprs.start[exprs.len - 1]->last});
+                Span span_of_interest
+                    = ((adjusted_arg_len < adjusted_param_len) || exprs.len == 0)
+                          ? Span{context, fid, expr->last}
+                          : Span::combine(Span{context, fid, exprs.start[0]->first},
+                                          Span{context, fid, exprs.start[exprs.len - 1]->last});
 
-            context.emplace_diagnostic_with_message_value(
-                span_of_interest, diag_code::expected, diag_type::error,
-                DiagnosticSymButGotSym{
-                    .leading = func_symbol, .sid1 = params_len_sym_id, .sid2 = args_len_sym_id});
+                context.emplace_diagnostic_with_message_value(
+                    span_of_interest, diag_code::expected, diag_type::error,
+                    DiagnosticSymButGotSym{.leading = func_symbol,
+                                           .sid1 = params_len_sym_id,
+                                           .sid2 = args_len_sym_id});
+            } else {
+                context.emplace_diagnostic(
+                    Span{context, fid, expr},
+                    diag_code::free_function_taking_zero_arguments_called_as_method,
+                    diag_type::error);
+            }
 
             issue = true;
         }

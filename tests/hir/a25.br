@@ -19,8 +19,20 @@ compt fn square(i32 a) -> i32 => a * a
 
 compt fn cancel(i32 a) -> i32 => a - a
 
-compt AnyCompt::I32Transform::(double) a = {};
+deftype Double = AnyCompt::I32Transform::(double);
 
-compt var b = (a.get())(12); // TODO not getting resolved at compt
+deftype Square = AnyCompt::I32Transform::square;
 
-var _0 = @static_assert b == 24;
+deftype Cancel = AnyCompt::I32Transform::cancel;
+
+compt Double a = {};
+
+compt var _0 = (a.get())(12); // oops
+
+var _1 = @static_assert Double..get()(12) == 24;
+
+var _2 = @static_assert Square..get()(12) == 144;
+
+var _3 = @static_assert Cancel..get()(12) == 1; // oops
+
+var _4 = @static_assert Cancel..get()(12) == 0; // aha

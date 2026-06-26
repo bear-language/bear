@@ -368,6 +368,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "explicitly specify the type by providing its name before the braces";
     case diag_code::circular_generic_instantiation:
         return "circular generic instantiation";
+    case diag_code::free_function_taking_zero_arguments_called_as_method:
+        return "free function taking zero arguments called as method";
     }
 
     std::unreachable();
