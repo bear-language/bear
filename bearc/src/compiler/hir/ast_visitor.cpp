@@ -140,6 +140,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             stmt = stmt->stmt.alignaz.inner;
         }
     }
+    statik |= compt; // all compts are static
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // special cases (modules and extern blocks)

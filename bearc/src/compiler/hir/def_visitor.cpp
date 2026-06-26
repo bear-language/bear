@@ -811,9 +811,11 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
             auto d = context.emplace_diagnostic_with_message_value(
                 context.name_span_for_def(struct_did), diag_code::only_message_value_is_meaningful,
                 diag_type::error,
-                DiagnosticStructDoesNotDefineBlankForContract{.struct_name = struct_def.name,
-                                                              .func_name = ct_func_def.name,
-                                                              .contract_name = contract_def.name});
+                DiagnosticStructDoesNotDefineBlankForContract{
+                    .struct_name = struct_def.name,
+                    .func_name = ct_func_def.name,
+                    .contract_name = contract_def.name,
+                    .maybe_gen_args = contract_def.as<DefContract>().maybe_generic_args});
             dlinker.link(d);
             dlinker.link(context.emplace_diagnostic_with_message_value(
                 ct_func_def.span, diag_code::declared_in_contract_here, diag_type::note,
@@ -834,9 +836,11 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
                                   : diag_code::not_a_function;
             auto d = context.emplace_diagnostic(
                 matching_def.span, diag_code::only_message_value_is_meaningful, diag_type::error,
-                DiagnosticStructDoesNotDefineBlankForContract{.struct_name = struct_def.name,
-                                                              .func_name = ct_func_def.name,
-                                                              .contract_name = contract_def.name},
+                DiagnosticStructDoesNotDefineBlankForContract{
+                    .struct_name = struct_def.name,
+                    .func_name = ct_func_def.name,
+                    .contract_name = contract_def.name,
+                    .maybe_gen_args = contract_def.as<DefContract>().maybe_generic_args},
                 DiagnosticSubCode{.sub_code = code});
             dlinker.link(d);
             cooked = true;
@@ -856,9 +860,11 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
             dlinker.link(context.emplace_diagnostic(
                 context.name_span_for_def(matched_fn_did),
                 diag_code::only_message_value_is_meaningful, diag_type::error,
-                DiagnosticStructDoesNotDefineBlankForContract{.struct_name = struct_def.name,
-                                                              .func_name = ct_func_def.name,
-                                                              .contract_name = contract_def.name},
+                DiagnosticStructDoesNotDefineBlankForContract{
+                    .struct_name = struct_def.name,
+                    .func_name = ct_func_def.name,
+                    .contract_name = contract_def.name,
+                    .maybe_gen_args = contract_def.as<DefContract>().maybe_generic_args},
                 DiagnosticSubCode{.sub_code
                                   = diag_code::function_signature_does_not_match_contract}));
 

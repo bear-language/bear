@@ -2087,7 +2087,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             return str;
         },
         [&ctx](const ExecExprStructMemberInit& t) -> std::string {
-            return std::string(ctx.symbol_id_to_cstr(ctx.def(t.field_def).name))
+            return "." + std::string(ctx.symbol_id_to_cstr(ctx.def(t.field_def).name))
                    + ((t.move) ? " <- " : " = ") + exec_to_string(ctx, t.value);
         },
         [&ctx](const ExecExprVariable& t) -> std::string {

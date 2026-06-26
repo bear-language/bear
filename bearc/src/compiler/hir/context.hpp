@@ -30,7 +30,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include <cstdint>
 #include <filesystem>
-#include <iostream>
 #include <type_traits>
 
 namespace hir {
@@ -1000,12 +999,19 @@ class Context {
                                 dl.link(emplace_diagnostic_with_message_value(
                                     type(tid).span, diag_code::does_not_have_contract,
                                     diag_type::error,
-                                    DiagnosticTyperBeforeMessageAndSymbolAfter{
-                                        .sid = def(contract_did).name, .tid = tid}));
+                                    DiagnosticTypeBeforeMessageAndSymbolWithMaybeGenArgsAfter{
+                                        .tid = tid,
+                                        .sid = def(contract_did).name,
+                                        .maybe_gen_args
+                                        = def(contract_did).as<DefContract>().maybe_generic_args}));
                                 cooked = true;
                             }
                         }
                         if (cooked) {
+                            dl.link(emplace_diagnostic_with_message_value(
+                                param.span,
+                                diag_code::declared_here_as_constrained_generic_parameter,
+                                diag_type::note, DiagnosticSymbolBeforeMessage{.sid = param.name}));
                             if (const auto maybe_did = try_def_id_for_type_id(tid);
                                 maybe_did.has_value()) {
                                 const Def& d = def(maybe_did.as_id());
@@ -1013,9 +1019,6 @@ class Context {
                                     d.span, diag_code::declared_here_without_necessary_contracts,
                                     diag_type::note, DiagnosticSymbolBeforeMessage{.sid = d.name}));
                             }
-                            dl.link(emplace_diagnostic_with_message_value(
-                                param.span, diag_code::declared_here, diag_type::note,
-                                DiagnosticSymbolBeforeMessage{.sid = param.name}));
                         }
                         return !cooked;
                     }
@@ -1098,7 +1101,7 @@ class Context {
         const IdSlice<GenericArgId> remaining_args = targs.remaining();
         if (!orig_def.generic) {
             const Def& d = def(orig_did);
-            if (remaining_args.len() > 0) {
+            if (last && remaining_args.len() > 0) {
                 auto d0 = emplace_diagnostic_with_message_value(
                     span_for_gen_args(emplace_generic_arg_id_slice(remaining_args)),
                     diag_code::does_not_take_generic_arguments, diag_type::error,

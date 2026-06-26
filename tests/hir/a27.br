@@ -1,0 +1,54 @@
+// tests/hir/a27.br
+
+contract Into<T> {
+    mt into() -> T;
+}
+
+struct Bar has Into<i32> {} // oops 
+
+struct Foo {}
+
+struct Ben<T has Into<i32>> {}
+
+compt Ben<Foo> _0 = {}; // oops
+
+contract Thing {
+    fn thing();
+}
+
+struct Guy has Into<Foo> + Thing { // oops
+
+}
+
+struct Long {
+    compt i32 DEF = 0;
+    i32 a = DEF;
+    i32 b = DEF;
+    i32 c = DEF;
+    i32 d = DEF;
+    i32 e = DEF;
+    
+    compt var default_state = State..IndeedLong;
+
+    variant State {
+        NotTooLong,
+        ABitLong,
+        IndeedLong,
+        VeryLong,
+        SuperLong,
+    }
+
+    struct Tracker<T, State S, Long L> {
+        T val;
+        fn new(T v) -> Self => Self{.val = v}
+        compt var state = S;
+        compt var long = L;
+    }
+
+} 
+
+struct Holder<T> {}
+
+struct Fooey has Into<Holder::Long..Tracker::<Foo, (Long..State..ABitLong), (Long{})>> {
+
+}

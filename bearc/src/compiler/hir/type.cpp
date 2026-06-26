@@ -397,6 +397,7 @@ template class TypeTransformer<TypeToString<DoNotConsiderMut>>;
 
 template class TypeTransformer<TypeContainsVar>;
 template class TypeTransformer<TypeContainsDeftype>;
+template class TypeTransformer<TypeContainsMut>;
 
 CanonicalTypeTable::CanonicalTypeTable(Context& context, DataArena& arena, HirSize capacity)
     : context(context), arena(arena), count{0} {

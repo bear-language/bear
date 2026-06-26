@@ -20,7 +20,7 @@
 namespace hir {
 
 void Diagnostic::print(Context& context, bool print_file) const {
-    print_multiline(context, print_file);
+    print_multiline(context, print_file && !span.is_generated());
 }
 
 const char* Diagnostic::message_for_code(enum diag_code c) {
@@ -370,6 +370,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "circular generic instantiation";
     case diag_code::free_function_taking_zero_arguments_called_as_method:
         return "free function taking zero arguments called as method";
+    case diag_code::declared_here_as_constrained_generic_parameter:
+        return "declared here as constrained generic parameter";
     }
 
     std::unreachable();
@@ -901,7 +903,16 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        str += " does not provide function ";
                        sid_helper(d.func_name);
                        str += " for contract ";
-                       sid_helper(d.contract_name);
+                       if (d.maybe_gen_args.empty()) {
+                           sid_helper(d.contract_name);
+                       } else {
+                           str += '`';
+                           str += accent_color_for_type(type);
+                           str += ctx.symbol_id_to_cstr(d.contract_name);
+                           str += gen_args_to_str(ctx, d.maybe_gen_args.as_id());
+                           str += ansi_bold_reset();
+                           str += '`';
+                       }
                        str += ansi_bold_reset();
                    },
                    [&](DiagnosticContractFnExpectedButGotNumParams d) {
@@ -985,13 +996,31 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        str += " ";
                        sid_helper(d.after_sid);
                    },
-                   [&](DiagnosticTyperBeforeMessageAndSymbolAfter d) {
+                   [&](DiagnosticTypeBeforeMessageAndSymbolAfter d) {
                        type_helper(d.tid);
                        str += " ";
                        str += message_for_code(code);
                        str += " ";
                        sid_helper(d.sid);
                    },
+                   [&](DiagnosticTypeBeforeMessageAndSymbolWithMaybeGenArgsAfter d) {
+                       type_helper(d.tid);
+                       str += " ";
+                       str += message_for_code(code);
+                       str += " ";
+                       if (d.maybe_gen_args.empty()) {
+                           sid_helper(d.sid);
+                       } else {
+                           str += '`';
+                           str += accent_color_for_type(type);
+                           str += ctx.symbol_id_to_cstr(d.sid);
+                           str += gen_args_to_str(ctx, d.maybe_gen_args.as_id());
+                           str += ansi_bold_reset();
+                           str += '`';
+                           str += ansi_bold_reset();
+                       }
+                   },
+
                    [&](DiagnosticTypeBeforeMessage d) {
                        type_helper(d.tid);
                        str += " ";

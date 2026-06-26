@@ -188,6 +188,7 @@ enum class diag_code : uint8_t {
     explicitly_specify_the_type_by_providing_its_name_before_the_braces,
     circular_generic_instantiation,
     free_function_taking_zero_arguments_called_as_method,
+    declared_here_as_constrained_generic_parameter,
 
     count, // this must be last,
 
@@ -209,9 +210,15 @@ struct DiagnosticIdentifierBeforeMessageAndTypeAfter {
     TypeId tid;
 };
 
-struct DiagnosticTyperBeforeMessageAndSymbolAfter {
+struct DiagnosticTypeBeforeMessageAndSymbolAfter {
     SymbolId sid;
     TypeId tid;
+};
+
+struct DiagnosticTypeBeforeMessageAndSymbolWithMaybeGenArgsAfter {
+    TypeId tid;
+    SymbolId sid;
+    OptId<GenericArgIdSliceId> maybe_gen_args;
 };
 
 struct DiagnosticSymbolBeforeMessage {
@@ -273,6 +280,7 @@ struct DiagnosticStructDoesNotDefineBlankForContract {
     SymbolId struct_name;
     SymbolId func_name;
     SymbolId contract_name;
+    OptId<GenericArgIdSliceId> maybe_gen_args;
 };
 
 struct DiagnosticContractFnExpectedButGotNumParams {
@@ -323,8 +331,9 @@ using DiagnosticMessageValue = std::variant<
     DiagnosticStructDoesNotDefineBlankForContract, DiagnosticContractFnExpectedButGotNumParams,
     DiagnosticContractFnExpectedRetTyButGot, DiagnosticVariantInitExpectedButGotNumArgs,
     DiagnosticSymbolBeforeAndAfterMessage, DiagnosticTypeBeforeMessage,
-    DiagnosticGenArgsExpectedButGotNumArgs, DiagnosticTyperBeforeMessageAndSymbolAfter,
-    DiagnosticTyButGot, DiagnosticCustomComptDiag>;
+    DiagnosticGenArgsExpectedButGotNumArgs, DiagnosticTypeBeforeMessageAndSymbolAfter,
+    DiagnosticTyButGot, DiagnosticCustomComptDiag,
+    DiagnosticTypeBeforeMessageAndSymbolWithMaybeGenArgsAfter>;
 
 struct DiagnosticImportStack {
     IdSlice<FileId> files;
