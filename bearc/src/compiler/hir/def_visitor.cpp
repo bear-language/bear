@@ -324,6 +324,20 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
 
             break; // don't insert!
         }
+
+        if (context.def_has_unspecialed_generic_parent(used_did.as_id())) {
+            auto d0 = context.emplace_diagnostic(
+                id_span, diag_code::cannot_use_definition_with_a_generic_parent, diag_type::error);
+            auto d1 = context.emplace_diagnostic(
+                id_span,
+                diag_code::
+                    use_a_deftype_to_create_a_simpler_type_alias_for_a_specialized_generic_type,
+                diag_type::help);
+            auto d2 = context.emplace_diagnostic(id_span, diag_code::deftypes_take_the_form_of,
+                                                 diag_type::note, DiagnosticInfoNoPreview{});
+            context.link_diagnostic(d0, d1);
+            context.link_diagnostic(d1, d2);
+        }
         ScopeId scope_into_which_to_insert = context.containing_scope(did);
         // insert base name into containing scope
         if (used_mod) {

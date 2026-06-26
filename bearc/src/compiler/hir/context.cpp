@@ -2026,12 +2026,25 @@ Context::def_or_recursive_parent_of_def_is_unspecialized_generic(DefId did) cons
     if (d.generic) {
         return true;
     }
-    // try recurse
-    if (d.parent.has_value()) {
-        return def_or_recursive_parent_of_def_is_unspecialized_generic(d.parent.as_id());
+    if (d.parent.empty()) {
+        // negative base case: current def is not generic nor has parent
+        return false;
     }
-    // negative base case: current def is not generic nor has parent
-    return false;
+
+    // try recurse
+    return def_or_recursive_parent_of_def_is_unspecialized_generic(d.parent.as_id());
+}
+
+bool Context::def_has_unspecialed_generic_parent(DefId did) const {
+    const Def& d = def(did);
+
+    // no parent so of course no
+    if (d.parent.empty()) {
+        return false;
+    }
+
+    // just recurse on parent with this algo
+    return def_or_recursive_parent_of_def_is_unspecialized_generic(d.parent.as_id());
 }
 
 void Context::insert_gen_args_into_scope(DefId orginal_generic_did, DefId instance_did,

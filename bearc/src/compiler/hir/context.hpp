@@ -701,6 +701,8 @@ class Context {
     /// non-concrete def (which can be problematic if this is a raw use of a generic def)
     [[nodiscard]] bool def_or_recursive_parent_of_def_is_unspecialized_generic(DefId did) const;
 
+    [[nodiscard]] bool def_has_unspecialed_generic_parent(DefId did) const;
+
     /// checks if a struct has a contract
     /// - defaults to returning false if struct_did does not correspond to a struct and same with
     /// contract_did

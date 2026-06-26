@@ -190,6 +190,9 @@ enum class diag_code : uint8_t {
     free_function_taking_zero_arguments_called_as_method,
     declared_here_as_constrained_generic_parameter,
     declared_here_as_compt_fn_pointer,
+    cannot_use_definition_with_a_generic_parent,
+    use_a_deftype_to_create_a_simpler_type_alias_for_a_specialized_generic_type,
+    deftypes_take_the_form_of,
 
     count, // this must be last,
 

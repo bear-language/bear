@@ -374,6 +374,14 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "declared here as constrained generic parameter";
     case diag_code::declared_here_as_compt_fn_pointer:
         return "declared here as a compile-time function pointer";
+    case diag_code::cannot_use_definition_with_a_generic_parent:
+        return "cannot use definition with a generic parent since `use` would leave the parents "
+               "unspecialized";
+    case diag_code::use_a_deftype_to_create_a_simpler_type_alias_for_a_specialized_generic_type:
+        return "use a `deftype` statement to create a simpler type alias for a specialized generic "
+               "type";
+    case diag_code::deftypes_take_the_form_of:
+        return "`deftype` statements take the form of `deftype NewType = Previous..Type`";
     }
 
     std::unreachable();

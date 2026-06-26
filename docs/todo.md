@@ -6,30 +6,22 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] clean up `use` semantics
-    - [ ] warn/error on `use` when used def is generic and also has some parent that is generic 
-    - [ ] allow `use` for just free functions
-    - [ ] clamp down on problematic nesting of definitions (primarily within structs)
-
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
 
 - [ ] contract diagnostics for per-param disagreements
 
 - [ ] `compt` improvements:
-    - [ ] fn ptr reflection:
-        - [ ] `return_type_of` (quite useful, especially in duck-typed functions that might accept a compt fn ptr)
-        - [ ] `type_of_arg(fn_ptr, i)`
-        - [ ] `@arity`
-    - [ ] struct member reflection 
-        - [ ] add `@members_of` -> list of strs, which can be iterated over
-        - [ ] add `foo.@member(str_val)` to compile-time reflect on members 
-    - [ ] add all those builtins to bear.nvim
     - [ ] compt closures (pure-expr only)
-        - [ ] allow capturing compt variables 
+    - [ ] allow capturing compt variables 
     - [ ] compt slices `[&]` so we can work with any dimensional lists at compt, also tighten up list handling generally
     - [ ] compt ranges `1...4` and make then work with compt matching, better type-checking/reporting for scalar matched values
 
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
+
+- [ ] struct member reflection 
+     - [ ] add `@members_of` -> list of strs, which can be iterated over
+     - [ ] add `foo.@member(str_val)` to compile-time reflect on members 
+
 
 - [ ] tighten up abi related stuff with hir::LayoutRules or something similar
     - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
