@@ -692,6 +692,11 @@ class Context {
 
     void register_gen_args_for_def(DefId did, GenericArgIdSliceId gen_args_id);
 
+    [[nodiscard]] IdHashMap<CanonicalGenericArgsId, ExecId>&
+    compt_args_map(CanonicalComptArgsIdMapId map_id);
+
+    [[nodiscard]] CanonicalComptArgsIdMapId make_compt_args_map();
+
     [[nodiscard]] OptId<GenericArgIdSliceId> try_gen_args_for_def(DefId did) const;
 
     /// recursively searches parents of Defs to find generic args
@@ -836,6 +841,11 @@ class Context {
     // that has a map to it's child concrete defs)
     IdVecMap<CanonicalGenericArgsIdMapId, IdHashMap<CanonicalGenericArgsId, DefId>>
         canonical_generic_args_id_to_def_id_map;
+
+    DataArena compt_args_arena;
+
+    IdVecMap<CanonicalGenericArgsIdMapId, IdHashMap<CanonicalGenericArgsId, ExecId>>
+        canonical_compt_args_id_to_exec_id_map;
 
     // for structurally reverse engineering canonical args
     IdVecMap<CanonicalGenericArgsId, GenericArgIdSliceId> canonical_generic_args_to_first_instance;

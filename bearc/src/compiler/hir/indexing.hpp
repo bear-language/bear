@@ -205,6 +205,8 @@ using CanonicalGenericArgsId = Id<IdSlice<GenericArgId>>;
 /// for indexing maps of GenericArgIds to DefIds
 using CanonicalGenericArgsIdMapId = Id<IdSlice<CanonicalGenericArgsId>>;
 
+using CanonicalComptArgsIdMapId = Id<IdSlice<CanonicalGenericArgsId>>;
+
 } // namespace hir
 
 #endif

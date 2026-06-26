@@ -61,6 +61,11 @@ void* arena_alloc(arena_t* arena, size_t req_size_bytes) {
             alloc_size = req_size_bytes;
         }
 
+        // scale x2 every alloc ~~~
+        alloc_size *= 2;
+        arena->chunk_size *= 2;
+        // ~~~~~~~~~~~~~~~~~~~~~~~~
+
         arena_chunk_t* new_chunk = arena_chunk_new(alloc_size);
         new_chunk->next = curr;
         arena->head = curr = new_chunk;

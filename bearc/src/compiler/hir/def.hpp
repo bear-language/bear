@@ -41,6 +41,8 @@ struct DefFunction {
     OptId<DefId> original;
     // generic args, if any
     OptId<GenericArgIdSliceId> maybe_generic_args;
+    // to access a map from canonical compt (same mechanism as generic) args to memoized ExecId
+    OptId<CanonicalComptArgsIdMapId> maybe_compt_args_map_id{};
     bool discardable = false;
     bool takes_self = false;
     bool posioned = false;

@@ -1,0 +1,36 @@
+// tests/hir/a29.br
+
+mod fibonacci;
+
+compt fn fib(var n) => {
+    n if n <= 1 
+        else fib(n - 1) + fib(n - 2)
+}
+
+compt var a = fib(15);
+
+var _0 = @static_assert a == fib(15);
+
+var _1 = @static_assert a == 610;
+
+compt var b = fib(25);
+
+compt var c = fib(25);
+
+var _2 = @static_assert fib(32) == 2178309;
+
+var _3 = @static_assert fib(45) == 1134903170;
+
+compt var d = fib(400); // fine
+
+compt var e = fib(700); // fine
+
+compt var f = fib(100000); // oops
+
+struct Fib<i32 N> {
+    compt u64 value = 
+        N if N <= 1 
+            else Fib..value::<N - 1> + Fib..value::<N - 2>;
+}
+
+var _4 = @static_assert Fib..value::<45> == fib(45);

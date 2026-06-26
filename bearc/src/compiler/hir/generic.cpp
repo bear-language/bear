@@ -67,6 +67,17 @@ bool equivalent_gen_arg_id_slice(const Context& ctx, GenericArgIdSliceId sid1,
     return true;
 }
 
+[[nodiscard]] CanonicalGenericArgsId
+exec_vec_to_canonical_arg_id(Context& ctx, const llvm::SmallVectorImpl<ExecId>& exec_vec) {
+    llvm::SmallVector<GenericArgId> gen_arg_vec{};
+
+    for (const ExecId e : exec_vec) {
+        gen_arg_vec.push_back(ctx.emplace_generic_arg(e));
+    }
+
+    return ctx.canonical_gen_args(ctx.emplace_generic_arg_id_slice(ctx.freeze_id_vec(gen_arg_vec)));
+}
+
 void CanonicalComptArgsTable::rehash(size_t new_capacity) {
     Entry** new_buckets = arena.alloc_as<Entry**>(sizeof(Entry*) * new_capacity);
     memset(static_cast<void*>(new_buckets), 0, new_capacity * sizeof(Entry*));

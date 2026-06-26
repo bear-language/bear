@@ -38,7 +38,7 @@ template <IsDefVisitor V> class ComptExprSolver {
     HirSize call_depth = 0;
 
   public:
-    static constexpr HirSize MAX_COMPT_CALL_FRAMES = 100; // TODO increase once memoization is added
+    static constexpr HirSize MAX_COMPT_CALL_FRAMES = 1000;
 
     ComptExprSolver(Context& ctx, V& def_visitor) : context{ctx}, def_visitor{def_visitor} {}
 
@@ -2709,6 +2709,22 @@ template <IsDefVisitor V> class ComptExprSolver {
             return std::nullopt; // already posioned so don't even try it
         }
 
+        // get canonical args
+        const CanonicalGenericArgsId canonical_args
+            = exec_vec_to_canonical_arg_id(context, arg_vec);
+
+        // if this function has a compt args map and there's a value for these args:
+        if (context.def(func_did).as<DefFunction>().maybe_compt_args_map_id.has_value()) {
+            const auto maybe_memoized
+                = context
+                      .compt_args_map(
+                          context.def(func_did).as<DefFunction>().maybe_compt_args_map_id.as_id())
+                      .at(canonical_args);
+            if (maybe_memoized.has_value()) {
+                return maybe_memoized.as_id();
+            }
+        }
+
         // mark that we're starting another call
         enter_compt_fn();
         if (call_depth > MAX_COMPT_CALL_FRAMES) {
@@ -2809,6 +2825,18 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         if (maybe_eid.empty()) {
             return {};
+        }
+
+        // memoize result
+        const auto maybe_map_id = context.def(func_did).as<DefFunction>().maybe_compt_args_map_id;
+        if (maybe_map_id.empty()) {
+            const CanonicalComptArgsIdMapId map_id = context.make_compt_args_map(); // make new map
+            context.def(func_did).as<DefFunction>().maybe_compt_args_map_id = map_id; // set it
+            context.compt_args_map(map_id).insert(canonical_args,
+                                                  maybe_eid.as_id()); // memoize in new map
+        } else {
+            context.compt_args_map(maybe_map_id.as_id())
+                .insert(canonical_args, maybe_eid.as_id()); // memoize in existing map
         }
 
         return context.emplace_exec(context.exec(maybe_eid.as_id()).value, Span{context, fid, expr},

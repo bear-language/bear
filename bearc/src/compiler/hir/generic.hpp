@@ -74,6 +74,9 @@ class TickableGenArgSlice {
 [[nodiscard]] bool equivalent_gen_arg_id_slice(const Context& ctx, GenericArgIdSliceId sid1,
                                                GenericArgIdSliceId sid2);
 
+[[nodiscard]] CanonicalGenericArgsId
+exec_vec_to_canonical_arg_id(Context& ctx, const llvm::SmallVectorImpl<ExecId>& exec_vec);
+
 class CanonicalComptArgsTable {
     struct Entry {
         GenericArgIdSliceId key_id;

@@ -60,8 +60,9 @@ static constexpr size_t DEFAULT_GENERIC_ARG_VEC_CAP = 0x400;
 static constexpr HirSize EXPECTED_HIGH_NUM_IMPORTS = 128;
 static constexpr size_t DEFAULT_DIAG_NUM = 0x100;
 static constexpr size_t DEFAULT_DEF_SLICE_COUNT = 0x100;
-static constexpr size_t DEFAULT_CANONICAL_TT_CAP = 0x400;
-static constexpr size_t DEFAULT_CANONICAL_GEN_ARGS_CAP = 0x400;
+static constexpr size_t DEFAULT_CANONICAL_TT_CAP = 0x1000;
+static constexpr size_t DEFAULT_CANONICAL_GEN_ARGS_CAP = 0x1000;
+static constexpr size_t DEFAULT_CANONICAL_COMPT_ARGS_CAP = 0x4000;
 
 Context::Context(const bearc_args_t& args) : Context(args, instances::multiple) {}
 
@@ -94,6 +95,8 @@ Context::Context(const bearc_args_t& args, instances instances)
       generic_arg_ids{DEFAULT_GENERIC_ARG_VEC_CAP}, generic_args{DEFAULT_GENERIC_ARG_VEC_CAP},
       generic_args_arena{DEFAULT_CANONICAL_TYPE_ARENA_CAP},
       canonical_generic_args_id_to_def_id_map{DEFAULT_CANONICAL_GEN_ARGS_CAP},
+      compt_args_arena{DEFAULT_ARENA_CAP},
+      canonical_compt_args_id_to_exec_id_map{DEFAULT_CANONICAL_COMPT_ARGS_CAP},
       canonical_generic_args_to_first_instance{DEFAULT_CANONICAL_GEN_ARGS_CAP},
       generic_arg_id_slices{DEFAULT_CANONICAL_GEN_ARGS_CAP},
       canonical_generic_args_table_arena{DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP},
@@ -1971,6 +1974,16 @@ Context::try_generic_args_for_def_recursive(DefId did) const {
         break;
     }
     return 0;
+}
+
+[[nodiscard]] IdHashMap<CanonicalGenericArgsId, ExecId>&
+Context::compt_args_map(CanonicalComptArgsIdMapId map_id) {
+    return canonical_compt_args_id_to_exec_id_map.at(map_id);
+}
+
+[[nodiscard]] CanonicalComptArgsIdMapId Context::make_compt_args_map() {
+    return canonical_compt_args_id_to_exec_id_map.emplace_and_get_id(compt_args_arena,
+                                                                     64); // decently sized
 }
 
 Span Context::span_for_gen_args(GenericArgIdSliceId gen_arg_slice) const {
