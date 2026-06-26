@@ -6,9 +6,6 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] use canonical generic args canonicalization to memoize compt function args -> values
-    - have FunctionDefs store something analogous to `OptId<CanonicalGenericArgsIdMapId>` or which will be used as its results cache
-
 - [ ] contract diagnostics for per-param disagreements
 
 - [ ] `compt` improvements:
