@@ -1,0 +1,13 @@
+// tests/hir/a26.br
+
+compt fn foo(var a, var b) => a + b
+
+compt typeof(foo) a = foo;
+
+compt var _0 = @note @type_to_str(typeof a);
+
+compt var b = a(2, 3);
+
+var _1 = @static_assert b == 5;
+
+var _2 = @static_assert 4 == a(foo(1, 1), b(1, 1)); // oops

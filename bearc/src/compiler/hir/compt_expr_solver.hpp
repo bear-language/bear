@@ -50,32 +50,13 @@ template <IsDefVisitor V> class ComptExprSolver {
 
     [[nodiscard]] OptId<TypeId> infer_type_from_compt_expr(FileId fid, ScopeId scope,
                                                            const ast_expr_t* expr) {
-
-        if (expr->type == AST_EXPR_ID) {
-            auto sid = context.symbol_slice(expr->expr.id.slice);
-            Span span{context, fid, expr->first, expr->last};
-            auto maybe_did = context.look_up_scoped_variable(scope, sid, span);
-            if (maybe_did.empty()) {
-                context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
-                                           diag_type::error);
-                return std::nullopt;
-            }
-            const Def& def = context.def(def_visitor.visit_as_dependent(maybe_did.as_id()));
-            if (!def.holds<DefVariable>()) {
-                return std::nullopt;
-            }
-            return def.as<DefVariable>().type_id;
-        }
-
         OptId<ExecId> maybe_eid = solve_expr(fid, scope, expr);
 
         if (maybe_eid.empty()) {
-            return std::nullopt; // already an issue/poisoned
+            return {}; // already an issue/poisoned
         }
 
-        auto eid = maybe_eid.as_id();
-
-        return infer_type_from_exec(eid);
+        return infer_type_from_exec(maybe_eid.as_id());
     }
 
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid) {
