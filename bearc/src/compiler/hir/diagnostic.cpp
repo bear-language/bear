@@ -292,8 +292,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "not a variant field";
     case diag_code::identifer_does_not_name_a_valid_pattern:
         return "identifier does not name a valid pattern";
-    case diag_code::has_no_such_variant_field:
-        return "has no such variant field";
+    case diag_code::is_not_a_variation_of_variant:
+        return "is not a variation of variant";
     case diag_code::is_a_field_of_variant:
         return "is a field of variant";
     case diag_code::variant_decomposition_not_allowed_here:

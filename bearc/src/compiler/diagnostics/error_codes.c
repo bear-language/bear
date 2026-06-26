@@ -69,7 +69,7 @@ static const char* error_messages[ERR__COUNT] = {
     [USE_IS_ALLOWED_AT_MODULE_LEVEL_AND_INSIDE_FUNCTIONS]
     = "move `use` outside of this scope since `use` is only allowed at the module-level and inside "
       "function bodies",
-    [ERR_RETURN_TYPE_ARROW_NOT_ALLOWED_HERE] = "`->` is not allowed here",
+    [ERR_RETURN_TYPE_ARROW_NOT_ALLOWED_HERE] = "`->` is not allowed here in match branch",
     [HELP_REPLACE_WITH_EQ_ARROW] = "replace with `=>`"};
 const char* error_message_for_code(error_code_e error_code) { return error_messages[error_code]; }
 

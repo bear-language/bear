@@ -1591,8 +1591,9 @@ bool Context::check_variant_field_has_parent(DiagLinker& dl, DefId variant_field
                                              DefId variant_did, Span id_span) {
     if (def(variant_field_did).parent.as_id() != variant_did) {
         dl.link(emplace_diagnostic_with_message_value(
-            id_span, diag_code::has_no_such_variant_field, diag_type::error,
-            DiagnosticSymbolBeforeMessage{.sid = def(variant_did).name}));
+            id_span, diag_code::is_not_a_variation_of_variant, diag_type::error,
+            DiagnosticSymbolBeforeAndAfterMessage{.before_sid = def(variant_field_did).name,
+                                                  .after_sid = def(variant_did).name}));
 
         dl.link(
             emplace_diagnostic(id_span, diag_code::is_a_field_of_variant, diag_type::note,

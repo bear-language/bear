@@ -150,7 +150,7 @@ enum class diag_code : uint8_t {
     value_does_not_name_a_valid_pattern,
     identifer_does_not_name_a_valid_pattern,
     not_a_variant_field,
-    has_no_such_variant_field,
+    is_not_a_variation_of_variant,
     is_a_field_of_variant,
     variant_decomposition_not_allowed_here,
     invalid_pattern,
