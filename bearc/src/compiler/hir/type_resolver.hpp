@@ -293,6 +293,21 @@ template <IsDefVisitor V> class TypeResolver {
 
         const ast_expr_t* expr = type->type.type_of.of_expr;
 
+        if (expr->type == AST_EXPR_ID) {
+            auto sid = context.symbol_slice(expr->expr.id.slice);
+            Span span{context, fid, expr->first, expr->last};
+            auto maybe_did = context.look_up_scoped_variable(scope, sid, span);
+            if (maybe_did.empty()) {
+                context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
+                                           diag_type::error);
+                return {};
+            }
+            const Def& def = context.def(def_visitor.visit_as_dependent(maybe_did.as_id()));
+            if (def.holds<DefVariable>()) {
+                return def.as<DefVariable>().type_id;
+            }
+        }
+
         auto maybe_tid
             = ComptExprSolver{context, def_visitor}.infer_type_from_compt_expr(fid, scope, expr);
 

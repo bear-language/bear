@@ -5,6 +5,8 @@ main quest
 
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
+
+- [ ] show variable definition and canonical fn definition when contract check fails, see `tests/hir/a24.br`
  
 - [ ] clean up `use` semantics
     - [ ] warn/error on `use` when used def is generic and also has some parent that is generic 
