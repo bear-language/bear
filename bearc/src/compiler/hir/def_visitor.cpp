@@ -337,6 +337,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                                                  diag_type::note, DiagnosticInfoNoPreview{});
             context.link_diagnostic(d0, d1);
             context.link_diagnostic(d1, d2);
+            break;
         }
         ScopeId scope_into_which_to_insert = context.containing_scope(did);
         // insert base name into containing scope
