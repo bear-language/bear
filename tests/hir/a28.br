@@ -1,0 +1,30 @@
+// tests/hir/a28.br
+
+variant Musketeers<T> {
+    Three(T first, T second, T third),
+    Two(T first, T second),
+    One(T only),
+    None
+}
+
+variant Foo {
+    A,
+    B,
+    C,
+    D,
+}
+
+compt fn do(Musketeers::i32 a) -> i32 => match(a) {
+    Three(var i) -> i,
+    Two(var i) => i,
+    One(var i) => i,
+    None => 0,
+}
+
+deftype M = Musketeers::i32;
+
+compt var a = M..One(42);
+
+compt var b = do(a);
+
+

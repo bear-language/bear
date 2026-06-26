@@ -119,6 +119,8 @@ bool token_is_preunary_op_expecting_type(token_type_e t);
 
 bool token_is_visibility_modifier(token_type_e t);
 
+static inline bool token_is_arrow(token_type_e t) { return t == TOK_RARROW || t == TOK_EQ_ARROW; }
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

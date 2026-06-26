@@ -15,7 +15,8 @@ static const uint8_t diag_types[ERR__COUNT]
        [HELP_REMOVE] = DIAG_TYPE_HELP,
        [WARN_TOP_LEVEL_USE_CAN_POLLUTE_THE_GLOBAL_NAMESPACE] = DIAG_TYPE_WARNING,
        [HELP_REMOVE_SEMICOLON_TO_YIELD_EXPRESSION_VALUE] = DIAG_TYPE_HELP,
-       [USE_IS_ALLOWED_AT_MODULE_LEVEL_AND_INSIDE_FUNCTIONS] = DIAG_TYPE_HELP};
+       [USE_IS_ALLOWED_AT_MODULE_LEVEL_AND_INSIDE_FUNCTIONS] = DIAG_TYPE_HELP,
+       [HELP_REPLACE_WITH_EQ_ARROW] = DIAG_TYPE_HELP};
 bool is_non_error_diagnostic(error_code_e error_code) { return diag_types[error_code]; }
 static const char* error_messages[ERR__COUNT] = {
     [ERR_EXPECTED_IDENTIFER] = "expected identifier",
@@ -68,8 +69,8 @@ static const char* error_messages[ERR__COUNT] = {
     [USE_IS_ALLOWED_AT_MODULE_LEVEL_AND_INSIDE_FUNCTIONS]
     = "move `use` outside of this scope since `use` is only allowed at the module-level and inside "
       "function bodies",
-
-};
+    [ERR_RETURN_TYPE_ARROW_NOT_ALLOWED_HERE] = "`->` is not allowed here",
+    [HELP_REPLACE_WITH_EQ_ARROW] = "replace with `=>`"};
 const char* error_message_for_code(error_code_e error_code) { return error_messages[error_code]; }
 
 error_diag_type_e error_diagnostic_type(error_code_e error_code) { return diag_types[error_code]; }

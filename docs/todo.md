@@ -17,7 +17,7 @@ main quest
 
 - [ ] `compt` improvements:
     - [ ] fn ptr reflection:
-        - [ ] `return_type_of` (quite useful, especially in generics that might accept a compt fn ptr)
+        - [ ] `return_type_of` (quite useful, especially in duck-typed functions that might accept a compt fn ptr)
         - [ ] `type_of_arg(fn_ptr, i)`
         - [ ] `@arity`
     - [ ] struct member reflection 
@@ -26,7 +26,7 @@ main quest
     - [ ] add all those builtins to bear.nvim
     - [ ] compt closures (pure-expr only)
         - [ ] allow capturing compt variables 
-    - [ ] compt slices `[&]` so we can work with any dimensional lists at compt
+    - [ ] compt slices `[&]` so we can work with any dimensional lists at compt, also tighten up list handling generally
     - [ ] compt ranges `1...4` and make then work with compt matching, better type-checking/reporting for scalar matched values
 
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type

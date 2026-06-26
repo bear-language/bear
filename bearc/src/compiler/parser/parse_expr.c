@@ -25,7 +25,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #define PREC_INIT UINT8_MAX
@@ -48,6 +47,21 @@ ast_slice_of_exprs_t parse_slice_of_exprs_call(parser_t* p, token_type_e divider
 
     while (!(parser_peek_match(p, until_tkn) || parser_eof(p)) // while !eof (edge-case handling)
     ) {
+        spill_arr_ptr_push(&sarr, call(p));
+        parser_match_token(p, divider);
+    }
+
+    return parser_freeze_expr_spill_arr(p, &sarr);
+}
+
+static ast_slice_of_exprs_t parse_slice_of_exprs_call_call(parser_t* p, token_type_e divider,
+                                                           bool (*divider_call)(token_type_e),
+                                                           ast_expr_t* (*call)(parser_t*)) {
+    spill_arr_ptr_t sarr;
+    spill_arr_ptr_init(&sarr);
+
+    while (!divider_call(parser_peek(p)->type) || parser_eof(p)) // while !eof (edge-case handling)
+    {
         spill_arr_ptr_push(&sarr, call(p));
         parser_match_token(p, divider);
     }
@@ -822,8 +836,14 @@ ast_expr_t* parse_expr_match_branch(parser_t* p) {
     branch->type = AST_EXPR_MATCH_BRANCH;
     token_t* first = parser_peek(p);
     branch->expr.match_branch.patterns
-        = parse_slice_of_exprs_call(p, TOK_BAR, TOK_EQ_ARROW, &parse_expr_match_pattern);
-    parser_expect_token(p, TOK_EQ_ARROW);
+        = parse_slice_of_exprs_call_call(p, TOK_BAR, token_is_arrow, &parse_expr_match_pattern);
+    if (parser_match_token(p, TOK_RARROW)) {
+        compiler_error_list_emplace(p->error_list, parser_prev(p),
+                                    ERR_RETURN_TYPE_ARROW_NOT_ALLOWED_HERE);
+        compiler_error_list_emplace(p->error_list, parser_prev(p), HELP_REPLACE_WITH_EQ_ARROW);
+    } else {
+        parser_expect_token(p, TOK_EQ_ARROW);
+    }
     branch->expr.match_branch.value = parse_expr_allowing_block_exprs_with_yields(p);
     branch->first = first;
     branch->last = parser_prev(p);
