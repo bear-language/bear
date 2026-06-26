@@ -7,7 +7,7 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] use canonical generic args canonicalization to memoize compt function args -> values
-    - have FunctionDefs store a `OptId<CanonicalGenericArgsIdMapId >` which will be used as its results cache
+    - have FunctionDefs store something analogous to `OptId<CanonicalGenericArgsIdMapId>` or which will be used as its results cache
 
 - [ ] contract diagnostics for per-param disagreements
 
