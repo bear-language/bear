@@ -189,6 +189,7 @@ enum class diag_code : uint8_t {
     circular_generic_instantiation,
     free_function_taking_zero_arguments_called_as_method,
     declared_here_as_constrained_generic_parameter,
+    declared_here_as_compt_fn_pointer,
 
     count, // this must be last,
 

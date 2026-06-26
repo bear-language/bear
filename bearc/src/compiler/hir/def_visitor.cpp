@@ -799,16 +799,23 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
         OptId<DefId> maybe_matching_named_func_in_struct
             = context.look_up_variable(struct_scope, ct_func_def.name);
 
+        OptId<DefId> maybe_different_orig{};
         if (maybe_matching_named_func_in_struct.has_value()) {
             // allow compt function pointer variables to be used like normal functions and work to
             // satisfy contracts
 
+            maybe_different_orig = maybe_matching_named_func_in_struct; // save orig
+
             maybe_matching_named_func_in_struct = context.try_func_did(visit_and_resolve_if_needed(
                 maybe_matching_named_func_in_struct.as_id())); // make sure fn is resolved
+
+            if (maybe_different_orig.as_id() == maybe_matching_named_func_in_struct.as_id()) {
+                maybe_different_orig = {}; // orig is same, so set to none
+            }
         }
 
         if (maybe_matching_named_func_in_struct.empty()) {
-            auto d = context.emplace_diagnostic_with_message_value(
+            auto d0 = context.emplace_diagnostic_with_message_value(
                 context.name_span_for_def(struct_did), diag_code::only_message_value_is_meaningful,
                 diag_type::error,
                 DiagnosticStructDoesNotDefineBlankForContract{
@@ -816,7 +823,7 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
                     .func_name = ct_func_def.name,
                     .contract_name = contract_def.name,
                     .maybe_gen_args = contract_def.as<DefContract>().maybe_generic_args});
-            dlinker.link(d);
+            dlinker.link(d0);
             dlinker.link(context.emplace_diagnostic_with_message_value(
                 ct_func_def.span, diag_code::declared_in_contract_here, diag_type::note,
                 DiagnosticSymbolBeforeMessage{.sid = ct_func_def.name}));
@@ -867,6 +874,12 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
                     .maybe_gen_args = contract_def.as<DefContract>().maybe_generic_args},
                 DiagnosticSubCode{.sub_code
                                   = diag_code::function_signature_does_not_match_contract}));
+            if (maybe_different_orig.has_value()) {
+                const Def& orig_def = context.def(maybe_different_orig.as_id());
+                dlinker.link(context.emplace_diagnostic_with_message_value(
+                    orig_def.span, diag_code::declared_here_as_compt_fn_pointer, diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = orig_def.name}));
+            }
 
             dlinker.link(context.report_function_disagreement_with_contract(
                 ct_func_did, matched_fn_did, struct_did));

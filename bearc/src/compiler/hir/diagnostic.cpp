@@ -372,6 +372,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "free function taking zero arguments called as method";
     case diag_code::declared_here_as_constrained_generic_parameter:
         return "declared here as constrained generic parameter";
+    case diag_code::declared_here_as_compt_fn_pointer:
+        return "declared here as a compile-time function pointer";
     }
 
     std::unreachable();

@@ -6,8 +6,6 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] show variable definition and canonical fn definition when contract check fails, see `tests/hir/a24.br`
- 
 - [ ] clean up `use` semantics
     - [ ] warn/error on `use` when used def is generic and also has some parent that is generic 
     - [ ] allow `use` for just free functions
@@ -34,7 +32,7 @@ main quest
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
 
 - [ ] tighten up abi related stuff with hir::LayoutRules or something similar
-    - [ ] properly impl `sizeof` and `alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
+    - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
 
 - [ ] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
 
