@@ -1,0 +1,5 @@
+// tests/parser/60.br
+
+compt var a = @sizeof i32;
+
+compt var b = @alignof typeof a;

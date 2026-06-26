@@ -37,8 +37,8 @@
     - | BinaryExpression: `Expression` BinaryOp `Expression`
         - BinaryOp: a full precedence chart is in the works, for now refer to the maps in the [parser rules file](bearc/src/compiler/parser/rules.c) 
     - | Preunary: `--` | `++` 
-    - | SizeOf: `sizeof` `(` Type `)`
-    - | AlignOf: `alignof` `(` Type `)`
+    - | SizeOf: `@sizeof` `(` Type `)`
+    - | AlignOf: `@alignof` `(` Type `)`
     - | Postunary: Expression `++` | `--`
     - | Subscript: Expression `[` Expression `]`
     - | Grouping: `(` Expression `)`

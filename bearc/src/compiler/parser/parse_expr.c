@@ -193,18 +193,16 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
     preunary_expr->expr.unary.op = op;
     // get and set sub expression
     ast_expr_t* sub_expr = NULL;
-    // things like sizeof(...)
+    // things like @sizeof(...)
     if (token_is_preunary_op_expecting_type(op->type)) {
         // sizeof(
         //       ^
-        if (!parser_expect_token(p, TOK_LPAREN)) {
-            return parser_sync_expr(p);
-        }
+        token_t* lparen = parser_match_token(p, TOK_LPAREN);
         sub_expr = parse_expr_type(p);
         // sizeof(sub_expr)
         //                ^
-        if (!parser_expect_token(p, TOK_RPAREN)) {
-            return parser_sync_expr(p);
+        if (lparen) {
+            parser_expect_token(p, TOK_RPAREN);
         }
     }
     // all others like ++x, --x
