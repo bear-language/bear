@@ -7,13 +7,6 @@ variant Musketeers<T> {
     None
 }
 
-variant Foo {
-    A,
-    B,
-    C,
-    D,
-}
-
 compt fn do(Musketeers::i32 a) -> i32 => match(a) {
     Three(var i) -> i,
     Two(var i) => i,
@@ -27,4 +20,35 @@ compt var a = M..One(42);
 
 compt var b = do(a);
 
+mod foo { // ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+variant Foo {
+    A(Bar a), // oops
+    B,
+    C,
+    D,
+}
+
+variant Bar {
+    A(Doo a),
+    B,
+}
+
+variant Doo {
+    A(Foo a),
+    B,
+    C,
+}
+
+
+compt var c = match(a) {
+    Musketeers..Three(var i) -> i,
+    Musketeers..Two(var i) => i,
+    One(var i) => i,
+    None => 0,
+    Foo..B => 0, // oops
+    123 => 0,
+    b => 0,
+};
+
+} // mod foo ~~~~~~~~~~~~~~~~~~~~~~~~~~~

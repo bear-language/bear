@@ -601,6 +601,20 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
 
         const auto maybe_generic_args = context.search_for_gen_args_for_def(did);
 
+        const auto variants_scope = context.scope_for_top_level_def(did);
+
+        // make the variant visible without generic args inside it's own scope (helpful for
+        // matching)
+        if (maybe_generic_args.has_value()) {
+            context.register_generated_deftype(
+                variants_scope, context.def(did).name,
+                context.emplace_type(TypeVariant{.def_id = did,
+                                                 .gen_args_slice = maybe_generic_args,
+                                                 .generic = maybe_generic_args.has_value()},
+                                     Span::generated(), false),
+                did, Span{context, context.def(did).span.file_id, stmt->stmt.variant_decl.name});
+        }
+
         if (posterior_diag_count > prior_diag_count && maybe_generic_args.has_value()) {
             context.force_link_diagnostic(context.emplace_diagnostic(
                 context.span_for_gen_args(maybe_generic_args.as_id()),
@@ -608,7 +622,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         }
 
         context.def(did).set_value(DefVariant{
-            .scope = context.scope_for_top_level_def(did),
+            .scope = variants_scope,
             .ordered_members = members,
             .orginal = {},
             .maybe_generic_args = maybe_generic_args,
@@ -628,8 +642,8 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                 continue;
             }
             const auto fid = context.def(did).span.file_id;
-            const auto maybe_tid
-                = TypeResolver{context, *this}.resolve_type(fid, scope, param->type);
+            const auto maybe_tid = TypeResolver{context, *this}.resolve_type(
+                fid, scope, param->type, true); // do need layout info
             if (maybe_tid.empty()) {
                 continue;
             }

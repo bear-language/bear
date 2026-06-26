@@ -1587,24 +1587,23 @@ IdSlice<SymbolId> Context::try_singly_qualified_name(DefId did) {
     return freeze_id_vec(sids);
 }
 
-bool Context::check_variant_field_has_parent(DefId variant_field_did, DefId variant_did,
-                                             Span id_span) {
+bool Context::check_variant_field_has_parent(DiagLinker& dl, DefId variant_field_did,
+                                             DefId variant_did, Span id_span) {
     if (def(variant_field_did).parent.as_id() != variant_did) {
-        const auto d0 = emplace_diagnostic_with_message_value(
+        dl.link(emplace_diagnostic_with_message_value(
             id_span, diag_code::has_no_such_variant_field, diag_type::error,
-            DiagnosticSymbolBeforeMessage{.sid = def(variant_did).name});
-        const auto d1
-            = emplace_diagnostic(id_span, diag_code::is_a_field_of_variant, diag_type::note,
-                                 DiagnosticSymbolBeforeAndAfterMessage{
-                                     .before_sid = def(variant_field_did).name,
-                                     .after_sid = def(def(variant_field_did).parent.as_id()).name},
-                                 DiagnosticInfoNoPreview{});
-        const auto d2 = emplace_diagnostic_with_message_value(
+            DiagnosticSymbolBeforeMessage{.sid = def(variant_did).name}));
+
+        dl.link(
+            emplace_diagnostic(id_span, diag_code::is_a_field_of_variant, diag_type::note,
+                               DiagnosticSymbolBeforeAndAfterMessage{
+                                   .before_sid = def(variant_field_did).name,
+                                   .after_sid = def(def(variant_field_did).parent.as_id()).name},
+                               DiagnosticInfoNoPreview{}));
+        dl.link(emplace_diagnostic_with_message_value(
             def(def(variant_field_did).parent.as_id()).span, diag_code::declared_here,
             diag_type::note,
-            DiagnosticSymbolBeforeMessage{.sid = def(def(variant_field_did).parent.as_id()).name});
-        link_diagnostic(d0, d1);
-        link_diagnostic(d1, d2);
+            DiagnosticSymbolBeforeMessage{.sid = def(def(variant_field_did).parent.as_id()).name}));
         return false;
     }
     return true;

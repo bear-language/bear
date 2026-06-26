@@ -3181,6 +3181,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
     [[nodiscard]] OptId<ExecId> solve_is(FileId fid, ScopeId scope, ExecId eid,
                                          const ast_expr_t* pattern_expr) {
+        DiagLinker dl{context};
         const Exec& exec = context.exec(eid);
         if (!exec.holds<ExecExprVariantInit>()) {
             context.emplace_diagnostic(exec.span, diag_code::cannot_use_is_for_non_variant_values,
@@ -3218,16 +3219,16 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         if (pattern_expr->expr.variant_decomp.vars.len != 0) {
             Span span{context, fid, pattern_expr};
-            const auto d0 = context.emplace_diagnostic(
-                span, diag_code::variant_decomposition_not_allowed_here, diag_type::error);
-            const auto d1 = context.emplace_diagnostic_with_message_value(
+            dl.link(context.emplace_diagnostic(
+                span, diag_code::variant_decomposition_not_allowed_here, diag_type::error));
+            dl.link(context.emplace_diagnostic_with_message_value(
                 span, diag_code::replace_with, diag_type::help,
-                DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice});
-            context.link_diagnostic(d0, d1);
+                DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice}));
             // don't return here, since we can safely just move on here
         }
 
-        if (!context.check_variant_field_has_parent(hopefully_var_field, var_init.variant_def_id,
+        if (!context.check_variant_field_has_parent(dl, hopefully_var_field,
+                                                    var_init.variant_def_id,
                                                     Span{context, fid, pattern_expr})) {
             return {};
         }
@@ -3263,7 +3264,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             const auto variant_did = ty.as<TypeVariant>().def_id;
             maybe_pattern_scope = context.def(variant_did).template as<DefVariant>().scope;
             valid_branches_and_exhaustive = valid_exhaustive_match_for_variant(
-                *this, maybe_pattern_scope.as_id(), fid, variant_did, match_expr);
+                *this, scope, maybe_pattern_scope.as_id(), fid, variant_did, match_expr);
         } else {
             valid_branches_and_exhaustive
                 = valid_exhaustive_match_for_non_variant(*this, scope, fid, match_expr);

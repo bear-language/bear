@@ -30,8 +30,9 @@ namespace hir {
 /// returns false when match is NOT exhaustive or is not valid due to some other more malformed
 /// reason
 template <IsExprSolver S>
-bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, DefId variant_did,
-                                        const ast_expr_t* match_expr) {
+bool valid_exhaustive_match_for_variant(S& solver, ScopeId containing_scope,
+                                        ScopeId matched_variant_scope, FileId fid,
+                                        DefId variant_did, const ast_expr_t* match_expr) {
 
     assert(match_expr->type == AST_EXPR_MATCH);
 
@@ -100,8 +101,19 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
                 continue;
             }
             const auto sid_slice = maybe_sid_slice.value();
-            const auto maybe_variant_field_did
-                = context.look_up_scoped_type(scope, sid_slice, id_span);
+            // try to look up inside the matched variant's scope, and then if it fails, look into
+            // the containing scope to try to get more info (different variant, etc)
+            auto maybe_variant_field_did
+                = context.look_up_scoped_type(matched_variant_scope, sid_slice, id_span);
+            if (maybe_variant_field_did.empty()) {
+                maybe_variant_field_did
+                    = context.look_up_scoped_type(containing_scope, sid_slice, id_span);
+            }
+            if (maybe_variant_field_did.empty()) {
+                maybe_variant_field_did
+                    = context.look_up_scoped_variable(containing_scope, sid_slice, id_span);
+            }
+
             if (maybe_variant_field_did.empty()) {
                 dl.link(context.emplace_diagnostic(
                     id_span, diag_code::use_of_undeclared_identifier, diag_type::error,
@@ -117,11 +129,17 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId scope, FileId fid, De
                 dl.link(context.emplace_diagnostic(
                     id_span, diag_code::invalid_pattern, diag_type::error,
                     DiagnosticSubCode{.sub_code = diag_code::not_a_variant_field}));
+                dl.link(context.emplace_diagnostic(
+                    context.def(variant_field_did).span, diag_code::declared_here, diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = context.def(variant_field_did).name},
+                    DiagnosticSubCode{.sub_code = diag_code::not_a_variant_field}));
+
                 valid = false;
                 continue;
             }
 
-            if (!context.check_variant_field_has_parent(variant_field_did, variant_did, id_span)) {
+            if (!context.check_variant_field_has_parent(dl, variant_field_did, variant_did,
+                                                        id_span)) {
                 valid = false;
                 continue;
             }

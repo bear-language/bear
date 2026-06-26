@@ -600,8 +600,8 @@ class Context {
 
     /// emplaces diagnostics as appropriate
     /// - returns false on issue
-    [[nodiscard]] bool check_variant_field_has_parent(DefId variant_field_did, DefId variant_did,
-                                                      Span id_span);
+    [[nodiscard]] bool check_variant_field_has_parent(DiagLinker& dl, DefId variant_field_did,
+                                                      DefId variant_did, Span id_span);
 
     /// checks if a type can be inferred as another
     /// - ordering of the arguments doesn't matter
