@@ -9,7 +9,7 @@ main quest
 - [ ] contract diagnostics for per-param disagreements
 
 - [ ] `compt` improvements:
-    - [ ] compt slices `[&]` so we can work with any dimensional lists at compt, also tighten up list handling generally
+    - [x] compt slices `[&]` so we can work with any dimensional lists at compt, also tighten up list handling generally
     - [ ] compt ranges `1...4` and make then work with compt matching, better type-checking/reporting for scalar matched values
     - [ ] compt closures (pure-expr only), allow capturing compt variables?
 
