@@ -13,3 +13,22 @@ compt fn len<T>([&]T list) -> usize => list.len
 compt usize both_len = len::<i32>(a) + len::<i32>(b);
 
 compt [&]i32 c = a + b;
+
+struct Foo {}
+
+compt var d = ["123", "abc", 123, Foo{}];
+
+compt var e = ['a', 'b', 'c'] + [1, 2, 3, 4, 5];
+
+compt fn sum_list(var list) => sum_list_helper(list, 0)
+
+compt fn sum_list_helper(var list, usize i) => { 
+    0 if i >= list.len
+        else list[i] + sum_list_helper(list, i + 1)
+}
+
+compt fn square(var i) => i*i
+
+compt i32 f = sum_list([10,10,10,10,10,10] + [10] + [10,10,10,10,11]);
+
+var _0 = @static_assert f == square(11);
