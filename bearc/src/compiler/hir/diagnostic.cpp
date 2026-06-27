@@ -384,6 +384,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "`deftype` statements take the form of `deftype NewType = Previous..Type`";
     case diag_code::invalid_operands_for_binary_expression:
         return "invalid operands for binary expression";
+    case diag_code::cannot_bind_compt_values_to_mutable_ref_type:
+        return "cannot bind compile-time constant value to mutable reference type";
     }
 
     std::unreachable();

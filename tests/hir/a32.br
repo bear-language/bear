@@ -32,3 +32,11 @@ compt fn square(var i) => i*i
 compt i32 f = sum_list([10,10,10,10,10,10] + [10] + [10,10,10,10,11]);
 
 var _0 = @static_assert f == square(11);
+
+compt [&mut]i32 _1 = [1, 2, 3]; // oops
+
+fn first_elem<T>([&mut]T list) -> T => list[0]
+
+compt var _2 = first_elem::<i32>([1, 2, 3]);
+
+compt [&]i32 mut _3 = [1, 2, 3]; // oops

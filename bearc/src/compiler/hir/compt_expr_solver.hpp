@@ -28,6 +28,7 @@
 #include "compiler/token.h"
 #include "def_visitor.hpp"
 #include <cassert>
+#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -152,6 +153,13 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         const Type& orig_which_can_be_ref = context.type(maybe_into_tid.as_id());
+
+        // error but still try to solve
+        if (orig_which_can_be_ref.mut && orig_which_can_be_ref.holds<TypeRef>()) {
+            context.emplace_diagnostic_with_message_value(
+                Span{context, fid, expr}, diag_code::cannot_bind_compt_values_to_mutable_ref_type,
+                diag_type::error, DiagnosticTypeAfterMessage{.tid = maybe_into_tid.as_id()});
+        }
         const TypeId into_tid = context.try_decay(maybe_into_tid.as_id());
         const Type& into_type = context.type(into_tid);
 
@@ -1690,14 +1698,22 @@ template <IsDefVisitor V> class ComptExprSolver {
                 const auto& into_type = context.type(maybe_into_tid.as_id());
 
                 if (into_type.holds<TypeSlice>()) {
+                    DiagLinker dl{context};
+                    if (into_type.mut) {
+                        dl.link(context.emplace_diagnostic_with_message_value(
+                            context.exec(maybe_eid.as_id()).span,
+                            diag_code::cannot_bind_compt_values_to_mutable_ref_type,
+                            diag_type::error,
+                            DiagnosticTypeAfterMessage{.tid = maybe_into_tid.as_id()}));
+                    }
 
                     const Type& list_type = context.type(list_tid);
 
                     if (!list_type.holds<TypeArr>()) {
-                        context.emplace_diagnostic_with_message_value(
+                        dl.link(context.emplace_diagnostic_with_message_value(
                             Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
                             diag_code::cannot_convert_value_of_type, diag_type::error,
-                            DiagnosticTypeToType{.from = list_tid, .to = maybe_into_tid.as_id()});
+                            DiagnosticTypeToType{.from = list_tid, .to = maybe_into_tid.as_id()}));
                         return {};
                     }
 
@@ -1705,10 +1721,10 @@ template <IsDefVisitor V> class ComptExprSolver {
                     // make sure the inner types are the same
                     if (!context.equivalent_type(into_type.as<TypeSlice>().inner,
                                                  list_type.as<TypeArr>().inner)) {
-                        context.emplace_diagnostic_with_message_value(
+                        dl.link(context.emplace_diagnostic_with_message_value(
                             Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
                             diag_code::cannot_convert_value_of_type, diag_type::error,
-                            DiagnosticTypeToType{.from = list_tid, .to = maybe_into_tid.as_id()});
+                            DiagnosticTypeToType{.from = list_tid, .to = maybe_into_tid.as_id()}));
                         return {};
                     }
 
