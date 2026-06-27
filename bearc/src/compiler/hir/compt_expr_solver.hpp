@@ -151,8 +151,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             return handle_any_typed_expr(fid, scope, expr);
         }
 
-        const Type& orig_can_be_ref = context.type(maybe_into_tid.as_id());
-        const auto into_tid = context.try_decay(maybe_into_tid.as_id());
+        const Type& orig_which_can_be_ref = context.type(maybe_into_tid.as_id());
+        const TypeId into_tid = context.try_decay(maybe_into_tid.as_id());
         const Type& into_type = context.type(into_tid);
 
         // `var` provided as type, so try to infer
@@ -160,7 +160,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             return handle_any_typed_expr(fid, scope, expr);
         }
 
-        if (orig_can_be_ref.holds<TypeRef>() && expr->type == AST_EXPR_BORROW) {
+        if (orig_which_can_be_ref.holds<TypeRef>() && expr->type == AST_EXPR_BORROW) {
             return solve_expr_borrow(fid, scope, expr, into_tid);
         }
 

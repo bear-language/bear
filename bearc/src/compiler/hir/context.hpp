@@ -244,7 +244,12 @@ class Context {
     [[nodiscard]] OptId<DefId>
     look_up_member_function_guarding_hid(IsDefVisitor auto& def_visitor, const Def& struct_def,
                                          SymbolId symbol_id, Span id_span, ScopeId local_scope) {
-        auto maybe_did = look_up_local_variable(struct_def.as<DefStruct>().scope, symbol_id);
+        auto maybe_did = look_up_variable(struct_def.as<DefStruct>().scope, symbol_id);
+        bool looked_up_on_local = false;
+        if (maybe_did.empty()) {
+            looked_up_on_local = true;
+            maybe_did = look_up_variable(local_scope, symbol_id); // try local scope if not found
+        }
         if (maybe_did.has_value()) {
             maybe_did = try_func_did(maybe_did.as_id());
         }
@@ -269,7 +274,8 @@ class Context {
             link_diagnostic(d0, d1);
             return std::nullopt;
         }
-        if (!def.pub && !scope_has_parent(local_scope, struct_def.as<DefStruct>().scope)) {
+        if (!looked_up_on_local && !def.pub
+            && !scope_has_parent(local_scope, struct_def.as<DefStruct>().scope)) {
             auto d0 = emplace_diagnostic_with_message_value(
                 id_span, diag_code::is_declared_hid, diag_type::error,
                 DiagnosticSymbolBeforeMessage{.sid = symbol_id});
@@ -285,6 +291,11 @@ class Context {
         IsDefVisitor auto& def_visitor, const Def& struct_def, SymbolId symbol_id, Span id_span,
         ScopeId local_scope, GenericArgIdSliceId gen_args) {
         auto maybe_did = look_up_variable(struct_def.as<DefStruct>().scope, symbol_id);
+        bool looked_up_on_local = false;
+        if (maybe_did.empty()) {
+            looked_up_on_local = true;
+            maybe_did = look_up_variable(local_scope, symbol_id);
+        }
         if (maybe_did.has_value()) {
             maybe_did = try_generic_instantiation(def_visitor, maybe_did.as_id(), gen_args);
             if (maybe_did.has_value()) {
@@ -312,7 +323,8 @@ class Context {
             link_diagnostic(d0, d1);
             return std::nullopt;
         }
-        if (!def.pub && !scope_has_parent(local_scope, struct_def.as<DefStruct>().scope)) {
+        if (!looked_up_on_local && !def.pub
+            && !scope_has_parent(local_scope, struct_def.as<DefStruct>().scope)) {
             auto d0 = emplace_diagnostic_with_message_value(
                 id_span, diag_code::is_declared_hid, diag_type::error,
                 DiagnosticSymbolBeforeMessage{.sid = symbol_id});

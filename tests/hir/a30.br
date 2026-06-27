@@ -1,0 +1,24 @@
+// tests/hir/a30.br
+
+
+mod foo {
+    mod bar {
+        struct Foo has cool..Cool {}
+    }
+}
+
+mod cool {
+
+contract Cool {} // tag
+
+}
+
+mod scratch {
+    use foo..bar..Foo;
+    fn do(&mut Foo foo) -> Foo => foo
+    
+    compt var a = do({}); 
+
+    var _0 = @static_assert
+}
+
