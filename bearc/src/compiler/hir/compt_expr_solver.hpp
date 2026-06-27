@@ -171,7 +171,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                 if (maybe_tid.has_value()) {
                     const Type& ty = context.type(maybe_tid.as_id());
                     if (ty.holds<TypeBuiltin>()
-                        and ty.as<TypeBuiltin>().type == builtin_type::nullpointer) {
+                        && ty.as<TypeBuiltin>().type == builtin_type::nullpointer) {
                         return maybe_eid.as_id();
                     }
                 }
@@ -235,6 +235,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
 
             return list_eid;
+        }
+
+        if (into_type.holds<TypeSlice>()) {
+            return solve_list(fid, scope, expr, into_tid);
         }
 
         if (into_type.holds<TypeFnPtr>()
@@ -1255,6 +1259,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_variant_eq(lhs_eid, rhs_eid, op);
         }
 
+        if (op == binary_op::plus && lhs_exec.holds_same<ExecExprListLiteral>(rhs_exec)) {
+            return solve_list_concat(lhs_eid, rhs_eid);
+        }
+
         bool cooked = false;
         if (!lhs_exec.holds<ExecConst>()) {
             handle_invalid_operand(lhs_eid);
@@ -1675,7 +1683,38 @@ template <IsDefVisitor V> class ComptExprSolver {
                 return std::nullopt; // poisoned
             }
             const auto tid = maybe_tid.as_id();
+
             if (maybe_into_tid.has_value()) {
+                TypeId list_tid = maybe_tid.as_id();
+
+                const auto& into_type = context.type(maybe_into_tid.as_id());
+
+                if (into_type.holds<TypeSlice>()) {
+
+                    const Type& list_type = context.type(list_tid);
+
+                    if (!list_type.holds<TypeArr>()) {
+                        context.emplace_diagnostic_with_message_value(
+                            Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
+                            diag_code::cannot_convert_value_of_type, diag_type::error,
+                            DiagnosticTypeToType{.from = list_tid, .to = maybe_into_tid.as_id()});
+                        return {};
+                    }
+
+                    // guard diff type. solving lists should return arr (list) literals, but need to
+                    // make sure the inner types are the same
+                    if (!context.equivalent_type(into_type.as<TypeSlice>().inner,
+                                                 list_type.as<TypeArr>().inner)) {
+                        context.emplace_diagnostic_with_message_value(
+                            Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
+                            diag_code::cannot_convert_value_of_type, diag_type::error,
+                            DiagnosticTypeToType{.from = list_tid, .to = maybe_into_tid.as_id()});
+                        return {};
+                    }
+
+                    return maybe_eid;
+                }
+
                 if (context.equivalent_type(tid, maybe_into_tid.as_id())) {
                     return maybe_eid;
                 }
@@ -1722,22 +1761,25 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_expr(fid, scope, expr->expr.compt_expr.inner, maybe_into_tid);
         case AST_EXPR_SUBSCRIPT:
             return guard_exec_type(solve_expr_subscript(fid, scope, expr));
-        case AST_EXPR_MATCH: {
+        case AST_EXPR_MATCH:
             return guard_exec_type(handle_match(fid, scope, expr));
-        }
-        case AST_EXPR_BORROW:
-        case AST_EXPR_LITERAL:
         case AST_EXPR_BINARY:
+            return guard_exec_type(solve_expr_binary(fid, scope, expr));
+        case AST_EXPR_BORROW:
+            return guard_exec_type(solve_expr_borrow(fid, scope, expr, maybe_into_tid));
+        case AST_EXPR_FN_CALL:
+            return guard_exec_type(solve_fn_call(fid, scope, expr));
+        case AST_EXPR_TERNARY_IF:
+            return guard_exec_type(solve_ternary_if(fid, scope, expr, maybe_into_tid));
+        case AST_EXPR_LITERAL:
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:
         case AST_EXPR_POST_UNARY:
-        case AST_EXPR_FN_CALL:
         case AST_EXPR_DEFINED:
         case AST_EXPR_TYPE:
         case AST_EXPR_STRUCT_INIT:
         case AST_EXPR_STRUCT_MEMBER_INIT:
         case AST_EXPR_CLOSURE:
-        case AST_EXPR_TERNARY_IF:
         case AST_EXPR_VARIANT_DECOMP:
         case AST_EXPR_BLOCK:
         case AST_EXPR_MATCH_BRANCH:
@@ -1781,10 +1823,10 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         // guard empty
         if (list_slice.len == 0) {
-            return context.emplace_exec(ExecExprListLiteral{.elems = IdSlice<ExecId>{},
-                                                            .elem_type_id = maybe_elem_into_type,
-                                                            .compt = true},
-                                        whole_list_span, true);
+            return context.emplace_compt_exec(
+                ExecExprListLiteral{.elems = IdSlice<ExecId>{},
+                                    .elem_type_id = maybe_elem_into_type},
+                whole_list_span);
         }
 
         llvm::SmallVector<ExecId> elem_execs{};
@@ -1865,9 +1907,9 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         // fine, homogeneous, so return
-        return context.emplace_exec(
-            ExecExprListLiteral{.elems = elem_slice, .elem_type_id = type_for_list, .compt = true},
-            whole_list_span, true);
+        return context.emplace_compt_exec(
+            ExecExprListLiteral{.elems = elem_slice, .elem_type_id = type_for_list},
+            whole_list_span);
     }
 
     [[nodiscard]] OptId<ExecId> handle_any_id(FileId fid, ScopeId scope,
@@ -3551,6 +3593,56 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         }
         return {};
+    }
+    // both ExecIds must be list literals
+    [[nodiscard]] OptId<ExecId> solve_list_concat(ExecId lhs_eid, ExecId rhs_eid) {
+        const Exec& lhs_exec = context.exec(lhs_eid);
+        const Exec& rhs_exec = context.exec(rhs_eid);
+
+        if (lhs_exec.as<ExecExprListLiteral>().elem_type_id.has_value()
+            && rhs_exec.as<ExecExprListLiteral>().elem_type_id.has_value()
+            && !context.equivalent_type(lhs_exec.as<ExecExprListLiteral>().elem_type_id.as_id(),
+                                        rhs_exec.as<ExecExprListLiteral>().elem_type_id.as_id())) {
+            auto d0 = context.emplace_diagnostic(Span::combine(lhs_exec.span, rhs_exec.span),
+                                                 diag_code::invalid_operands_for_binary_expression,
+                                                 diag_type::error);
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                lhs_exec.span, diag_code::value_is_of_type, diag_type::note,
+                DiagnosticTypeAfterMessage{.tid = infer_type_from_exec(lhs_eid).as_id()});
+            auto d2 = context.emplace_diagnostic_with_message_value(
+                rhs_exec.span, diag_code::value_is_of_type, diag_type::note,
+                DiagnosticTypeAfterMessage{.tid = infer_type_from_exec(rhs_eid).as_id()});
+            context.link_diagnostic(d0, d1);
+            context.link_diagnostic(d1, d2);
+            return {};
+        }
+        llvm::SmallVector<ExecId> list_vec{};
+
+        const auto lhs_slice = lhs_exec.as<ExecExprListLiteral>().elems;
+
+        for (auto eidx = lhs_slice.begin(); eidx != lhs_slice.end(); ++eidx) {
+            list_vec.push_back(context.exec_id(eidx));
+        }
+
+        const auto rhs_slice = rhs_exec.as<ExecExprListLiteral>().elems;
+
+        for (auto eidx = rhs_slice.begin(); eidx != rhs_slice.end(); ++eidx) {
+            list_vec.push_back(context.exec_id(eidx));
+        }
+
+        IdSlice<ExecId> combined_slice = context.freeze_id_vec(list_vec);
+
+        OptId<TypeId> maybe_elem_type_id{};
+
+        if (lhs_exec.as<ExecExprListLiteral>().elem_type_id.has_value()) {
+            maybe_elem_type_id = lhs_exec.as<ExecExprListLiteral>().elem_type_id;
+        } else if (rhs_exec.as<ExecExprListLiteral>().elem_type_id.has_value()) {
+            maybe_elem_type_id = rhs_exec.as<ExecExprListLiteral>().elem_type_id;
+        }
+
+        return context.emplace_compt_exec(
+            ExecExprListLiteral{.elems = combined_slice, .elem_type_id = maybe_elem_type_id},
+            Span::combine(lhs_exec.span, rhs_exec.span));
     }
 
   public:

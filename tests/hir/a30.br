@@ -19,6 +19,6 @@ mod scratch {
     
     compt var a = do({}); 
 
-    var _0 = @static_assert
+    var _0 = @static_assert a == Foo{};
 }
 

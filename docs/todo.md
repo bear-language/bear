@@ -9,9 +9,9 @@ main quest
 - [ ] contract diagnostics for per-param disagreements
 
 - [ ] `compt` improvements:
-    - [ ] compt closures (pure-expr only), allow capturing compt variables?
     - [ ] compt slices `[&]` so we can work with any dimensional lists at compt, also tighten up list handling generally
     - [ ] compt ranges `1...4` and make then work with compt matching, better type-checking/reporting for scalar matched values
+    - [ ] compt closures (pure-expr only), allow capturing compt variables?
 
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
 

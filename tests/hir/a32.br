@@ -1,0 +1,15 @@
+// tests/hir/a32.br
+
+import "size.br";
+
+mod test;
+
+compt [&]i32 a = [1, 2, 3, 4, 5];
+
+compt typeof(a) b = [1,2];
+
+compt fn len<T>([&]T list) -> usize => list.len
+
+compt usize both_len = len::<i32>(a) + len::<i32>(b);
+
+compt [&]i32 c = a + b;

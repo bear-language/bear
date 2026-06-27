@@ -67,6 +67,7 @@ enum class diag_code : uint8_t {
     cannot_cast_expr_to_type,
     guaranteed_narrowing_of_compt_value,
     invalid_operand_for_binary_expression,
+    invalid_operands_for_binary_expression,
     type_is_not_resolvable_at_compt,
     is_declared_hid,
     a_compt_variable_should_be_explicitly_initialized,

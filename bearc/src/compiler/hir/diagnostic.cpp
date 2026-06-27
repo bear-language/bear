@@ -382,6 +382,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
                "type";
     case diag_code::deftypes_take_the_form_of:
         return "`deftype` statements take the form of `deftype NewType = Previous..Type`";
+    case diag_code::invalid_operands_for_binary_expression:
+        return "invalid operands for binary expression";
     }
 
     std::unreachable();

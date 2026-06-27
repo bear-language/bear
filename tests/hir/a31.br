@@ -1,0 +1,17 @@
+// tests/hir/a31.br
+
+struct InstrumentHolder<T> {
+    T instr;
+}
+
+struct Guitar {
+    str me = "guitar";
+}
+
+struct Piano {
+    str me = "piano";
+}
+
+compt InstrumentHolder::Piano a = {.instr = Piano{}};
+
+var _0 = @note a.instr.me;
