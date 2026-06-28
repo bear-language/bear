@@ -1,0 +1,11 @@
+// tests/hir/a33.br
+
+mod hir_a33;
+
+compt str a = "π";
+
+compt [&]str c = ["1", "2", "3", "4"];
+
+compt var d = c[10]; // oops
+
+var _0 = @note "this is pi: " + a;
