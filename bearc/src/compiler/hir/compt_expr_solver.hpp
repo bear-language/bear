@@ -28,7 +28,6 @@
 #include "compiler/token.h"
 #include "def_visitor.hpp"
 #include <cassert>
-#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -39,7 +38,7 @@ template <IsDefVisitor V> class ComptExprSolver {
     HirSize call_depth = 0;
 
   public:
-    static constexpr HirSize MAX_COMPT_CALL_FRAMES = 1000;
+    static constexpr HirSize MAX_COMPT_CALL_FRAMES = 400;
 
     ComptExprSolver(Context& ctx, V& def_visitor) : context{ctx}, def_visitor{def_visitor} {}
 
@@ -1697,7 +1696,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
                 const auto& into_type = context.type(maybe_into_tid.as_id());
 
-                if (into_type.holds<TypeSlice>()) {
+                if (into_type.template holds<TypeSlice>()) {
                     DiagLinker dl{context};
                     if (into_type.mut) {
                         dl.link(context.emplace_diagnostic_with_message_value(
@@ -1719,8 +1718,8 @@ template <IsDefVisitor V> class ComptExprSolver {
 
                     // guard diff type. solving lists should return arr (list) literals, but need to
                     // make sure the inner types are the same
-                    if (!context.equivalent_type(into_type.as<TypeSlice>().inner,
-                                                 list_type.as<TypeArr>().inner)) {
+                    if (!context.equivalent_type(into_type.template as<TypeSlice>().inner,
+                                                 list_type.template as<TypeArr>().inner)) {
                         dl.link(context.emplace_diagnostic_with_message_value(
                             Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
                             diag_code::cannot_convert_value_of_type, diag_type::error,
@@ -2772,12 +2771,12 @@ template <IsDefVisitor V> class ComptExprSolver {
             = exec_vec_to_canonical_arg_id(context, arg_vec);
 
         // if this function has a compt args map and there's a value for these args:
-        if (context.def(func_did).as<DefFunction>().maybe_compt_args_map_id.has_value()) {
-            const auto maybe_memoized
-                = context
-                      .compt_args_map(
-                          context.def(func_did).as<DefFunction>().maybe_compt_args_map_id.as_id())
-                      .at(canonical_args);
+        if (context.def(func_did).template as<DefFunction>().maybe_compt_args_map_id.has_value()) {
+            const auto maybe_memoized = context
+                                            .compt_args_map(context.def(func_did)
+                                                                .template as<DefFunction>()
+                                                                .maybe_compt_args_map_id.as_id())
+                                            .at(canonical_args);
             if (maybe_memoized.has_value()) {
                 return maybe_memoized.as_id();
             }
@@ -2886,10 +2885,12 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         // memoize result
-        const auto maybe_map_id = context.def(func_did).as<DefFunction>().maybe_compt_args_map_id;
+        const auto maybe_map_id
+            = context.def(func_did).template as<DefFunction>().maybe_compt_args_map_id;
         if (maybe_map_id.empty()) {
             const CanonicalComptArgsIdMapId map_id = context.make_compt_args_map(); // make new map
-            context.def(func_did).as<DefFunction>().maybe_compt_args_map_id = map_id; // set it
+            context.def(func_did).template as<DefFunction>().maybe_compt_args_map_id
+                = map_id; // set it
             context.compt_args_map(map_id).insert(canonical_args,
                                                   maybe_eid.as_id()); // memoize in new map
         } else {
