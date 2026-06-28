@@ -185,6 +185,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
             auto inner_tid = into_type.as<TypePtr>().inner;
             auto inner = context.type(inner_tid);
+            // TODO pointers should be assignable to addresses (of l-values) at compt
             auto d0 = context.emplace_diagnostic(
                 into_type.span, diag_code::pointers_are_not_assignable_at_compt, diag_type::error);
             if (inner.template holds_any_of<TypeStruct, TypeBuiltin>()) {
@@ -1682,6 +1683,9 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         auto guard_exec_type = [this, fid, expr, expr_span,
                                 maybe_into_tid](OptId<ExecId> maybe_eid) -> OptId<ExecId> {
+            if (maybe_into_tid.empty()) {
+                return maybe_eid;
+            }
             if (maybe_eid.empty()) {
                 return std::nullopt; // poisoned
             }
@@ -1701,7 +1705,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                     if (into_type.mut) {
                         dl.link(context.emplace_diagnostic_with_message_value(
                             context.exec(maybe_eid.as_id()).span,
-                            diag_code::cannot_bind_compt_values_to_mutable_ref_type,
+                            diag_code::cannot_bind_compt_values_to_mutable_slice_type,
                             diag_type::error,
                             DiagnosticTypeAfterMessage{.tid = maybe_into_tid.as_id()}));
                     }
@@ -1771,7 +1775,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             break;
         }
         case AST_EXPR_LIST_LITERAL:
-            return handle_list_literal(fid, scope, expr, maybe_into_tid);
+            return guard_exec_type(handle_list_literal(fid, scope, expr, maybe_into_tid));
         case AST_EXPR_COMPT:
             return solve_expr(fid, scope, expr->expr.compt_expr.inner, maybe_into_tid);
         case AST_EXPR_SUBSCRIPT:

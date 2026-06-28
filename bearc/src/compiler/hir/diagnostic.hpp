@@ -195,6 +195,7 @@ enum class diag_code : uint8_t {
     use_a_deftype_to_create_a_simpler_type_alias_for_a_specialized_generic_type,
     deftypes_take_the_form_of,
     cannot_bind_compt_values_to_mutable_ref_type,
+    cannot_bind_compt_values_to_mutable_slice_type,
 
     count, // this must be last,
 

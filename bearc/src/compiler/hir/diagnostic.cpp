@@ -386,6 +386,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "invalid operands for binary expression";
     case diag_code::cannot_bind_compt_values_to_mutable_ref_type:
         return "cannot bind compile-time constant value to mutable reference type";
+    case diag_code::cannot_bind_compt_values_to_mutable_slice_type:
+        return "cannot bind compile-time constant value to mutable slice type";
     }
 
     std::unreachable();

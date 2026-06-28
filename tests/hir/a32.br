@@ -40,3 +40,11 @@ fn first_elem<T>([&mut]T list) -> T => list[0]
 compt var _2 = first_elem::<i32>([1, 2, 3]);
 
 compt [&]i32 mut _3 = [1, 2, 3]; // oops
+
+fn get<T>(&mut T val) -> T => val
+
+compt var g = 12;
+
+compt var _4 = get::<typeof(g)>(&g);
+
+compt var _5 = get::<typeof(g)>(g);
