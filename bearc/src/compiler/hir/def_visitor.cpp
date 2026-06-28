@@ -172,6 +172,17 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                                               maybe_tid.as_id());
         }
 
+        if (context.def(did).compt && context.type(maybe_tid.as_id()).holds<TypeRef>()) {
+            const auto& ty = context.type(maybe_tid.as_id());
+            auto d0 = context.emplace_diagnostic_with_message_value(
+                ty.span, diag_code::compt_declarations_should_not_be_ref_type, diag_type::error,
+                DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()});
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                ty.span, diag_code::replace_with, diag_type::help,
+                DiagnosticTypeAfterMessage{.tid = ty.as<TypeRef>().inner});
+            context.link_diagnostic(d0, d1);
+        }
+
         // error when struct member does not have an explicit type
         if (!context.def(did).statik && parent_is_struct(context.def(did)) && type_contains_var) {
             const Type& type = context.type(maybe_tid.as_id());

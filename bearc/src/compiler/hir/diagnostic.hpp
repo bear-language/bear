@@ -196,6 +196,7 @@ enum class diag_code : uint8_t {
     deftypes_take_the_form_of,
     cannot_bind_compt_values_to_mutable_ref_type,
     cannot_bind_compt_values_to_mutable_slice_type,
+    compt_declarations_should_not_be_ref_type,
 
     count, // this must be last,
 

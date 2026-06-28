@@ -23,4 +23,4 @@ compt str my_str0 = SMALLIE; // err, non-legit conversion
 
 compt str my_str1 = SMALLIE as str; // fine!
 
-compt &str my_str2 = SMALLIE as str; // fine!
+compt &str my_str2 = SMALLIE as str; // oops (compt ref type)
