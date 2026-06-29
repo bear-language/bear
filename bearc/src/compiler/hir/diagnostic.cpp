@@ -172,7 +172,7 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::id_does_not_name_a_member_variable_of:
         return "identifer does not name a member variable of";
     case diag_code::id_names_a_static_mem_thru_dot_for:
-        return "identifer name a static member varirable through the `.` operator for";
+        return "identifer names a static member varirable through the `.` operator for";
     case diag_code::scoped_identifer_not_allowed_here:
         return "scoped identifer not allowed here";
     case diag_code::condition_is_false:

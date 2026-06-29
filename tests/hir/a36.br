@@ -1,0 +1,20 @@
+// tests/hir/a36.br
+
+struct Foo {
+    static &Foo a = {};
+    compt Foo b = {};
+    i32 c = 0;
+    i32 d = 0;
+}
+
+compt Foo a = {};
+
+var _0 = a.a;
+
+var _1 = a.b;
+
+compt Foo b = {.d = 1, .c = 2}; // oops (wrong order)
+
+compt Foo c = {.c = 1, .d = 2};
+
+var _2 = @static_assert a == c;
