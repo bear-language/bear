@@ -6,19 +6,16 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] contract diagnostics for per-param disagreements
-
 - [ ] `compt` improvements:
     - [x] compt slices `[&]` so we can work with any dimensional lists at compt, also tighten up list handling generally
-    - [ ] compt ranges `1...4` and make then work with compt matching, better type-checking/reporting for scalar matched values
-    - [ ] compt closures (pure-expr only), allow capturing compt variables?
+    - [ ] compt ranges `1...4` and make then work with compt matching
+    - [ ] better type-checking/reporting for scalar matched values
 
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
 
 - [ ] struct member reflection 
      - [ ] add `@members_of` -> list of strs, which can be iterated over
      - [ ] add `foo.@member(str_val)` to compile-time reflect on members 
-
 
 - [ ] tighten up abi related stuff with hir::LayoutRules or something similar
     - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
@@ -34,6 +31,8 @@ main quest
 - [ ] make a system to etch ExecId into a structured linear form within blocks to be naturally connected in a CFG 
     - [ ] this should be directly conducive to 3AC for all `hir::Exec`s
 - [ ] move checker
+    - [ ] In each RuntimeExprSolver (of which there should be only one per function body):
+        - [ ] DefId -> ExecId tracking where defs were moved (for good diagnostics) 
 - [ ] a borrow checker should be trivial, however:
     - [ ] allow mutiple immutable and mutable borrows
     - [ ] no lifetimes
