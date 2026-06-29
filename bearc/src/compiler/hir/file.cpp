@@ -14,11 +14,15 @@
 #include "compiler/diagnostics/error_codes.h"
 namespace hir {
 
-File::File(SymbolId path, FileAstId ast_id)
-    : path{path}, ast_id{ast_id}, load_state(file_import_state::unvisited) {}
-
 FileAst::FileAst(const char* file_name) : ast(ast_create_from_file(file_name)) {}
-FileAst::~FileAst() { ast_destroy(&this->ast); }
+FileAst::~FileAst() {
+    if (ast.file_stmt_root_node) {
+        ast_destroy(&this->ast);
+    }
+}
+FileAst::FileAst(FileAst&& other) noexcept : ast{other.ast} {
+    other.ast.file_stmt_root_node = nullptr;
+}
 const src_buffer* FileAst::src() const noexcept { return &this->ast.src_buffer; }
 const compiler_error_list_t& FileAst::error_list() const noexcept { return this->ast.error_list; }
 const ast_stmt_t* FileAst::root() const noexcept { return this->ast.file_stmt_root_node; }

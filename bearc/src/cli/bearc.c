@@ -16,18 +16,10 @@
 #include <stdio.h>
 #include <string.h>
 
-// private cli error struct
-#define BR_CLI_DO_FN_ERROR_MSG_LEN 64
-typedef struct {
-    int error_code;
-    char error_message[BR_CLI_DO_FN_ERROR_MSG_LEN];
-} cli_error_status;
-
 // private cli functions
 void cli_help(void);
 void cli_version(void);
-cli_error_status cli_compile(const bearc_args_t* args);
-cli_error_status cli_build(const bearc_args_t* args);
+int cli_compile(const bearc_args_t* args);
 void cli_no_args(void);
 void cli_announce_unknown_flag(void);
 void warn_duplicate_flag(void);
@@ -121,15 +113,12 @@ int bearc_compile_from_args(int argc, char** argv) {
     if (err) {
         return -1;
     }
-    cli_error_status error_status = {0, ""};
     // compilation
+    int err_code = 0;
     if (strlen(args.input_file_name)) {
-        error_status = cli_compile(&args);
+        err_code = cli_compile(&args);
     }
-    if (error_status.error_code < 0) {
-        return error_status.error_code;
-    }
-    return 0;
+    return err_code;
 }
 
 void cli_help(void) {
@@ -157,6 +146,7 @@ void cli_help(void) {
     const char* flags_w_args_title = "flags with arguments:\n";
     const char* flags_w_args
         = "        [--import-path | -I] <import_dirs...>  supply import paths\n"
+          "        [--import-file | -i] <import_files...> supply import files\n"
           "        [--compile | -c]     <root_file>       compile from a root file\n"
           "        [--output | -o]      <output_file>     specify an output file\n"
 
@@ -173,11 +163,10 @@ void cli_help(void) {
 
 void cli_version(void) { printf("bearc " BEARC_VERSION_STR "\n"); }
 
-cli_error_status cli_compile(const bearc_args_t* args) {
-    cli_error_status error_status = {0, ""};
-    error_status.error_code = compile_file(args);
+int cli_compile(const bearc_args_t* args) {
+    int error_code = compile_file(args);
     token_maps_free(); // after all operations involving token lookups are done
-    return error_status;
+    return error_code;
 }
 
 void cli_no_args(void) {

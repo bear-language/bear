@@ -30,6 +30,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include <cstdint>
 #include <filesystem>
+#include <shared_mutex>
 #include <type_traits>
 
 namespace hir {
@@ -65,6 +66,7 @@ class Context {
     /// get a symbol, trimming the "" quotes on the outside when interning
     [[nodiscard]] SymbolId symbol_id_for_str_lit_tkn(const token_t* tkn);
     [[nodiscard]] FileId file(SymbolId path);
+    FileId file_parallel(SymbolId path);
     [[nodiscard]] FileId file(std::filesystem::path& path);
     [[nodiscard]] const char* file_name(FileId id) const;
     [[nodiscard]] FileAst& ast(FileId file_id);
@@ -878,6 +880,9 @@ class Context {
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+    // for parallel ast building
+    std::shared_mutex import_file_mutex;
+
     // error tracking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NodeVector<Diagnostic> diagnostics;
     IdVecMap<DiagnosticId, uint8_t> diagnostics_used;
@@ -1161,6 +1166,7 @@ class Context {
             def_visitor, orig_did,
             emplace_generic_arg_id_slice(last ? remaining_args : (maybe_gen_args.value())));
     }
+    void register_import_files_parallel(const char* const* file_paths, uint32_t count);
 };
 
 } // namespace hir

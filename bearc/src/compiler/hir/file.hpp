@@ -24,7 +24,8 @@ struct File {
     SymbolId path;
     FileAstId ast_id;
     file_import_state load_state = file_import_state::unvisited;
-    File(SymbolId path, FileAstId ast_id);
+    File(SymbolId path, FileAstId ast_id)
+        : path{path}, ast_id{ast_id}, load_state(file_import_state::unvisited) {}
 };
 
 class FileAst {
@@ -44,6 +45,7 @@ class FileAst {
     size_t diagnostic_count() const;
     size_t error_count() const;
     FileAst(const char* file_name);
+    FileAst(FileAst&& other) noexcept;
     ~FileAst();
     void try_print_info(const bearc_args_t& args) const;
 };

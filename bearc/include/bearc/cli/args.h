@@ -13,8 +13,9 @@
 #include <stdint.h>
 
 #define CLI_ARGS_MAX_FILE_NAME_LENGTH 1024
-#define CLI_ARGS_MAX_FLAG_LENGTH 16
-#define CLI_ARGS_MAX_IMPORT_PATH_COUNT 64
+#define CLI_ARGS_MAX_FLAG_LENGTH 32
+#define CLI_ARGS_MAX_IMPORT_PATH_COUNT 512
+#define CLI_ARGS_MAX_IMPORT_FILE_COUNT 512
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,6 +31,7 @@ typedef enum cli_flag {
     CLI_FLAG_FILE_GRAPH,
     CLI_FLAG_COMPILE,
     CLI_FLAG_IMPORT_PATH,
+    CLI_FLAG_IMPORT_FILE,
     CLI_FLAG_PARSE_ONLY,
     CLI_FLAG_OUTPUT,
     CLI_FLAG_COMPACT_DIAGS,
@@ -39,16 +41,19 @@ typedef enum cli_flag {
     CLI_FLAG_ERR_FILE_NAME_TOO_LONG,
     CLI_FLAG_ERR_TOO_MANY_INPUT_FILES,
     CLI_FLAG_ERR_NO_ARGUMENT_PROVIDED_TO_IMPORT_PATH,
+    CLI_FLAG_ERR_NO_ARGUMENT_PROVIDED_TO_IMPORT_FILE,
     CLI_FLAG_ERR_NO_ARGUMENT_PROVIDED_TO_OUTPUT,
     CLI_FLAG__NUM,
 } cli_flag_e;
 
 typedef struct bearc_args {
     char* import_paths[CLI_ARGS_MAX_IMPORT_PATH_COUNT];
+    char* import_files[CLI_ARGS_MAX_IMPORT_FILE_COUNT];
     bool flags[CLI_FLAG__NUM];
     char* input_file_name;
     char* output_file_name;
-    uint8_t import_path_cnt;
+    uint16_t import_path_cnt;
+    uint16_t import_file_cnt;
 } bearc_args_t;
 
 typedef struct {

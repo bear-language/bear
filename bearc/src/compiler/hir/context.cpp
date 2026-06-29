@@ -30,11 +30,15 @@
 #include "llvm/ADT/SmallVector.h"
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <filesystem>
+#include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <stddef.h>
 #include <string_view>
+#include <thread>
 #include <variant>
 namespace hir {
 
@@ -130,9 +134,14 @@ Context::Context(const bearc_args_t& args, instances instances)
     static constexpr size_t STARTING_STRUCT_STATIC_DID_CNT = 0x1000; // ^^^
     static_struct_member_dids.reserve(STARTING_STRUCT_STATIC_DID_CNT);
 
-    const auto& root_file = maybe_root_file.value();
+    const std::filesystem::path& root_file = maybe_root_file.value();
 
     FileId root_id = provide_root_file(root_file.c_str());
+
+    // this is actually slower
+    // if (args.import_file_cnt) {
+    //    register_import_files_parallel(args.import_files, args.import_file_cnt);
+    // }
 
     // search imports to build all asts
     this->explore_imports(root_id);
@@ -250,6 +259,38 @@ FileId Context::file(SymbolId path_symbol) {
     // ****************** all lexing and parsing done in this one line
     FileAstId ast_id = this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol));
     // ^^^^^^^^^^^^^^^^^^
+    FileId file_id = this->files.emplace_and_get_id(path_symbol, ast_id);
+    /// store this mapping for future detection
+    this->symbol_id_to_file_id_map.insert(path_symbol, file_id);
+    /// bump necessary things that are track id-wise for files
+    importee_to_importers.bump();
+    importer_to_importees.bump();
+    file_to_diagnostics.bump();
+    return file_id;
+}
+
+FileId Context::file_parallel(SymbolId path_symbol) {
+    {
+        std::shared_lock read_lock{import_file_mutex};
+        // check if file has already been requested
+        OptId<FileId> maybe_file_id = symbol_id_to_file_id_map.at(path_symbol);
+        if (maybe_file_id.has_value()) {
+            return maybe_file_id.as_id();
+        }
+    }
+    // ****************** all lexing and parsing done in this one line
+    FileAst file_ast{symbol_id_to_cstr(
+        path_symbol)}; // pure parsing, doesn't touch Context, so this is fully parallelizable
+    // ^^^^^^^^^^^^^^^^^^
+
+    std::unique_lock write_lock{import_file_mutex};
+    // double-check existing before writing
+    OptId<FileId> maybe_file_id = symbol_id_to_file_id_map.at(path_symbol);
+    if (maybe_file_id.has_value()) {
+        return maybe_file_id.as_id();
+    }
+
+    FileAstId ast_id = this->file_asts.emplace_and_get_id(std::move(file_ast));
     FileId file_id = this->files.emplace_and_get_id(path_symbol, ast_id);
     /// store this mapping for future detection
     this->symbol_id_to_file_id_map.insert(path_symbol, file_id);
@@ -2113,9 +2154,41 @@ void Context::insert_gen_args_into_scope(DefId orginal_generic_did, DefId instan
         emplace(param, arg);
     }
 }
+
+void Context::register_import_files_parallel(const char* const* file_paths, uint32_t count) {
+    llvm::SmallVector<SymbolId, 128> symbol_vec{}; // decent size;
+    for (uint32_t i = 0; i < count; ++i) {
+        const std::optional<std::filesystem::path> maybe_path
+            = resolve_on_import_path(file_paths[i], ".", &args);
+        if (maybe_path.has_value()) {
+            symbol_vec.push_back(symbol_id(maybe_path.value().c_str()));
+        }
+    }
+    const uint32_t n_threads = std::min(count, std::thread::hardware_concurrency());
+    std::atomic<uint32_t> curr_index{0};
+    auto worker = [this, &curr_index, &symbol_vec] {
+        while (true) {
+            uint32_t i = curr_index.fetch_add(1, std::memory_order_relaxed);
+            if (i >= symbol_vec.size()) {
+                return;
+            }
+            file_parallel(symbol_vec[i]);
+        }
+    };
+
+    llvm::SmallVector<std::thread> threads{};
+    for (uint32_t i = 0; i < n_threads; ++i) {
+        threads.emplace_back(worker);
+    }
+    for (auto& t : threads) {
+        t.join();
+    }
+}
+
 template <IsDefVisitor V> OptId<TypeId> Context::infer_type_from_exec(V& def_visitor, ExecId eid) {
     return ComptExprSolver<V>{*this, def_visitor}.infer_type_from_exec(eid);
 }
+// concrete instants
 template OptId<TypeId>
 Context::infer_type_from_exec<InsideBodyDefVisitor>(InsideBodyDefVisitor& def_visitor, ExecId eid);
 template OptId<TypeId>

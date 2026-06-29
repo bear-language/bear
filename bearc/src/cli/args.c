@@ -17,9 +17,9 @@ bool is_valid_cli_flag_long(const char* flag);
 cli_flag_e search_cli_long_flags_for_valid_flag(const char* flag);
 
 const cli_flag_e short_flag_map[UCHAR_MAX] = {
-    ['h'] = CLI_FLAG_HELP,          ['v'] = CLI_FLAG_VERSION, ['c'] = CLI_FLAG_COMPILE,
-    ['I'] = CLI_FLAG_IMPORT_PATH,   ['o'] = CLI_FLAG_OUTPUT,  ['t'] = CLI_FLAG_TERSE,
-    ['s'] = CLI_FLAG_STRICT_SYNTAX,
+    ['h'] = CLI_FLAG_HELP,          ['v'] = CLI_FLAG_VERSION,     ['c'] = CLI_FLAG_COMPILE,
+    ['I'] = CLI_FLAG_IMPORT_PATH,   ['o'] = CLI_FLAG_OUTPUT,      ['t'] = CLI_FLAG_TERSE,
+    ['s'] = CLI_FLAG_STRICT_SYNTAX, ['i'] = CLI_FLAG_IMPORT_FILE,
 };
 
 // LONG FLAG NAME MAP
@@ -35,7 +35,8 @@ cli_flag_long_mapping_t cli_flag_long_map[] = {{"help", CLI_FLAG_HELP},
                                                {"output", CLI_FLAG_OUTPUT},
                                                {"compact-diags", CLI_FLAG_COMPACT_DIAGS},
                                                {"terse", CLI_FLAG_TERSE},
-                                               {"strict-syntax", CLI_FLAG_TERSE}};
+                                               {"import-file", CLI_FLAG_IMPORT_FILE},
+                                               {"strict-syntax", CLI_FLAG_STRICT_SYNTAX}};
 static bool is_valid_cli_flag_short(const char* arg) {
     return strlen(arg) == 2 && arg[0] == '-' && short_flag_map[(unsigned char)arg[1]];
 }
@@ -44,6 +45,10 @@ static bool check_illegal_duplicate(bearc_args_t* args, cli_flag_e flag) {
     if (flag == CLI_FLAG_IMPORT_PATH) {
         return false;
     }
+    if (flag == CLI_FLAG_IMPORT_FILE) {
+        return false;
+    }
+
     if (args->flags[flag]) {
         args->flags[CLI_FLAG_ERR_DUPLICATE] = true;
         return true;
@@ -72,6 +77,23 @@ static void do_import_path(int argc, char** argv, bearc_args_t* args, int* count
     }
 }
 
+static void do_import_files(int argc, char** argv, bearc_args_t* args, int* count) {
+    int start = *count;
+    (*count)++;
+    while (args->import_file_cnt < CLI_ARGS_MAX_IMPORT_FILE_COUNT && *count < argc
+           && !is_flag(argv[*count])) {
+        args->import_files[args->import_file_cnt] = argv[*count];
+        args->import_file_cnt++;
+        (*count)++;
+    }
+    // backtrack overshoot (since count will be incremented again at the end of the
+    // loop)
+    (*count)--;
+    if (*count == start) {
+        args->flags[CLI_FLAG_ERR_NO_ARGUMENT_PROVIDED_TO_IMPORT_FILE] = true;
+    }
+}
+
 static void do_output_file(int argc, char** argv, bearc_args_t* args, int* count) {
     if (args->flags[CLI_FLAG_OUTPUT]) {
         return;
@@ -89,7 +111,9 @@ bearc_args_t parse_cli_args(int argc, char** argv) {
                          .input_file_name = NULL,
                          .output_file_name = NULL,
                          .import_paths = {0},
-                         .import_path_cnt = 0};
+                         .import_path_cnt = 0,
+                         .import_files = {0},
+                         .import_file_cnt = 0};
     int count = 1;
     while (count < argc) {
         // attempt to extract the char from a -<something> flag
@@ -104,6 +128,10 @@ bearc_args_t parse_cli_args(int argc, char** argv) {
             if (flag == CLI_FLAG_OUTPUT) {
                 do_output_file(argc, argv, &args, &count);
             }
+            if (flag == CLI_FLAG_IMPORT_FILE) {
+                do_import_files(argc, argv, &args, &count);
+            }
+
             args.flags[flag] = true;
         }
         // extract from a --<something> flag
@@ -114,6 +142,9 @@ bearc_args_t parse_cli_args(int argc, char** argv) {
             }
             if (flag == CLI_FLAG_IMPORT_PATH) {
                 do_import_path(argc, argv, &args, &count);
+            }
+            if (flag == CLI_FLAG_IMPORT_FILE) {
+                do_import_files(argc, argv, &args, &count);
             }
             if (flag == CLI_FLAG_OUTPUT) {
                 do_output_file(argc, argv, &args, &count);

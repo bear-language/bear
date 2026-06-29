@@ -19,7 +19,6 @@
 #include "compiler/token.h"
 #include "llvm/ADT/SmallVector.h"
 #include <cstdint>
-#include <iostream>
 #include <variant>
 
 namespace hir {
@@ -29,6 +28,9 @@ bool is_capital(const token_t* s);
 std::optional<abi_lang> abi_for_extern_stmt(const ast_stmt_t* stmt);
 
 void FileAstVisitor::register_top_level_declarations() {
+    if (!context.ast(file).root()) {
+        return;
+    }
     // registers all the top level stmts of the file using the top level scope
     register_top_level_stmts(context.get_or_make_root_scope(),
                              context.ast(file).root()->stmt.file.stmts, OptId<DefId>{},
