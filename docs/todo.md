@@ -7,18 +7,20 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] `compt` improvements:
-    - [x] compt slices `[&]` so we can work with any dimensional lists at compt, also tighten up list handling generally
     - [ ] compt ranges `1...4` and make then work with compt matching
     - [ ] better type-checking/reporting for scalar matched values
 
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
 
-- [ ] struct member reflection 
-     - [ ] add `@members_of` -> list of strs, which can be iterated over
-     - [ ] add `foo.@member(str_val)` to compile-time reflect on members 
+- [ ] struct member/general reflection 
+    - [ ] add `@members_of` -> list of strs, which can be iterated over
+    - [ ] add `foo.@member(str_val)` to compile-time reflect on members 
+    - [ ] add `@id`
 
 - [ ] tighten up abi related stuff with hir::LayoutRules or something similar
     - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
+
+- [ ] digest (and validate) escape sequences when interning string literal tokens 
 
 - [ ] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
 
@@ -101,6 +103,8 @@ lexer & parser
     - [ ] set a tkn to TOK_OVERSIZED_INT_ERR if there's no decimal and it's greater than u64 max or less than i64 min
     - [ ] suffixes?
 - [ ] verify correctness of escape sequences in char and string literals
+    - `\r`, hex `\0x00`, octal `\000`
+    
 
 hir & later 
 ----------- 

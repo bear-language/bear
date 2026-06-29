@@ -1,0 +1,32 @@
+// tests/hir/a35.br
+
+mod hir_a35;
+
+contract FooBar {
+    fn foo() -> bool;
+    hid fn bar() -> bool;
+}
+
+struct A has FooBar {
+    i32 foo = 12;
+    compt var bar = 1;
+}
+
+struct B has FooBar + BarFoo {
+    hid i32 a = 0;
+    hid i32 b = 0;
+    hid fn foo() -> bool => true
+    hid fn bar() -> bool => false
+
+}
+
+compt B a = {}; 
+
+compt var _0 = a.a;
+
+compt var _1 = B..bar();
+
+contract BarFoo {
+    hid fn foo() -> bool;
+    hid fn bar() -> bool;
+}

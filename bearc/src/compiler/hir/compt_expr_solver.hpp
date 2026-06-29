@@ -3149,12 +3149,6 @@ template <IsDefVisitor V> class ComptExprSolver {
             Span::combine(context.exec(variant_eid1).span, context.exec(variant_eid2).span));
     }
 
-    [[nodiscard]] OptId<ExecId> solve_compt_closure(FileId fid, ScopeId scope,
-                                                    const ast_expr_t* expr) {
-        assert(expr->type == AST_EXPR_CLOSURE);
-        // TODO
-        return std::nullopt;
-    }
     [[nodiscard]] OptId<ExecId> handle_has_contract(FileId fid, ScopeId scope,
                                                     const ast_expr_t* expr) {
         assert(expr->type == AST_EXPR_HAS_CONTRACT);

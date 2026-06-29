@@ -678,8 +678,7 @@ class Context {
                         .visit_and_check_for_circular_instantiation(orig_def_id);
                 } else {
                     TopLevelDefVisitor{*this}.visit_and_check_for_circular_instantiation(
-                        orig_def_id); // TODO potentially problematic (no def stack has been built
-                                      // up)
+                        orig_def_id);
                 }
                 return {}; // cyclical
             }

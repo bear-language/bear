@@ -390,6 +390,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot bind compile-time constant value to mutable slice type";
     case diag_code::compt_declarations_should_not_be_ref_type:
         return "compile-time constant declaration should not of reference type";
+    case diag_code::should_not_be_declared_hid:
+        return "should not be declared `hid`";
     }
 
     std::unreachable();

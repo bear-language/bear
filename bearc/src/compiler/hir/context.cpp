@@ -1645,6 +1645,10 @@ bool Context::func_sigs_match_for_contract(DefId did1, DefId did2, DefId struct_
         return false;
     }
 
+    if (def1.pub != def2.pub) {
+        return false;
+    }
+
     if (param_tids1.len() != param_tids2.len()) {
         return false;
     }
@@ -1745,6 +1749,12 @@ DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_
             type(fn_return_tid.as_id()).span,
             diag_code::has_return_type_but_contracts_function_does_not, diag_type::note,
             DiagnosticSymbolBeforeMessage{fn_def.name}));
+    }
+
+    if (contracts_def.pub && !fn_def.pub) {
+        dlinker.link(emplace_diagnostic_with_message_value(
+            name_span_for_def(function_did), diag_code::should_not_be_declared_hid, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = fn_def.name}));
     }
 
     if (ct_return_tid.has_value() && fn_return_tid.has_value()
