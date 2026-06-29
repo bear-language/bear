@@ -33,12 +33,15 @@ main quest
 - [ ] make a system to etch ExecId into a structured linear form within blocks to be naturally connected in a CFG 
     - [ ] this should be directly conducive to 3AC for all `hir::Exec`s
 - [ ] move checker
-    - [ ] In each RuntimeExprSolver (of which there should be only one per function body):
-        - [ ] DefId -> ExecId tracking where defs were moved (for good diagnostics) 
-- [ ] a borrow checker should be trivial, however:
+    - [ ] Scopes in runtime functions should be composed of a `ScopeId` and `MoveMapId`
+        - [ ] `ScopeId`: same as current impl, for symbol look-up
+        - [ ] `MoveMapId`: same idea as a scope, but:
+            - [ ] tracks DefId -> ExecId tracking where defs were moved (for good diagnostics)
+            - [ ] parent MoveMaps should track their children so that each child can confirm that its siblings also move the same definitions 
+- [ ] pseudo borrow checker:
     - [ ] allow mutiple immutable and mutable borrows
     - [ ] no lifetimes
-    - [ ] strictly ban returning a reference to a local variable
+    - [ ] strictly ban returning a reference to a local variable directly out of a function
 - [ ] remember: run-time values that are immutable references and have compile-time initializers can just reference static variables that store that compile-time value
 - [ ] LLVM lowering prep:
     - [ ] tighten up mention/mutation tracking for better `unused variable: foo` diagnostics (and top level decls when not a lib build)
@@ -49,7 +52,6 @@ main quest
         - [ ] hand out errors for C-incompatible functions when under a C abi extern, like no references, generics, etc.
 
 #### optimizations
-- [ ] add a `-i` flag to specify specific files for parallel builds
 - [ ] `hir::Context` ctor that takes a stale context and a list of updated files, and then based on the stale context's files (necessary for above flag and also AST reuse for the future LSP):
 ```
     for every file in stale context:
@@ -81,7 +83,7 @@ main quest
     - parser implemented with tree-sitter for complex syntax highlighing 
 
 - [ ] VSCode
-    - [x] At minimum, a regex-based syntax highlighter
+    - [ ] update highlighting to have parity with `bear.nvim`
     - [ ] basic cave/bearc integration (run button)
 
 - [ ] Improve debugger compatibility 
@@ -91,6 +93,9 @@ side quests
 
 #### chores
 
+misc 
+----
+- [ ] `--all-src-locs` to show all source locations, even in chained diagnostics
 tools
 ----- 
 - [ ] highlighing for isize
