@@ -23,6 +23,8 @@ main quest
 
 - [ ] digest (and validate) escape sequences when interning string literal tokens 
 
+- [ ] add a `Context::canonical_name` method that walks parents to build `IdSlice<SymbolId>`
+
 - [ ] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
 
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
