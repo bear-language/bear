@@ -245,6 +245,10 @@ struct DiagnosticTypeAfterMessage {
     TypeId tid;
 };
 
+struct DiagnosticTypeAfterMessageAsMentioned {
+    TypeId tid;
+};
+
 struct DiagnosticTypeBeforeMessage {
     TypeId tid;
 };
@@ -329,6 +333,12 @@ struct DiagnosticCustomComptDiag {
     SymbolId sid;
 };
 
+struct DiagnosticContractFnParamExpectedTyButGot {
+    TypeId expected_tid;
+    TypeId got_tid;
+    HirSize arg_index;
+};
+
 using DiagnosticMessageValue = std::variant<
     DiagnosticNoOtherInfo, DiagnosticIdentifierAfterMessage, DiagnosticSymbolAfterMessage,
     DiagnosticSymbolAfterMessageNoQuotes, DiagnosticIdentifierBeforeMessage,
@@ -341,7 +351,8 @@ using DiagnosticMessageValue = std::variant<
     DiagnosticSymbolBeforeAndAfterMessage, DiagnosticTypeBeforeMessage,
     DiagnosticGenArgsExpectedButGotNumArgs, DiagnosticTypeBeforeMessageAndSymbolAfter,
     DiagnosticTyButGot, DiagnosticCustomComptDiag,
-    DiagnosticTypeBeforeMessageAndSymbolWithMaybeGenArgsAfter>;
+    DiagnosticTypeBeforeMessageAndSymbolWithMaybeGenArgsAfter,
+    DiagnosticContractFnParamExpectedTyButGot, DiagnosticTypeAfterMessageAsMentioned>;
 
 struct DiagnosticImportStack {
     IdSlice<FileId> files;

@@ -480,7 +480,7 @@ DefId Context::register_top_level_def(SymbolId name, bool pub, bool compt, bool 
                                         parent);
     def_resol_states.bump(Def::resol_state::top_level_visited);
     def_ast_nodes.bump(stmt);
-    def_mention_states.bump(Def::mention_state::unmentioned);
+    def_mention_states.bump(Def::mention_state::unused);
     return def;
 }
 
@@ -488,7 +488,7 @@ DefId Context::register_compt_def(SymbolId name, Span span, OptId<DefId> parent,
     DefId def = defs.emplace_and_get_id(value, name, true, true, true, false, span, parent);
     def_resol_states.bump(Def::resol_state::resolved);
     def_ast_nodes.bump();
-    def_mention_states.bump(Def::mention_state::unmentioned);
+    def_mention_states.bump(Def::mention_state::unused);
     return def;
 }
 
@@ -497,7 +497,7 @@ DefId Context::register_def(SymbolId name, Span span, DefId parent, const ast_st
     DefId def = defs.emplace_and_get_id(value, name, true, false, false, false, span, parent);
     def_resol_states.bump(Def::resol_state::resolved);
     def_ast_nodes.bump(stmt);
-    def_mention_states.bump(Def::mention_state::unmentioned);
+    def_mention_states.bump(Def::mention_state::unused);
     return def;
 }
 
@@ -582,7 +582,7 @@ DefId Context::register_generated_deftype(ScopeId scope, SymbolId name, TypeId t
     this->scope(scope).insert_type(name, did);
     def_resol_states.bump(Def::resol_state::resolved);
     def_ast_nodes.bump();
-    def_mention_states.bump(Def::mention_state::unmentioned);
+    def_mention_states.bump(Def::mention_state::unused);
     return did;
 }
 
@@ -1717,6 +1717,20 @@ DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_
                 .expected_sid = symbol_id(std::to_string(ct_param_tids.len())),
                 .got_sid = symbol_id(std::to_string(fn_param_tids.len())),
             }));
+    } else {
+        for (HirSize i = 0; i < ct_param_tids.len(); ++i) {
+            TypeId fn_tid = type_id(fn_param_tids.get(i));
+            TypeId ct_tid = type_id(ct_param_tids.get(i));
+            if (!inferable_as_struct(fn_tid, ct_tid, struct_did)) {
+                dlinker.link(emplace_diagnostic_with_message_value(
+                    type(fn_tid).span, diag_code::only_message_value_is_meaningful, diag_type::note,
+                    DiagnosticContractFnParamExpectedTyButGot{
+                        .expected_tid = ct_tid, .got_tid = fn_tid, .arg_index = i}));
+                dlinker.link(emplace_diagnostic_with_message_value(
+                    type(fn_tid).span, diag_code::replace_with, diag_type::help,
+                    DiagnosticTypeAfterMessageAsMentioned{.tid = ct_tid}));
+            }
+        }
     }
 
     if (ct_return_tid.has_value() && fn_return_tid.empty()) {
@@ -1754,17 +1768,13 @@ OptId<TypeId> Context::self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t*
     if (token_is_mt_or_dt(fn_decl->kw->type)) {
         auto maybe_did = look_up_type(scope, symbol_id<"Self">());
 
-        if (maybe_did.has_value()) {
+        if (maybe_did.has_value() && this->def(maybe_did.as_id()).holds<DefDeftype>()) {
             auto def = this->def(maybe_did.as_id());
             TypeId self_tid = def.as<DefDeftype>().type;
             const auto& ty = type(self_tid);
-            // if mut then we actually need to ensure we're mut
-            if (fn_decl->is_mut) {
-                // we have to emplace a new type in this case since we can't mutate the original
-                if (!ty.mut) {
-                    self_tid = emplace_type(ty.value, ty.span, true); // mut
-                }
-            }
+            self_tid
+                = emplace_type(TypeDeftype{.true_type = self_tid, .definition = maybe_did.as_id()},
+                               ty.span, false);
             // make a reference
             maybe_self_type = emplace_type(TypeRef{.inner = self_tid}, ty.span, fn_decl->is_mut);
         }

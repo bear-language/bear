@@ -756,8 +756,34 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
         str += '`';
     };
 
+    auto type_helper_color_as_mentioned = [&ctx, &str](TypeId tid, const char* color) {
+        const bool has_deftype = contains_deftype(ctx, tid);
+        if (has_deftype) {
+            str += ansi_bold_reset();
+            str += '`';
+            str += color;
+            str += type_to_string_as_mentioned(ctx, tid);
+            str += ansi_bold_reset();
+            str += '`';
+        }
+        if (!TypeTransformer<TypeContainsVar>{ctx}(tid)) {
+            if (has_deftype) {
+                str += " aka ";
+            }
+            str += '`';
+            str += color;
+            str += type_to_string(ctx, tid);
+            str += ansi_bold_reset();
+            str += '`';
+        }
+    };
+
     auto type_helper = [this, &type_helper_color](TypeId tid) {
         type_helper_color(tid, accent_color_for_type(type));
+    };
+
+    auto type_helper_as_mentioned = [this, &type_helper_color_as_mentioned](TypeId tid) {
+        type_helper_color_as_mentioned(tid, accent_color_for_type(type));
     };
 
     auto sid_helper = [this, &ctx, &str](SymbolId sid) {
@@ -790,6 +816,12 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        str += " ";
                        type_helper(d.tid);
                    },
+                   [&](DiagnosticTypeAfterMessageAsMentioned d) {
+                       str += message_for_code(code);
+                       str += " ";
+                       type_helper_as_mentioned(d.tid);
+                   },
+
                    [&](DiagnosticIdentifierBeforeMessage d) {
                        str += '`';
                        str += accent_color_for_type(type);
@@ -1038,7 +1070,19 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                            str += ansi_bold_reset();
                        }
                    },
-
+                   [&](DiagnosticContractFnParamExpectedTyButGot d) {
+                       str += "contract function expected parameter type ";
+                       str += ansi_bold_green();
+                       type_helper_color_as_mentioned(d.expected_tid, ansi_bold_green());
+                       str += ansi_bold_reset();
+                       str += " but got ";
+                       str += ansi_bold_red();
+                       type_helper_color(d.got_tid, ansi_bold_red());
+                       str += " for parameter #";
+                       str += accent_color_for_type(type);
+                       str += std::to_string(1 + d.arg_index);
+                       str += ansi_bold_reset();
+                   },
                    [&](DiagnosticTypeBeforeMessage d) {
                        type_helper(d.tid);
                        str += " ";

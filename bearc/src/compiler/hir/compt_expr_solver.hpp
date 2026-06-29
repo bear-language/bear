@@ -1069,7 +1069,6 @@ template <IsDefVisitor V> class ComptExprSolver {
     [[nodiscard]] OptId<ExecId> handle_struct_init(FileId fid, ScopeId scope, DefId struct_did,
                                                    const ast_expr_t* expr, OptId<TypeId> into_tid) {
         const auto member_dids = context.ordered_defs_for(struct_did);
-        auto sid_slice = context.symbol_slice(expr->expr.struct_init.id);
         const ast_slice_of_exprs_t init_slice = expr->expr.struct_init.member_inits;
 
         enum class relative_arity : uint8_t { too_few, same, too_many };
@@ -1164,12 +1163,13 @@ template <IsDefVisitor V> class ComptExprSolver {
                                        diag_type::error);
         }
         if (cooked) {
-            context.emplace_diagnostic(
-                context.def(struct_did).span, diag_code::declared_here, diag_type::note,
-                DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice}, DiagnosticNoOtherInfo{});
+            context.emplace_diagnostic(context.def(struct_did).span, diag_code::declared_here,
+                                       diag_type::note,
+                                       DiagnosticSymbolBeforeMessage{context.def(struct_did).name},
+                                       DiagnosticNoOtherInfo{});
             return std::nullopt;
         }
-        // type check before returning here! but only if the into type isn't var!
+        // type check before returning here! but only if the into type has a value
         if (into_tid.has_value() && context.type(into_tid.as_id()).template holds<TypeStruct>()) {
             if (auto into_did = context.type(into_tid.as_id()).template as<TypeStruct>().def_id;
                 struct_did != into_did) {

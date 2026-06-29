@@ -1,0 +1,57 @@
+// tests/hir/a34.br 
+
+contract Cmp {
+    mt cmp_with_one(&Self other) -> bool;
+    mt cmp_with_two(&Self a, &Self b) -> bool;
+}
+
+struct Foo has Cmp {
+    i32 a = 0;
+    mt cmp_with_one(&Self other) -> bool => self == other
+    mt cmp_with_two(&Self a, &Self b) -> bool => self == a && self == b
+}
+
+var _0 = @static_assert Foo{}.cmp_with_one({});
+
+var _1 = @static_assert Foo{.a = 1}.cmp_with_one({.b = 1}); // oops
+
+var _2 = @static_assert Foo{.a = 1}.cmp_with_one({.c = 1, .d = 2}); // oops
+
+struct Bar has Cmp {
+    mt mut cmp_with_one(&mut Self other) -> bool => self == other // oops
+    mt mut cmp_with_two(&mut Self a, &mut Self b) -> bool => self == a && self == b // oops
+}
+
+ 
+struct Boo has Cmp {
+    str a = "boo";
+}
+
+mt Boo..cmp_with_one(&Boo other) -> bool => self == other
+mt Boo..cmp_with_two(&Boo a, &Boo b) -> bool => self == a && self == b
+
+struct Goo has Cmp {
+    i32 a = 42;
+    i32 b = 123;
+    i32 c = 80;
+    fn cmp_with_one(&Self self, &Self other) -> bool => self == other
+    fn cmp_with_two(&Self self, &Self a, &Self b) -> bool => self == a && self == b
+}
+
+struct Gooey has Cmp {
+    i32 a = 42;
+    fn cmp_with_one(&mut Self self, &Self other) -> bool => self == other // oops
+    fn cmp_with_two(Self self, &Self a, &Self b) -> bool => self == a && self == b // oops
+}
+
+struct Fooey<T> has Cmp {
+    T a;
+    fn cmp_with_one(&Self self, &Self other) -> bool => self == other
+    fn cmp_with_two(&Self self, &Self a, Self b) -> bool => self == a && self == b // oops
+}
+
+compt Fooey<Foo> _3 = {.a = {}};
+
+compt var _4 = {.a = {}}; // oops
+
+compt var _5 = Fooey::<Foo>{.a = {}}; // oops

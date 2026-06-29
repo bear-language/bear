@@ -47,7 +47,7 @@ DefId TopLevelDefVisitor::visit_and_resolve_if_needed(DefId def) {
 }
 
 DefId TopLevelDefVisitor::visit_as_transparent(DefId def) noexcept {
-    context.promote_mention_state_of(def, Def::mention_state::mentioned);
+    context.promote_mention_state_of(def, Def::mention_state::used);
     return def;
 }
 
@@ -59,7 +59,7 @@ DefId TopLevelDefVisitor::visit_as_dependent(DefId def) {
         return def;
     }
     visit_and_resolve_if_needed(def);
-    context.promote_mention_state_of(def, Def::mention_state::mentioned);
+    context.promote_mention_state_of(def, Def::mention_state::used);
     return def;
 }
 
@@ -71,7 +71,7 @@ DefId TopLevelDefVisitor::visit_and_check_for_circular_instantiation(DefId def) 
         return def;
     }
     visit_and_resolve_if_needed(def);
-    context.promote_mention_state_of(def, Def::mention_state::mentioned);
+    context.promote_mention_state_of(def, Def::mention_state::used);
     return def;
 }
 
@@ -951,7 +951,7 @@ bool TopLevelDefVisitor::try_satisfy_contracts(DefId struct_did, IdSlice<DefId> 
 TopLevelDefVisitor::resolve_generic_params(FileId fid, ScopeId scope,
                                            ast_slice_of_generic_params_t gen_params) {
     llvm::SmallVector<GenericParamId> param_vec;
-    DataArena arena{0x400}; // TOOD, get from context probably
+    DataArena arena{0x400};
     IdHashMap<SymbolId, GenericParamId> param_map{arena, 1000};
     bool cooked = false;
     for (size_t i = 0; i < gen_params.len; ++i) {
@@ -1176,12 +1176,12 @@ TopLevelDefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope
 }
 
 DefId InsideBodyDefVisitor::visit_as_dependent(DefId def) {
-    context.promote_mention_state_of(def, Def::mention_state::mentioned);
+    context.promote_mention_state_of(def, Def::mention_state::used);
     return def;
 }
 
 DefId InsideBodyDefVisitor::visit_as_transparent(DefId def) {
-    context.promote_mention_state_of(def, Def::mention_state::mentioned);
+    context.promote_mention_state_of(def, Def::mention_state::used);
     return def;
 }
 
