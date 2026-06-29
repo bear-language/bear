@@ -13,9 +13,10 @@ main quest
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
 
 - [ ] struct member/general reflection 
-    - [ ] add `@members_of` -> list of strs, which can be iterated over
-    - [ ] add `foo.@member(str_val)` to compile-time reflect on members 
-    - [ ] add `@id`
+    - [ ] add `@members_of` -> list of compt strs, which can be iterated over
+    - [ ] add `@statics_of` -> list of compt strs, which can be iterated over
+    - [ ] add `@id` (and `@scoped_id` for `foo..bar..foo` compt str to scoped identifiers)
+        - [ ] so one can use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members 
 
 - [ ] tighten up abi related stuff with hir::LayoutRules or something similar
     - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
