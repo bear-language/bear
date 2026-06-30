@@ -1046,6 +1046,7 @@ bool Exec::can_be_compt(const Context& ctx) {
         [&](const ExecExprUnionInit&) -> bool { return true; },
         [&](const ExecExprVariantInit&) -> bool { return true; },
         [&](const ExecVariantFieldInit&) -> bool { return true; },
+        [&](const ExecRange&) -> bool { return true; },
     };
     return visit(vs);
 }
@@ -2203,6 +2204,10 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 
             return str;
         },
+        [&ctx](const ExecRange t) -> std::string {
+            return exec_to_string(ctx, t.start) + "..." + exec_to_string(ctx, t.end);
+        },
+
     };
 
     return ctx.exec(eid).visit(vs);

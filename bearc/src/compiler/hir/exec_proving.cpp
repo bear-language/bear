@@ -32,6 +32,14 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecLoopStmt& t) -> bool { return false; },
         [](const ExecReturnStmt& t) -> bool { return false; },
         [](const ExecYieldStmt& t) -> bool { return false; },
+        [&other, &ctx](const ExecRange t) -> bool {
+            if (!other.holds<ExecRange>()) {
+                return false;
+            }
+
+            return equivalent_exec(ctx, t.start, other.as<ExecRange>().start)
+                   && equivalent_exec(ctx, t.end, other.as<ExecRange>().end);
+        },
         [&other, &ctx](const ExecExprUnionInit& t) -> bool {
             if (!other.holds<ExecExprUnionInit>()) {
                 return false;
@@ -204,6 +212,9 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
         [](const ExecIfStmt& t) -> size_t { return mix(5uz); },
         [](const ExecLoopStmt& t) -> size_t { return mix(6uz); },
         [](const ExecReturnStmt& t) -> size_t { return mix(7uz); },
+        [&ctx](const ExecRange& t) -> size_t {
+            return transform(hash_exec(ctx, t.start), hash_exec(ctx, t.end));
+        },
         [&ctx](const ExecYieldStmt& t) -> size_t {
             return mix(8uz ^ t.yield_value.has_value() ? hash_exec(ctx, t.yield_value.as_id()) : 0);
         },

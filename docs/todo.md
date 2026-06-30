@@ -8,6 +8,10 @@ main quest
 
 - [ ] `compt` improvements:
     - [ ] compt ranges `1...4` and make then work with compt matching
+        - [ ] decide how to represent ranges in the type system 
+            - `struct Range<S> {}...` 
+                - -> figure out how to handle this as a builtin
+                - give this it's own pseudo-file but really we just lower a string literal
     - [ ] better type-checking/reporting for scalar matched values
 
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type

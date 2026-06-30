@@ -289,6 +289,12 @@ struct ExecExprListLiteral {
     size_t len() const noexcept { return elems.len(); }
 };
 
+struct ExecRange {
+    ExecId start;
+    // non-inclusive end
+    ExecId end;
+};
+
 struct ExecExprAssignMove {
     ExecId lhs;
     ExecId rhs;
@@ -423,7 +429,7 @@ using ExecValue = std::variant<
     ExecExprAssignEqual, ExecExprIs, ExecExprMemberAccess, ExecExprPointerMemberAccess,
     ExecExprBinary, ExecExprCast, ExecExprPreUnary, ExecExprPostUnary, ExecExprSubscript,
     ExecExprFnCall, ExecExprBorrow, ExecExprDeref, ExecExprClosure, ExecExprVariantDecomp,
-    ExecExprMatch, ExecExprMatchBranch, ExecFnPtr, ExecVariantFieldInit>;
+    ExecExprMatch, ExecExprMatchBranch, ExecFnPtr, ExecVariantFieldInit, ExecRange>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {
