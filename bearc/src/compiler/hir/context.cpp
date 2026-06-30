@@ -852,8 +852,17 @@ void Context::set_resol_state_of(DefId def, Def::resol_state resol_state) {
 
 Def::mention_state Context::mention_state_of(DefId def) const { return def_mention_states.at(def); }
 void Context::promote_mention_state_of(DefId def, Def::mention_state new_mention_state) {
+
+    // make sure used and mutated is set when appropriate
+    if ((new_mention_state == Def::mention_state::mutated
+         && mention_state_of(def) == Def::mention_state::used)
+        || (new_mention_state == Def::mention_state::used
+            && mention_state_of(def) == Def::mention_state::mutated)) {
+        def_mention_states.at(def) = Def::mention_state::used_and_mutated;
+    }
+
     // only promote (when current is less than new)
-    if (mention_state_of(def) < new_mention_state) {
+    else if (mention_state_of(def) < new_mention_state) {
         def_mention_states.at(def) = new_mention_state;
     }
 }
