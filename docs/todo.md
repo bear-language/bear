@@ -29,7 +29,7 @@ main quest
 - [ ] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
 
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
-    - [ ] use positional type inference for each decayed argument
+    - [ ] use positional type inference and return/expected type inference
 
 #### hir phase 2.b (function body resolution):
 - [ ] make sure assignment type checking is properly rigid especially around mutable references.

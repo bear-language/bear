@@ -188,6 +188,38 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
 
     const ast_slice_of_exprs_t branches = match_expr->expr.match_expr.branches;
 
+    const OptId<ExecId> maybe_matched_eid
+        = solver.solve_expr(fid, scope, match_expr->expr.match_expr.matched);
+
+    if (maybe_matched_eid.empty()) {
+        return false;
+    }
+
+    const auto matched_eid = maybe_matched_eid.as_id();
+
+    {
+        const Exec& matched_exec = context.exec(matched_eid);
+        if (matched_exec.holds<ExecConst>()
+            && (matched_exec.as<ExecConst>().holds<f32>()
+                || matched_exec.as<ExecConst>().holds<f64>())) {
+
+            const auto maybe_matched_tid = solver.infer_type_from_exec(matched_eid);
+
+            if (maybe_matched_tid.empty()) {
+                return false;
+            }
+
+            const auto matched_tid = maybe_matched_tid.as_id();
+
+            auto d0 = context.emplace_diagnostic(
+                matched_exec.span, diag_code::matching_on_floats_may_cause_unintended_behavior,
+                diag_type::warning);
+            auto d1 = context.emplace_diagnostic(
+                matched_exec.span, diag_code::value_is_of_type, diag_type::note,
+                DiagnosticTypeAfterMessage{.tid = matched_tid}, DiagnosticInfoNoPreview{});
+            context.link_diagnostic(d0, d1);
+        }
+    }
     DiagLinker dl{context};
 
     const ast_expr_t* else_pattern = nullptr;

@@ -160,6 +160,11 @@ Context::Context(const bearc_args_t& args, instances instances)
         return;
     }
 
+    // debug
+    // std::cout << "Type: " << sizeof(Type) << '\n';
+    // std::cout << "Exec: " << sizeof(Exec) << '\n';
+    // std::cout << "Def: " << sizeof(Def) << '\n';
+
     TopLevelDefVisitor def_vis{*this};
     def_vis.resolve_top_level_definitions();
     // ensure all functions are lowered

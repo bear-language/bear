@@ -1,0 +1,14 @@
+// tests/hir/a37.br
+
+mod hir_a37;
+
+compt var _0 = match(1.0) { // oops
+    0.0 => 0,
+    else => 1,
+};
+
+compt var _1 = match(1.0 as f32) { // oops
+    0.0 => 0,
+    1.0 => 1,
+    // oops, no else
+};
