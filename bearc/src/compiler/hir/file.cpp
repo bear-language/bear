@@ -15,6 +15,8 @@
 namespace hir {
 
 FileAst::FileAst(const char* file_name) : ast(ast_create_from_file(file_name)) {}
+FileAst::FileAst(const char* file_name, const char* src_literal)
+    : ast(ast_create_from_string_literal(file_name, src_literal)) {}
 FileAst::~FileAst() {
     if (ast.file_stmt_root_node) {
         ast_destroy(&this->ast);

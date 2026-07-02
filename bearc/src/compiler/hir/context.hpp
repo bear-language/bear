@@ -66,6 +66,10 @@ class Context {
     /// get a symbol, trimming the "" quotes on the outside when interning
     [[nodiscard]] SymbolId symbol_id_for_str_lit_tkn(const token_t* tkn);
     [[nodiscard]] FileId file(SymbolId path);
+    /// intrinsic file made of a string_literal
+    FileId file_intrinsic(SymbolId name, const char* string_literal_src);
+    /// registers intrinsic files
+    void register_intrinsic_files();
     FileId file_parallel(SymbolId path);
     [[nodiscard]] FileId file(std::filesystem::path& path);
     [[nodiscard]] const char* file_name(FileId id) const;

@@ -45,6 +45,7 @@ class FileAst {
     size_t diagnostic_count() const;
     size_t error_count() const;
     FileAst(const char* file_name);
+    FileAst(const char* file_name, const char* src_literal);
     FileAst(FileAst&& other) noexcept;
     ~FileAst();
     void try_print_info(const bearc_args_t& args) const;

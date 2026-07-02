@@ -136,7 +136,11 @@ Context::Context(const bearc_args_t& args, instances instances)
 
     const std::filesystem::path& root_file = maybe_root_file.value();
 
+    // this has to come first
     FileId root_id = provide_root_file(root_file.c_str());
+
+    // registers intrinsic pseudo source files
+    register_intrinsic_files();
 
     // this is actually slower
     // if (args.import_file_cnt) {
@@ -272,6 +276,38 @@ FileId Context::file(SymbolId path_symbol) {
     importer_to_importees.bump();
     file_to_diagnostics.bump();
     return file_id;
+}
+
+FileId Context::file_intrinsic(SymbolId name, const char* string_literal_src) {
+    // check if file has already been requested
+    OptId<FileId> maybe_file_id = symbol_id_to_file_id_map.at(name);
+    if (maybe_file_id.has_value()) {
+        return maybe_file_id.as_id();
+    }
+    // ****************** all lexing and parsing done in this one line
+    FileAstId ast_id
+        = this->file_asts.emplace_and_get_id(symbol_id_to_cstr(name), string_literal_src);
+    // ^^^^^^^^^^^^^^^^^^
+    FileId file_id = this->files.emplace_and_get_id(name, ast_id);
+    /// store this mapping for future detection
+    this->symbol_id_to_file_id_map.insert(name, file_id);
+    /// bump necessary things that are track id-wise for files
+    importee_to_importers.bump();
+    importer_to_importees.bump();
+    file_to_diagnostics.bump();
+    return file_id;
+}
+
+void Context::register_intrinsic_files() {
+    const char* range_name = "intrinsic/range";
+    const char* range_src =
+        R"(
+struct Range<T> {
+    T start;
+    T end;
+}
+        )";
+    file_intrinsic(symbol_id(range_name), range_src);
 }
 
 FileId Context::file_parallel(SymbolId path_symbol) {
