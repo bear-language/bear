@@ -73,7 +73,8 @@ int read_file_to_src_buffer(src_buffer_t* buffer, const char* file_name) {
 
 // returns an src_buffer_t by value, which will need to be destructed by src_buffer_destroy
 src_buffer_t src_buffer_from_file_create(const char* file_name) {
-    src_buffer_t buffer = {.file_name = file_name, .data = NULL, .size = 0, .src_len = 0};
+    src_buffer_t buffer
+        = {.file_name = file_name, .data = NULL, .size = 0, .src_len = 0, .owns_data = true};
     if (read_file_to_src_buffer(&buffer, file_name) < 0) {
         printf("%serror%s: could not read file: %s\n", ansi_bold_red(), ansi_reset(), file_name);
     }
@@ -85,15 +86,29 @@ src_buffer_t src_buffer_from_file_createn(const char* file_name, size_t name_len
     char file_name_nt[CLI_ARGS_MAX_FILE_NAME_LENGTH];
     strncpy(file_name_nt, file_name, name_len);
     file_name_nt[name_len] = '\0';
-    src_buffer_t buffer;
+    src_buffer_t buffer
+        = {.file_name = file_name, .data = NULL, .size = 0, .src_len = 0, .owns_data = true};
     if (read_file_to_src_buffer(&buffer, file_name) < 0) {
         printf("%serror%s: could not read file: %s\n", ansi_bold_red(), ansi_reset(), file_name);
     }
     return buffer;
 }
+src_buffer_t src_buffer_from_string_literal(const char* literal_file_name,
+                                            const char* literal_buffer) {
+    src_buffer_t buffer = {.file_name = literal_file_name,
+                           .data = (char*)literal_buffer,
+                           .size = 0,
+                           .src_len = strlen(literal_buffer),
+                           .owns_data = false};
+    return buffer;
+}
 
 // destructs an src_buffer_t that was created by src_buffer_from_file_create
-void src_buffer_destroy(src_buffer_t* buffer) { free(buffer->data); }
+void src_buffer_destroy(src_buffer_t* buffer) {
+    if (buffer->owns_data) {
+        free(buffer->data);
+    }
+}
 
 // gets ptr to data
 const char* src_buffer_get(src_buffer_t* buffer) { return buffer->data; }

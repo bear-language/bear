@@ -19,8 +19,8 @@ string_view_t get_line_string_view(const src_buffer_t* src_buffer, const char* s
     }
     // find start of line
     ptrdiff_t diff_to_line_start = 0;
-    while (*(start - diff_to_line_start) != '\n'
-           && start - diff_to_line_start >= src_buffer->data) {
+    while (start - diff_to_line_start >= src_buffer->data
+           && *(start - diff_to_line_start) != '\n') {
         diff_to_line_start++;
     }
     diff_to_line_start--; // backtrack once because we overshot in the final increment

@@ -28,6 +28,9 @@ typedef struct br_ast {
 } br_ast_t;
 
 br_ast_t ast_create_from_file(const char* file_name);
+
+br_ast_t ast_create_from_string_literal(const char* name, const char* string_literal);
+
 void ast_destroy(br_ast_t* ast);
 
 #ifdef __cplusplus

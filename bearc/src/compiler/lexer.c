@@ -310,11 +310,15 @@ lex_end:
 lex_done:;
     // build up eof token manually, we have to do this for pretty error messages
     token_t* prev = (token_t*)vector_last(&tkn_vec);
-    tkn.start = prev->start; // set to prev's start!
-    tkn.len = 1;             // this is safe since we use prev loc
-    tkn.type = TOK_EOF;
-    tkn.loc = prev->loc; // set loc to prev valid loc!
-    ++tkn.loc.col;
+    if (prev) {
+        tkn.start = prev->start; // set to prev's start!
+        tkn.len = 1;             // this is safe since we use prev loc
+        tkn.type = TOK_EOF;
+        tkn.loc = prev->loc; // set loc to prev valid loc!
+        ++tkn.loc.col;
+    } else {
+        tkn = (token_t){.start = buf->data, .len = 0, .loc = loc, .val = {0}, .type = TOK_EOF};
+    }
     vector_push_back(&tkn_vec, &tkn);
     return tkn_vec;
 }

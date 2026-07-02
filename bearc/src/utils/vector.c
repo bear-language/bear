@@ -79,6 +79,9 @@ void* vector_end(const vector_t* vector) {
 }
 // gets ptr to last element of vector (size - 1)
 void* vector_last(const vector_t* vector) {
+    if (vector->size == 0) {
+        return NULL;
+    }
     return (void*)((char*)vector->data + ((vector->size - 1) * vector->elem_size));
 }
 

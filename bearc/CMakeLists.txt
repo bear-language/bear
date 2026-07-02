@@ -88,11 +88,13 @@ set(TEST_SRC
 
 set(CMAKE_C_FLAGS_DEBUG
     "-Wall -Wextra -Wpedantic -g -gdwarf-4 -O0"
+    # "-fsanitize=address,undefined"
     CACHE STRING "" FORCE)
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG" CACHE STRING "" FORCE)
 
 set(CMAKE_CXX_FLAGS_DEBUG
     "-Wall -Wextra -Wpedantic -Wno-unused-parameter -g -gdwarf-4 -O0"
+    # "-fsanitize=address,undefined"
     CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -fno-exceptions" CACHE STRING "" FORCE)
 
