@@ -610,10 +610,7 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
     static constexpr HirSize MAX_LINES_BEFORE_ELLIPSING = 8;
 
     HirSize curr_len = 0;
-    HirSize prev_len = 0; // NOLINT
 
-    HirSize issue_line = 0; // NOLINT
-                            //^ clang tidy was having issues with false positives here
     HirSize issue_len = 0;
     bool has_faux_lines = false;
 
@@ -648,13 +645,11 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
         }
         if (c == '\n') {
             do_line_num = true;
-            prev_len = curr_len;
             curr_len = 0;
             ++curr_line;
         } else if (curr_len >= MAX_LINE_LEN - 1) {
             do_faux_line = true;
             has_faux_lines = true;
-            prev_len = curr_len;
             curr_len = 0;
             ++curr_line;
         }
@@ -662,7 +657,6 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
         // start colored span
         if (full_src_span.data() + i == span_start) {
             buf += accent_color;
-            issue_line = curr_line;
             issue_len = curr_len;
         } else if (full_src_span.data() + i == span_end) {
             buf += ansi_reset();
