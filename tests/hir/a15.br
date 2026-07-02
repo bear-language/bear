@@ -49,7 +49,7 @@ var _0 = @static_assert d == e;
 
 var _1 = @static_assert b == e; // oops
 
-compt Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Bar obscene = {.val = 42}; // stress test
+compt Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Foo::Bar obscene = {.val = 42}; // stress test
 
 compt typeof(obscene) f = {.val = 42}; // wow, that saved a lot of writing
 

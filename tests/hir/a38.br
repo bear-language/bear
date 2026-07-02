@@ -2,6 +2,8 @@
 
 mod hir_a38;
 
+use std..Range;
+
 compt Range<i32> a = {.start = 0, .end = 1};
 
 compt var b = Range::<i32>{.s = 0, .e = 1};
