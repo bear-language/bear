@@ -21,6 +21,8 @@ enum class binary_op : uint8_t {
     multiply,
     divide,
     modulo,
+    range_exclusive,
+    range_inclusive,
     bit_or,
     bit_and,
     bit_xor,

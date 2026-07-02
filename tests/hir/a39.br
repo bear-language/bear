@@ -1,0 +1,5 @@
+// tests/hir/a39.br
+
+mod hir_a39;
+
+compt var a = 1...0;

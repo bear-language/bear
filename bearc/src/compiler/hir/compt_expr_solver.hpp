@@ -1318,6 +1318,9 @@ template <IsDefVisitor V> class ComptExprSolver {
         case binary_op::bool_or:
         case binary_op::bool_and:
             return handle_binary_bool_conj_disj(lhs_exec, op, rhs_exec);
+        case binary_op::range_exclusive:
+        case binary_op::range_inclusive:
+            return handle_binary_range(lhs_exec, op, rhs_exec);
         }
         return std::nullopt;
     }
@@ -1516,6 +1519,14 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         return std::nullopt;
+    }
+
+    [[nodiscard]] OptId<ExecId> handle_binary_range(const Exec& lhs, binary_op op,
+                                                    const Exec& rhs) {
+        auto lhs_val = lhs.as<ExecConst>();
+        auto rhs_val = rhs.as<ExecConst>();
+        // TODO
+        return {};
     }
 
     [[nodiscard]] OptId<ExecId> handle_binary_bool_conj_disj(const Exec& lhs, binary_op op,

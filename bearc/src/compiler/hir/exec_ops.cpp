@@ -27,6 +27,10 @@ std::optional<binary_op> token_to_binary_op(const token_t* tkn) {
         return binary_op::modulo;
     case TOK_BAR:
         return binary_op::bit_or;
+    case TOK_ELLIPSE:
+        return binary_op::range_exclusive;
+    case TOK_ELLIPSE_EQ:
+        return binary_op::range_inclusive;
     case TOK_BIT_XOR:
         return binary_op::bit_xor;
     case TOK_AMPER:
@@ -118,6 +122,10 @@ const char* binary_op_to_cstr(binary_op op) {
         return "==";
     case binary_op::bool_not_equal:
         return "!=";
+    case binary_op::range_exclusive:
+        return "...";
+    case binary_op::range_inclusive:
+        return "...=";
     }
     return nullptr;
 }
