@@ -135,8 +135,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
                "constants";
     case diag_code::incompatible_types_for_binary_expression:
         return "incompatible types for binary expression:";
-    case diag_code::incompatible_types_for_binary_operator:
-        return "incompatible types for binary operator";
+    case diag_code::incompatible_types_for_binary_operator_colon:
+        return "incompatible types for binary operator:";
     case diag_code::dividing_by_zero_at_compt_is_illegal:
         return "dividing by zero at compile-time is illegal";
     case diag_code::invalid_cast:

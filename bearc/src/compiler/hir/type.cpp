@@ -633,6 +633,8 @@ bool builtin_type_has_binary_op(builtin_type type, binary_op op) {
         case binary_op::right_shift_arithmetic:
         case binary_op::bool_or:
         case binary_op::bool_and:
+        case binary_op::range_exclusive:
+        case binary_op::range_inclusive:
             return false;
         }
         break;
@@ -663,6 +665,8 @@ bool builtin_type_has_binary_op(builtin_type type, binary_op op) {
         case binary_op::bool_and:
         case binary_op::bool_equal:
         case binary_op::bool_not_equal:
+        case binary_op::range_exclusive:
+        case binary_op::range_inclusive:
             return true;
         case binary_op::right_shift_logical:
             return false;
@@ -696,6 +700,9 @@ bool builtin_type_has_binary_op(builtin_type type, binary_op op) {
         case binary_op::bool_and:
         case binary_op::bool_equal:
         case binary_op::bool_not_equal:
+        case binary_op::range_exclusive:
+        case binary_op::range_inclusive:
+
             return true;
         case binary_op::right_shift_arithmetic:
             return false;
@@ -716,6 +723,8 @@ bool builtin_type_has_binary_op(builtin_type type, binary_op op) {
         case binary_op::left_bitshift:
         case binary_op::right_shift_logical:
         case binary_op::right_shift_arithmetic:
+        case binary_op::range_exclusive:
+        case binary_op::range_inclusive:
             return false;
         case binary_op::greater_than:
         case binary_op::less_than:
@@ -744,6 +753,8 @@ bool builtin_type_has_binary_op(builtin_type type, binary_op op) {
         case binary_op::bool_equal:
         case binary_op::bool_not_equal:
             return true;
+        case binary_op::range_exclusive:
+        case binary_op::range_inclusive:
         case binary_op::modulo:
         case binary_op::bit_or:
         case binary_op::bit_and:
@@ -776,6 +787,8 @@ bool builtin_type_has_binary_op(builtin_type type, binary_op op) {
         case binary_op::bit_xor:
         case binary_op::left_bitshift:
         case binary_op::right_shift_logical:
+        case binary_op::range_exclusive:
+        case binary_op::range_inclusive:
         case binary_op::right_shift_arithmetic:
         case binary_op::bool_or:
         case binary_op::bool_and:
@@ -806,6 +819,8 @@ bool builtin_type_has_binary_op(builtin_type type, binary_op op) {
         case binary_op::left_bitshift:
         case binary_op::right_shift_logical:
         case binary_op::right_shift_arithmetic:
+        case binary_op::range_exclusive:
+        case binary_op::range_inclusive:
             return false;
         }
         break;

@@ -2,4 +2,8 @@
 
 mod hir_a39;
 
-compt var a = 1...0;
+compt var a = true...false; // oops
+
+var _0 = @note @type_to_str(typeof a);
+
+compt var b = 0...100;

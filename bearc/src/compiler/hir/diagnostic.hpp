@@ -73,7 +73,7 @@ enum class diag_code : uint8_t {
     a_compt_variable_should_be_explicitly_initialized,
     all_runtime_glob_and_mem_vars_need_compt_init,
     incompatible_types_for_binary_expression,
-    incompatible_types_for_binary_operator,
+    incompatible_types_for_binary_operator_colon,
     dividing_by_zero_at_compt_is_illegal,
     invalid_cast,
     parentheses_should_be_used_for_chained_casts,

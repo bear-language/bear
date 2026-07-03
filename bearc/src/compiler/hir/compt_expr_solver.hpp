@@ -1320,7 +1320,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             return handle_binary_bool_conj_disj(lhs_exec, op, rhs_exec);
         case binary_op::range_exclusive:
         case binary_op::range_inclusive:
-            return handle_binary_range(lhs_exec, op, rhs_exec);
+            return handle_binary_range(lhs_eid, op, rhs_eid);
         }
         return std::nullopt;
     }
@@ -1357,7 +1357,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                                                 rhs.span, false);
             context.emplace_diagnostic_with_message_value(
                 Span::combine(lhs.span, rhs.span),
-                diag_code::incompatible_types_for_binary_operator, diag_type::error,
+                diag_code::incompatible_types_for_binary_operator_colon, diag_type::error,
                 DiagnosticTypeAndTypeForBinaryOp{.lhs_tid = lhs_tid, .rhs_tid = rhs_tid, .op = op});
             return true;
         }
@@ -1521,11 +1521,27 @@ template <IsDefVisitor V> class ComptExprSolver {
         return std::nullopt;
     }
 
-    [[nodiscard]] OptId<ExecId> handle_binary_range(const Exec& lhs, binary_op op,
-                                                    const Exec& rhs) {
-        auto lhs_val = lhs.as<ExecConst>();
-        auto rhs_val = rhs.as<ExecConst>();
+    [[nodiscard]] OptId<ExecId> handle_binary_range(const ExecId lhs_eid, binary_op op,
+                                                    const ExecId rhs_eid) {
+        assert(op == binary_op::range_exclusive || op == binary_op::range_exclusive);
+        const Exec& lhs = context.exec(lhs_eid);
+        const Exec& rhs = context.exec(rhs_eid);
+        ExecExprComptConstant lhs_val = lhs.as<ExecConst>();
+        ExecExprComptConstant rhs_val = rhs.as<ExecConst>();
+
+        // converge types, if possible
+        guard_try_converge_types(/* & */ lhs_val, op, /* & */ rhs_val);
+
+        if (guard_incompatible_types(lhs, rhs, lhs_val, rhs_val)) {
+            return {};
+        }
+
+        if (guard_op_not_viable_for_types(lhs, rhs, lhs_val, op, rhs_val)) {
+            return {};
+        }
+
         // TODO
+
         return {};
     }
 
