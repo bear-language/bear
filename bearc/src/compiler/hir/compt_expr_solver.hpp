@@ -100,11 +100,6 @@ template <IsDefVisitor V> class ComptExprSolver {
         if (exec.holds<ExecFnPtr>()) {
             return exec.as<ExecFnPtr>().fn_ptr_tid;
         }
-        if (exec.holds<ExecExprUnionInit>()) {
-            return context.emplace_type(
-                TypeUnion{.def_id = exec.as<ExecExprUnionInit>().union_def_id}, Span::generated(),
-                false);
-        }
         if (exec.holds<ExecExprVariantInit>()) {
             const auto did = exec.as<ExecExprVariantInit>().variant_def_id;
             const auto variant_def = context.def(did);
@@ -120,6 +115,30 @@ template <IsDefVisitor V> class ComptExprSolver {
                                                     .generic = maybe_gen_args.has_value()},
 
                                         Span::generated(), false);
+        }
+        if (exec.holds<ExecRange>()) {
+            const GenericArgIdSliceId gargs
+                = context.emplace_generic_arg_id_slice(context.freeze_id_vec(
+                    llvm::SmallVector<GenericArgId, 1>{context.emplace_generic_arg(
+                        infer_type_from_exec(exec.as<ExecRange>().start).as_id())}));
+
+            const OptId<DefId> range_def_id = context.look_up_scoped_type_generic(
+                def_visitor, context.root_scope(),
+                context.freeze_id_vec(llvm::SmallVector<SymbolId, 2>{context.symbol_id<"std">(),
+                                                                     context.symbol_id<"Range">()}),
+                Span::generated(), gargs);
+
+            if (range_def_id.has_value()) {
+                return context.emplace_type(TypeStruct{.def_id = range_def_id.as_id(),
+                                                       .gen_args_slice = gargs,
+                                                       .generic = true},
+                                            Span::generated(), false);
+            }
+        }
+        if (exec.holds<ExecExprUnionInit>()) {
+            return context.emplace_type(
+                TypeUnion{.def_id = exec.as<ExecExprUnionInit>().union_def_id}, Span::generated(),
+                false);
         }
 
         // report issue
@@ -1263,8 +1282,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_struct_eq(lhs_exec, rhs_exec, op);
         }
 
-        if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecExprVariantInit>(rhs_exec)) {
-            return solve_variant_eq(lhs_eid, rhs_eid, op);
+        if (bin_op_is_eq_neq(op)
+            && (lhs_exec.holds_same<ExecExprVariantInit>(rhs_exec)
+                || lhs_exec.holds_same<ExecRange>(rhs_exec))) {
+            return solve_any_eq(lhs_eid, rhs_eid, op);
         }
 
         if (op == binary_op::plus && lhs_exec.holds_same<ExecExprListLiteral>(rhs_exec)) {
@@ -1522,8 +1543,8 @@ template <IsDefVisitor V> class ComptExprSolver {
     }
 
     [[nodiscard]] OptId<ExecId> handle_binary_range(const ExecId lhs_eid, binary_op op,
-                                                    const ExecId rhs_eid) {
-        assert(op == binary_op::range_exclusive || op == binary_op::range_exclusive);
+                                                    ExecId rhs_eid) {
+        assert(op == binary_op::range_exclusive || op == binary_op::range_inclusive);
         const Exec& lhs = context.exec(lhs_eid);
         const Exec& rhs = context.exec(rhs_eid);
         ExecExprComptConstant lhs_val = lhs.as<ExecConst>();
@@ -1540,9 +1561,76 @@ template <IsDefVisitor V> class ComptExprSolver {
             return {};
         }
 
-        // TODO
+        if (op == binary_op::range_inclusive) {
+            switch (rhs_val.type_builtin()) {
+            case builtin_type::u8: {
+                auto diff = (lhs_val.as<u8>() - rhs_val.as<u8>() > 0) ? -1 : 1;
+                diff = lhs_val.as<u8>() - rhs_val.as<u8>() == 0 ? 0 : diff;
+                rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<u8>() + diff}, rhs.span);
+                break;
+            }
 
-        return {};
+            case builtin_type::i8: {
+                auto diff = (lhs_val.as<i8>() - rhs_val.as<i8>() > 0) ? -1 : 1;
+                diff = lhs_val.as<i8>() - rhs_val.as<i8>() == 0 ? 0 : diff;
+                rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<i8>() + diff}, rhs.span);
+                break;
+            }
+
+            case builtin_type::u16: {
+                auto diff = (lhs_val.as<u16>() - rhs_val.as<u16>() > 0) ? -1 : 1;
+                diff = lhs_val.as<u16>() - rhs_val.as<u16>() == 0 ? 0 : diff;
+                rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<u16>() + diff}, rhs.span);
+                break;
+            }
+
+            case builtin_type::i16: {
+                auto diff = (lhs_val.as<i16>() - rhs_val.as<i16>() > 0) ? -1 : 1;
+                diff = lhs_val.as<i16>() - rhs_val.as<i16>() == 0 ? 0 : diff;
+                rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<i16>() + diff}, rhs.span);
+                break;
+            }
+
+            case builtin_type::u32: {
+                auto diff = (lhs_val.as<u32>() - rhs_val.as<u32>() > 0) ? -1 : 1;
+                diff = lhs_val.as<u32>() - rhs_val.as<u32>() == 0 ? 0 : diff;
+                rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<u32>() + diff}, rhs.span);
+                break;
+            }
+
+            case builtin_type::i32: {
+                auto diff = (lhs_val.as<i32>() - rhs_val.as<i32>() > 0) ? -1 : 1;
+                diff = lhs_val.as<i32>() - rhs_val.as<i32>() == 0 ? 0 : diff;
+                rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<i32>() + diff}, rhs.span);
+                break;
+            }
+
+            case builtin_type::u64: {
+                auto diff = (lhs_val.as<u64>() - rhs_val.as<u64>() > 0) ? -1 : 1;
+                diff = lhs_val.as<u64>() - rhs_val.as<u64>() == 0 ? 0 : diff;
+                rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<u64>() + diff}, rhs.span);
+                break;
+            }
+
+            case builtin_type::i64: {
+                auto diff = (lhs_val.as<i64>() - rhs_val.as<i64>() > 0) ? -1 : 1;
+                diff = lhs_val.as<i64>() - rhs_val.as<i64>() == 0 ? 0 : diff;
+                rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<i64>() + diff}, rhs.span);
+                break;
+            }
+            case builtin_type::charr:
+            case builtin_type::f32:
+            case builtin_type::f64:
+            case builtin_type::voidd:
+            case builtin_type::str:
+            case builtin_type::nullpointer:
+            case builtin_type::boolean:
+                return {}; // not possible, but this handles it just in case
+            }
+        }
+
+        return context.emplace_compt_exec(ExecRange{.start = lhs_eid, .end = rhs_eid},
+                                          Span::combine(lhs.span, rhs.span));
     }
 
     [[nodiscard]] OptId<ExecId> handle_binary_bool_conj_disj(const Exec& lhs, binary_op op,
@@ -3168,12 +3256,11 @@ template <IsDefVisitor V> class ComptExprSolver {
         return emplace_val_based_on_eq(true);
     }
 
-    [[nodiscard]] OptId<ExecId> solve_variant_eq(ExecId variant_eid1, ExecId variant_eid2,
-                                                 binary_op eq_neq) {
-        const bool equiv = equivalent_exec(context, variant_eid1, variant_eid2);
+    [[nodiscard]] OptId<ExecId> solve_any_eq(ExecId eid1, ExecId eid2, binary_op eq_neq) {
+        const bool equiv = equivalent_exec(context, eid1, eid2);
         return context.emplace_compt_exec(
             ExecConst{(eq_neq == binary_op::bool_equal) ? equiv : !equiv},
-            Span::combine(context.exec(variant_eid1).span, context.exec(variant_eid2).span));
+            Span::combine(context.exec(eid1).span, context.exec(eid2).span));
     }
 
     [[nodiscard]] OptId<ExecId> handle_has_contract(FileId fid, ScopeId scope,

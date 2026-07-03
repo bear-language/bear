@@ -2,8 +2,39 @@
 
 mod hir_a39;
 
-compt var a = true...false; // oops
+use std..Range;
 
-var _0 = @note @type_to_str(typeof a);
+compt var _a = true...false; // oops
 
 compt var b = 0...100;
+
+var _0 = @note @type_to_str(typeof b);
+
+compt var c = b;
+
+var _1 = @static_assert b == c;
+
+var _2 = @static_assert Range::<i32>{.start = 0, .end = 100} == 0...100; // doesn't work due to struct vs range literal agreement...
+                                                                         // this is probably fine...
+
+var _3 = @static_assert 0...=100 == 0...101;
+
+var _4 = @static_assert -100...=-50 == -100...-49;
+
+var _5 = @static_assert 20...=10 == 20...9;
+
+struct Foo<Range::i32 a> {}
+
+var _6 = @note @type_to_str Foo::(0...=100);
+
+compt var _7 = "foo"..."foo";
+
+compt var _8 = null...0;
+
+compt var _9 = null...null;
+
+compt var _10 = 1.0...2.0;
+
+compt var _11 = (1.0 as i32)...(1.00000000000001 as i32);
+
+compt var _12 = (1 as u64)...(100000000 as u64) == 1...100000000 ;
