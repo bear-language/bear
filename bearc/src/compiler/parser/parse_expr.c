@@ -773,8 +773,13 @@ ast_expr_t* parse_expr_match_pattern(parser_t* p) {
         default_expr->last = el;
         return default_expr;
     }
+    // allow parens and just recursve a bit
+    if (parser_match_token(p, TOK_LPAREN)) {
+        ast_expr_t* patt = parse_expr_match_pattern(p);
+        parser_expect_token(p, TOK_RPAREN);
+        return patt;
+    }
     // handle identifier or variant decomp
-
     token_type_e next_type = parser_peek(p)->type;
     if (next_type == TOK_IDENTIFIER) {
         ast_expr_t* id = parse_id(p);
@@ -793,6 +798,14 @@ ast_expr_t* parse_expr_match_pattern(parser_t* p) {
     }
     if (token_is_literal(next_type)) {
         ast_expr_t* lhs = parse_literal(p);
+        next_type = parser_peek(p)->type;
+        if (next_type == TOK_ELLIPSE || next_type == TOK_ELLIPSE_EQ) {
+            return parse_binary(p, lhs, PREC_INIT);
+        }
+        return lhs;
+    }
+    if (is_preunary_op(next_type)) {
+        ast_expr_t* lhs = parse_preunary_expr(p);
         next_type = parser_peek(p)->type;
         if (next_type == TOK_ELLIPSE || next_type == TOK_ELLIPSE_EQ) {
             return parse_binary(p, lhs, PREC_INIT);

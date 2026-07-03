@@ -21,8 +21,8 @@ compt i32 b = match(12) {
 compt str mys = "hello";
 
 compt i32 c = match(mys) {
-    12 => 1,
-    13 => 2,
+    12 => 1, // oops
+    13 => 2, // oops
     "hello" => 3,
     else => 4,
 }; 

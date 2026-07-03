@@ -395,6 +395,12 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::matching_on_floats_may_cause_unintended_behavior:
         return "matching on floating point values maybe cause unintended behavior due to limited "
                "precision";
+    case diag_code::pattern_can_never_match_matched_value:
+        return "pattern can never match matched value";
+    case diag_code::matched_value_is_of_type:
+        return "matched value is of type";
+    case diag_code::pattern_is_of_type:
+        return "pattern is of type";
     }
 
     std::unreachable();

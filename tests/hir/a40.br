@@ -1,0 +1,42 @@
+// tests/hir/a40.br
+
+var _0 = match(12 as u8) {
+    0 => 1,
+    1 => 2,
+    2 => 3, 
+    -3 => 4, // oops
+    // oops, not exhaustive 
+};
+
+compt u64 AA = 123456;
+
+var _1 = match(12 as u64) {
+    0 => 1,
+    1.0 => 2, // oops
+    2 | 3 | 4 | 5 => 3, 
+    -3 | -4 => 4, // oops
+    AA => 5, 
+    "123456" => 6,
+    else => 0,
+};
+
+compt var a = match(-12 as i8) {
+    -12 => 1,
+    else => 0,
+};
+
+var _2 = @static_assert a;
+
+compt var b = match(-12 as i64) {
+    -12 => 1,
+    else => 0,
+};
+
+var _3 = @static_assert b;
+
+compt var c = match(100000000000 as i64) {
+    100000000000 => 1,
+    else => 0,
+};
+
+var _4 = @static_assert c;

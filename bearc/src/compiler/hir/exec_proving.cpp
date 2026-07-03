@@ -199,8 +199,130 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 }
 
 bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
-    return equivalent_exec(ctx, eid1, eid2)
-           || ctx.exec(eid1).holds_same_variant_type(ctx.exec(eid2));
+    const Exec& e1 = ctx.exec(eid1);
+    const Exec& e2 = ctx.exec(eid2);
+
+    auto vs = Ovld{
+        [](const ExecBlock& t) -> bool { return false; },
+        [](const ExecExprStmt& t) -> bool { return false; },
+        [](const ExecBreakStmt& t) -> bool { return false; },
+        [](const ExecContinueStmt& t) -> bool { return false; },
+        [](const ExecIfStmt& t) -> bool { return false; },
+        [](const ExecLoopStmt& t) -> bool { return false; },
+        [](const ExecReturnStmt& t) -> bool { return false; },
+        [](const ExecYieldStmt& t) -> bool { return false; },
+        [&e2, &ctx](const ExecRange t) -> bool {
+            if (!e2.holds<ExecRange>()) {
+                return false;
+            }
+
+            return possibly_equivalent_exec(ctx, t.start, e2.as<ExecRange>().start)
+                   && possibly_equivalent_exec(ctx, t.end, e2.as<ExecRange>().end);
+        },
+        [&e2](const ExecExprUnionInit& t) -> bool {
+            if (!e2.holds<ExecExprUnionInit>()) {
+                return false;
+            }
+
+            if (t.union_def_id != e2.as<ExecExprUnionInit>().union_def_id) {
+                return false;
+            }
+
+            if (t.active_member_idx != e2.as<ExecExprUnionInit>().active_member_idx) {
+                return false;
+            }
+            return false;
+        },
+        [&e2](const ExecExprVariantInit& t) -> bool {
+            if (!e2.holds<ExecExprVariantInit>()) {
+                return false;
+            }
+            if (t.variant_def_id != e2.as<ExecExprVariantInit>().variant_def_id) {
+                return false;
+            }
+
+            if (t.active_member_idx != e2.as<ExecExprVariantInit>().active_member_idx) {
+                return false;
+            }
+
+            return true;
+        },
+        [&e2](const ExecExprStructInit& t) -> bool {
+            if (!e2.holds<ExecExprStructInit>()) {
+                return false;
+            }
+
+            const auto o = e2.as<ExecExprStructInit>();
+
+            return t.struct_def_id == o.struct_def_id;
+        },
+        [&e2](const ExecExprStructMemberInit& t) -> bool {
+            if (!e2.holds<ExecExprStructMemberInit>()) {
+                return false;
+            }
+
+            const auto o = e2.as<ExecExprStructMemberInit>();
+
+            return (t.field_def == o.field_def);
+        },
+        [](const ExecExprVariable& t) -> bool { return false; },
+        [&e2](const ExecExprComptConstant& t) -> bool {
+            if (!e2.holds<ExecExprComptConstant>()) {
+                return false;
+            }
+            const auto o = e2.as<ExecExprComptConstant>();
+            return (o.hash_identity() == t.hash_identity());
+        },
+        [&e2, &ctx](const ExecExprListLiteral& t) -> bool {
+            if (!e2.holds<ExecExprListLiteral>()) {
+                return false;
+            }
+
+            const auto o = e2.as<ExecExprListLiteral>();
+
+            // this means one is empty (thus being typeless as far as we are concerned, so it can be
+            // equivalent to any list lit)
+            if (o.elem_type_id.has_value() != t.elem_type_id.has_value()) {
+                return true;
+            }
+
+            if (o.elem_type_id.has_value() && t.elem_type_id.has_value()
+                && !ctx.equivalent_type(o.elem_type_id.as_id(), t.elem_type_id.as_id())) {
+                return false;
+            }
+
+            return true;
+        },
+        [&e2](const ExecVariantFieldInit& t) -> bool {
+            if (!e2.holds<ExecVariantFieldInit>()) {
+                return false;
+            }
+
+            const auto o = e2.as<ExecVariantFieldInit>();
+
+            return t.variant_field_def_id == o.variant_field_def_id;
+        },
+        [](const ExecExprAssignMove& t) -> bool { return false; },
+        [](const ExecExprAssignEqual& t) -> bool { return false; },
+        [](const ExecExprIs& t) -> bool { return false; },
+        [](const ExecExprMemberAccess& t) -> bool { return false; },
+        [](const ExecExprPointerMemberAccess& t) -> bool { return false; },
+        [](const ExecExprBinary& t) -> bool { return false; },
+        [](const ExecExprCast& t) -> bool { return false; },
+        [](const ExecExprPreUnary& t) -> bool { return false; },
+        [](const ExecExprPostUnary& t) -> bool { return false; },
+        [](const ExecExprSubscript& t) -> bool { return false; },
+        [](const ExecExprFnCall& t) -> bool { return false; },
+        [](const ExecExprBorrow& t) -> bool { return false; },
+        [](const ExecExprDeref& t) -> bool { return false; },
+        [](const ExecExprClosure& t) -> bool { return false; },
+        [](const ExecExprVariantDecomp& t) -> bool { return false; },
+        [](const ExecExprMatch& t) -> bool { return false; },
+        [](const ExecExprMatchBranch& t) -> bool { return false; },
+        [](const ExecFnPtr& t) -> bool { return false; },
+    };
+
+    return e1.visit(vs);
 }
 
 size_t hash_exec(const Context& ctx, ExecId eid) {

@@ -191,39 +191,38 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
         return 0;
     }
     // treats signed/unsigned/floats/other as distinct, but not subcategories
-    // example: u8 and u32 are the same, but not i8 and u32
+    // example: u8 and u32 are the same, but not i8 and u32 unless the signed value is non-negative
     [[nodiscard]] size_t hash_identity() const {
         switch (this->type_builtin()) {
         case builtin_type::u8:
             return 0;
         case builtin_type::i8:
-            return 1;
+            return (as<i8>() < 0) ? 1 : 0;
         case builtin_type::u16:
             return 0;
         case builtin_type::i16:
-            return as<i16>();
+            return (as<i16>() < 0) ? 1 : 0;
         case builtin_type::u32:
             return 0;
         case builtin_type::i32:
-            return 1;
+            return (as<i32>() < 0) ? 1 : 0;
         case builtin_type::u64:
             return 0;
         case builtin_type::i64:
-            return 1;
+            return (as<i64>() < 0) ? 1 : 0;
         case builtin_type::charr:
             return 2;
         case builtin_type::f32:
-            return 3;
         case builtin_type::f64:
-            return 4;
+            return 3;
         case builtin_type::voidd:
-            return 5;
+            return 4;
         case builtin_type::str:
-            return 6;
+            return 5;
         case builtin_type::nullpointer:
-            return 7;
+            return 6;
         case builtin_type::boolean:
-            return 8;
+            return 7;
         }
         std::unreachable();
         return 0;

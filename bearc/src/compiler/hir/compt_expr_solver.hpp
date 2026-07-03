@@ -3554,8 +3554,6 @@ template <IsDefVisitor V> class ComptExprSolver {
             return {};
         }
 
-        // TODO consider giving diagnostics to warn that patterns will never match if types do not
-        // match
         return equivalent_exec(context, maybe_pattern_val.as_id(), matched_eid);
     }
 

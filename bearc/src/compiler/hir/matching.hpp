@@ -13,6 +13,7 @@
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
+#include "compiler/hir/exec_proving.hpp"
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/id_set.hpp"
 #include "compiler/hir/indexing.hpp"
@@ -255,6 +256,32 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
                         diag_type::warning));
                 }
                 continue;
+            }
+
+            const OptId<ExecId> maybe_pattern_eid = solver.solve_expr(fid, scope, pattern);
+            if (maybe_pattern_eid.empty()) {
+                continue;
+            }
+            const ExecId pattern_eid = maybe_pattern_eid.as_id();
+            Context& ctx = solver.get_context();
+            if (!possibly_equivalent_exec(ctx, matched_eid, pattern_eid)) {
+                const auto& matched = ctx.exec(matched_eid);
+                const auto& pattern = ctx.exec(pattern_eid);
+                dl.link(ctx.emplace_diagnostic(pattern.span,
+                                               diag_code::pattern_can_never_match_matched_value,
+                                               diag_type::error));
+                if (const OptId<TypeId> maybe_tid = solver.infer_type_from_exec(pattern_eid);
+                    maybe_tid.has_value()) {
+                    dl.link(ctx.emplace_diagnostic_with_message_value(
+                        pattern.span, diag_code::pattern_is_of_type, diag_type::note,
+                        DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()}));
+                }
+                if (const OptId<TypeId> maybe_tid = solver.infer_type_from_exec(matched_eid);
+                    maybe_tid.has_value()) {
+                    dl.link(ctx.emplace_diagnostic_with_message_value(
+                        matched.span, diag_code::matched_value_is_of_type, diag_type::note,
+                        DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()}));
+                }
             }
         }
     }

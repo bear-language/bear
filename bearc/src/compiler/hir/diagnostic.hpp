@@ -199,6 +199,9 @@ enum class diag_code : uint8_t {
     compt_declarations_should_not_be_ref_type,
     should_not_be_declared_hid,
     matching_on_floats_may_cause_unintended_behavior,
+    pattern_can_never_match_matched_value,
+    matched_value_is_of_type,
+    pattern_is_of_type,
 
     count, // this must be last,
 
