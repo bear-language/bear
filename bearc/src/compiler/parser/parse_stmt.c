@@ -290,18 +290,12 @@ ast_stmt_t* parse_var_decl_from_id_or_mut(parser_t* p, token_ptr_slice_t* opt_id
         // we already know next type is an assignment init token
         stmt->stmt.var_init_decl.assign_op = parser_eat(p);
         stmt->stmt.var_init_decl.rhs = parse_expr(p);
-        token_t* term = parser_expect_token(p, TOK_SEMICOLON);
-        if (!term) {
-            return parser_sync_stmt(p);
-        }
+        parser_expect_token(p, TOK_SEMICOLON);
     } else if (next_type == TOK_SEMICOLON) {
         stmt->type = AST_STMT_VAR_DECL;
         stmt->stmt.var_decl.type = type;
         stmt->stmt.var_decl.name = name;
-        token_t* term = parser_expect_token(p, TOK_SEMICOLON);
-        if (!term) {
-            return parser_sync_stmt(p);
-        }
+        parser_expect_token(p, TOK_SEMICOLON);
     } else {
         compiler_error_list_emplace(p->error_list, next_tkn, ERR_INCOMPLETE_VAR_DECLARATION);
         return parser_sync_stmt(p);

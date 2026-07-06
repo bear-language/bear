@@ -10,6 +10,7 @@
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec_ops.hpp"
+#include "compiler/hir/exec_proving.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/variant_helpers.hpp"
@@ -2212,4 +2213,63 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 
     return ctx.exec(eid).visit(vs);
 }
+
+ExecHashMap::ExecHashMap(Context& context, DataArena& arena, HirSize capacity)
+    : context(context), arena(arena), count{0} {
+    this->capacity = (capacity > DEFAULT_CAP) ? capacity : DEFAULT_CAP;
+    buckets = arena.alloc_as<Entry**>(this->capacity * sizeof(Entry*));
+
+    // zero-init buckets
+    memset(static_cast<void*>(buckets), 0, this->capacity * sizeof(Entry*));
+}
+
+size_t ExecHashMap::hash(ExecId eid) const { return hash_exec(context, eid); }
+
+bool ExecHashMap::same_structure(ExecId eid1, ExecId eid2) const {
+    return equivalent_exec(context, eid1, eid2);
+}
+
+size_t ExecHashMap::index(size_t hash, size_t cap) { return hash % cap; }
+void ExecHashMap ::put_new_head_on_chain(Entry** chain, Entry* new_entry) {
+    assert(chain);
+    new_entry->next = *chain;
+    *chain = new_entry;
+}
+void ExecHashMap::rehash(size_t new_capacity) {
+    Entry** new_buckets = arena.alloc_as<Entry**>(sizeof(Entry*) * new_capacity);
+    memset(static_cast<void*>(new_buckets), 0, new_capacity * sizeof(Entry*));
+    for (size_t i = 0; i < this->capacity; i++) {
+        Entry* curr = this->buckets[i];
+        while (curr) {
+            Entry* next = curr->next;
+            // just move curr into the new chain
+            put_new_head_on_chain(new_buckets + index(curr->hash, new_capacity), curr);
+            curr = next;
+        }
+    }
+    this->capacity = new_capacity;
+    this->buckets = new_buckets; // don't delete old buckets since arena will clean up later
+}
+
+OptId<ExecId> ExecHashMap::at(ExecId eid) const {
+    size_t hash_val = hash(eid);
+    Entry* curr = this->buckets[index(hash_val, this->capacity)];
+    while (curr) {
+        if (hash_val == curr->hash && same_structure(curr->key_id, eid)) {
+            return curr->key_id;
+        }
+        curr = curr->next;
+    }
+    return {};
+}
+
+void ExecHashMap::insert(ExecId eid) {
+    size_t hash_val = hash(eid);
+    Entry** chain = this->buckets + index(hash_val, this->capacity);
+    Entry* new_entry = arena.alloc_type<Entry>();
+    ::new (new_entry) Entry{eid, hash_val, nullptr};
+    put_new_head_on_chain(chain, new_entry);
+    ++this->count;
+}
+
 } // namespace hir

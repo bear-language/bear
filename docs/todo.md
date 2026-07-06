@@ -13,8 +13,8 @@ main quest
                 - -> figure out how to handle this as a builtin
                 - give this it's own pseudo-file but really we just lower a string literal
     - [x] better type-checking/reporting for scalar matched values
-    - [ ] redundant scalar pattern checking with double-ended range block data structure (kinda like a deque but impl'd with an llvm::SmallVector)
-
+    - [ ] redundant scalar pattern checking
+        - [ ] use a hash table + llvm::SmallVector for ranges 
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
 
 - [ ] compt/static reflection 

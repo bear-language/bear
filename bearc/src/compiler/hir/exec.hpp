@@ -446,6 +446,39 @@ struct Exec : NodeWithVariantValue<Exec> {
 
 std::string exec_to_string(Context& ctx, ExecId eid);
 
+class ExecHashMap {
+    struct Entry {
+        ExecId key_id;
+        size_t hash;
+        Entry* next;
+        Entry(ExecId key_id, size_t hash, Entry* next) : key_id(key_id), hash(hash), next(next) {}
+    };
+    static constexpr size_t DEFAULT_CAP = 128;
+    static constexpr double LOAD_FACTOR = 1.25;
+    static constexpr size_t GROWTH_FACTOR = 2;
+    // internally, this consider mut recursively:
+    using considerer_type = DoConsiderMut;
+    Context& context;
+    DataArena& arena;
+
+    Entry** buckets;
+    size_t count;
+    size_t capacity;
+
+    void rehash(size_t new_capacity);
+    bool same_structure(ExecId eid1, ExecId eid2) const;
+    size_t hash(ExecId eid) const;
+    static size_t index(size_t hash, size_t cap);
+    static void put_new_head_on_chain(Entry** chain, Entry* new_entry);
+
+  public:
+    ExecHashMap(Context& context, DataArena& arena, HirSize capacity);
+    // returns an optional ExecId of the existing ExecId inside the map
+    OptId<ExecId> at(ExecId eid) const;
+    // only use after at returns none to avoid duplicate inserts
+    void insert(ExecId eid);
+};
+
 } // namespace hir
 
 #endif

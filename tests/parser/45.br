@@ -59,7 +59,7 @@ fn pet_animal(Animal animal) {
             state.append(" Its barks are ");
             state.append_string(String..from(bark_vol));
             state.append(" decibels loud!");
-        }
+        },
         Animal..Snake | Animal..Lizard => {
             state.append(" repitilian! Oh hell nah!");
         }

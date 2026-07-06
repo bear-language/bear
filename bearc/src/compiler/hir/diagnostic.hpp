@@ -202,6 +202,7 @@ enum class diag_code : uint8_t {
     pattern_can_never_match_matched_value,
     matched_value_is_of_type,
     pattern_is_of_type,
+    existing_pattern_of_same_value_here,
 
     count, // this must be last,
 

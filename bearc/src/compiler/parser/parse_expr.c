@@ -48,7 +48,9 @@ ast_slice_of_exprs_t parse_slice_of_exprs_call(parser_t* p, token_type_e divider
     while (!(parser_peek_match(p, until_tkn) || parser_eof(p)) // while !eof (edge-case handling)
     ) {
         spill_arr_ptr_push(&sarr, call(p));
-        parser_match_token(p, divider);
+        if (!(parser_peek_match(p, until_tkn) || parser_eof(p))) {
+            parser_expect_token(p, divider);
+        }
     }
 
     return parser_freeze_expr_spill_arr(p, &sarr);
@@ -63,7 +65,9 @@ static ast_slice_of_exprs_t parse_slice_of_exprs_call_call(parser_t* p, token_ty
     while (!divider_call(parser_peek(p)->type) || parser_eof(p)) // while !eof (edge-case handling)
     {
         spill_arr_ptr_push(&sarr, call(p));
-        parser_match_token(p, divider);
+        if (!divider_call(parser_peek(p)->type) || parser_eof(p)) {
+            parser_expect_token(p, divider);
+        }
     }
 
     return parser_freeze_expr_spill_arr(p, &sarr);
@@ -773,12 +777,6 @@ ast_expr_t* parse_expr_match_pattern(parser_t* p) {
         default_expr->last = el;
         return default_expr;
     }
-    // allow parens and just recursve a bit
-    if (parser_match_token(p, TOK_LPAREN)) {
-        ast_expr_t* patt = parse_expr_match_pattern(p);
-        parser_expect_token(p, TOK_RPAREN);
-        return patt;
-    }
     // handle identifier or variant decomp
     token_type_e next_type = parser_peek(p)->type;
     if (next_type == TOK_IDENTIFIER) {
@@ -791,29 +789,20 @@ ast_expr_t* parse_expr_match_pattern(parser_t* p) {
             return parse_expr_variant_decomp_with_leading_id(p, id->expr.id.slice);
         }
 
-        if (next_type == TOK_ELLIPSE || next_type == TOK_ELLIPSE_EQ) {
-            return parse_binary(p, id, PREC_INIT);
-        }
-        return id;
+        // ban TOK_BAR, `|` since that is used to seperate chained patterns
+        parser_mode_e saved = parser_mode(p);
+        parser_mode_set(p, PARSER_MODE_BAN_BAR);
+        ast_expr_t* expr = parse_expr_prec(p, id, PREC_INIT);
+        parser_mode_set(p, saved); // restore
+        return expr;
     }
-    if (token_is_literal(next_type)) {
-        ast_expr_t* lhs = parse_literal(p);
-        next_type = parser_peek(p)->type;
-        if (next_type == TOK_ELLIPSE || next_type == TOK_ELLIPSE_EQ) {
-            return parse_binary(p, lhs, PREC_INIT);
-        }
-        return lhs;
-    }
-    if (is_preunary_op(next_type)) {
-        ast_expr_t* lhs = parse_preunary_expr(p);
-        next_type = parser_peek(p)->type;
-        if (next_type == TOK_ELLIPSE || next_type == TOK_ELLIPSE_EQ) {
-            return parse_binary(p, lhs, PREC_INIT);
-        }
-        return lhs;
-    }
-    compiler_error_list_emplace(p->error_list, parser_peek(p), ERR_INVALID_PATTERN);
-    return parser_sync_expr(p);
+
+    // ^^^
+    parser_mode_e saved = parser_mode(p);
+    parser_mode_set(p, PARSER_MODE_BAN_BAR);
+    ast_expr_t* expr = parse_expr(p);
+    parser_mode_set(p, saved); // restore
+    return expr;
 }
 
 ast_expr_t* parse_expr_block_call(parser_t* p, ast_stmt_t* (*call)(parser_t*)) {

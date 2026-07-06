@@ -252,7 +252,8 @@ token_t* parser_peek_generic_closing_delims(parser_t* p) {
 bool is_legal_binary_op(parser_t* p, token_type_e type) {
     return is_binary_op(type)
            && !((p->mode == PARSER_MODE_BAN_ANGLE_BRACKETS_IN_EXPRS)
-                && is_angle_bracket_operator(type));
+                && is_angle_bracket_operator(type))
+           && !((p->mode == PARSER_MODE_BAN_BAR) && type == TOK_BAR);
 }
 
 // map containing look-ups for builtin types

@@ -401,6 +401,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "matched value is of type";
     case diag_code::pattern_is_of_type:
         return "pattern is of type";
+    case diag_code::existing_pattern_of_same_value_here:
+        return "existing pattern of same value here";
     }
 
     std::unreachable();

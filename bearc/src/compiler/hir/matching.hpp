@@ -13,6 +13,7 @@
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
+#include "compiler/hir/exec.hpp"
 #include "compiler/hir/exec_proving.hpp"
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/id_set.hpp"
@@ -227,6 +228,11 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
 
     bool valid = true;
 
+    // decently sized
+    DataArena arena{0x400};
+
+    ExecHashMap exec_map{context, arena, 0x200};
+
     for (size_t i = 0; i < branches.len; ++i) {
 
         const ast_expr_t* branch = branches.start[i];
@@ -282,7 +288,19 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
                         matched.span, diag_code::matched_value_is_of_type, diag_type::note,
                         DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()}));
                 }
+                continue;
             }
+            const OptId<ExecId> already_eid = exec_map.at(pattern_eid);
+            if (already_eid.has_value()) {
+                dl.link(context.emplace_diagnostic(context.exec(pattern_eid).span,
+                                                   diag_code::duplicate_match_pattern,
+                                                   diag_type::error));
+                dl.link(context.emplace_diagnostic(context.exec(already_eid.as_id()).span,
+                                                   diag_code::existing_pattern_of_same_value_here,
+                                                   diag_type::note));
+                continue;
+            }
+            exec_map.insert(pattern_eid);
         }
     }
 
