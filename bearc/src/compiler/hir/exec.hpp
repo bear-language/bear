@@ -190,6 +190,43 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
         std::unreachable();
         return 0;
     }
+    [[nodiscard]] int64_t to_i64() const {
+        switch (this->type_builtin()) {
+        case builtin_type::u8:
+            return as<u8>();
+        case builtin_type::i8:
+            return as<i8>();
+        case builtin_type::u16:
+            return as<u16>();
+        case builtin_type::i16:
+            return as<i16>();
+        case builtin_type::u32:
+            return as<u32>();
+        case builtin_type::i32:
+            return as<i32>();
+        case builtin_type::u64:
+            return static_cast<int64_t>(as<u64>());
+        case builtin_type::i64:
+            return as<i64>();
+        case builtin_type::charr:
+            return as<char>();
+        case builtin_type::f32:
+            return static_cast<int64_t>(std::bit_cast<int32_t>(as<f32>()));
+        case builtin_type::f64:
+            return std::bit_cast<int64_t>(as<f64>());
+        case builtin_type::voidd:
+            return 0;
+        case builtin_type::str:
+            return as<SymbolId>().raw();
+        case builtin_type::nullpointer:
+            return 0;
+        case builtin_type::boolean:
+            return as<bool>();
+        }
+        std::unreachable();
+        return 0;
+    }
+
     // treats signed/unsigned/floats/other as distinct, but not subcategories
     // example: u8 and u32 are the same, but not i8 and u32 unless the signed value is non-negative
     [[nodiscard]] size_t hash_identity() const {
@@ -226,6 +263,81 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
         }
         std::unreachable();
         return 0;
+    }
+
+    bool is_signed_integral() const {
+        switch (this->type_builtin()) {
+        case builtin_type::i8:
+        case builtin_type::i16:
+        case builtin_type::i32:
+        case builtin_type::i64:
+            return true;
+        case builtin_type::charr:
+        case builtin_type::f32:
+        case builtin_type::f64:
+        case builtin_type::voidd:
+        case builtin_type::str:
+        case builtin_type::nullpointer:
+        case builtin_type::boolean:
+        case builtin_type::u8:
+        case builtin_type::u16:
+        case builtin_type::u32:
+        case builtin_type::u64:
+            break;
+        }
+        return false;
+    }
+    bool is_unsigned_integral() const {
+        switch (this->type_builtin()) {
+        case builtin_type::u8:
+        case builtin_type::u16:
+        case builtin_type::u32:
+        case builtin_type::u64:
+            return true;
+        case builtin_type::i8:
+        case builtin_type::i16:
+        case builtin_type::i32:
+        case builtin_type::i64:
+        case builtin_type::charr:
+        case builtin_type::f32:
+        case builtin_type::f64:
+        case builtin_type::voidd:
+        case builtin_type::str:
+        case builtin_type::nullpointer:
+        case builtin_type::boolean:
+            break;
+        }
+        return false;
+    }
+
+    bool less_than_signed(ExecExprComptConstant other) const { return to_i64() < other.to_i64(); }
+
+    bool less_than_unsigned(ExecExprComptConstant other) const {
+        return to_size() < other.to_size();
+    }
+
+    bool less_than_or_equal_signed(ExecExprComptConstant other) const {
+        return to_i64() <= other.to_i64();
+    }
+
+    bool less_than_or_equal_unsigned(ExecExprComptConstant other) const {
+        return to_size() <= other.to_size();
+    }
+
+    bool greater_than_signed(ExecExprComptConstant other) const {
+        return to_i64() > other.to_i64();
+    }
+
+    bool greater_than_unsigned(ExecExprComptConstant other) const {
+        return to_size() > other.to_size();
+    }
+
+    bool greater_than_or_equal_signed(ExecExprComptConstant other) const {
+        return to_i64() >= other.to_i64();
+    }
+
+    bool greater_than_or_equal_unsigned(ExecExprComptConstant other) const {
+        return to_size() >= other.to_size();
     }
 
     // straight up string converter, use this mostly just for debugging

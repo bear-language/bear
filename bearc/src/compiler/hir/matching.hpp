@@ -16,11 +16,13 @@
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/exec_proving.hpp"
 #include "compiler/hir/expr_solver.hpp"
+#include "compiler/hir/fast_list.hpp"
 #include "compiler/hir/id_set.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "utils/data_arena.hpp"
 #include <cassert>
 #include <cstddef>
+#include <iostream>
 
 namespace hir {
 
@@ -180,6 +182,61 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId containing_scope,
     return valid;
 }
 
+/// only ExecId's corresponds to ExecRanges should be provided
+class RangeList {
+    FastList<ExecId> list{};
+    const Context& ctx;
+
+  public:
+    RangeList(const Context& ctx) : ctx{ctx} {}
+    /// only ExecId's corresponds to ExecRanges should be provided
+    void put(ExecId elem) { list.put_head(elem); }
+    OptId<ExecId> search_overlapping(ExecId eid) {
+
+        const Exec& range_exec = ctx.exec(eid);
+
+        assert(range_exec.holds<ExecRange>());
+
+        ExecId start = range_exec.as<ExecRange>().start;
+
+        ExecConst start_val = ctx.exec(start).as<ExecConst>();
+
+        bool is_signed = start_val.is_signed_integral();
+
+        auto less_than_or_eq = [is_signed](ExecConst l, ExecConst r) {
+            return (is_signed) ? l.less_than_or_equal_signed(r) : l.less_than_or_equal_unsigned(r);
+        };
+
+        auto greater_than_or_eq = [is_signed](ExecConst l, ExecConst r) {
+            return (is_signed) ? l.greater_than_or_equal_signed(r)
+                               : l.greater_than_or_equal_unsigned(r);
+        };
+
+        for (const ExecId eid : list) {
+            const Exec& curr_range_exec = ctx.exec(eid);
+
+            assert(curr_range_exec.holds<ExecRange>());
+
+            ExecId curr_start = curr_range_exec.as<ExecRange>().start;
+            ExecId curr_end = curr_range_exec.as<ExecRange>().end;
+
+            ExecConst curr_start_val = ctx.exec(curr_start).as<ExecConst>();
+            ExecConst curr_end_val = ctx.exec(curr_end).as<ExecConst>();
+
+            // meaning overlapping
+            if ((greater_than_or_eq(start_val, curr_start_val)
+                 && (less_than_or_eq(start_val, curr_end_val)))
+                || (less_than_or_eq(start_val, curr_start_val)
+                    && (greater_than_or_eq(start_val, curr_end_val)))
+
+            ) {
+                return eid;
+            }
+        }
+        return {};
+    }
+};
+
 template <IsExprSolver S>
 bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid,
                                             const ast_expr_t* match_expr) {
@@ -232,6 +289,9 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
     DataArena arena{0x400};
 
     ExecHashMap exec_map{context, arena, 0x200};
+
+    // optional so we can lazy init
+    std::optional<RangeList> ranges{};
 
     for (size_t i = 0; i < branches.len; ++i) {
 
@@ -287,6 +347,26 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
                     dl.link(ctx.emplace_diagnostic_with_message_value(
                         matched.span, diag_code::matched_value_is_of_type, diag_type::note,
                         DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()}));
+                }
+                continue;
+            }
+            if (context.exec(pattern_eid).holds<ExecRange>()) {
+                // lazy init
+                if (!ranges) {
+                    ranges.emplace(context);
+                }
+                const auto maybe_overlapping = ranges.value().search_overlapping(pattern_eid);
+                if (maybe_overlapping.has_value()) {
+                    dl.link(context.emplace_diagnostic(context.exec(pattern_eid).span,
+                                                       diag_code::overlapping_range_patern,
+                                                       diag_type::error));
+                    dl.link(context.emplace_diagnostic(
+                        context.exec(maybe_overlapping.as_id()).span,
+                        diag_code::existing_pattern_with_overlapping_range_here, diag_type::note));
+                } else {
+                    ranges->put(pattern_eid);
+                    std::cout << "YAHOO: " << exec_to_string(ctx, pattern_eid)
+                              << "\n"; // TODO debug
                 }
                 continue;
             }

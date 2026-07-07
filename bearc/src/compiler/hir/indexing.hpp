@@ -144,21 +144,24 @@ template <hir::IsId T> class OptId {
     using none_type = Opt::NoneId;
     static constexpr none_type none = Opt::none;
     using id_tag = T;
-    OptId() = default;
-    OptId(T id_value) : underlying(id_value) {}
+    constexpr OptId() = default;
+    constexpr OptId(T id_value) : underlying(id_value) {}
     // allow conversion from none_type
     constexpr OptId(none_type none) : OptId{} { const auto _ = none; }
-    HirId raw() const { return underlying.raw(); }
+    constexpr HirId raw() const { return underlying.raw(); }
     constexpr T as_id() const noexcept {
         assert(underlying.raw() != HIR_ID_NONE);
         return underlying;
     }
-    [[nodiscard]] bool has_value() const noexcept { return underlying.raw() != HIR_ID_NONE; }
-    [[nodiscard]] bool empty() const noexcept { return underlying.raw() == HIR_ID_NONE; }
+    [[nodiscard]] constexpr bool has_value() const noexcept {
+        return underlying.raw() != HIR_ID_NONE;
+    }
+    [[nodiscard]] constexpr bool empty() const noexcept { return underlying.raw() == HIR_ID_NONE; }
     void set(T id_value) noexcept { this->underlying = id_value; }
     T get_or(T or_else_this_value) {
         return this->has_value() ? this->as_id() : or_else_this_value;
     };
+    friend constexpr bool operator==(OptId<T> a, OptId<T> b) { return a.raw() == b.raw(); }
 };
 
 template <hir::IsId T> class IdSlice {

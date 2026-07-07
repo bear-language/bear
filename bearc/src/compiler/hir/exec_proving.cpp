@@ -211,7 +211,10 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecLoopStmt& t) -> bool { return false; },
         [](const ExecReturnStmt& t) -> bool { return false; },
         [](const ExecYieldStmt& t) -> bool { return false; },
-        [&e2, &ctx](const ExecRange t) -> bool {
+        [&e2, &ctx, eid2](const ExecRange t) -> bool {
+            if (e2.holds<ExecConst>()) {
+                return possibly_equivalent_exec(ctx, t.start, eid2);
+            }
             if (!e2.holds<ExecRange>()) {
                 return false;
             }
@@ -266,12 +269,16 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             return (t.field_def == o.field_def);
         },
         [](const ExecExprVariable& t) -> bool { return false; },
-        [&e2](const ExecExprComptConstant& t) -> bool {
+        [&e2, &ctx, eid1](const ExecExprComptConstant& t) -> bool {
+            if (e2.holds<ExecRange>()) {
+                return possibly_equivalent_exec(ctx, eid1, e2.as<ExecRange>().start);
+            }
             if (!e2.holds<ExecExprComptConstant>()) {
                 return false;
             }
             const auto o = e2.as<ExecExprComptConstant>();
-            return (o.hash_identity() == t.hash_identity());
+            return ((o.is_signed_integral() && o.is_signed_integral())
+                    || o.hash_identity() == t.hash_identity());
         },
         [&e2, &ctx](const ExecExprListLiteral& t) -> bool {
             if (!e2.holds<ExecExprListLiteral>()) {

@@ -403,6 +403,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "pattern is of type";
     case diag_code::existing_pattern_of_same_value_here:
         return "existing pattern of same value here";
+    case diag_code::overlapping_range_patern:
+        return "overlapping range pattern";
+    case diag_code::existing_pattern_with_overlapping_range_here:
+        return "existing pattern with overlapping range here";
     }
 
     std::unreachable();

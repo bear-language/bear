@@ -203,6 +203,8 @@ enum class diag_code : uint8_t {
     matched_value_is_of_type,
     pattern_is_of_type,
     existing_pattern_of_same_value_here,
+    overlapping_range_patern,
+    existing_pattern_with_overlapping_range_here,
 
     count, // this must be last,
 

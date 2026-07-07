@@ -21,23 +21,23 @@ concept Node = hir::IsId<typename T::id_type>;
 /// Maps an hir::Id to any type
 /// - this should be used for linear indexing where each contiguous Id that exists will correspond
 /// to exactly one value..
-template <hir::IsId I, typename V> class IdVecMap {
+template <hir::IsId I, typename V, typename VectorType> class IdVecMapBase {
   protected:
-    std::vector<V> vec;
+    VectorType vec;
 
   private:
     static constexpr HirId OFFSET = 1;
 
   public:
-    explicit IdVecMap(HirSize capacity) : vec{} { vec.reserve(capacity + OFFSET); }
+    explicit IdVecMapBase(HirSize capacity) : vec{} { vec.reserve(capacity + OFFSET); }
     void reserve(HirSize size) { vec.reserve(size); }
     [[nodiscard]] V& at(I id) {
         assert(id.raw() != HIR_ID_NONE && "[hir::IdVecMap::at] asked for an id of HIR_ID_NONE\n");
-        return vec.at(id.raw() - OFFSET);
+        return vec[id.raw() - OFFSET];
     }
     [[nodiscard]] const V& at(I id) const {
         assert(id.raw() != HIR_ID_NONE && "[hir::IdVecMap::cat] asked for an id of HIR_ID_NONE\n");
-        return vec.at(id.raw() - OFFSET);
+        return vec[id.raw() - OFFSET];
     }
     template <typename... Args>
     [[nodiscard("Id must be fetched or emplaced node is dead.")]] I
@@ -60,11 +60,11 @@ template <hir::IsId I, typename V> class IdVecMap {
     using value_type = V;
     using reference = V&;
     using const_reference = const V&;
-    using iterator = typename std::vector<V>::iterator;
-    using const_iterator = typename std::vector<V>::const_iterator;
-    using reverse_iterator = typename std::vector<V>::reverse_iterator;
-    using const_reverse_iterator = typename std::vector<V>::const_reverse_iterator;
-    using size_type = typename std::vector<V>::size_type;
+    using iterator = typename VectorType::iterator;
+    using const_iterator = typename VectorType::const_iterator;
+    using reverse_iterator = typename VectorType::reverse_iterator;
+    using const_reverse_iterator = typename VectorType::const_reverse_iterator;
+    using size_type = typename VectorType::size_type;
 
     [[nodiscard]] iterator begin() noexcept { return vec.begin(); }
     [[nodiscard]] const_iterator begin() const noexcept { return vec.begin(); }
@@ -86,10 +86,27 @@ template <hir::IsId I, typename V> class IdVecMap {
     [[nodiscard]] size_type size() const noexcept { return vec.size(); }
 };
 
+template <hir::IsId I, typename V> class IdVecMap : public IdVecMapBase<I, V, std::vector<V>> {
+  public:
+    explicit IdVecMap(HirSize capacity) : IdVecMapBase<I, V, std::vector<V>>(capacity) {}
+};
+
 /// Models a vector of an hir::Node
 template <Node T> class NodeVector : public IdVecMap<typename T::id_type, T> {
   public:
     explicit NodeVector(HirSize capacity) : IdVecMap<typename T::id_type, T>(capacity) {}
+};
+
+template <hir::IsId I, typename V>
+class SmallIdVecMap : public IdVecMapBase<I, V, llvm::SmallVector<V>> {
+  public:
+    explicit SmallIdVecMap(HirSize capacity) : IdVecMapBase<I, V, llvm::SmallVector<V>>(capacity) {}
+};
+
+/// Models a vector of an hir::Node with an internal small vector
+template <Node T> class SmallNodeVector : public SmallIdVecMap<typename T::id_type, T> {
+  public:
+    explicit SmallNodeVector(HirSize capacity) : SmallIdVecMap<typename T::id_type, T>(capacity) {}
 };
 
 /// Models a vector of an hir::IdIdx pointing to hir::Id
