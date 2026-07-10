@@ -407,6 +407,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "overlapping range pattern";
     case diag_code::existing_pattern_with_overlapping_range_here:
         return "existing pattern with overlapping range here";
+    case diag_code::overlapping_pattern:
+        return "overlapping pattern";
     }
 
     std::unreachable();

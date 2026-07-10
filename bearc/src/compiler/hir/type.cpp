@@ -609,7 +609,6 @@ std::string type_to_string_as_mentioned_without_muts(Context& ctx, TypeId tid) {
 }
 
 bool builtin_type_has_binary_op(builtin_type type, binary_op op) {
-    // TODO add ranges here
     switch (type) {
     case builtin_type::str:
         switch (op) {

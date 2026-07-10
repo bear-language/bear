@@ -205,6 +205,7 @@ enum class diag_code : uint8_t {
     existing_pattern_of_same_value_here,
     overlapping_range_patern,
     existing_pattern_with_overlapping_range_here,
+    overlapping_pattern,
 
     count, // this must be last,
 

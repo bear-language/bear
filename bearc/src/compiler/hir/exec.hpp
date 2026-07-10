@@ -265,6 +265,29 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
         return 0;
     }
 
+    bool is_integral() const {
+        switch (this->type_builtin()) {
+        case builtin_type::i8:
+        case builtin_type::i16:
+        case builtin_type::i32:
+        case builtin_type::i64:
+        case builtin_type::u8:
+        case builtin_type::u16:
+        case builtin_type::u32:
+        case builtin_type::u64:
+            return true;
+        case builtin_type::charr:
+        case builtin_type::f32:
+        case builtin_type::f64:
+        case builtin_type::voidd:
+        case builtin_type::str:
+        case builtin_type::nullpointer:
+        case builtin_type::boolean:
+            break;
+        }
+        return false;
+    }
+
     bool is_signed_integral() const {
         switch (this->type_builtin()) {
         case builtin_type::i8:
@@ -589,6 +612,40 @@ class ExecHashMap {
     OptId<ExecId> at(ExecId eid) const;
     // only use after at returns none to avoid duplicate inserts
     void insert(ExecId eid);
+
+    // TODO finish
+    struct Iter {
+        using iterator_category = std::forward_iterator_tag;
+
+        Iter(const ExecHashMap& map, Entry* curr, size_t curr_bucket)
+            : map{map}, curr{curr}, curr_bucket{curr_bucket} {}
+
+        ExecId operator*() const noexcept { return this->curr->key_id; }
+
+        Iter& operator++() noexcept {
+            // TODO seek next Entry*
+            return *this;
+        }
+
+        Iter operator++(int) noexcept {
+            Iter tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        friend bool operator==(const Iter& a, const Iter& b) noexcept { return a.curr == b.curr; }
+        friend bool operator!=(const Iter& a, const Iter& b) noexcept { return !(a == b); }
+
+      private:
+        const ExecHashMap& map;
+        Entry* curr{nullptr};
+        size_t curr_bucket;
+    };
+    Iter begin() const noexcept {
+        // TODO seek first entry
+        return Iter{*this, nullptr, 0};
+    }
+    Iter end() const noexcept { return Iter{*this, nullptr, 0}; }
 };
 
 } // namespace hir

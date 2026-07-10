@@ -25,7 +25,7 @@ template <typename T> class FastList {
     NodeVec nodes;
     OptId<NodeId> head{};
     OptId<NodeId> tail{};
-    HirSize size{};
+    HirSize size_{};
 
     static constexpr HirSize DEFAULT_CAP = 128;
 
@@ -37,6 +37,10 @@ template <typename T> class FastList {
     auto operator=(const FastList&) = delete;
     auto operator=(FastList&&) = delete;
 
+    [[nodiscard]] size_t size() { return this->size_; }
+
+    [[nodiscard]] bool empty() { return this->size_ == 0; }
+
     /// puts a new head on the list
     void put_head(T val) {
         const NodeId node = nodes.emplace_and_get_id(Node{.val = val, .prev = {}, .next = head});
@@ -44,10 +48,10 @@ template <typename T> class FastList {
             nodes.at(head.as_id()).prev = node;
         }
         head = node;
-        if (size == 0) {
+        if (size_ == 0) {
             tail = node;
         }
-        ++size;
+        ++size_;
     }
 
     /// puts a new tail on the list
@@ -57,10 +61,10 @@ template <typename T> class FastList {
             nodes.at(tail.as_id()).next = node;
         }
         tail = node;
-        if (size == 0) {
+        if (size_ == 0) {
             head = node;
         }
-        ++size;
+        ++size_;
     }
 
     class Iter {

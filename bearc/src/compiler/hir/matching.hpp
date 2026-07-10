@@ -22,7 +22,6 @@
 #include "utils/data_arena.hpp"
 #include <cassert>
 #include <cstddef>
-#include <iostream>
 
 namespace hir {
 
@@ -191,7 +190,21 @@ class RangeList {
     RangeList(const Context& ctx) : ctx{ctx} {}
     /// only ExecId's corresponds to ExecRanges should be provided
     void put(ExecId elem) { list.put_head(elem); }
-    OptId<ExecId> search_overlapping(ExecId eid) {
+
+    static bool less_than_or_eq(bool is_signed, ExecConst l, ExecConst r) {
+        return (is_signed) ? l.less_than_or_equal_signed(r) : l.less_than_or_equal_unsigned(r);
+    };
+
+    static bool greater_than_or_eq(bool is_signed, ExecConst l, ExecConst r) {
+        return (is_signed) ? l.greater_than_or_equal_signed(r)
+                           : l.greater_than_or_equal_unsigned(r);
+    };
+
+    OptId<ExecId> search_overlapping_list(ExecId eid) {
+
+        if (list.empty()) {
+            return {};
+        }
 
         const Exec& range_exec = ctx.exec(eid);
 
@@ -202,15 +215,6 @@ class RangeList {
         ExecConst start_val = ctx.exec(start).as<ExecConst>();
 
         bool is_signed = start_val.is_signed_integral();
-
-        auto less_than_or_eq = [is_signed](ExecConst l, ExecConst r) {
-            return (is_signed) ? l.less_than_or_equal_signed(r) : l.less_than_or_equal_unsigned(r);
-        };
-
-        auto greater_than_or_eq = [is_signed](ExecConst l, ExecConst r) {
-            return (is_signed) ? l.greater_than_or_equal_signed(r)
-                               : l.greater_than_or_equal_unsigned(r);
-        };
 
         for (const ExecId eid : list) {
             const Exec& curr_range_exec = ctx.exec(eid);
@@ -224,10 +228,52 @@ class RangeList {
             ExecConst curr_end_val = ctx.exec(curr_end).as<ExecConst>();
 
             // meaning overlapping
-            if ((greater_than_or_eq(start_val, curr_start_val)
-                 && (less_than_or_eq(start_val, curr_end_val)))
-                || (less_than_or_eq(start_val, curr_start_val)
-                    && (greater_than_or_eq(start_val, curr_end_val)))
+            if ((greater_than_or_eq(is_signed, start_val, curr_start_val)
+                 && (less_than_or_eq(is_signed, start_val, curr_end_val)))
+                || (less_than_or_eq(is_signed, start_val, curr_start_val)
+                    && (greater_than_or_eq(is_signed, start_val, curr_end_val)))
+
+            ) {
+                return eid;
+            }
+        }
+        return {};
+    }
+
+    OptId<ExecId> search_overlapping_value(ExecId eid) {
+
+        if (list.empty()) {
+            return {};
+        }
+
+        const Exec& const_exec = ctx.exec(eid);
+
+        assert(const_exec.holds<ExecConst>());
+
+        ExecConst val = const_exec.as<ExecConst>();
+
+        if (!val.is_integral()) {
+            return {};
+        }
+
+        bool is_signed = val.is_signed_integral();
+
+        for (const ExecId eid : list) {
+            const Exec& curr_range_exec = ctx.exec(eid);
+
+            assert(curr_range_exec.holds<ExecRange>());
+
+            ExecId curr_start = curr_range_exec.as<ExecRange>().start;
+            ExecId curr_end = curr_range_exec.as<ExecRange>().end;
+
+            ExecConst curr_start_val = ctx.exec(curr_start).as<ExecConst>();
+            ExecConst curr_end_val = ctx.exec(curr_end).as<ExecConst>();
+
+            // meaning overlapping
+            if ((greater_than_or_eq(is_signed, val, curr_start_val)
+                 && (less_than_or_eq(is_signed, val, curr_end_val)))
+                || (less_than_or_eq(is_signed, val, curr_start_val)
+                    && (greater_than_or_eq(is_signed, val, curr_end_val)))
 
             ) {
                 return eid;
@@ -236,6 +282,33 @@ class RangeList {
         return {};
     }
 };
+
+inline bool value_inside_range(const Context& ctx, ExecId range_eid, ExecId val_eid) {
+    const Exec& range_exec = ctx.exec(range_eid);
+
+    const Exec& value_exec = ctx.exec(val_eid);
+
+    assert(range_exec.holds<ExecRange>());
+    assert(value_exec.holds<ExecConst>());
+
+    ExecId start = range_exec.as<ExecRange>().start;
+
+    ExecConst start_val = ctx.exec(start).as<ExecConst>();
+
+    bool is_signed = start_val.is_signed_integral();
+
+    ExecId end = range_exec.as<ExecRange>().end;
+
+    ExecConst end_val = ctx.exec(end).as<ExecConst>();
+
+    ExecConst val = value_exec.as<ExecConst>();
+
+    // meaning overlapping
+    return ((RangeList::greater_than_or_eq(is_signed, val, start_val)
+             && (RangeList::less_than_or_eq(is_signed, val, end_val)))
+            || (RangeList::less_than_or_eq(is_signed, val, start_val)
+                && (RangeList::greater_than_or_eq(is_signed, val, end_val))));
+}
 
 template <IsExprSolver S>
 bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid,
@@ -355,7 +428,7 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
                 if (!ranges) {
                     ranges.emplace(context);
                 }
-                const auto maybe_overlapping = ranges.value().search_overlapping(pattern_eid);
+                const auto maybe_overlapping = ranges.value().search_overlapping_list(pattern_eid);
                 if (maybe_overlapping.has_value()) {
                     dl.link(context.emplace_diagnostic(context.exec(pattern_eid).span,
                                                        diag_code::overlapping_range_patern,
@@ -365,10 +438,27 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
                         diag_code::existing_pattern_with_overlapping_range_here, diag_type::note));
                 } else {
                     ranges->put(pattern_eid);
-                    std::cout << "YAHOO: " << exec_to_string(ctx, pattern_eid)
-                              << "\n"; // TODO debug
                 }
+                // TODO
+                // iter thru each in exec_map and check with value_inside_range
                 continue;
+            }
+            if (context.exec(pattern_eid).holds<ExecConst>()
+                && context.exec(pattern_eid).as<ExecConst>().is_integral()) {
+                // lazy init
+                if (!ranges) {
+                    ranges.emplace(context);
+                }
+                const auto maybe_overlapping = ranges.value().search_overlapping_value(pattern_eid);
+                if (maybe_overlapping.has_value()) {
+                    dl.link(context.emplace_diagnostic(context.exec(pattern_eid).span,
+                                                       diag_code::overlapping_range_patern,
+                                                       diag_type::error));
+                    dl.link(context.emplace_diagnostic(
+                        context.exec(maybe_overlapping.as_id()).span,
+                        diag_code::existing_pattern_with_overlapping_range_here, diag_type::note));
+                    continue;
+                }
             }
             const OptId<ExecId> already_eid = exec_map.at(pattern_eid);
             if (already_eid.has_value()) {
