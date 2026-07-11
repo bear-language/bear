@@ -6,16 +6,6 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] `compt` improvements:
-    - [x] compt ranges `1...4` and make then work with compt matching
-        - [x] decide how to represent ranges in the type system 
-            - `struct Range<S> {}...` 
-                - -> figure out how to handle this as a builtin
-                - give this it's own pseudo-file but really we just lower a string literal
-    - [x] better type-checking/reporting for scalar matched values
-    - [ ] ranges with `patern_matches`
-    - [ ] single value checks against existing ranges 
-    - [ ] ranges checks against existing single values
 - [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
 
 - [ ] compt/static reflection 
