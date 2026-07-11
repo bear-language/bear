@@ -17,3 +17,7 @@ var _5 = @static_assert match -14 {0...=-14 => 2, else => 1} == 2;
 var _6 = @static_assert match 0 {0...=0 => 2, else => 1} == 2;
 
 var _7 = @static_assert match 10000000 {10000000 ...=0 => 2, else => 1} == 2;
+
+var _8 = @static_assert match 1...10 {1...10 => 2, else => 1} == 2;
+
+var _9 = @static_assert match 1...11 {1...10 => 2} == 1; // oops
