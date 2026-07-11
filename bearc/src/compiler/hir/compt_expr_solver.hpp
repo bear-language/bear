@@ -3548,13 +3548,21 @@ template <IsDefVisitor V> class ComptExprSolver {
             return false; // (poison)
         }
 
-        const auto maybe_pattern_val = solve_expr(fid, scope, pattern_expr);
+        const OptId<ExecId> maybe_pattern_eid = solve_expr(fid, scope, pattern_expr);
 
-        if (maybe_pattern_val.empty()) {
+        if (maybe_pattern_eid.empty()) {
             return {};
         }
 
-        return equivalent_exec(context, maybe_pattern_val.as_id(), matched_eid);
+        // handle range case
+        if (context.exec(maybe_pattern_eid.as_id()).holds<ExecRange>()
+            && matched_exec.holds<ExecConst>() && matched_exec.as<ExecConst>().is_integral()) {
+            if (value_inside_range(context, maybe_pattern_eid.as_id(), matched_eid)) {
+                return true;
+            }
+        }
+
+        return equivalent_exec(context, maybe_pattern_eid.as_id(), matched_eid);
     }
 
     /// returns true on variant decomp, else false

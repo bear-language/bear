@@ -619,11 +619,36 @@ class ExecHashMap {
 
         Iter(const ExecHashMap& map, Entry* curr, size_t curr_bucket)
             : map{map}, curr{curr}, curr_bucket{curr_bucket} {}
+        Iter(const ExecHashMap& map) : map{map}, curr{nullptr}, curr_bucket{0} {
+            for (size_t i = 0; i < map.capacity; ++i) {
+                if (map.buckets[i] != nullptr) {
+                    curr = map.buckets[i];
+                }
+            }
+        }
 
         ExecId operator*() const noexcept { return this->curr->key_id; }
 
         Iter& operator++() noexcept {
-            // TODO seek next Entry*
+            if (!curr) {
+                return *this;
+            }
+
+            if (curr->next) {
+                curr = curr->next;
+            }
+
+            while (curr_bucket < map.capacity) {
+                if (map.buckets[curr_bucket] != nullptr) {
+                    curr = map.buckets[curr_bucket];
+                }
+                ++curr_bucket;
+            }
+
+            if (curr_bucket == map.capacity) {
+                this->curr = nullptr; // end of the road
+            }
+
             return *this;
         }
 
@@ -641,10 +666,7 @@ class ExecHashMap {
         Entry* curr{nullptr};
         size_t curr_bucket;
     };
-    Iter begin() const noexcept {
-        // TODO seek first entry
-        return Iter{*this, nullptr, 0};
-    }
+    Iter begin() const noexcept { return Iter{*this}; }
     Iter end() const noexcept { return Iter{*this, nullptr, 0}; }
 };
 

@@ -213,6 +213,7 @@ class RangeList {
         ExecId start = range_exec.as<ExecRange>().start;
 
         ExecConst start_val = ctx.exec(start).as<ExecConst>();
+        ExecConst end_val = ctx.exec(range_exec.as<ExecRange>().end).as<ExecConst>();
 
         bool is_signed = start_val.is_signed_integral();
 
@@ -228,12 +229,11 @@ class RangeList {
             ExecConst curr_end_val = ctx.exec(curr_end).as<ExecConst>();
 
             // meaning overlapping
-            if ((greater_than_or_eq(is_signed, start_val, curr_start_val)
-                 && (less_than_or_eq(is_signed, start_val, curr_end_val)))
-                || (less_than_or_eq(is_signed, start_val, curr_start_val)
-                    && (greater_than_or_eq(is_signed, start_val, curr_end_val)))
+            if ((less_than_or_eq(is_signed, start_val, curr_end_val)
+                 && less_than_or_eq(is_signed, curr_start_val, end_val))) {
 
-            ) {
+                // TODO this condition likely fails when end is less than start
+
                 return eid;
             }
         }
@@ -439,8 +439,19 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
                 } else {
                     ranges->put(pattern_eid);
                 }
-                // TODO
-                // iter thru each in exec_map and check with value_inside_range
+                // iter thru each in exec_map and check if it overlaps
+                for (const ExecId existing_val_eid : exec_map) {
+                    if (value_inside_range(context, pattern_eid, existing_val_eid)) {
+                        dl.link(context.emplace_diagnostic(context.exec(pattern_eid).span,
+                                                           diag_code::overlapping_range_patern,
+                                                           diag_type::error));
+                        dl.link(context.emplace_diagnostic(
+                            context.exec(existing_val_eid).span,
+                            diag_code::existing_pattern_with_overlapping_range_here,
+                            diag_type::note));
+                        break;
+                    }
+                }
                 continue;
             }
             if (context.exec(pattern_eid).holds<ExecConst>()

@@ -859,10 +859,20 @@ ast_expr_t* parse_expr_match(parser_t* p) {
     if (!parser_expect_token(p, TOK_MATCH)) {
         return parser_sync_expr(p);
     }
-    // match (<matched_expr>)
-    parser_expect_token(p, TOK_LPAREN);
-    sw->expr.match_expr.matched = parse_expr(p);
-    parser_expect_token(p, TOK_RPAREN);
+    // match [(]? <matched_expr> [)]?
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
+    if (!lparen) {
+        // ban struct init in this case so match foo {...} doesn't get parsed as match (foo{...})
+        parser_mode_e saved = parser_mode(p);
+        parser_mode_set(p, PARSER_MODE_BAN_STRUCT_INIT);
+        sw->expr.match_expr.matched = parse_expr(p);
+        parser_mode_set(p, saved);
+    } else {
+        sw->expr.match_expr.matched = parse_expr(p);
+    }
+    if (lparen) {
+        parser_expect_token(p, TOK_RPAREN);
+    }
     // guard safely again swtich(<expr>))))))...
     parser_guard_against_trailing_rparens(p);
 
