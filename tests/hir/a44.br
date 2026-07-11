@@ -1,0 +1,5 @@
+// tests/hir/a44.br
+
+mod hir_a44;
+
+compt i32...a = 12;

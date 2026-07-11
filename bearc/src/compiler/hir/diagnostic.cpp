@@ -409,6 +409,11 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "existing pattern with overlapping range here";
     case diag_code::overlapping_pattern:
         return "overlapping pattern";
+    case diag_code::variadic_type_not_allowed_here:
+        return "variadic type not allowed here";
+    case diag_code::variadic_types_are_only_allowed_in_the_last_paramter_of_a_function:
+        return "variadic types are only allowed in the declaration of the last parameter of a "
+               "function";
     }
 
     std::unreachable();
@@ -1104,7 +1109,7 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
     std::visit(vs, message_value);
 }
 
-void DiagLinker::link(DiagnosticId d) {
+DiagLinker& DiagLinker::link(DiagnosticId d) {
     if (prev.has_value()) {
         ctx.link_diagnostic(prev.as_id(), d);
     }
@@ -1112,6 +1117,7 @@ void DiagLinker::link(DiagnosticId d) {
     if (first.empty()) {
         first = d;
     }
+    return *this;
 }
 
 void DiagLinker::link(OptId<DiagnosticId> d) {

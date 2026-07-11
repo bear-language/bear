@@ -206,6 +206,8 @@ enum class diag_code : uint8_t {
     overlapping_range_patern,
     existing_pattern_with_overlapping_range_here,
     overlapping_pattern,
+    variadic_type_not_allowed_here,
+    variadic_types_are_only_allowed_in_the_last_paramter_of_a_function,
 
     count, // this must be last,
 
@@ -435,7 +437,7 @@ class DiagLinker {
 
   public:
     DiagLinker(Context& ctx) : ctx{ctx} {}
-    void link(DiagnosticId d);
+    DiagLinker& link(DiagnosticId d);
     void link(OptId<DiagnosticId> d);
     void link(DiagRange range);
     OptId<DiagnosticId> last_in_chain() const;

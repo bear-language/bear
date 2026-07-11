@@ -24,6 +24,7 @@ namespace hir {
 template <IsDefVisitor V> class TypeResolver {
     V& def_visitor;
     Context& context;
+    bool allow_variadic{false};
 
     [[nodiscard]] OptId<TypeId> type_base(FileId fid, ScopeId scope, const ast_type_t* type,
                                           bool need_layout_info) {
@@ -277,6 +278,18 @@ template <IsDefVisitor V> class TypeResolver {
     }
 
     OptId<TypeId> type_variadic(FileId fid, ScopeId scope, const ast_type_t* type) {
+        // tsk tsk
+        if (!allow_variadic) {
+            Span span{context, fid, type->first, type->last};
+            DiagLinker{context}
+                .link(context.emplace_diagnostic(span, diag_code::variadic_type_not_allowed_here,
+                                                 diag_type::error))
+                .link(context.emplace_diagnostic(
+                    span,
+                    diag_code::variadic_types_are_only_allowed_in_the_last_paramter_of_a_function,
+                    diag_type::note, DiagnosticInfoNoPreview{}));
+            return {};
+        }
         auto maybe_inner = resolve_type(fid, scope, type->type.variadic.inner, false);
 
         if (!maybe_inner.has_value()) {
