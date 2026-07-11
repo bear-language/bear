@@ -2,4 +2,4 @@
 
 mod hir_a44;
 
-compt i32...a = 12;
+compt i32... a = 12; // oops (not allowed here)

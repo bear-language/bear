@@ -6,7 +6,9 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] tighten up variadic type handling, consider making it part of the function decl node, not the type
+- [ ] tighten up variadic type handling
+    - [ ] handle within functions (allow as last param)
+    - [ ] get final variadic param/arg working at compt
 
 - [ ] compt/static reflection 
     - [ ] `@static_assert_eq` with `exec_to_str`

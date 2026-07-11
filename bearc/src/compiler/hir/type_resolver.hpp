@@ -427,7 +427,11 @@ template <IsDefVisitor V> class TypeResolver {
     }
 
   public:
-    explicit TypeResolver(Context& ctx, V& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
+    TypeResolver(Context& ctx, V& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
+
+    TypeResolver& allow_variadics() { this->allow_variadic = true; }
+
+    TypeResolver& disallow_variadics() { this->allow_variadic = false; }
 
     [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, ScopeId scope, const ast_type_t* type,
                                              bool need_layout_info) {
