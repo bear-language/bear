@@ -7,7 +7,8 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] tighten up variadic type handling
-    - [ ] handle within functions (allow as last param)
+    - [ ] axe variadic types and only allow in functions as last param
+        - like this: `fn foo(i32 a, i32 b, ...) {}`
     - [ ] get final variadic param/arg working at compt
 
 - [ ] compt/static reflection 
