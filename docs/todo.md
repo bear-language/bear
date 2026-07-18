@@ -7,9 +7,12 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] tighten up variadic type handling
-    - [ ] axe variadic types and only allow in functions as last param
-        - like this: `fn foo(i32 a, i32 b, ...) {}`
-    - [ ] get final variadic param/arg working at compt
+    - [ ] axe "variadic types" 
+        - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}`
+        - [ ] type-packs as generic arguments 
+            - [ ] in the form of `<A, B, T...>` where variadics are only allowed as the last param where types can be accessed thru somebuiltin like `@type_at(T, 1)` where T is param pack and 1 is the index
+            - [ ] either pass type packs like you would in sequence or construct them procedurally with `@types(Foo, Bar)` or `@param_types(some_func)` or `@param_types(some_func, start_idx, end_idx)`
+    - [ ] get variadic params/args working at compt w/ callable functions
 
 - [ ] compt/static reflection 
     - [ ] `@static_assert_eq` with `exec_to_str`
