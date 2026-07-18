@@ -7,7 +7,6 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] compt/static reflection 
-    - [ ] `@static_assert_eq` with `exec_to_str`
     - [ ] add `@members_of` -> list of compt strs, which can be iterated over
     - [ ] add `@statics_of` -> list of compt strs, which can be iterated over
     - [ ] add `@id` (and `@scoped_id` for `foo..bar..foo` compt str to scoped identifiers)
