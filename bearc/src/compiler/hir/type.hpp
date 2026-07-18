@@ -104,15 +104,11 @@ struct TypeFnPtr {
     OptId<TypeId> return_type;
 };
 
-struct TypeVariadic {
-    TypeId inner;
-};
-
 // ^^^^^^ struct impls ^^^^^^^^
 
 /// main exec union
 using TypeValue = std::variant<TypeBuiltin, TypeStruct, TypeDeftype, TypeArr, TypeSlice, TypeRef,
-                               TypePtr, TypeFnPtr, TypeVariadic, TypeVar, TypeVariant, TypeUnion>;
+                               TypePtr, TypeFnPtr, TypeVar, TypeVariant, TypeUnion>;
 
 struct Type : NodeWithVariantValue<Type> {
     using id_type = TypeId;

@@ -242,14 +242,6 @@ static void print_type(ast_type_t* type) {
         print_closing_green_brace();
         break;
     }
-    case AST_TYPE_VARIADIC: {
-        print_title("variadic type");
-        print_type(type->type.variadic.inner);
-        printer_do_indent();
-        print_op_from_type(TOK_ELLIPSE);
-        printer_deindent();
-        print_closing_green_brace();
-    } break;
     case AST_TYPE_TYPEOF:
         print_title("typeof");
         pretty_print_expr(type->type.type_of.of_expr);

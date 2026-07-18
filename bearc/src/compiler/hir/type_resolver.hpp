@@ -24,7 +24,6 @@ namespace hir {
 template <IsDefVisitor V> class TypeResolver {
     V& def_visitor;
     Context& context;
-    bool allow_variadic{false};
 
     [[nodiscard]] OptId<TypeId> type_base(FileId fid, ScopeId scope, const ast_type_t* type,
                                           bool need_layout_info) {
@@ -277,29 +276,6 @@ template <IsDefVisitor V> class TypeResolver {
             Span(context, fid, type->first, type->last), type->type.fn_ptr.mut);
     }
 
-    OptId<TypeId> type_variadic(FileId fid, ScopeId scope, const ast_type_t* type) {
-        // tsk tsk
-        if (!allow_variadic) {
-            Span span{context, fid, type->first, type->last};
-            DiagLinker{context}
-                .link(context.emplace_diagnostic(span, diag_code::variadic_type_not_allowed_here,
-                                                 diag_type::error))
-                .link(context.emplace_diagnostic(
-                    span,
-                    diag_code::variadic_types_are_only_allowed_in_the_last_paramter_of_a_function,
-                    diag_type::note, DiagnosticInfoNoPreview{}));
-            return {};
-        }
-        auto maybe_inner = resolve_type(fid, scope, type->type.variadic.inner, false);
-
-        if (!maybe_inner.has_value()) {
-            return OptId<TypeId>{};
-        }
-
-        return context.emplace_type(TypeVariadic{.inner = maybe_inner.as_id()},
-                                    Span(context, fid, type->first, type->last), false);
-    }
-
     OptId<TypeId> type_typeof(FileId fid, ScopeId scope, const ast_type_t* type) {
 
         assert(type->tag == AST_TYPE_TYPEOF);
@@ -429,10 +405,6 @@ template <IsDefVisitor V> class TypeResolver {
   public:
     TypeResolver(Context& ctx, V& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
 
-    TypeResolver& allow_variadics() { this->allow_variadic = true; }
-
-    TypeResolver& disallow_variadics() { this->allow_variadic = false; }
-
     [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, ScopeId scope, const ast_type_t* type,
                                              bool need_layout_info) {
         switch (type->tag) {
@@ -453,9 +425,6 @@ template <IsDefVisitor V> class TypeResolver {
 
         case AST_TYPE_FN_PTR:
             return type_fn_ptr(fid, scope, type);
-
-        case AST_TYPE_VARIADIC:
-            return type_variadic(fid, scope, type);
 
         case AST_TYPE_TYPEOF:
             return type_typeof(fid, scope, type);

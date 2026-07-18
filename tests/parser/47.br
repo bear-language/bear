@@ -4,6 +4,6 @@ fn main([&]str args) {
     my_printf("ben's age: ", 42);
 }
 
-fn my_printf(&str fmt, var... vals) {
+fn my_printf(&str fmt, [&]str vals) {
     c..printf(fmt.c_str(), vals);
 }

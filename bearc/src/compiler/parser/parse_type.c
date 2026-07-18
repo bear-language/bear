@@ -220,13 +220,6 @@ static ast_type_t* parse_type_impl(parser_t* p, token_ptr_slice_t leading_id, bo
 
     parser_shed_rparens(p, &paren_count);
 
-    // parse variadic modifier
-    if (parser_peek_match(p, TOK_ELLIPSE)) {
-        inner = parse_type_variadic(p, inner);
-    }
-
-    parser_shed_rparens(p, &paren_count);
-
     if (inner) {
         return inner;
     }
@@ -542,17 +535,4 @@ ast_type_t* parse_type_fn_ptr(parser_t* p) {
     fnp->first = first;
     fnp->last = parser_prev(p);
     return fnp;
-}
-
-ast_type_t* parse_type_variadic(parser_t* p, ast_type_t* inner) {
-    ast_type_t* outer = parser_alloc_type(p);
-    outer->tag = AST_TYPE_VARIADIC;
-    if (!parser_expect_token(p, TOK_ELLIPSE)) {
-        return parser_sync_type(p);
-    }
-    outer->type.variadic.inner = inner;
-    outer->canonical_base = inner->canonical_base;
-    outer->first = inner->first;
-    outer->last = parser_prev(p);
-    return outer;
 }

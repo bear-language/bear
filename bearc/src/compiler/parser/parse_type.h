@@ -39,6 +39,4 @@ ast_slice_of_generic_args_t parse_slice_of_generic_args(parser_t* p);
 
 ast_type_t* parse_type_fn_ptr(parser_t* p);
 
-ast_type_t* parse_type_variadic(parser_t* p, ast_type_t* inner);
-
 #endif // ! COMPILER_PARSER_PARSE_TYPE

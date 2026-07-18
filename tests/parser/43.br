@@ -6,7 +6,7 @@ fn main() {
 
 i32 magic = magic();
 
-fn foo(i32... nums) {
+fn foo([&]i32 nums) {
     for var x in nums {
         bar(x);
     }
@@ -22,7 +22,7 @@ contract Format {
     mt format() -> String;
 }
 
-fn print_example(&str format_string, (&Format)... formats) {
+fn print_example(&str format_string, &Format formats) {
     String string;
     usize idx;
     for var fmt in formats {

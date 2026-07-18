@@ -82,7 +82,6 @@ template <ConsiderMut C> bool TypeComparator<C>::operator()(const Type& t1, cons
             // all matched, so return true
             return true;
         },
-        [&t2](const TypeVariadic&) -> bool { return t2.holds<TypeVariadic>(); },
         [&t2](const TypeVar&) -> bool { return t2.holds<TypeVar>(); },
 
     };
@@ -125,7 +124,6 @@ template <ConsiderMut C> size_t TypeHasher<C>::operator()(const Type& t1) const 
             }
             return mix(h);
         },
-        [&](const TypeVariadic&) -> size_t { return mix(0x09uz); },
         [&](const TypeVar&) -> size_t { return mix(0x10uz); },
         [&](const TypeUnion& t) -> size_t {
             return mix(0x11uz ^ static_cast<size_t>(t.def_id.raw()));
@@ -253,7 +251,6 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
                 str += TypeTransformer<TypeToString>{context}(t.return_type.as_id()).str;
             }
         },
-        [&](const TypeVariadic&) { str += "..."; },
         [&](const TypeVar&) {
             str += "var";
             if constexpr (considers_mut()) {
@@ -288,7 +285,6 @@ template <TypeTransformerFunctor F> OptId<TypeId> TypeTransformer<F>::try_inner(
         [&](const TypeRef& t) -> OTid { return t.inner; },
         [&](const TypePtr& t) -> OTid { return t.inner; },
         [&](const TypeFnPtr&) -> OTid { return OTid{}; },
-        [&](const TypeVariadic& t) -> OTid { return t.inner; },
         [&](const TypeVar&) -> OTid { return OTid{}; },
     };
     return type.visit(vs);
@@ -927,7 +923,6 @@ template <ConsiderMut C> bool TypeInferer<C>::operator()(const Type& t1, const T
             // all matched, so return true
             return true;
         },
-        [&](const TypeVariadic&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
         [&](const TypeVar&) -> bool { return true; },
 
     };

@@ -21,7 +21,6 @@ typedef enum ast_type_tag {
     AST_TYPE_SLICE,
     AST_TYPE_GENERIC,
     AST_TYPE_FN_PTR,
-    AST_TYPE_VARIADIC,
     AST_TYPE_TYPEOF,
     AST_TYPE_DECAY,
     AST_TYPE_INVALID,
@@ -82,7 +81,6 @@ typedef union ast_type_u {
     ast_type_generic_t generic;
     ast_type_slice_t slice;
     ast_type_fn_ptr_t fn_ptr;
-    ast_type_wrapped_t variadic;
     ast_type_of_t type_of;
     ast_type_wrapped_t decay;
 } ast_type_u;
