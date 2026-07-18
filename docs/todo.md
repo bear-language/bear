@@ -8,11 +8,6 @@ main quest
 
 - [ ] tighten up variadic type handling
     - [ ] axe "variadic types" 
-        - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}`
-        - [ ] type-packs as generic arguments 
-            - [ ] in the form of `<A, B, T...>` where variadics are only allowed as the last param where types can be accessed thru somebuiltin like `@type_at(T, 1)` where T is param pack and 1 is the index
-            - [ ] either pass type packs like you would in sequence or construct them procedurally with `@types(Foo, Bar)` or `@param_types(some_func)` or `@param_types(some_func, start_idx, end_idx)`
-    - [ ] get variadic params/args working at compt w/ callable functions
 
 - [ ] compt/static reflection 
     - [ ] `@static_assert_eq` with `exec_to_str`
@@ -32,6 +27,12 @@ main quest
 
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
     - [ ] use positional type inference and return/expected type inference
+
+- [ ] use positional type inference mechanisms to allow for some kind of variadic functions
+    - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}` or pass through some kind of anonymous struct, like Zig
+
+    - [ ] get variadic params/args working at compt w/ callable functions
+
 
 #### hir phase 2.b (function body resolution):
 - [ ] make sure assignment type checking is properly rigid especially around mutable references.
