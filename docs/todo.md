@@ -6,9 +6,6 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] tighten up variadic type handling
-    - [ ] axe "variadic types" 
-
 - [ ] compt/static reflection 
     - [ ] `@static_assert_eq` with `exec_to_str`
     - [ ] add `@members_of` -> list of compt strs, which can be iterated over
