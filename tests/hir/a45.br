@@ -1,0 +1,9 @@
+// tests/hir/a45.br
+
+mod hir_a45;
+
+struct Foo {
+    i32 a = 12;
+}
+
+compt var _0 = Foo..a;
