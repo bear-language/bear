@@ -22,12 +22,14 @@
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/matching.hpp"
+#include "compiler/hir/scope.hpp"
 #include "compiler/hir/span.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/parser/token_eaters.h"
 #include "compiler/token.h"
 #include "def_visitor.hpp"
 #include <cassert>
+#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -392,8 +394,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_expr_binary(fid, scope, expr);
         case AST_EXPR_COMPT:
             return solve_expr(fid, scope, expr->expr.compt_expr.inner);
-        case AST_EXPR_MEMBERS_OF: // TODO
-        case AST_EXPR_STATICS_OF: // TODO
+        case AST_EXPR_MEMBERS_OF:
+            return solve_members_of(fid, scope, expr);
+        case AST_EXPR_STATICS_OF:
+            return solve_statics_of(fid, scope, expr);
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:
         case AST_EXPR_POST_UNARY:
@@ -1911,8 +1915,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             return guard_exec_type(solve_fn_call(fid, scope, expr));
         case AST_EXPR_TERNARY_IF:
             return guard_exec_type(solve_ternary_if(fid, scope, expr, maybe_into_tid));
-        case AST_EXPR_MEMBERS_OF: // TODO
-        case AST_EXPR_STATICS_OF: // TODO
+        case AST_EXPR_MEMBERS_OF:
+            return guard_exec_type(solve_members_of(fid, scope, expr));
+        case AST_EXPR_STATICS_OF:
+            return guard_exec_type(solve_statics_of(fid, scope, expr));
         case AST_EXPR_LITERAL:
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:
@@ -3167,7 +3173,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         };
 
         if (l1.len() != l2.len()) {
-            emplace_val_based_on_eq(false);
+            return emplace_val_based_on_eq(false);
         }
         if ((l1.elem_type_id.has_value() && l2.elem_type_id.has_value())
             && !context.equivalent_type(l1.elem_type_id.as_id(), l2.elem_type_id.as_id())) {
@@ -3786,6 +3792,85 @@ template <IsDefVisitor V> class ComptExprSolver {
         return context.emplace_compt_exec(
             ExecExprListLiteral{.elems = combined_slice, .elem_type_id = maybe_elem_type_id},
             Span::combine(lhs_exec.span, rhs_exec.span));
+    }
+
+    OptId<ExecId> solve_members_of(FileId fid, ScopeId scope, const ast_expr_t* mems_of_expr) {
+        assert(mems_of_expr->type == AST_EXPR_MEMBERS_OF);
+
+        OptId<TypeId> maybe_tid = resolve_type(fid, scope, mems_of_expr->expr.members_of.type);
+
+        if (maybe_tid.empty()) {
+            std::cout << "YAHOIE\n"; // TODO debug
+            return {};               // poisoned (some other issue)
+        }
+
+        const Type& ty = context.type(context.try_decay(maybe_tid.as_id()));
+
+        Span span{context, fid, mems_of_expr};
+
+        if (ty.holds<TypeStruct>()) {
+
+            llvm::SmallVector<ExecId> strs{};
+
+            DefId struct_did = ty.as<TypeStruct>().def_id;
+
+            const IdSlice<DefId> ordered_members = context.ordered_defs_for(struct_did);
+
+            for (auto didx = ordered_members.begin(); didx != ordered_members.end(); ++didx) {
+                DefId did = context.def_id(didx);
+                strs.push_back(context.emplace_compt_exec(ExecConst{context.def(did).name},
+                                                          Span::generated()));
+            }
+
+            const TypeId elem_tid = context.emplace_type(TypeBuiltin{.type = builtin_type::str},
+                                                         Span::generated(), false);
+            const IdSlice<ExecId> elems = context.freeze_id_vec(strs);
+
+            return context.emplace_compt_exec(
+                ExecExprListLiteral{.elems = elems, .elem_type_id = elem_tid}, span);
+        }
+
+        return context.emplace_compt_exec(ExecExprListLiteral{.elems = {}, .elem_type_id = {}},
+                                          span);
+    }
+
+    OptId<ExecId> solve_statics_of(FileId fid, ScopeId scope, const ast_expr_t* mems_of_expr) {
+        assert(mems_of_expr->type == AST_EXPR_STATICS_OF);
+
+        OptId<TypeId> maybe_tid = resolve_type(fid, scope, mems_of_expr->expr.statics_of.type);
+
+        if (maybe_tid.empty()) {
+            return {}; // poisoned (some other issue)
+        }
+
+        const Type& ty = context.type(context.try_decay(maybe_tid.as_id()));
+
+        Span span{context, fid, mems_of_expr};
+
+        if (ty.holds<TypeStruct>()) {
+
+            llvm::SmallVector<ExecId> strs{};
+
+            DefId struct_did = ty.as<TypeStruct>().def_id;
+
+            const IdSlice<DefId> ordered_members = context.static_defs_for(struct_did);
+
+            for (auto didx = ordered_members.begin(); didx != ordered_members.end(); ++didx) {
+                DefId did = context.def_id(didx);
+                strs.push_back(context.emplace_compt_exec(ExecConst{context.def(did).name},
+                                                          Span::generated()));
+            }
+
+            const TypeId elem_tid = context.emplace_type(TypeBuiltin{.type = builtin_type::str},
+                                                         Span::generated(), false);
+            const IdSlice<ExecId> elems = context.freeze_id_vec(strs);
+
+            return context.emplace_compt_exec(
+                ExecExprListLiteral{.elems = elems, .elem_type_id = elem_tid}, span);
+        }
+
+        return context.emplace_compt_exec(ExecExprListLiteral{.elems = {}, .elem_type_id = {}},
+                                          span);
     }
 
   public:

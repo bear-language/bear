@@ -1,4 +1,4 @@
-// tests/parser/61.br
+// tests/hir/a46.br
 
 struct Foo {
     i32 a = 1;
@@ -24,10 +24,12 @@ var _2 = @static_assert b == ["d", "e", "f"];
 
 var _3 = @static_assert b == ["umm", "rut", "roh"]; // oops
 
-compt var c = @members_of(i32);
+compt var c = @members_of(Foo);
 
-compt var d = @statics_of(i32);
+var _4 = @static_assert c != [];
 
-var _4 = @static_assert c == [];
+compt var d = @members_of(i32);
 
-var _5 = @static_assert d == [];
+var _5 = @static_assert d == []; // TODO doesn't work
+
+compt var e = @statics_of(i32);
