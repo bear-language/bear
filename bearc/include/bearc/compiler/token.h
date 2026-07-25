@@ -131,6 +131,8 @@ typedef enum token_type {
     TOK_WARN,          // @warn
     TOK_NOTE,          // @note
     TOK_HELP,          // @help
+    TOK_MEMBERS_OF,    // @members_of
+    TOK_STATICS_OF,    // @statics_of
 
     // constructs
     TOK_REQUIRES,

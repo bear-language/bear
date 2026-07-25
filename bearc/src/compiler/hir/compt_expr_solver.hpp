@@ -392,6 +392,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_expr_binary(fid, scope, expr);
         case AST_EXPR_COMPT:
             return solve_expr(fid, scope, expr->expr.compt_expr.inner);
+        case AST_EXPR_MEMBERS_OF: // TODO
+        case AST_EXPR_STATICS_OF: // TODO
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:
         case AST_EXPR_POST_UNARY:
@@ -736,6 +738,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_BLOCK:
         case AST_EXPR_MATCH_BRANCH:
         case AST_EXPR_ELSE_MATCH_PATTERN:
+        case AST_EXPR_MEMBERS_OF:
+        case AST_EXPR_STATICS_OF:
         case AST_EXPR_INVALID:
             // not a valid compile-time expr
             context.emplace_diagnostic(
@@ -989,6 +993,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_ELSE_MATCH_PATTERN:
         case AST_EXPR_INFERABLE_AS:
         case AST_EXPR_DIAGNOSTIC:
+        case AST_EXPR_MEMBERS_OF:
+        case AST_EXPR_STATICS_OF:
         case AST_EXPR_INVALID:
             break;
         }
@@ -1905,6 +1911,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             return guard_exec_type(solve_fn_call(fid, scope, expr));
         case AST_EXPR_TERNARY_IF:
             return guard_exec_type(solve_ternary_if(fid, scope, expr, maybe_into_tid));
+        case AST_EXPR_MEMBERS_OF: // TODO
+        case AST_EXPR_STATICS_OF: // TODO
         case AST_EXPR_LITERAL:
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:

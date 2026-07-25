@@ -63,6 +63,8 @@
         - `@has_contract` `(` Identifier, Identifer `)`
         - `@inferable_as` `(` Type, Type `)`
         - `@err` | `@warn` | `@note` | `@help` `(` Expression \[`,` Expression]? `)`, parentheses may be elided
+        - `@members_of` Type
+        - `@statics_of` Type
 
 #### Statements
 - *File*: TopLevelStatement(s)

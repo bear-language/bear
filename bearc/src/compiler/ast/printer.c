@@ -685,6 +685,16 @@ void pretty_print_expr(const ast_expr_t* expression) {
         print_closing_green_brace();
 
         break;
+    case AST_EXPR_MEMBERS_OF:
+        print_title("@members_of");
+        print_type(expr.expr.members_of.type);
+        print_closing_green_brace();
+        break;
+    case AST_EXPR_STATICS_OF:
+        print_title("@statics_of");
+        print_type(expr.expr.statics_of.type);
+        print_closing_green_brace();
+        break;
     }
     puts(",");
     printer_deindent();

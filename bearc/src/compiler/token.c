@@ -126,6 +126,9 @@ static void string_to_token_map_init(void) {
     strimap_emplace(&string_to_token_map, "@note", TOK_NOTE);
     strimap_emplace(&string_to_token_map, "@help", TOK_HELP);
 
+    strimap_emplace(&string_to_token_map, "@members_of", TOK_MEMBERS_OF);
+    strimap_emplace(&string_to_token_map, "@statics_of", TOK_STATICS_OF);
+
     strimap_emplace(&string_to_token_map, "decay", TOK_DECAY);
 
     strimap_emplace(&string_to_token_map, "deftype", TOK_DEFTYPE);
@@ -318,6 +321,9 @@ static const char* token_to_string_map_impl[TOK__NUM] = {
     [TOK_WARN] = "@warn",
     [TOK_NOTE] = "@note",
     [TOK_HELP] = "@help",
+
+    [TOK_MEMBERS_OF] = "@members_of",
+    [TOK_STATICS_OF] = "@statics_of",
 
     // structures
     [TOK_VARIANT] = "variant",

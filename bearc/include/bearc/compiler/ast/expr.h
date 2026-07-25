@@ -52,6 +52,9 @@ typedef enum ast_expr_type {
     AST_EXPR_INFERABLE_AS,
     AST_EXPR_DIAGNOSTIC,
 
+    AST_EXPR_MEMBERS_OF,
+    AST_EXPR_STATICS_OF,
+
     // structs
     AST_EXPR_STRUCT_INIT,
     AST_EXPR_STRUCT_MEMBER_INIT,
@@ -284,6 +287,8 @@ typedef union ast_expr_u {
     ast_expr_defined_t defined;
     ast_expr_has_contract_t has_contract;
     ast_expr_diagnostic_t diagnostic;
+    ast_expr_type_t members_of;
+    ast_expr_type_t statics_of;
 } ast_expr_u;
 
 /// underlying expr is 0-offset aligned so this struct can be safely downcasted

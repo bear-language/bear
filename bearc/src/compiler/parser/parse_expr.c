@@ -176,6 +176,46 @@ ast_expr_t* parse_expr_prec(parser_t* p, ast_expr_t* lhs, uint8_t prec) {
     return lhs;
 }
 
+ast_expr_t* parse_expr_members_of(parser_t* p) {
+    ast_expr_t* ex = parser_alloc_expr(p);
+    ex->type = AST_EXPR_MEMBERS_OF;
+
+    token_t* first_tkn = parser_expect_token(p, TOK_MEMBERS_OF);
+    if (!first_tkn) {
+        return parser_sync_expr(p);
+    }
+
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
+    ex->expr.members_of.type = parse_type(p);
+    if (lparen) {
+        parser_expect_token(p, TOK_RPAREN);
+    }
+
+    ex->first = first_tkn;
+    ex->last = parser_prev(p);
+    return ex;
+}
+
+ast_expr_t* parse_expr_statics_of(parser_t* p) {
+    ast_expr_t* ex = parser_alloc_expr(p);
+    ex->type = AST_EXPR_STATICS_OF;
+
+    token_t* first_tkn = parser_expect_token(p, TOK_STATICS_OF);
+    if (!first_tkn) {
+        return parser_sync_expr(p);
+    }
+
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
+    ex->expr.statics_of.type = parse_type(p);
+    if (lparen) {
+        parser_expect_token(p, TOK_RPAREN);
+    }
+
+    ex->first = first_tkn;
+    ex->last = parser_prev(p);
+    return ex;
+}
+
 ast_expr_t* parse_preunary_expr(parser_t* p) {
     // special preunary cases
     switch (parser_peek(p)->type) {
@@ -200,6 +240,10 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
     case TOK_NOTE:
     case TOK_HELP:
         return parse_expr_diagnostic(p);
+    case TOK_MEMBERS_OF:
+        return parse_expr_members_of(p);
+    case TOK_STATICS_OF:
+        return parse_expr_statics_of(p);
     default:
         break;
     }

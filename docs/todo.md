@@ -9,8 +9,9 @@ main quest
 - [ ] compt/static reflection 
     - [ ] add `@members_of` -> list of compt strs, which can be iterated over
     - [ ] add `@statics_of` -> list of compt strs, which can be iterated over
-    - [ ] add `@id` (and `@scoped_id` for `foo..bar..foo` compt str to scoped identifiers)
+    - [ ] add `@id` / `@scoped_id`
         - [ ] so one can use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members 
+        - [ ] also allow it so that one can do `@scoped_id(foo..bar, str_val)` for scoped look-up
 
 - [ ] tighten up abi related stuff with hir::LayoutRules or something similar
     - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver

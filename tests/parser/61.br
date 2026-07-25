@@ -1,0 +1,11 @@
+// tests/parser/61.br
+
+struct Foo {
+    i32 a;
+    i32 b;
+    i32 c;
+}
+
+compt var _a = @statics_of(i32);
+
+compt var _b = @members_of(Foo);

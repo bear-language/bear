@@ -49,6 +49,7 @@ static constexpr size_t DEFAULT_CANONICAL_TYPE_ARENA_CAP = DEFAULT_ARENA_CAP;
 static constexpr size_t DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP = DEFAULT_ARENA_CAP;
 static constexpr size_t DEFAULT_ID_MAP_ARENA_CAP
     = 0x10000; // increase if any other top level maps need to be mades
+static constexpr size_t SMALL_ARENA_CAP = 0x1000;
 static constexpr size_t DEFAULT_TEMP_SCOPE_ARENA_CAP = 0x10000;
 static constexpr size_t DEFAULT_SYM_TO_FILE_ID_MAP_CAP = 0x80;
 static constexpr size_t DEFAULT_SCOPE_VEC_CAP = 0x80;
@@ -76,7 +77,8 @@ Context::Context(const bearc_args_t& args, instances instances)
     : file_ids{DEFAULT_FILE_ID_VEC_CAP}, files{DEFAULT_FILE_VEC_CAP},
       id_map_arena{DEFAULT_ID_MAP_ARENA_CAP},
       symbol_id_to_file_id_map{id_map_arena, DEFAULT_SYM_TO_FILE_ID_MAP_CAP},
-      file_asts{DEFAULT_FILE_AST_VEC_CAP}, importer_to_importees{DEFAULT_FILE_VEC_CAP},
+      file_asts{DEFAULT_FILE_AST_VEC_CAP}, intrinsic_files_set_arena(SMALL_ARENA_CAP),
+      intrinsic_files{intrinsic_files_set_arena, 0x20}, importer_to_importees{DEFAULT_FILE_VEC_CAP},
       importee_to_importers{DEFAULT_FILE_VEC_CAP}, file_to_diagnostics{EXPECTED_HIGH_NUM_IMPORTS},
       scope_arena{DEFAULT_SCOPE_ARENA_CAP}, scopes{DEFAULT_SCOPE_VEC_CAP},
       temp_scope_arena{std::make_unique<DataArena>(DEFAULT_TEMP_SCOPE_ARENA_CAP)},
@@ -271,9 +273,9 @@ FileId Context::file(SymbolId path_symbol) {
     FileAstId ast_id = this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol));
     // ^^^^^^^^^^^^^^^^^^
     FileId file_id = this->files.emplace_and_get_id(path_symbol, ast_id);
-    /// store this mapping for future detection
+    // store this mapping for future detection
     this->symbol_id_to_file_id_map.insert(path_symbol, file_id);
-    /// bump necessary things that are track id-wise for files
+    // bump necessary things that are track id-wise for files
     importee_to_importers.bump();
     importer_to_importees.bump();
     file_to_diagnostics.bump();
@@ -291,9 +293,13 @@ FileId Context::file_intrinsic(SymbolId name, const char* string_literal_src) {
         = this->file_asts.emplace_and_get_id(symbol_id_to_cstr(name), string_literal_src);
     // ^^^^^^^^^^^^^^^^^^
     FileId file_id = this->files.emplace_and_get_id(name, ast_id);
-    /// store this mapping for future detection
+    // store this mapping for future detection
     this->symbol_id_to_file_id_map.insert(name, file_id);
-    /// bump necessary things that are track id-wise for files
+
+    // record this as an intrinsic file
+    intrinsic_files.insert(name);
+
+    // bump necessary things that are track id-wise for files
     importee_to_importers.bump();
     importer_to_importees.bump();
     file_to_diagnostics.bump();
@@ -443,13 +449,20 @@ void Context::try_print_info() {
 
     // 1. try print out ast-wise information (token tables, pretty-printing)
     for (auto fid = files.begin_id(); fid != files.end_id(); fid++) {
-        ast(fid).try_print_info(args);
+        // print info if this is not intrinsic
+        if (!intrinsic_files.contains(files.at(fid).path)) {
+            ast(fid).try_print_info(args);
+        }
     }
     // 2. print more info:
     if (has_flag(CLI_FLAG_FILE_GRAPH)) {
         std::cout << ansi_bold_reset() << "all files" << '(' << files.size() << ')' << ":"
                   << ansi_reset() << '\n';
         for (FileId curr = files.begin_id(); curr != files.end_id(); ++curr) {
+
+            if (!intrinsic_files.contains(files.at(curr).path)) {
+                continue; // don't print intrinsic
+            }
 
             const FileAst& ast = file_asts.at(files.at(curr).ast_id);
 
@@ -479,9 +492,9 @@ void Context::try_print_info() {
     if (!has_flag(CLI_FLAG_SILENT)) {
         // go thru each file ast to print info
         for (auto fid = files.begin_id(); fid != files.end_id(); fid++) {
-            const FileAst& aast = ast(fid);
+            const FileAst& curr_ast = ast(fid);
             // 1. print parse-time errors (ast-wise errors)
-            aast.print_all_errors(compact_diagnostics_enabled());
+            curr_ast.print_all_errors(compact_diagnostics_enabled());
             // 2. print diagnostics (semantic/non-grammatical errors)
             // OptId<DiagnosticId> prev_diag{};
             for (const auto d : file_to_diagnostics.at(fid)) {

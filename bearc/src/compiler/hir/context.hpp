@@ -775,6 +775,8 @@ class Context {
     DataArena id_map_arena;
     IdHashMap<SymbolId, FileId> symbol_id_to_file_id_map;
     NodeVector<FileAst> file_asts;
+    DataArena intrinsic_files_set_arena;
+    IdSet<SymbolId> intrinsic_files;
 
     /// FileId -> IdSlice<FileId> since all importees are always known when lowering a given file
     IdVecMap<FileId, IdSlice<FileId>> importer_to_importees;
