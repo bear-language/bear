@@ -161,8 +161,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "value is of type";
     case diag_code::array_cannot_have_size_zero:
         return "array cannot have a size of zero";
-    case diag_code::cannot_infer_type_at_compt:
-        return "cannot infer type at compile-time";
+    case diag_code::cannot_infer_type_of_expression_at_compt:
+        return "cannot infer type of expression at compile-time";
     case diag_code::static_assertion_failed:
         return "static assertion failed";
     case diag_code::value_not_a_struct:

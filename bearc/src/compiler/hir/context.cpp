@@ -142,9 +142,10 @@ Context::Context(const bearc_args_t& args, instances instances)
     FileId root_id = provide_root_file(root_file.c_str());
 
     // registers intrinsic pseudo source files
-    register_intrinsic_files(); // TODO for some odd reason the addition of this can make deeply
-                                // nested generics fail (see a15.br with that one long type even
-                                // longer)
+    register_intrinsic_files();
+    // ^ TODO for some odd reason the addition of this can make deeply
+    // nested generics fail (see a15.br with that one long type even
+    // longer)
 
     // this is actually slower
     // if (args.import_file_cnt) {

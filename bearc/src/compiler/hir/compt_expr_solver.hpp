@@ -87,7 +87,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             auto list_exec = exec.as<ExecExprListLiteral>();
             auto maybe_contained_type = list_exec.elem_type_id;
             if (maybe_contained_type.empty()) {
-                return std::nullopt;
+                goto novel_issue;
             }
             auto contained_type = maybe_contained_type.as_id();
             auto len = list_exec.len();
@@ -143,8 +143,9 @@ template <IsDefVisitor V> class ComptExprSolver {
                 false);
         }
 
+    novel_issue:
         // report issue
-        context.emplace_diagnostic(exec.span, diag_code::cannot_infer_type_at_compt,
+        context.emplace_diagnostic(exec.span, diag_code::cannot_infer_type_of_expression_at_compt,
                                    diag_type::error);
 
         return std::nullopt;
@@ -3800,13 +3801,15 @@ template <IsDefVisitor V> class ComptExprSolver {
         OptId<TypeId> maybe_tid = resolve_type(fid, scope, mems_of_expr->expr.members_of.type);
 
         if (maybe_tid.empty()) {
-            std::cout << "YAHOIE\n"; // TODO debug
-            return {};               // poisoned (some other issue)
+            return {}; // poisoned (some other issue)
         }
 
         const Type& ty = context.type(context.try_decay(maybe_tid.as_id()));
 
-        Span span{context, fid, mems_of_expr};
+        const Span span{context, fid, mems_of_expr};
+
+        const TypeId elem_tid = context.emplace_type(TypeBuiltin{.type = builtin_type::str},
+                                                     Span::generated(), false);
 
         if (ty.holds<TypeStruct>()) {
 
@@ -3822,16 +3825,14 @@ template <IsDefVisitor V> class ComptExprSolver {
                                                           Span::generated()));
             }
 
-            const TypeId elem_tid = context.emplace_type(TypeBuiltin{.type = builtin_type::str},
-                                                         Span::generated(), false);
             const IdSlice<ExecId> elems = context.freeze_id_vec(strs);
 
             return context.emplace_compt_exec(
                 ExecExprListLiteral{.elems = elems, .elem_type_id = elem_tid}, span);
         }
 
-        return context.emplace_compt_exec(ExecExprListLiteral{.elems = {}, .elem_type_id = {}},
-                                          span);
+        return context.emplace_compt_exec(
+            ExecExprListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);
     }
 
     OptId<ExecId> solve_statics_of(FileId fid, ScopeId scope, const ast_expr_t* mems_of_expr) {
@@ -3845,7 +3846,10 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         const Type& ty = context.type(context.try_decay(maybe_tid.as_id()));
 
-        Span span{context, fid, mems_of_expr};
+        const Span span{context, fid, mems_of_expr};
+
+        const TypeId elem_tid = context.emplace_type(TypeBuiltin{.type = builtin_type::str},
+                                                     Span::generated(), false);
 
         if (ty.holds<TypeStruct>()) {
 
@@ -3861,16 +3865,14 @@ template <IsDefVisitor V> class ComptExprSolver {
                                                           Span::generated()));
             }
 
-            const TypeId elem_tid = context.emplace_type(TypeBuiltin{.type = builtin_type::str},
-                                                         Span::generated(), false);
             const IdSlice<ExecId> elems = context.freeze_id_vec(strs);
 
             return context.emplace_compt_exec(
                 ExecExprListLiteral{.elems = elems, .elem_type_id = elem_tid}, span);
         }
 
-        return context.emplace_compt_exec(ExecExprListLiteral{.elems = {}, .elem_type_id = {}},
-                                          span);
+        return context.emplace_compt_exec(
+            ExecExprListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);
     }
 
   public:

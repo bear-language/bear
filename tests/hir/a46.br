@@ -20,7 +20,7 @@ var _1 = @static_assert a == ["uh", "rut", "roh"]; // oops
 
 compt var b = @statics_of(typeof Foo{});
 
-var _2 = @static_assert b == ["d", "e", "f"];
+var _2 = @static_assert b == ["d", "e", "f"] && b == @statics_of(&Foo);
 
 var _3 = @static_assert b == ["umm", "rut", "roh"]; // oops
 
@@ -30,6 +30,8 @@ var _4 = @static_assert c != [];
 
 compt var d = @members_of(i32);
 
-var _5 = @static_assert d == []; // TODO doesn't work
+var _5 = @static_assert d == [];
 
 compt var e = @statics_of(i32);
+
+var _e = @static_assert e == [];
