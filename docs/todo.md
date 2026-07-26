@@ -7,8 +7,8 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] compt/static reflection 
-    - [ ] add `@members_of` -> list of compt strs, which can be iterated over
-    - [ ] add `@statics_of` -> list of compt strs, which can be iterated over
+    - [x] add `@members_of` -> list of compt strs, which can be iterated over
+    - [x] add `@statics_of` -> list of compt strs, which can be iterated over
     - [ ] add `@id` / `@scoped_id`
         - [ ] so one can use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members 
         - [ ] also allow it so that one can do `@scoped_id(foo..bar, str_val)` for scoped look-up
