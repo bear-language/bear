@@ -3570,7 +3570,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         // handle range case
-        if (context.exec(maybe_pattern_eid.as_id()).holds<ExecRange>()
+        if (context.exec(maybe_pattern_eid.as_id()).template holds<ExecRange>()
             && matched_exec.holds<ExecConst>() && matched_exec.as<ExecConst>().is_integral()) {
             if (value_inside_range(context, maybe_pattern_eid.as_id(), matched_eid)) {
                 return true;
