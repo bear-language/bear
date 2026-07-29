@@ -67,8 +67,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "initializer must be a compile-time constant";
     case diag_code::declared_here_without_compt:
         return "declared here without 'compt' specifier";
-    case diag_code::not_a_compile_time_constant:
-        return "not a compile-time constant";
+    case diag_code::is_not_a_compile_time_constant:
+        return "is not a compile-time constant";
     case diag_code::use_of_undeclared_identifier:
         return "use of undeclared identifier";
     case diag_code::not_declared_in_this_scope:

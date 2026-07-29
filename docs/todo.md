@@ -6,14 +6,8 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] compt/static reflection 
-    - [x] add `@members_of` -> list of compt strs, which can be iterated over
-    - [x] add `@statics_of` -> list of compt strs, which can be iterated over
-    - [ ] add `@id` / `@scoped_id`
-        - [ ] so one can use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members 
-        - [ ] also allow it so that one can do `@scoped_id(foo..bar, str_val)` for scoped look-up
-
-- [ ] tighten up abi related stuff with hir::LayoutRules or something similar
+- [ ] tighten up abi related stuff with `hir::LayOut` / `hir::LayOutId`
+    - [ ] `struct LayOut { i32 width; i32 alignment }`
     - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
 
 - [ ] digest (and validate) escape sequences when interning string literal tokens 
@@ -29,6 +23,9 @@ main quest
     - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}` or pass through some kind of anonymous struct, like Zig
 
     - [ ] get variadic params/args working at compt w/ callable functions
+
+- [ ] reflection improvements
+        - [ ] implement use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members 
 
 
 #### hir phase 2.b (function body resolution):

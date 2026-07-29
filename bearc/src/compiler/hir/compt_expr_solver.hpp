@@ -398,9 +398,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_members_of(fid, scope, expr);
         case AST_EXPR_STATICS_OF:
             return solve_statics_of(fid, scope, expr);
-
-        case AST_EXPR_REFLECTED_SCOPED_ID: // TODO
-        case AST_EXPR_REFLECTED_ID:        // TODO
+        case AST_EXPR_REFLECTED_ID:
+            return solve_reflected_id(fid, scope, expr);
+        case AST_EXPR_REFLECTED_SCOPED_ID:
+            return solve_reflected_scoped_id(fid, scope, expr);
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:
         case AST_EXPR_POST_UNARY:
@@ -737,8 +738,22 @@ template <IsDefVisitor V> class ComptExprSolver {
             maybe_value = context.exec(maybe_eid.as_id()).template as<ExecConst>();
             break;
         }
-        case AST_EXPR_REFLECTED_SCOPED_ID: // TODO
-        case AST_EXPR_REFLECTED_ID:        // TODO
+        case AST_EXPR_REFLECTED_ID: {
+            const auto maybe_eid = solve_reflected_id(fid, scope, expr);
+            if (maybe_eid.empty()) {
+                return {};
+            }
+            maybe_value = context.exec(maybe_eid.as_id()).template try_as<ExecConst>();
+            break;
+        }
+        case AST_EXPR_REFLECTED_SCOPED_ID: {
+            const auto maybe_eid = solve_reflected_scoped_id(fid, scope, expr);
+            if (maybe_eid.empty()) {
+                return {};
+            }
+            maybe_value = context.exec(maybe_eid.as_id()).template try_as<ExecConst>();
+            break;
+        }
         case AST_EXPR_TYPE:
         case AST_EXPR_BORROW:
         case AST_EXPR_STRUCT_MEMBER_INIT:
@@ -820,7 +835,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             DefId did = maybe_did.as_id();
             const Def& def = visit_def(did);
             if (!def.holds<DefVariable>()) {
-                context.emplace_diagnostic(expr_span, diag_code::not_a_compile_time_constant,
+                context.emplace_diagnostic(expr_span, diag_code::is_not_a_compile_time_constant,
                                            diag_type::error);
                 return std::nullopt;
             }
@@ -828,7 +843,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             if (!def.compt) {
                 auto d0 = context.emplace_diagnostic(
                     expr_span, diag_code::cannot_init_with_non_compt_value, diag_type::error,
-                    DiagnosticSubCode{.sub_code = diag_code::not_a_compile_time_constant});
+                    DiagnosticSubCode{.sub_code = diag_code::is_not_a_compile_time_constant});
                 auto d1 = context.emplace_diagnostic(
                     def.span, diag_code::declared_here_without_compt, diag_type::note);
                 context.link_diagnostic(d0, d1);
@@ -983,8 +998,12 @@ template <IsDefVisitor V> class ComptExprSolver {
                 def_visitor, scope, context.symbol_slice(id_slice), id_span, maybe_args.as_id());
             return validate_lookup(maybe_did, id_slice);
         }
-        case AST_EXPR_REFLECTED_SCOPED_ID: // TODO
-        case AST_EXPR_REFLECTED_ID:        // TODO
+        case AST_EXPR_REFLECTED_ID:
+            maybe_eid = solve_reflected_id(fid, scope, expr);
+            break;
+        case AST_EXPR_REFLECTED_SCOPED_ID:
+            maybe_eid = solve_reflected_scoped_id(fid, scope, expr);
+            break;
         case AST_EXPR_SAME_TYPE:
         case AST_EXPR_HAS_CONTRACT:
         case AST_EXPR_DEFINED:
@@ -1297,6 +1316,10 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecExprStructInit>(rhs_exec)) {
             return solve_struct_eq(lhs_exec, rhs_exec, op);
+        }
+
+        if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecFnPtr>(rhs_exec)) {
+            return solve_fn_ptr_eq(lhs_exec, rhs_exec, op);
         }
 
         if (bin_op_is_eq_neq(op)
@@ -1926,8 +1949,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             return guard_exec_type(solve_members_of(fid, scope, expr));
         case AST_EXPR_STATICS_OF:
             return guard_exec_type(solve_statics_of(fid, scope, expr));
-        case AST_EXPR_REFLECTED_ID:        // TODO
-        case AST_EXPR_REFLECTED_SCOPED_ID: // TODO
+        case AST_EXPR_REFLECTED_ID:
+            return guard_exec_type(solve_reflected_id(fid, scope, expr));
+        case AST_EXPR_REFLECTED_SCOPED_ID:
+            return guard_exec_type(solve_reflected_scoped_id(fid, scope, expr));
         case AST_EXPR_LITERAL:
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:
@@ -2146,7 +2171,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             if (!def.compt) {
                 auto d0 = context.emplace_diagnostic(
                     expr_span, diag_code::cannot_resolve_at_compt, diag_type::error,
-                    DiagnosticSubCode{.sub_code = diag_code::not_a_compile_time_constant});
+                    DiagnosticSubCode{.sub_code = diag_code::is_not_a_compile_time_constant});
                 auto d1 = context.emplace_diagnostic_with_message_value(
                     def.span, diag_code::declared_here_without_compt, diag_type::note,
                     DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
@@ -2195,7 +2220,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         auto d0 = context.emplace_diagnostic(
             expr_span, diag_code::cannot_resolve_at_compt, diag_type::error,
-            DiagnosticSubCode{.sub_code = diag_code::not_a_compile_time_constant});
+            DiagnosticSubCode{.sub_code = diag_code::is_not_a_compile_time_constant});
         auto d1 = context.emplace_diagnostic_with_message_value(
             def.span, diag_code::declared_here, diag_type::note,
             DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
@@ -3279,6 +3304,15 @@ template <IsDefVisitor V> class ComptExprSolver {
         return emplace_val_based_on_eq(true);
     }
 
+    [[nodiscard]] OptId<ExecId> solve_fn_ptr_eq(const Exec& fnp1, const Exec& fnp2,
+                                                binary_op eq_neq) {
+        return context.emplace_compt_exec(
+            ExecConst{((eq_neq == binary_op::bool_equal)
+                           ? fnp1.as<ExecFnPtr>().func_def_id == fnp2.as<ExecFnPtr>().func_def_id
+                           : fnp1.as<ExecFnPtr>().func_def_id != fnp2.as<ExecFnPtr>().func_def_id)},
+            Span::combine(fnp1.span, fnp2.span));
+    }
+
     [[nodiscard]] OptId<ExecId> solve_any_eq(ExecId eid1, ExecId eid2, binary_op eq_neq) {
         const bool equiv = equivalent_exec(context, eid1, eid2);
         return context.emplace_compt_exec(
@@ -3881,6 +3915,112 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         return context.emplace_compt_exec(
             ExecExprListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);
+    }
+
+    OptId<ExecId> try_compt_constant_from_did(FileId fid, ScopeId scope, DefId did, SymbolId sid,
+                                              Span span) {
+        const Def& def = context.def(did);
+        if (def.holds<DefVariable>() && def.as<DefVariable>().compt_value.has_value()) {
+            return def.as<DefVariable>().compt_value;
+        }
+        if (def.holds<DefFunction>()) {
+            const DefFunction& func_def = def.as<DefFunction>();
+            return context.emplace_compt_exec(
+                ExecFnPtr{.func_def_id = did,
+                          .fn_ptr_tid
+                          = context.emplace_type(TypeFnPtr{.param_types = func_def.param_types,
+                                                           .return_type = func_def.return_type},
+                                                 Span::generated(), false)},
+                span);
+        }
+        context.emplace_diagnostic_with_message_value(
+            span, diag_code::is_not_a_compile_time_constant, diag_type::error,
+            DiagnosticSymbolBeforeMessage{.sid = sid});
+        return {};
+    }
+
+    OptId<ExecId> solve_reflected_id(FileId fid, ScopeId scope, const ast_expr_t* expr) {
+        assert(expr->type == AST_EXPR_REFLECTED_ID);
+
+        OptId<ExecId> maybe_symbol_eid = solve_builtin_compt_expr(
+            fid, scope, expr->expr.reflected_id.inner, builtin_type::str);
+
+        if (maybe_symbol_eid.empty()) {
+            return {}; // poisoned
+        }
+
+        SymbolId sid = context.exec(maybe_symbol_eid.as_id())
+                           .template as<ExecConst>()
+                           .template as<SymbolId>();
+
+        const auto maybe_existing_did = context.look_up_variable(scope, sid);
+
+        if (maybe_existing_did.empty()) {
+            context.emplace_diagnostic_with_message_value(
+                Span{context, fid, expr->expr.reflected_id.inner},
+                diag_code::use_of_undeclared_identifier, diag_type::error,
+                DiagnosticSymbolAfterMessage{.sid = sid});
+            return {};
+        }
+        return try_compt_constant_from_did(fid, scope, maybe_existing_did.as_id(), sid,
+                                           Span{context, fid, expr->expr.reflected_id.inner});
+    }
+
+    OptId<ExecId> solve_reflected_scoped_id(FileId fid, ScopeId scope, const ast_expr_t* expr) {
+        assert(expr->type == AST_EXPR_REFLECTED_SCOPED_ID);
+
+        llvm::SmallVector<SymbolId> sid_vec{};
+
+        token_ptr_slice_t id_slice = expr->expr.reflected_scoped_id.scoped_id_prefix;
+
+        for (size_t i = 0; i < id_slice.len; ++i) {
+            sid_vec.push_back(context.symbol_id(id_slice.start[i]));
+        }
+
+        OptId<ExecId> maybe_symbol_eid = solve_builtin_compt_expr(
+            fid, scope, expr->expr.reflected_scoped_id.reflected_id, builtin_type::str);
+
+        if (maybe_symbol_eid.empty()) {
+            return {}; // poisoned
+        }
+
+        SymbolId sid = context.exec(maybe_symbol_eid.as_id())
+                           .template as<ExecConst>()
+                           .template as<SymbolId>();
+
+        sid_vec.push_back(sid);
+
+        const auto sid_slice = context.freeze_id_vec(sid_vec);
+
+        const auto maybe_existing_did
+            = context.look_up_scoped_variable(scope, sid_slice, Span{context, fid, expr});
+
+        if (maybe_existing_did.empty()) {
+            context.emplace_diagnostic_with_message_value(
+                Span{context, fid, expr->expr.reflected_scoped_id.reflected_id},
+                diag_code::use_of_undeclared_identifier, diag_type::error,
+                DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice});
+            return {};
+        }
+        const Def& def = context.def(maybe_existing_did.as_id());
+        if (def.holds<DefVariable>() && def.as<DefVariable>().compt_value.has_value()) {
+            return def.as<DefVariable>().compt_value;
+        }
+        if (def.holds<DefFunction>()) {
+            const DefFunction& func_def = def.as<DefFunction>();
+            return context.emplace_compt_exec(
+                ExecFnPtr{.func_def_id = maybe_existing_did.as_id(),
+                          .fn_ptr_tid
+                          = context.emplace_type(TypeFnPtr{.param_types = func_def.param_types,
+                                                           .return_type = func_def.return_type},
+                                                 Span::generated(), false)},
+                Span{context, fid, expr->expr.reflected_scoped_id.reflected_id});
+        }
+        context.emplace_diagnostic_with_message_value(
+            Span{context, fid, expr->expr.reflected_scoped_id.reflected_id},
+            diag_code::is_not_a_compile_time_constant, diag_type::error,
+            DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
+        return {};
     }
 
   public:

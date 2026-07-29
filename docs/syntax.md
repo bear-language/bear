@@ -65,6 +65,8 @@
         - `@err` | `@warn` | `@note` | `@help` `(` Expression \[`,` Expression]? `)`, parentheses may be elided
         - `@members_of` Type
         - `@statics_of` Type
+        - `@id` Expression 
+        - `@scoped_id` `(` Indentifier `,` Expression `)`
 
 #### Statements
 - *File*: TopLevelStatement(s)

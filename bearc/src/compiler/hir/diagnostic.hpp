@@ -40,7 +40,7 @@ enum class diag_code : uint8_t {
     must_initialize_global_variable,
     cannot_init_with_non_compt_value,
     declared_here_without_compt,
-    not_a_compile_time_constant,
+    is_not_a_compile_time_constant,
     use_of_undeclared_identifier,
     use_of_undeclared_mod,
     not_declared_in_this_scope,

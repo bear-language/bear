@@ -6,6 +6,24 @@ mod foo;
 
 compt i32 a = 1;
 
-var _0 = @id("a");
+compt i32 b =2;
 
-var _1 = @scoped_id(foo, "a");
+fn func() -> i32 => 42
+
+fn unc() -> i32 => 12
+
+var _0 = @static_assert @id("a") == 1;
+
+var _1 = @static_assert (@id "z") == 1; // oops, dne
+
+var _2 = @id("foo"); // oops, not a constant
+
+var _3 = @static_assert  @id("func") == func;
+
+var _4 = @static_assert @scoped_id(foo, "a");
+
+var _5 = @static_assert @scoped_id(foo, "func") == func;
+
+var _6 = @static_assert @scoped_id(foo, "func") == @scoped_id(foo, "unc"); // oops
+
+var _7 = @static_assert @scoped_id(foo, "funk"); // oops 
