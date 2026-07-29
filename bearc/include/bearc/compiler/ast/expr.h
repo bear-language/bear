@@ -55,6 +55,9 @@ typedef enum ast_expr_type {
     AST_EXPR_MEMBERS_OF,
     AST_EXPR_STATICS_OF,
 
+    AST_EXPR_REFLECTED_ID,
+    AST_EXPR_REFLECTED_SCOPED_ID,
+
     // structs
     AST_EXPR_STRUCT_INIT,
     AST_EXPR_STRUCT_MEMBER_INIT,
@@ -257,6 +260,11 @@ typedef struct ast_expr_diagnostic {
     error_diag_type_e diag_type;
 } ast_expr_diagnostic_t;
 
+typedef struct ast_expr_reflected_scoped_id {
+    token_ptr_slice_t scoped_id_prefix;
+    ast_expr_t* reflected_id;
+} ast_expr_reflected_scoped_id_t;
+
 // ^^^^^^^^^^^^^^^^^^^^^^^^
 
 typedef union ast_expr_u {
@@ -289,6 +297,8 @@ typedef union ast_expr_u {
     ast_expr_diagnostic_t diagnostic;
     ast_expr_type_t members_of;
     ast_expr_type_t statics_of;
+    ast_expr_wrapped_t reflected_id;
+    ast_expr_reflected_scoped_id_t reflected_scoped_id;
 } ast_expr_u;
 
 /// underlying expr is 0-offset aligned so this struct can be safely downcasted

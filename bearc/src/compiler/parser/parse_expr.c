@@ -216,6 +216,56 @@ ast_expr_t* parse_expr_statics_of(parser_t* p) {
     return ex;
 }
 
+ast_expr_t* parse_expr_reflected_id(parser_t* p) {
+    ast_expr_t* ex = parser_alloc_expr(p);
+    ex->type = AST_EXPR_REFLECTED_ID;
+
+    token_t* first_tkn = parser_expect_token(p, TOK_REFLECTED_ID);
+    if (!first_tkn) {
+        return parser_sync_expr(p);
+    }
+
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
+    ex->expr.reflected_id.inner = parse_expr(p);
+    if (lparen) {
+        parser_expect_token(p, TOK_RPAREN);
+    }
+
+    ex->first = first_tkn;
+    ex->last = parser_prev(p);
+    return ex;
+}
+
+ast_expr_t* parse_expr_reflected_scoped_id(parser_t* p) {
+    ast_expr_t* ex = parser_alloc_expr(p);
+    ex->type = AST_EXPR_REFLECTED_SCOPED_ID;
+
+    token_t* first_tkn = parser_expect_token(p, TOK_REFLECTED_SCOPED_ID);
+    if (!first_tkn) {
+        return parser_sync_expr(p);
+    }
+
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
+    token_ptr_slice_t id_slice = parse_id_token_slice(p, TOK_SCOPE_RES);
+    if (id_slice.len == 0) {
+        return parser_sync_expr(p);
+    }
+
+    ex->expr.reflected_scoped_id.scoped_id_prefix = id_slice;
+    if (!parser_expect_token(p, TOK_COMMA)) {
+        return parser_sync_expr(p);
+    }
+    ex->expr.reflected_scoped_id.reflected_id = parse_expr(p);
+
+    if (lparen) {
+        parser_expect_token(p, TOK_RPAREN);
+    }
+
+    ex->first = first_tkn;
+    ex->last = parser_prev(p);
+    return ex;
+}
+
 ast_expr_t* parse_preunary_expr(parser_t* p) {
     // special preunary cases
     switch (parser_peek(p)->type) {
@@ -244,6 +294,10 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
         return parse_expr_members_of(p);
     case TOK_STATICS_OF:
         return parse_expr_statics_of(p);
+    case TOK_REFLECTED_SCOPED_ID:
+        return parse_expr_reflected_scoped_id(p);
+    case TOK_REFLECTED_ID:
+        return parse_expr_reflected_id(p);
     default:
         break;
     }

@@ -29,7 +29,6 @@
 #include "compiler/token.h"
 #include "def_visitor.hpp"
 #include <cassert>
-#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -399,6 +398,9 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_members_of(fid, scope, expr);
         case AST_EXPR_STATICS_OF:
             return solve_statics_of(fid, scope, expr);
+
+        case AST_EXPR_REFLECTED_SCOPED_ID: // TODO
+        case AST_EXPR_REFLECTED_ID:        // TODO
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:
         case AST_EXPR_POST_UNARY:
@@ -735,6 +737,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             maybe_value = context.exec(maybe_eid.as_id()).template as<ExecConst>();
             break;
         }
+        case AST_EXPR_REFLECTED_SCOPED_ID: // TODO
+        case AST_EXPR_REFLECTED_ID:        // TODO
         case AST_EXPR_TYPE:
         case AST_EXPR_BORROW:
         case AST_EXPR_STRUCT_MEMBER_INIT:
@@ -979,6 +983,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                 def_visitor, scope, context.symbol_slice(id_slice), id_span, maybe_args.as_id());
             return validate_lookup(maybe_did, id_slice);
         }
+        case AST_EXPR_REFLECTED_SCOPED_ID: // TODO
+        case AST_EXPR_REFLECTED_ID:        // TODO
         case AST_EXPR_SAME_TYPE:
         case AST_EXPR_HAS_CONTRACT:
         case AST_EXPR_DEFINED:
@@ -1920,6 +1926,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             return guard_exec_type(solve_members_of(fid, scope, expr));
         case AST_EXPR_STATICS_OF:
             return guard_exec_type(solve_statics_of(fid, scope, expr));
+        case AST_EXPR_REFLECTED_ID:        // TODO
+        case AST_EXPR_REFLECTED_SCOPED_ID: // TODO
         case AST_EXPR_LITERAL:
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:

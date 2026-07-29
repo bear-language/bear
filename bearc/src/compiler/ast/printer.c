@@ -695,6 +695,23 @@ void pretty_print_expr(const ast_expr_t* expression) {
         print_type(expr.expr.statics_of.type);
         print_closing_green_brace();
         break;
+    case AST_EXPR_REFLECTED_ID:
+        print_title("@id");
+        pretty_print_expr(expr.expr.reflected_id.inner);
+        print_closing_green_brace();
+        break;
+    case AST_EXPR_REFLECTED_SCOPED_ID:
+        print_title("@scoped_id");
+        printer_do_indent();
+        print_indent();
+        printf("scoped identifier prefix: ");
+        print_id_slice(expr.expr.reflected_scoped_id.scoped_id_prefix);
+        puts("");
+        printer_deindent();
+        print_delineator_from_type(TOK_COMMA);
+        pretty_print_expr(expr.expr.reflected_scoped_id.reflected_id);
+        print_closing_green_brace();
+        break;
     }
     puts(",");
     printer_deindent();

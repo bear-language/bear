@@ -121,18 +121,20 @@ typedef enum token_type {
 
     // @____ style builtins
 
-    TOK_SAME_TYPE,     // @same_type
-    TOK_TYPE_TO_STR,   // @type_to_str
-    TOK_STATIC_ASSERT, // @static_assert
-    TOK_DEFINED,       // @defined
-    TOK_HAS_CONTRACT,  // @has_contract
-    TOK_INFERABLE_AS,  // @inferable_as
-    TOK_ERR,           // @err
-    TOK_WARN,          // @warn
-    TOK_NOTE,          // @note
-    TOK_HELP,          // @help
-    TOK_MEMBERS_OF,    // @members_of
-    TOK_STATICS_OF,    // @statics_of
+    TOK_SAME_TYPE,           // @same_type
+    TOK_TYPE_TO_STR,         // @type_to_str
+    TOK_STATIC_ASSERT,       // @static_assert
+    TOK_DEFINED,             // @defined
+    TOK_HAS_CONTRACT,        // @has_contract
+    TOK_INFERABLE_AS,        // @inferable_as
+    TOK_ERR,                 // @err
+    TOK_WARN,                // @warn
+    TOK_NOTE,                // @note
+    TOK_HELP,                // @help
+    TOK_MEMBERS_OF,          // @members_of
+    TOK_STATICS_OF,          // @statics_of
+    TOK_REFLECTED_ID,        // @id
+    TOK_REFLECTED_SCOPED_ID, // @scoped_id
 
     // constructs
     TOK_REQUIRES,

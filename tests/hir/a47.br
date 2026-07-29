@@ -1,0 +1,11 @@
+// tests/hir/a47.br
+
+mod hir_a47;
+
+mod foo;
+
+compt i32 a = 1;
+
+var _0 = @id("a");
+
+var _1 = @scoped_id(foo, "a");

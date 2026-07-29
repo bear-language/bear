@@ -28,13 +28,19 @@ static uint8_t postunary_prec_map[TOK__NUM] = {
 uint8_t prec_postunary(token_type_e type) { return postunary_prec_map[type]; }
 
 static uint8_t preunary_prec_map[TOK__NUM] = {
-    [TOK_INC] = 3,          [TOK_DEC] = 3,           [TOK_PLUS] = 3,        [TOK_MINUS] = 3,
-    [TOK_STAR] = 3,         [TOK_AMPER] = 3,         [TOK_SIZEOF] = 3,      [TOK_ALIGNOF] = 3,
-    [TOK_BOOL_NOT] = 3,     [TOK_TYPEOF] = 3,        [TOK_BIT_NOT] = 3,     [TOK_COMPT] = 3,
-    [TOK_SAME_TYPE] = 3,    [TOK_STATIC_ASSERT] = 3, [TOK_TYPE_TO_STR] = 3, [TOK_DEFINED] = 3,
-    [TOK_HAS_CONTRACT] = 3, [TOK_INFERABLE_AS] = 3,  [TOK_ERR] = 3,         [TOK_WARN] = 3,
-    [TOK_NOTE] = 3,         [TOK_HELP] = 3,          [TOK_MEMBERS_OF] = 3,  [TOK_STATICS_OF] = 3,
-
+    [TOK_INC] = 3,          [TOK_DEC] = 3,
+    [TOK_PLUS] = 3,         [TOK_MINUS] = 3,
+    [TOK_STAR] = 3,         [TOK_AMPER] = 3,
+    [TOK_SIZEOF] = 3,       [TOK_ALIGNOF] = 3,
+    [TOK_BOOL_NOT] = 3,     [TOK_TYPEOF] = 3,
+    [TOK_BIT_NOT] = 3,      [TOK_COMPT] = 3,
+    [TOK_SAME_TYPE] = 3,    [TOK_STATIC_ASSERT] = 3,
+    [TOK_TYPE_TO_STR] = 3,  [TOK_DEFINED] = 3,
+    [TOK_HAS_CONTRACT] = 3, [TOK_INFERABLE_AS] = 3,
+    [TOK_ERR] = 3,          [TOK_WARN] = 3,
+    [TOK_NOTE] = 3,         [TOK_HELP] = 3,
+    [TOK_MEMBERS_OF] = 3,   [TOK_STATICS_OF] = 3,
+    [TOK_REFLECTED_ID] = 3, [TOK_REFLECTED_SCOPED_ID] = 3,
 };
 
 uint8_t prec_preunary(token_type_e type) { return preunary_prec_map[type]; }
