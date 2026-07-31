@@ -15,6 +15,7 @@ namespace hir {
 using LayoutSize = HirSize;
 
 struct Layout {
+    using id_type = LayoutId;
     LayoutSize width;
     LayoutSize alignment;
 };

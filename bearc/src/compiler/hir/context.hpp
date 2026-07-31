@@ -22,6 +22,7 @@
 #include "compiler/hir/id_hash_map.hpp"
 #include "compiler/hir/id_set.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "compiler/hir/layout.hpp"
 #include "compiler/hir/node_vector.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
@@ -587,6 +588,10 @@ class Context {
 
     [[nodiscard]] ExecId exec_id(IdIdx<ExecId> id) const;
 
+    [[nodiscard]] Layout layout(LayoutId id) const;
+
+    [[nodiscard]] LayoutId layout_id(IdIdx<LayoutId> id) const;
+
     [[nodiscard]] const Scope& scope(ScopeId sid) const;
 
     [[nodiscard]] const ast_stmt_t* def_ast_node(DefId def_id) const;
@@ -746,7 +751,7 @@ class Context {
     template <IsId I>
     [[nodiscard]] IdSlice<I> freeze_id_vec(const llvm::SmallVectorImpl<I>& vec)
         requires is_any_of_v<I, TypeId, ExecId, DefId, GenericArgId, FileId, SymbolId,
-                             GenericParamId>
+                             GenericParamId, LayoutId>
     {
         if constexpr (std::is_same_v<I, TypeId>) {
             return type_ids.freeze_small_vec(vec);
@@ -762,6 +767,8 @@ class Context {
             return symbol_ids.freeze_small_vec(vec);
         } else if constexpr (std::is_same_v<I, GenericParamId>) {
             return generic_param_ids.freeze_small_vec(vec);
+        } else if constexpr (std::is_same_v<I, LayoutId>) {
+            return layout_ids.freeze_small_vec(vec);
         } else {
             static_assert(false, "try to freeze a vector of an unconsidered hir::Id type");
         }
@@ -883,6 +890,10 @@ class Context {
 
     DataArena def_to_gen_args_arena;
     IdHashMap<DefId, GenericArgIdSliceId> def_to_gen_args;
+
+    // layout related stuff
+    NodeVector<Layout> layouts;
+    IdVector<LayoutId> layout_ids;
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
