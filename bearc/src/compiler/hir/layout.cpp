@@ -14,7 +14,7 @@
 
 namespace hir {
 
-LayoutId layout_from_type(Context& context, TypeId tid) {
+LayoutId layout_for_type(Context& context, TypeId tid) {
     auto vs = Ovld{
         [&context](const TypeBuiltin& t) -> Layout {
             switch (t.type) {
@@ -49,7 +49,7 @@ LayoutId layout_from_type(Context& context, TypeId tid) {
             }
             std::unreachable();
         },
-        [](const TypeStruct& t) -> Layout {
+        [&context](const TypeStruct& t) -> Layout {
             // TODO
         },
         [](const TypeVariant& t) -> Layout {
@@ -59,7 +59,7 @@ LayoutId layout_from_type(Context& context, TypeId tid) {
             // TODO
         },
         [&context](const TypeDeftype& t) -> Layout {
-            return context.layout(layout_from_type(context, t.true_type));
+            return context.layout(layout_for_type(context, t.true_type));
         },
         [](const TypeArr& t) -> Layout {},
         [&context](const TypeSlice&) -> Layout {
@@ -88,7 +88,7 @@ LayoutId layout_from_type(Context& context, TypeId tid) {
     return context.emplace_layout(context.type(tid).visit(vs));
 }
 
-LayoutId layout_from_canon_type(Context& context, TypeId tid) {
+LayoutId layout_for_canon_type(Context& context, TypeId tid) {
     // TODO
 }
 

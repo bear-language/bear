@@ -28,9 +28,9 @@ struct Layout {
 
 class Context;
 
-LayoutId layout_from_type(Context& context, TypeId tid);
+LayoutId layout_for_type(Context& context, TypeId tid);
 
-LayoutId layout_from_canon_type(Context& context, TypeId tid);
+LayoutId layout_for_canon_type(Context& context, TypeId tid);
 
 } // namespace hir
 
