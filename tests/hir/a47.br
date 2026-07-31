@@ -27,3 +27,13 @@ var _5 = @static_assert @scoped_id(foo, "func") == func;
 var _6 = @static_assert @scoped_id(foo, "func") == @scoped_id(foo, "unc"); // oops
 
 var _7 = @static_assert @scoped_id(foo, "funk"); // oops 
+
+mod bee;
+
+fn funcy() -> i32 => 12
+
+fn foops() -> i32 => 42
+
+var _8 = @static_assert @scoped_id(foo..bee, "funcy") == funcy;
+
+var _9 = @static_assert @scoped_id(foo..bee, "foops") == funcy; // oops
