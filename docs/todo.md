@@ -7,7 +7,8 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] tighten up abi related stuff with `hir::Layout` / `hir::LayoutId`
-    - [ ] `struct Layout { i32 width; i32 alignment }`
+    - [x] `struct Layout { i32 width; i32 alignment }`
+    - [ ] per-canonical tid caching/memoization of layouts (see todos in `layout.cpp`), but this will largely be done in `context.cpp`
     - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
 
 - [ ] digest (and validate) escape sequences when interning string literal tokens 
