@@ -60,6 +60,7 @@ struct Type;
 struct GenericParam;
 struct GenericArg;
 struct Diagnostic;
+struct Layout;
 
 /// primary means of tracking interned strings in the hir
 using SymbolId = Id<Symbol>;
@@ -92,6 +93,9 @@ using GenericArgId = Id<GenericArg>;
 using GenericParamId = Id<GenericParam>;
 
 using DiagnosticId = Id<Diagnostic>;
+
+/// layouts for struct/union/variants
+using LayoutId = Id<Layout>;
 
 /// to be stored in a HirSymbolId -> HirSymbol table
 class Symbol {

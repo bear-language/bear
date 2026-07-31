@@ -6,8 +6,8 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] tighten up abi related stuff with `hir::LayOut` / `hir::LayOutId`
-    - [ ] `struct LayOut { i32 width; i32 alignment }`
+- [ ] tighten up abi related stuff with `hir::Layout` / `hir::LayoutId`
+    - [ ] `struct Layout { i32 width; i32 alignment }`
     - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
 
 - [ ] digest (and validate) escape sequences when interning string literal tokens 
