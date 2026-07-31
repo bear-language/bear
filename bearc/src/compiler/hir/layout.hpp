@@ -16,9 +16,21 @@ using LayoutSize = HirSize;
 
 struct Layout {
     using id_type = LayoutId;
+    // width, in bytes
     LayoutSize width;
+    // alignment, in bytes
     LayoutSize alignment;
+
+    [[nodiscard]] static Layout same_align_width(HirSize bytes) {
+        return Layout{.width = bytes, .alignment = bytes};
+    }
 };
+
+class Context;
+
+LayoutId layout_from_type(Context& context, TypeId tid);
+
+LayoutId layout_from_canon_type(Context& context, TypeId tid);
 
 } // namespace hir
 

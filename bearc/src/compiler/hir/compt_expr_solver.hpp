@@ -15,6 +15,7 @@
 #include "compiler/ast/type.h"
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def.hpp"
+#include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/exec_ops.hpp"
@@ -27,7 +28,6 @@
 #include "compiler/hir/type.hpp"
 #include "compiler/parser/token_eaters.h"
 #include "compiler/token.h"
-#include "def_visitor.hpp"
 #include <cassert>
 #include <optional>
 #include <utility>

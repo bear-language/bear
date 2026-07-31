@@ -56,6 +56,13 @@ class Context {
     int help_count() const noexcept;
     bool compact_diagnostics_enabled() const noexcept;
     bool has_flag(cli_flag_e flag) const noexcept;
+
+    // abi related info stuff
+
+    /// gets the pointer size in bytes
+    [[nodiscard]] HirSize register_size_bytes() const { return register_size_bytes_; }
+    [[nodiscard]] HirSize pointer_size_bytes() const { return pointer_size_bytes_; }
+
     // ----- accessors / emplacers --------
     [[nodiscard]] SymbolId symbol_id(const token_t* tkn);
     [[nodiscard]] SymbolId symbol_id(const char* start, size_t len);
@@ -592,6 +599,8 @@ class Context {
 
     [[nodiscard]] LayoutId layout_id(IdIdx<LayoutId> id) const;
 
+    [[nodiscard]] LayoutId emplace_layout(Layout lay);
+
     [[nodiscard]] const Scope& scope(ScopeId sid) const;
 
     [[nodiscard]] const ast_stmt_t* def_ast_node(DefId def_id) const;
@@ -900,6 +909,10 @@ class Context {
     // for parallel ast building
     std::shared_mutex import_file_mutex;
 
+    // for abi styuff, these are usually the same:
+    HirSize pointer_size_bytes_{8};
+    HirSize register_size_bytes_{8};
+
     // error tracking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NodeVector<Diagnostic> diagnostics;
     IdVecMap<DiagnosticId, uint8_t> diagnostics_used;
@@ -909,16 +922,21 @@ class Context {
     HirSize normal_error_cnt{};
     HirSize fatal_error_cnt{};
 
+    // args (passed in at construction)
+    const bearc_args_t& args;
+
+    // args/flags ~~~~~~~~~~~~~
+
     // for checking and setting the local only_one_context_instance on init
     static std::atomic<bool> one_instance_status;
 
     const bool only_one_context_instance;
 
-    // args
-    const bearc_args_t& args;
     bool compact_diagnostics{false};
     bool terse{false};
     bool strict_syntax{false};
+
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^
 
     [[nodiscard]] FileId provide_root_file(const char* file_name);
     /// forceably emplaces ast, not checking if it has already been processed. This function is

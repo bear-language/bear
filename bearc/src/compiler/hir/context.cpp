@@ -113,8 +113,8 @@ Context::Context(const bearc_args_t& args, instances instances)
       def_to_gen_args_arena(DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP),
       def_to_gen_args(def_to_gen_args_arena, DEFAULT_CANONICAL_GEN_ARGS_CAP),
       layouts{DEFAULT_TYPE_VEC_CAP}, layout_ids{DEFAULT_TYPE_VEC_CAP},
-      diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM},
-      only_one_context_instance((instances == instances::one) && one_instance_status), args{args},
+      diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
+      only_one_context_instance((instances == instances::one) && one_instance_status),
       compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]), terse{args.flags[CLI_FLAG_TERSE]},
       strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]} {
 
@@ -1100,6 +1100,10 @@ ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
 [[nodiscard]] Layout Context::layout(LayoutId id) const { return layouts.at(id); }
 
 [[nodiscard]] LayoutId Context::layout_id(IdIdx<LayoutId> id) const { return layout_ids.at(id); }
+
+[[nodiscard]] LayoutId Context::emplace_layout(Layout lay) {
+    return layouts.emplace_and_get_id(lay);
+}
 
 [[nodiscard]] const Scope& Context::scope(ScopeId sid) const { return scopes.at(sid); }
 

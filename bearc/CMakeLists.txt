@@ -71,7 +71,7 @@ set(SRC
     src/compiler/hir/exec_proving.cpp
     src/compiler/hir/matching.cpp
     src/compiler/hir/generic.cpp
-
+    src/compiler/hir/layout.cpp
 )
 
 set(NO_TEST_SRC
