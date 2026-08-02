@@ -909,6 +909,7 @@ class Context {
     IdVector<LayoutId> layout_ids;
     DataArena canon_type_ids_to_layout_ids_arena;
     IdHashMap<CanonicalTypeId, LayoutId> canon_type_ids_to_layout_ids;
+    IdVector<Offset> offsets; // TODO write impl
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

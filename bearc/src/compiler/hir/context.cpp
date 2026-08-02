@@ -116,8 +116,8 @@ Context::Context(const bearc_args_t& args, instances instances)
       canon_type_ids_to_layout_ids_arena{DEFAULT_ARENA_CAP},
       canon_type_ids_to_layout_ids{canonical_generic_args_table_arena,
                                    DEFAULT_CANONICAL_TYPE_VEC_CAP},
-      diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
-      only_one_context_instance((instances == instances::one) && one_instance_status),
+      offsets{DEFAULT_DEF_CAP}, diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM},
+      args{args}, only_one_context_instance((instances == instances::one) && one_instance_status),
       compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]), terse{args.flags[CLI_FLAG_TERSE]},
       strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]} {
 

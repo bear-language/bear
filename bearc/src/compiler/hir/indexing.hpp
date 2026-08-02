@@ -97,6 +97,8 @@ using DiagnosticId = Id<Diagnostic>;
 /// layouts for struct/union/variants
 using LayoutId = Id<Layout>;
 
+using Offset = Id<HirSize>;
+
 /// to be stored in a HirSymbolId -> HirSymbol table
 class Symbol {
     /// view into interned string arena for reversing symbols back into strings
