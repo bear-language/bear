@@ -611,6 +611,8 @@ class Context {
 
     [[nodiscard]] DefId end_def_id() const;
 
+    [[nodiscard]] Offset offset(IdIdx<Offset> offset_idx) const;
+
     /// checks if a Def is a struct without resolving it
     [[nodiscard]] bool is_struct(DefId did) const;
     /// checks if a Def is a union without resolving it
@@ -764,7 +766,7 @@ class Context {
     template <IsId I>
     [[nodiscard]] IdSlice<I> freeze_id_vec(const llvm::SmallVectorImpl<I>& vec)
         requires is_any_of_v<I, TypeId, ExecId, DefId, GenericArgId, FileId, SymbolId,
-                             GenericParamId, LayoutId>
+                             GenericParamId, LayoutId, Offset>
     {
         if constexpr (std::is_same_v<I, TypeId>) {
             return type_ids.freeze_small_vec(vec);
@@ -782,9 +784,27 @@ class Context {
             return generic_param_ids.freeze_small_vec(vec);
         } else if constexpr (std::is_same_v<I, LayoutId>) {
             return layout_ids.freeze_small_vec(vec);
+        } else if constexpr (std::is_same_v<I, Offset>) {
+            return offsets.freeze_small_vec(vec);
         } else {
-            static_assert(false, "try to freeze a vector of an unconsidered hir::Id type");
+            static_assert(false, "tried to freeze a vector of an unconsidered hir::Id type");
         }
+    }
+
+    [[nodiscard]] OffsetSliceId emplace_offset_vec(const llvm::SmallVectorImpl<Offset>& vec) {
+        return offset_slices.emplace_and_get_id(freeze_id_vec(vec));
+    }
+
+    [[nodiscard]] IdSlice<Offset> offset_slice(OffsetSliceId offset_slice_id) {
+        return offset_slices.at(offset_slice_id);
+    }
+
+    void register_offset_slice(DefId did, OffsetSliceId offset_slice_id) {
+        def_id_to_offset_slice.insert(did, offset_slice_id);
+    }
+
+    [[nodiscard]] OptId<OffsetSliceId> offset_slice_for_def(DefId did) {
+        return def_id_to_offset_slice.at(did);
     }
 
   private:
@@ -909,7 +929,10 @@ class Context {
     IdVector<LayoutId> layout_ids;
     DataArena canon_type_ids_to_layout_ids_arena;
     IdHashMap<CanonicalTypeId, LayoutId> canon_type_ids_to_layout_ids;
-    IdVector<Offset> offsets; // TODO write impl
+    IdVector<Offset> offsets;
+    IdVecMap<OffsetSliceId, IdSlice<Offset>> offset_slices;
+    DataArena def_id_to_offset_slice_arena;
+    IdHashMap<DefId, OffsetSliceId> def_id_to_offset_slice;
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

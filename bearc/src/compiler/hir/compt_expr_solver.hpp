@@ -36,7 +36,7 @@ namespace hir {
 template <IsDefVisitor V> class ComptExprSolver {
     Context& context;
     V& def_visitor;
-    HirSize call_depth = 0;
+    HirSize call_depth{0};
 
   public:
     static constexpr HirSize MAX_COMPT_CALL_FRAMES = 400;

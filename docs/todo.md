@@ -10,8 +10,8 @@ main quest
     - [x] `struct Layout { i32 width; i32 alignment }`
     - [x] per-canonical tid caching/memoization of layouts (see todos in `layout.cpp`), but this will largely be done in `context.cpp`
     - [x] handle the discriminant for variants 
-    - [ ] store byte offsets for structs/variant field members per `DefId` in `Context`
-    - [ ] write impl for unions (pretty easy, but take max of all fields)
+    - [x] store byte offsets for structs/variant field members per `DefId` in `Context`
+    - [x] write impl for unions (pretty easy, but take max of all fields)
     - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
 
 - [ ] digest (and validate) escape sequences when interning string literal tokens 

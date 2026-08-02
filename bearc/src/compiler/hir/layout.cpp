@@ -11,9 +11,20 @@
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/variant_helpers.hpp"
 #include "type.hpp"
+#include "llvm/ADT/SmallVector.h"
 #include <utility>
 
 namespace hir {
+
+/// align up a byte offset
+/// - align must be nonzero and a power of two
+[[nodiscard]] HirSize align_up(HirSize offset, HirSize align) {
+    // ensure align is nonzero
+    assert(align > 0);
+    // ensure align is a power of two (which is should be)
+    assert(std::has_single_bit(align));
+    return (offset + align - 1) & ~(align - 1);
+};
 
 LayoutId layout_for_type(Context& context, TypeId tid) {
     const Type& ty = context.type(tid);
@@ -48,7 +59,7 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
                 return Layout::same_align_width(1); // hm
             case builtin_type::str:
                 return Layout{.width = context.pointer_size_bytes() + context.register_size_bytes(),
-                              .alignment = std::max(context.register_size_bytes(),
+                              .alignment = std::max(context.pointer_size_bytes(),
                                                     context.register_size_bytes())};
             case builtin_type::nullpointer:
                 return Layout::same_align_width(context.pointer_size_bytes());
@@ -60,13 +71,9 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
         [&context](const TypeStruct& t) -> Layout {
             const auto mems = context.ordered_defs_for(t.def_id);
 
-            const auto align_up = +[](HirSize off, HirSize align) -> HirSize {
-                // assumes align is a power of two, which it should be
-                return (off + align - 1) & ~(align - 1);
-            };
-
             HirSize offset = 0;
             HirSize struct_align = 1;
+            llvm::SmallVector<Offset> offset_vec{};
 
             for (auto didx = mems.begin(); didx != mems.end(); ++didx) {
                 // all struct ordered members are variable definitions
@@ -80,8 +87,12 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
 
                 // insert padding so this member starts at its required alignment
                 offset = align_up(offset, mem_lay.alignment);
+
+                // record offset of this member
+                offset_vec.emplace_back(offset);
+
+                // bump
                 offset += mem_lay.width;
-                // TODO store offset info per-DefId in Context
 
                 struct_align = std::max(struct_align, mem_lay.alignment);
             }
@@ -94,21 +105,23 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
                 width = 1;
             }
 
+            const OffsetSliceId offset_slice_id = context.emplace_offset_vec(offset_vec);
+
+            context.register_offset_slice(t.def_id, offset_slice_id);
+
             return Layout{.width = width, .alignment = struct_align};
         },
         [&context](const TypeVariant& t) -> Layout {
             const auto fields = context.ordered_defs_for(t.def_id);
 
-            const auto align_up = +[](HirSize off, HirSize align) -> HirSize {
-                // assumes align is a power of two, which it should be
-                return (off + align - 1) & ~(align - 1);
-            };
-
             llvm::SmallVector<Layout> field_lays;
+
             for (auto field_didx = fields.begin(); field_didx != fields.end(); ++field_didx) {
-                const auto mems = context.def(field_didx).as<DefVariantField>().members;
+                const auto field_did = context.def_id(field_didx);
+                const auto mems = context.def(field_did).as<DefVariantField>().members;
                 HirSize offset = 0;
                 HirSize field_align = 1;
+                llvm::SmallVector<Offset> offset_vec;
                 for (auto didx = mems.begin(); didx != mems.end(); ++didx) {
                     // all variant members are ordered members are variable definitions
                     const auto& def = context.def(didx);
@@ -121,13 +134,21 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
 
                     // insert padding so this member starts at its required alignment
                     offset = align_up(offset, mem_lay.alignment);
+
+                    // record offset of this member
+                    offset_vec.push_back(Offset{offset});
+
+                    // update offset with width of this member
                     offset += mem_lay.width;
-                    // TODO store offset info per-DefId in Context
 
                     field_align = std::max(field_align, mem_lay.alignment);
                 }
 
                 HirSize width = align_up(offset, field_align);
+
+                const OffsetSliceId offset_slice_id = context.emplace_offset_vec(offset_vec);
+
+                context.register_offset_slice(field_did, offset_slice_id);
 
                 field_lays.push_back(Layout{.width = width, .alignment = field_align});
             }
@@ -149,19 +170,51 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
             lay.width = discrim_offset + discrim_bytes;
             lay.alignment = std::max(lay.alignment, discrim_bytes);
             lay.width = align_up(lay.width, lay.alignment); // trailing padding if needed
+
+            // register the offsets for the outer variant which looks like:
+            // variant {
+            //     payload,
+            //     discriminant,
+            // }
+            llvm::SmallVector<Offset> variant_offsets{};
+            variant_offsets.push_back(Offset{0}); // payload always starts at 0
+            variant_offsets.push_back(Offset{discrim_offset});
+            context.register_offset_slice(t.def_id, context.emplace_offset_vec(variant_offsets));
             return lay;
         },
-        [](const TypeUnion& t) -> Layout {
-            // TODO
+        [&context](const TypeUnion& t) -> Layout {
+            llvm::SmallVector<LayoutId> layout_vec{};
+
+            IdSlice<DefId> mems = context.def(t.def_id).as<DefUnion>().ordered_members;
+
+            for (auto didx = mems.begin(); didx != mems.end(); ++didx) {
+                layout_vec.push_back(
+                    layout_for_type(context, context.def(didx).as<DefVariable>().type_id));
+            }
+
+            HirSize max_width{1};
+            HirSize max_align{1};
+            for (const auto lay_id : layout_vec) {
+                const Layout lay = context.layout(lay_id);
+                max_width = std::max(max_width, lay.width);
+                max_align = std::max(max_align, lay.alignment);
+            }
+
+            return Layout{.width = align_up(max_width, max_align), .alignment = max_align};
         },
         [&context](const TypeDeftype& t) -> Layout {
             return context.layout(layout_for_type(context, t.true_type));
         },
-        [](const TypeArr& t) -> Layout {},
+        [&context](const TypeArr& t) -> Layout {
+            const Layout inner_lay = context.layout(layout_for_type(context, t.inner));
+
+            return Layout{.width = static_cast<LayoutSize>(t.canonical_size * inner_lay.width),
+                          .alignment = inner_lay.alignment};
+        },
         [&context](const TypeSlice&) -> Layout {
             return Layout{.width = context.pointer_size_bytes() + context.register_size_bytes(),
                           .alignment
-                          = std::max(context.register_size_bytes(), context.register_size_bytes())};
+                          = std::max(context.pointer_size_bytes(), context.register_size_bytes())};
         },
         [&context](const TypeRef&) -> Layout {
             return Layout::same_align_width(context.pointer_size_bytes());
@@ -169,7 +222,7 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
         [&context](const TypePtr&) -> Layout {
             return Layout::same_align_width(context.pointer_size_bytes());
         },
-        [&context](const TypeFnPtr& t) -> Layout {
+        [&context](const TypeFnPtr&) -> Layout {
             return Layout::same_align_width(context.pointer_size_bytes());
         },
         [](const TypeVar&) -> Layout {

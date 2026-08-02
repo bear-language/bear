@@ -216,6 +216,8 @@ using CanonicalGenericArgsIdMapId = Id<IdSlice<CanonicalGenericArgsId>>;
 
 using CanonicalComptArgsIdMapId = Id<IdSlice<CanonicalGenericArgsId>>;
 
+using OffsetSliceId = Id<IdSlice<Offset>>;
+
 } // namespace hir
 
 #endif
