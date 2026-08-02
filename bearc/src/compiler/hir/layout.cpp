@@ -145,11 +145,10 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
             // width of the discriminant > payload)
             const HirSize discrim_bytes
                 = context.def(t.def_id).as<DefVariant>().byte_count_for_discriminant();
-            auto offset = align_up(lay.width,
-                                   discrim_bytes); // discrim_bytes is the align of the discriminant
-            lay.width += offset + discrim_bytes;
+            HirSize discrim_offset = align_up(lay.width, discrim_bytes);
+            lay.width = discrim_offset + discrim_bytes;
             lay.alignment = std::max(lay.alignment, discrim_bytes);
-
+            lay.width = align_up(lay.width, lay.alignment); // trailing padding if needed
             return lay;
         },
         [](const TypeUnion& t) -> Layout {
