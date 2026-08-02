@@ -16,7 +16,13 @@
 namespace hir {
 
 LayoutId layout_for_type(Context& context, TypeId tid) {
-    // TODO check for memoized result for this TypeId's CanonicalTypeId
+    const Type& ty = context.type(tid);
+
+    // check for memoized layout (which is recorded per-canonical-type)
+    const auto maybe_existing = context.layout_for_canon_type(ty.canonical);
+    if (maybe_existing.has_value()) {
+        return maybe_existing.as_id();
+    }
     auto vs = Ovld{
         [&context](const TypeBuiltin& t) -> Layout {
             switch (t.type) {
@@ -168,8 +174,12 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
 
     };
 
-    // TODO store this in context for this type's canonical type
-    return context.emplace_layout(context.type(tid).visit(vs));
+    const LayoutId lay_id = context.emplace_layout(ty.visit(vs));
+
+    // memoize this guy
+    context.put_layout_for_canon_type(ty.canonical, lay_id);
+
+    return lay_id;
 }
 
 } // namespace hir

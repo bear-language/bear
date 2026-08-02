@@ -756,6 +756,10 @@ class Context {
     [[nodiscard]] OptId<DefId> linear_name_match_in_def_slice(IdSlice<DefId> defs,
                                                               SymbolId name) const;
 
+    [[nodiscard]] OptId<LayoutId> layout_for_canon_type(CanonicalTypeId canon_tid) const;
+
+    void put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_id);
+
     // freeze a vector (llvm::SmallVector) into an IdSlice for leaner storage
     template <IsId I>
     [[nodiscard]] IdSlice<I> freeze_id_vec(const llvm::SmallVectorImpl<I>& vec)
@@ -903,6 +907,8 @@ class Context {
     // layout related stuff
     NodeVector<Layout> layouts;
     IdVector<LayoutId> layout_ids;
+    DataArena canon_type_ids_to_layout_ids_arena;
+    IdHashMap<CanonicalTypeId, LayoutId> canon_type_ids_to_layout_ids;
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

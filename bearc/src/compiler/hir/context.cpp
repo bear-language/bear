@@ -59,7 +59,7 @@ static constexpr size_t DEFAULT_FILE_ID_VEC_CAP = 0x200;
 static constexpr size_t DEFAULT_SYMBOL_VEC_CAP = 0x800;
 static constexpr size_t DEFAULT_EXEC_VEC_CAP = 0x800;
 static constexpr size_t DEFAULT_DEF_CAP = 0x800;
-static constexpr size_t DEFAULT_TYPE_VEC_CAP = 0x400;
+static constexpr size_t DEFAULT_TYPE_CAP = 0x800;
 static constexpr size_t DEFAULT_CANONICAL_TYPE_VEC_CAP = 0x100;
 static constexpr size_t DEFAULT_GENERIC_ARG_VEC_CAP = 0x400;
 static constexpr HirSize EXPECTED_HIGH_NUM_IMPORTS = 128;
@@ -94,7 +94,7 @@ Context::Context(const bearc_args_t& args, instances instances)
       struct_did_to_contract_set_id_arena{DEFAULT_ARENA_CAP},
       struct_did_to_contract_set_id(struct_did_to_contract_set_id_arena, DEFAULT_DEF_CAP),
       contract_set_arena{DEFAULT_ARENA_CAP}, contract_sets{DEFAULT_DEF_CAP},
-      type_ids{DEFAULT_DEF_CAP}, types{DEFAULT_TYPE_VEC_CAP},
+      type_ids{DEFAULT_DEF_CAP}, types{DEFAULT_TYPE_CAP},
       canonical_to_type_id(DEFAULT_CANONICAL_TYPE_VEC_CAP),
       canonical_type_table_arena{DEFAULT_CANONICAL_TYPE_ARENA_CAP},
       canonical_type_table(*this, canonical_type_table_arena, DEFAULT_CANONICAL_TT_CAP),
@@ -112,7 +112,10 @@ Context::Context(const bearc_args_t& args, instances instances)
       generic_params(DEFAULT_CANONICAL_GEN_ARGS_CAP),
       def_to_gen_args_arena(DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP),
       def_to_gen_args(def_to_gen_args_arena, DEFAULT_CANONICAL_GEN_ARGS_CAP),
-      layouts{DEFAULT_TYPE_VEC_CAP}, layout_ids{DEFAULT_TYPE_VEC_CAP},
+      layouts{DEFAULT_TYPE_CAP}, layout_ids{DEFAULT_TYPE_CAP},
+      canon_type_ids_to_layout_ids_arena{DEFAULT_ARENA_CAP},
+      canon_type_ids_to_layout_ids{canonical_generic_args_table_arena,
+                                   DEFAULT_CANONICAL_TYPE_VEC_CAP},
       diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
       only_one_context_instance((instances == instances::one) && one_instance_status),
       compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]), terse{args.flags[CLI_FLAG_TERSE]},
@@ -2039,8 +2042,16 @@ OptId<DefId> Context::linear_name_match_in_def_slice(IdSlice<DefId> defs, Symbol
     return {};
 }
 
+OptId<LayoutId> Context::layout_for_canon_type(CanonicalTypeId canon_tid) const {
+    return canon_type_ids_to_layout_ids.at(canon_tid);
+}
+
+void Context::put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_id) {
+    canon_type_ids_to_layout_ids.insert(canon_tid, lay_id);
+}
+
 CanonicalGenericArgsId Context::canonical_gen_args(GenericArgIdSliceId slice_id) {
-    return this->canonical_compt_args_table.canonical(slice_id);
+    return canonical_compt_args_table.canonical(slice_id);
 }
 
 [[nodiscard]] std::optional<IdSlice<GenericParamId>>
