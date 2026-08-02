@@ -313,7 +313,6 @@ inline bool value_inside_range(const Context& ctx, ExecId range_eid, ExecId val_
 template <IsExprSolver S>
 bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid,
                                             const ast_expr_t* match_expr) {
-    // TODO make this de-duplicate branches using exec hashing and an exec hash table!
     assert(match_expr->type == AST_EXPR_MATCH);
 
     Context& context = solver.get_context();

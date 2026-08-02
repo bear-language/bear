@@ -613,7 +613,6 @@ class ExecHashMap {
     // only use after at returns none to avoid duplicate inserts
     void insert(ExecId eid);
 
-    // TODO finish
     struct Iter {
         using iterator_category = std::forward_iterator_tag;
 
