@@ -8,6 +8,9 @@ main quest
 
 - [ ] tighten up abi related stuff with `hir::Layout` / `hir::LayoutId`
     - [x] `struct Layout { i32 width; i32 alignment }`
+    - [ ] handle the discriminant for variants 
+    - [ ] store byte offsets for structs/variant field members per `DefId` in `Context`
+    - [ ] write impl for unions (pretty easy, but take max of all fields)
     - [ ] per-canonical tid caching/memoization of layouts (see todos in `layout.cpp`), but this will largely be done in `context.cpp`
     - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
 

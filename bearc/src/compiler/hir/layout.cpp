@@ -8,6 +8,7 @@
 
 #include "compiler/hir/layout.hpp"
 #include "compiler/hir/context.hpp"
+#include "compiler/hir/indexing.hpp"
 #include "compiler/hir/variant_helpers.hpp"
 #include "type.hpp"
 #include <utility>
@@ -15,6 +16,7 @@
 namespace hir {
 
 LayoutId layout_for_type(Context& context, TypeId tid) {
+    // TODO check for memoized result for this TypeId's CanonicalTypeId
     auto vs = Ovld{
         [&context](const TypeBuiltin& t) -> Layout {
             switch (t.type) {
@@ -50,10 +52,92 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
             std::unreachable();
         },
         [&context](const TypeStruct& t) -> Layout {
-            // TODO
+            const auto mems = context.ordered_defs_for(t.def_id);
+
+            const auto align_up = +[](HirSize off, HirSize align) -> HirSize {
+                // assumes align is a power of two, which it should be
+                return (off + align - 1) & ~(align - 1);
+            };
+
+            HirSize offset = 0;
+            HirSize struct_align = 1;
+
+            for (auto didx = mems.begin(); didx != mems.end(); ++didx) {
+                // all struct ordered members are variable definitions
+                const auto& def = context.def(didx);
+                const auto tid = def.as<DefVariable>().type_id;
+
+                const LayoutId mem_lid = layout_for_type(context, tid);
+                Layout mem_lay = context.layout(mem_lid);
+                mem_lay.alignment
+                    = std::max(mem_lay.alignment, static_cast<HirSize>(def.alignment_preference));
+
+                // insert padding so this member starts at its required alignment
+                offset = align_up(offset, mem_lay.alignment);
+                offset += mem_lay.width;
+                // TODO store offset info per-DefId in Context
+
+                struct_align = std::max(struct_align, mem_lay.alignment);
+            }
+
+            // trailing padding since total size must be a multiple of struct alignment
+            HirSize width = align_up(offset, struct_align);
+
+            // width of 0 is not allowed (empty struct)
+            if (width == 0) {
+                width = 1;
+            }
+
+            return Layout{.width = width, .alignment = struct_align};
         },
-        [](const TypeVariant& t) -> Layout {
-            // TODO
+        [&context](const TypeVariant& t) -> Layout {
+            const auto fields = context.ordered_defs_for(t.def_id);
+
+            const auto align_up = +[](HirSize off, HirSize align) -> HirSize {
+                // assumes align is a power of two, which it should be
+                return (off + align - 1) & ~(align - 1);
+            };
+
+            llvm::SmallVector<Layout> field_lays;
+            for (auto field_didx = fields.begin(); field_didx != fields.end(); ++field_didx) {
+                const auto mems = context.def(field_didx).as<DefVariantField>().members;
+                HirSize offset = 0;
+                HirSize field_align = 1;
+                for (auto didx = mems.begin(); didx != mems.end(); ++didx) {
+                    // all variant members are ordered members are variable definitions
+                    const auto& def = context.def(didx);
+                    const auto tid = def.as<DefVariable>().type_id;
+
+                    const LayoutId mem_lid = layout_for_type(context, tid);
+                    Layout mem_lay = context.layout(mem_lid);
+                    mem_lay.alignment = std::max(mem_lay.alignment,
+                                                 static_cast<HirSize>(def.alignment_preference));
+
+                    // insert padding so this member starts at its required alignment
+                    offset = align_up(offset, mem_lay.alignment);
+                    offset += mem_lay.width;
+                    // TODO store offset info per-DefId in Context
+
+                    field_align = std::max(field_align, mem_lay.alignment);
+                }
+
+                HirSize width = align_up(offset, field_align);
+
+                field_lays.push_back(Layout{.width = width, .alignment = field_align});
+            }
+
+            HirSize max_width = 0;
+            HirSize max_align = 0;
+            for (const auto lay : field_lays) {
+                max_width = std::max(max_width, lay.width);
+                max_align = std::max(max_align, lay.alignment);
+            }
+
+            Layout lay{.width = max_width, .alignment = max_align};
+
+            // TODO factor in discriminant here
+
+            return lay;
         },
         [](const TypeUnion& t) -> Layout {
             // TODO
@@ -86,10 +170,6 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
 
     // TODO store this in context for this type's canonical type
     return context.emplace_layout(context.type(tid).visit(vs));
-}
-
-LayoutId layout_for_canon_type(Context& context, TypeId tid) {
-    // TODO
 }
 
 } // namespace hir
