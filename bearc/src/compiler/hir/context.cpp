@@ -147,11 +147,11 @@ Context::Context(const bearc_args_t& args, instances instances)
 
     // registers intrinsic pseudo source files
     register_intrinsic_files();
-    // ^ TODO for some odd reason the addition of this can make deeply
+    // ^ for some odd reason the addition of this can make deeply
     // nested generics fail (see a15.br with that one long type even
     // longer)
 
-    // this is actually slower
+    // this is actually slower in tests for some reason
     // if (args.import_file_cnt) {
     //    register_import_files_parallel(args.import_files, args.import_file_cnt);
     // }

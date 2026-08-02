@@ -100,6 +100,21 @@ struct DefVariant {
     OptId<DefId> orginal;
     // generic args, if any
     OptId<GenericArgIdSliceId> maybe_generic_args;
+
+    HirSize byte_count_for_discriminant() const {
+        const auto mems = ordered_members;
+
+        if (mems.len() <= UINT8_MAX) {
+            return 1;
+        }
+        if (mems.len() <= UINT16_MAX) {
+            return 2;
+        }
+        if (mems.len() <= UINT32_MAX) {
+            return 4;
+        }
+        return 8; // i guess bro
+    }
 };
 
 struct DefGenericVariant {

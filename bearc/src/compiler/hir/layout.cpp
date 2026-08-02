@@ -141,7 +141,14 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
 
             Layout lay{.width = max_width, .alignment = max_align};
 
-            // TODO factor in discriminant here
+            // handle the discriminant and make sure it's aligned (matters particularly when the
+            // width of the discriminant > payload)
+            const HirSize discrim_bytes
+                = context.def(t.def_id).as<DefVariant>().byte_count_for_discriminant();
+            auto offset = align_up(lay.width,
+                                   discrim_bytes); // discrim_bytes is the align of the discriminant
+            lay.width += offset + discrim_bytes;
+            lay.alignment = std::max(lay.alignment, discrim_bytes);
 
             return lay;
         },
