@@ -216,6 +216,45 @@ ast_expr_t* parse_expr_statics_of(parser_t* p) {
     return ex;
 }
 
+ast_expr_t* parse_expr_sizeof(parser_t* p) {
+    ast_expr_t* ex = parser_alloc_expr(p);
+    ex->type = AST_EXPR_SIZEOF;
+
+    token_t* first_tkn = parser_expect_token(p, TOK_SIZEOF);
+    if (!first_tkn) {
+        return parser_sync_expr(p);
+    }
+
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
+    ex->expr.size_of.type = parse_type(p);
+    if (lparen) {
+        parser_expect_token(p, TOK_RPAREN);
+    }
+
+    ex->first = first_tkn;
+    ex->last = parser_prev(p);
+    return ex;
+}
+ast_expr_t* parse_expr_alignof(parser_t* p) {
+    ast_expr_t* ex = parser_alloc_expr(p);
+    ex->type = AST_EXPR_ALIGNOF;
+
+    token_t* first_tkn = parser_expect_token(p, TOK_ALIGNOF);
+    if (!first_tkn) {
+        return parser_sync_expr(p);
+    }
+
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
+    ex->expr.align_of.type = parse_type(p);
+    if (lparen) {
+        parser_expect_token(p, TOK_RPAREN);
+    }
+
+    ex->first = first_tkn;
+    ex->last = parser_prev(p);
+    return ex;
+}
+
 ast_expr_t* parse_expr_reflected_id(parser_t* p) {
     ast_expr_t* ex = parser_alloc_expr(p);
     ex->type = AST_EXPR_REFLECTED_ID;
@@ -298,6 +337,10 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
         return parse_expr_reflected_scoped_id(p);
     case TOK_REFLECTED_ID:
         return parse_expr_reflected_id(p);
+    case TOK_SIZEOF:
+        return parse_expr_sizeof(p);
+    case TOK_ALIGNOF:
+        return parse_expr_alignof(p);
     default:
         break;
     }

@@ -1,0 +1,7 @@
+// tests/hir/a49.br
+
+struct A {
+    u8 a;
+    u8 b;
+    u8 c;
+}

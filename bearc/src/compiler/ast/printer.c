@@ -712,6 +712,16 @@ void pretty_print_expr(const ast_expr_t* expression) {
         pretty_print_expr(expr.expr.reflected_scoped_id.reflected_id);
         print_closing_green_brace();
         break;
+    case AST_EXPR_ALIGNOF:
+        print_title("@alignof");
+        print_type(expr.expr.align_of.type);
+        print_closing_green_brace();
+        break;
+    case AST_EXPR_SIZEOF:
+        print_title("@sizeof");
+        print_type(expr.expr.size_of.type);
+        print_closing_green_brace();
+        break;
     }
     puts(",");
     printer_deindent();

@@ -13,8 +13,8 @@ main quest
     - [x] store byte offsets for structs/variant field members per `DefId` in `Context`
     - [x] write impl for unions (pretty easy, but take max of all fields)
 - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
-    - [ ] make them special-cased exprs like other builtins instead of regular preunary operators 
-    - [ ] write impl into `compt_expr_solver.h`
+    - [x] make them special-cased exprs like other builtins instead of regular preunary operators 
+    - [x] write impl into `compt_expr_solver.h`
     - [ ] write tests for all types and kinds of structs/unions/variants to make sure layout impls are correct
 
 - [ ] digest (and validate) escape sequences when interning string literal tokens 

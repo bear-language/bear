@@ -22,6 +22,7 @@
 #include "compiler/hir/exec_proving.hpp"
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "compiler/hir/layout.hpp"
 #include "compiler/hir/matching.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/span.hpp"
@@ -29,6 +30,7 @@
 #include "compiler/parser/token_eaters.h"
 #include "compiler/token.h"
 #include <cassert>
+#include <cstddef>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -402,6 +404,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_reflected_id(fid, scope, expr);
         case AST_EXPR_REFLECTED_SCOPED_ID:
             return solve_reflected_scoped_id(fid, scope, expr);
+        case AST_EXPR_ALIGNOF:
+            return solve_alignof(fid, scope, expr);
+        case AST_EXPR_SIZEOF:
+            return solve_sizeof(fid, scope, expr);
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:
         case AST_EXPR_POST_UNARY:
@@ -422,6 +428,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_MATCH_BRANCH:
         case AST_EXPR_ELSE_MATCH_PATTERN:
         case AST_EXPR_INVALID:
+
             break;
         }
 
@@ -754,6 +761,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             maybe_value = context.exec(maybe_eid.as_id()).template try_as<ExecConst>();
             break;
         }
+        case AST_EXPR_ALIGNOF:
+            return solve_alignof(fid, scope, expr);
+        case AST_EXPR_SIZEOF:
+            return solve_sizeof(fid, scope, expr);
         case AST_EXPR_TYPE:
         case AST_EXPR_BORROW:
         case AST_EXPR_STRUCT_MEMBER_INIT:
@@ -1025,6 +1036,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_DIAGNOSTIC:
         case AST_EXPR_MEMBERS_OF:
         case AST_EXPR_STATICS_OF:
+        case AST_EXPR_ALIGNOF:
+        case AST_EXPR_SIZEOF:
         case AST_EXPR_INVALID:
             break;
         }
@@ -1966,13 +1979,15 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_BLOCK:
         case AST_EXPR_MATCH_BRANCH:
         case AST_EXPR_ELSE_MATCH_PATTERN:
-        case AST_EXPR_INVALID:
         case AST_EXPR_SAME_TYPE:
         case AST_EXPR_TYPE_TO_STR:
         case AST_EXPR_HAS_CONTRACT:
         case AST_EXPR_INFERABLE_AS:
         case AST_EXPR_DIAGNOSTIC:
         case AST_EXPR_STATIC_ASSERT:
+        case AST_EXPR_ALIGNOF:
+        case AST_EXPR_SIZEOF:
+        case AST_EXPR_INVALID:
             break;
         }
         context.emplace_diagnostic(expr_span, diag_code::cannot_resolve_at_compt, diag_type::error);
@@ -4021,6 +4036,38 @@ template <IsDefVisitor V> class ComptExprSolver {
             diag_code::is_not_a_compile_time_constant, diag_type::error,
             DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
         return {};
+    }
+    OptId<ExecId> solve_sizeof(FileId fid, ScopeId scope, const ast_expr_t* expr) {
+        assert(expr->type == AST_EXPR_SIZEOF);
+
+        OptId<TypeId> maybe_tid
+            = resolve_type(fid, scope, expr->expr.size_of.type, true); // need layout info
+
+        if (maybe_tid.empty()) {
+            return {}; // poisoned
+        }
+
+        Layout lay = context.layout(layout_for_type(context, maybe_tid.as_id()));
+
+        return context.emplace_compt_exec(
+            ExecConst{static_cast<size_t>(lay.width)}, // ensure this is size
+            Span{context, fid, expr});
+    }
+    OptId<ExecId> solve_alignof(FileId fid, ScopeId scope, const ast_expr_t* expr) {
+        assert(expr->type == AST_EXPR_ALIGNOF);
+
+        OptId<TypeId> maybe_tid
+            = resolve_type(fid, scope, expr->expr.align_of.type, true); // need layout info
+
+        if (maybe_tid.empty()) {
+            return {}; // poisoned
+        }
+
+        Layout lay = context.layout(layout_for_type(context, maybe_tid.as_id()));
+
+        return context.emplace_compt_exec(
+            ExecConst{static_cast<size_t>(lay.alignment)}, // ensure this is size
+            Span{context, fid, expr});
     }
 
   public:

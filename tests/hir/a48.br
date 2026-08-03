@@ -1,0 +1,52 @@
+
+mod hir_a48;
+
+// signed integers
+var _00 = @static_assert @alignof(i8) == 1;
+var _01 = @static_assert @sizeof(i8) == 1;
+
+var _02 = @static_assert @alignof(i16) == 2;
+var _03 = @static_assert @sizeof(i16) == 2;
+
+var _04 = @static_assert @alignof(i32) == 4;
+var _05 = @static_assert @sizeof(i32) == 4;
+
+var _06 = @static_assert @alignof(i64) == 8;
+var _07 = @static_assert @sizeof(i64) == 8;
+
+// unsigned integers
+var _08 = @static_assert @alignof(u8) == 1;
+var _09 = @static_assert @sizeof(u8) == 1;
+
+var _10 = @static_assert @alignof(u16) == 2;
+var _11 = @static_assert @sizeof(u16) == 2;
+
+var _12 = @static_assert @alignof(u32) == 4;
+var _13 = @static_assert @sizeof(u32) == 4;
+
+var _14 = @static_assert @alignof(u64) == 8;
+var _15 = @static_assert @sizeof(u64) == 8;
+
+// fp
+var _16 = @static_assert @alignof(f32) == 4;
+var _17 = @static_assert @sizeof(f32) == 4;
+
+var _18 = @static_assert @alignof(f64) == 8;
+var _19 = @static_assert @sizeof(f64) == 8;
+
+// refs 
+var _20 = @static_assert @alignof(&i32) == 8;
+var _21 = @static_assert @sizeof(&i32) == 8;
+
+var _22 = @static_assert @alignof(&mut i32) == 8;
+var _23 = @static_assert @sizeof(&mut i32) == 8;
+
+// ptrs
+var _24 = @static_assert @alignof(*i32) == 8;
+var _25 = @static_assert @sizeof(*i32) == 8;
+
+var _26 = @static_assert @alignof(*mut i32) == 8;
+var _27 = @static_assert @sizeof(*mut i32) == 8;
+
+var _28 = @static_assert @alignof(u8) == 8; // oops
+var _29 = @static_assert @sizeof(*u8) == 1; // oops
