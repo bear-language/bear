@@ -1,5 +1,7 @@
-
+// tests/hir/a48.br
 mod hir_a48;
+
+// testing layouts of builtin types
 
 // signed integers
 var _00 = @static_assert @alignof(i8) == 1;
@@ -50,3 +52,9 @@ var _27 = @static_assert @sizeof(*mut i32) == 8;
 
 var _28 = @static_assert @alignof(u8) == 8; // oops
 var _29 = @static_assert @sizeof(*u8) == 1; // oops
+
+var _30 = @static_assert @alignof(str) == 8;
+var _31 = @static_assert @sizeof(str) == 16;
+
+var _32 = @static_assert @alignof([&]i32) == 8;
+var _33 = @static_assert @sizeof([&mut]i32) == 16;

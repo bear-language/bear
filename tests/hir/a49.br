@@ -1,7 +1,149 @@
 // tests/hir/a49.br
 
+mod hir_a49;
+
+// testing layout of structs
+
 struct A {
-    u8 a;
-    u8 b;
-    u8 c;
+    u8 a = 0;
+    u8 b = 0;
+    u8 c = 0;
 }
+
+var _0 = @static_assert @alignof(A) == 1;
+var _1 = @static_assert @sizeof(A) == 3;
+
+struct B {
+    u8 a = 0;
+    u8 b = 0;
+    u64 c = 0;
+}
+
+var _2 = @static_assert @alignof(B) == 8;
+var _3 = @static_assert @sizeof(B) == 16;
+
+struct C {
+    A a = {};
+    u8 f = 0;
+}
+
+var _4 = @static_assert @alignof(typeof C{}) == 1;
+var _5 = @static_assert @sizeof(typeof C{}) == 4;
+
+struct D {
+    u16 a = 0;
+    u8 b = 0;
+}
+
+var _6 = @static_assert @alignof(D) == 2;
+var _7 = @static_assert @sizeof(D) == 4;
+
+struct E {
+    u32 a = 0;
+    u8 b = 0;
+}
+
+var _8 = @static_assert @alignof(E) == 4;
+var _9 = @static_assert @sizeof(E) == 8;
+
+struct F {
+    u8 a = 0;
+    u32 b = 0;
+    u8 c = 0;
+}
+
+var _10 = @static_assert @alignof(F) == 4;
+var _11 = @static_assert @sizeof(F) == 12;
+
+struct G {
+    u64 a = 0;
+    u8 b = 0;
+}
+
+var _12 = @static_assert @alignof(G) == 8;
+var _13 = @static_assert @sizeof(G) == 16;
+
+struct H {
+    D a = {};
+    u32 b = 0;
+}
+
+var _14 = @static_assert @alignof(H) == 4;
+var _15 = @static_assert @sizeof(H) == 8;
+
+struct I {
+    B a = {};
+    u8 b = 0;
+}
+
+var _16 = @static_assert @alignof(I) == 8;
+var _17 = @static_assert @sizeof(I) == 24;
+
+struct J {
+    A a = {};
+    B b = {};
+}
+
+var _18 = @static_assert @alignof(J) == 8;
+var _19 = @static_assert @sizeof(J) == 24;
+
+struct K {
+    u8 a = 0;
+    f64 b = 0;
+}
+
+var _20 = @static_assert @alignof(K) == 8;
+var _21 = @static_assert @sizeof(K) == 16;
+
+struct L {
+    &i32 a;
+    u8 b = 0;
+}
+
+var _22 = @static_assert @alignof(L) == 8;
+var _23 = @static_assert @sizeof(L) == 16;
+
+struct M {
+    str a = "";
+    u8 b = 0;
+}
+
+var _24 = @static_assert @alignof(M) == 8;
+var _25 = @static_assert @sizeof(M) == 24;
+
+struct N {
+    [&]i32 a; 
+    u8 b = 0;
+}
+
+var _26 = @static_assert @alignof(N) == 8;
+var _27 = @static_assert @sizeof(N) == 24;
+
+struct O {
+    [4]u8 a = [0,0,0,0]; 
+}
+
+var _28 = @static_assert @alignof(O) == 1;
+var _29 = @static_assert @sizeof(O) == 4;
+
+struct P {
+    [3]u32 a = [0,0,0]; 
+}
+
+var _30 = @static_assert @alignof(P) == 4;
+var _31 = @static_assert @sizeof(P) == 12;
+
+struct Q {
+    [2]B a;
+}
+
+var _32 = @static_assert @alignof(Q) == 8;
+var _33 = @static_assert @sizeof(Q) == 32;
+
+struct R {
+    u8 a = 0;
+    [3]u16 b = [0,0,0];
+}
+
+var _34 = @static_assert @alignof(R) == 2;
+var _35 = @static_assert @sizeof(R) == 8;
