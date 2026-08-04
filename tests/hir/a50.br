@@ -1,0 +1,44 @@
+// tests/hir/a50.br
+
+mod hir_a50;
+
+struct Foo {
+    u64 a;
+    u64 b;
+}
+
+union A {
+    Foo a;
+    u64 b;
+    *i32 c;
+}
+
+var _0 = @static_assert @sizeof(A) == 16;
+var _1 = @static_assert @alignof(A) == 8;
+
+variant B {
+    A(Foo a),
+    B(hir_a50..A a),
+    C(*u8 c),
+}
+
+var _2 = @static_assert @sizeof(B) == 24;
+var _3 = @static_assert @alignof(A) == 8;
+
+variant C {
+    A(hir_a50..B a),
+    B(Foo a),
+    C(Foo b),
+}
+
+var _4 = @static_assert @sizeof(C_) == 32; // oops
+var _5 = @static_assert @sizeof(C) == 32;
+var _6 = @static_assert @alignof(C) == 8;
+
+variant D{
+    A(u8 a),
+    B(i8 b),
+}
+
+var _7 = @static_assert @sizeof(D) == 2;
+var _8 = @static_assert @alignof(D) == 1;

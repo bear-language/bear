@@ -132,7 +132,9 @@ template <IsDefVisitor V> class TypeResolver {
             }
         }
 
-        context.emplace_diagnostic(span, diag_code::use_of_undefined_type, diag_type::error);
+        context.emplace_diagnostic(
+            span, diag_code::use_of_undefined_type, diag_type::error,
+            DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
         return {};
     }
 
@@ -376,8 +378,9 @@ template <IsDefVisitor V> class TypeResolver {
         if (maybe_instant.empty()) {
             // if no other issue and we just legit didn't find, then make sure to report
             if (prior_diag_cnt == post_diag_cnt) {
-                context.emplace_diagnostic(span, diag_code::use_of_undefined_type,
-                                           diag_type::error);
+                context.emplace_diagnostic(
+                    span, diag_code::use_of_undefined_type, diag_type::error,
+                    DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
             }
             return {}; // some issue or not found
         }

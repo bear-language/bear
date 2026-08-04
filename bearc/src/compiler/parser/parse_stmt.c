@@ -1384,7 +1384,14 @@ ast_stmt_t* parse_stmt_alignas_modifier(parser_t* p, ast_stmt_t* (*call)(parser_
     if (!modif) {
         return parser_sync_stmt(p);
     }
+
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
+
     ast_expr_t* expr = parse_expr(p);
+
+    if (lparen) {
+        parser_expect_token(p, TOK_RPAREN);
+    }
 
     while (parser_shed_visibility_qualis_with_error(p)) {
         ;

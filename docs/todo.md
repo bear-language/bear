@@ -15,7 +15,9 @@ main quest
 - [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
     - [x] make them special-cased exprs like other builtins instead of regular preunary operators 
     - [x] write impl into `compt_expr_solver.h`
-    - [ ] write tests for all types and kinds of structs/unions/variants to make sure layout impls are correct
+    - [x] write tests for all types and kinds of structs/unions/variants to make sure layout impls are correct
+    - [ ] write big test for variant with discriminant count >255 (write a python script)
+    - [ ] fix `alignas` impl
 
 - [ ] digest (and validate) escape sequences when interning string literal tokens 
 
