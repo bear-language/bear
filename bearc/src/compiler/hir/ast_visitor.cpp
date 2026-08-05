@@ -598,7 +598,7 @@ std::optional<const token_t*> FileAstVisitor::name_of_ast_decl(const ast_stmt_t*
 
 // some helpers
 
-bool is_lower(const token_t* s) { return !is_capital(s); }
+bool is_lower(const token_t* s) { return !is_capital(s) && s->start[0] != '_'; }
 bool is_capital(const token_t* s) { return s->start[0] >= 'A' && s->start[0] <= 'Z'; }
 std::optional<abi_lang> abi_for_extern_stmt(const ast_stmt_t* stmt) {
     if (stmt->stmt.extern_block.extern_language == nullptr) {

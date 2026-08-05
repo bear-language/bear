@@ -8,6 +8,7 @@
 
 #ifndef UTILS_VECTOR_H
 #define UTILS_VECTOR_H
+#include "utils/log.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -48,7 +49,14 @@ size_t vector_capacity(const vector_t* vector);
 size_t vector_elem_size(const vector_t* vector);
 
 /// get void* at some idx, cast this!
-void* vector_at(const vector_t* vector, size_t idx);
+static inline void* vector_at(const vector_t* vector, size_t idx) {
+    if (idx >= vector->size) {
+        LOG_ERR("[ERROR|vector_at] out of range")
+        return NULL; // out of bounds
+    }
+    return (void*)((unsigned char*)vector->data + (idx * vector->elem_size));
+}
+
 /// get void* at 0 idx, cast this!
 void* vector_start(const vector_t* vector);
 /// get void* at vec[size], cast this!

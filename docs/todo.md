@@ -16,7 +16,7 @@ main quest
     - [x] make them special-cased exprs like other builtins instead of regular preunary operators 
     - [x] write impl into `compt_expr_solver.h`
     - [x] write tests for all types and kinds of structs/unions/variants to make sure layout impls are correct
-    - [ ] write big test for variant with discriminant count >255 (write a python script)
+    - [x] write big test for variant with discriminant count >255 (write a python script)
     - [ ] fix `alignas` impl
 
 - [ ] digest (and validate) escape sequences when interning string literal tokens 

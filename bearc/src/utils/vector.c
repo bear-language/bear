@@ -63,14 +63,6 @@ size_t vector_capacity(const vector_t* vector) { return vector->capacity; }
 // gets element size of vector
 size_t vector_elem_size(const vector_t* vector) { return vector->elem_size; }
 
-// gets value at specified index
-void* vector_at(const vector_t* vector, size_t idx) {
-    if (idx >= vector->size) {
-        LOG_ERR("[ERROR|vector_at] out of range")
-        return NULL; // out of bounds
-    }
-    return (void*)((unsigned char*)vector->data + (idx * vector->elem_size));
-}
 // gets ptr to start of vector
 void* vector_start(const vector_t* vector) { return vector->data; }
 // gets ptr to end of vector
