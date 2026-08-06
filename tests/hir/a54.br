@@ -1,0 +1,14 @@
+// tests/hir/a54.br
+
+var _0 = "\0";
+var _1 = "\n";
+var _2 = "\r";
+var _3 = "\t";
+var _4 = "\a";
+var _5 = "\b";
+var _6 = "\f";
+var _7 = "\v";
+var _8 = "\"";
+var _9 = "\'";
+var _10 = "\\";
+

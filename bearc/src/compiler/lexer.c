@@ -64,7 +64,8 @@ vector_t lexer_tokenize_src_buffer(const src_buffer_t* buf) {
             start = pos;                                                                           \
             break;                                                                                 \
         }                                                                                          \
-        if (pos - 1 >= buf->data && c == (D) && *(pos - 1) != '\\') {                              \
+        if (pos - 1 >= buf->data && c == (D)                                                       \
+            && (*(pos - 1) != '\\' || ((*(pos - 1) == '\\') && *(pos - 2) == '\\'))) {             \
             ++len;                                                                                 \
             *((token_t*)vector_emplace_back(&tkn_vec)) = token_build(start, len, &loc);            \
             len = 0;                                                                               \

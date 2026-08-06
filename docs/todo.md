@@ -20,6 +20,9 @@ main quest
     - [x] fix `alignas` impl
 
 - [ ] digest (and validate) escape sequences when interning string literal tokens 
+    - [ ] write impls to satisfy `hir/a54.br`
+    - [ ] hex `\0x00`, octal `\000`
+    - [ ] do it for char literals too
 
 - [ ] add a `Context::canonical_name` method that walks parents to build `IdSlice<SymbolId>`
 
@@ -102,6 +105,7 @@ side quests
 -----------
 
 #### chores
+- [ ] fix highlighting of "\\\\" in bear.nvim
 
 misc 
 ----
@@ -117,8 +121,6 @@ lexer & parser
     - [ ] add binary integer literals `0b1010101` (keeping dec, hex, and float that we currently already have)
     - [ ] set a tkn to TOK_OVERSIZED_INT_ERR if there's no decimal and it's greater than u64 max or less than i64 min
     - [ ] suffixes?
-- [ ] verify correctness of escape sequences in char and string literals
-    - `\r`, hex `\0x00`, octal `\000`
     
 
 hir & later 
