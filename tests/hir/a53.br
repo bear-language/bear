@@ -1,0 +1,11 @@
+// tests/hir/a53.br
+
+mod hir_a53;
+
+struct Foo {
+    alignas(64) u8 a;
+}
+
+var _0 = @static_assert @alignof(Foo) == 64; 
+
+var _1 = @note @alignof(Foo) as str; 

@@ -590,6 +590,17 @@ DefId Context::register_top_level_def(SymbolId name, bool pub, bool compt, bool 
     return def;
 }
 
+DefId Context::register_top_level_def(SymbolId name, bool pub, bool compt, bool statik,
+                                      bool generic, Span span, const ast_stmt_t* stmt,
+                                      OptId<DefId> parent, uint8_t align_pref, abi_lang abi) {
+    DefId def = defs.emplace_and_get_id(DefUnevaluated{}, name, pub, compt, statik, generic, span,
+                                        parent, align_pref, Def::UNORDERED, abi_lang::bear);
+    def_resol_states.bump(Def::resol_state::top_level_visited);
+    def_ast_nodes.bump(stmt);
+    def_mention_states.bump(Def::mention_state::unused);
+    return def;
+}
+
 DefId Context::register_compt_def(SymbolId name, Span span, OptId<DefId> parent, DefValue value) {
     DefId def = defs.emplace_and_get_id(value, name, true, true, true, false, span, parent);
     def_resol_states.bump(Def::resol_state::resolved);

@@ -326,7 +326,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
     // no issues, so register definition
     DefId did = context.register_top_level_def(
         name, pub, compt, statik, is_generic,
-        Span(file, context.ast(file).buffer(), first_tkn, last_tkn), stmt, parent);
+        Span(file, context.ast(file).buffer(), first_tkn, last_tkn), stmt, parent, align_pref, abi);
 
     if (stmt->type == AST_STMT_FN_DECL || stmt->type == AST_STMT_FN_PROTOTYPE) {
         context.record_function_def(did); // record this function to ensure it gets lowered

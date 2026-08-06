@@ -467,6 +467,9 @@ class Context {
     DefId register_top_level_def(SymbolId name, bool pub, bool compt, bool statik, bool generic,
                                  Span span, const ast_stmt_t* stmt,
                                  OptId<DefId> parent = OptId<DefId>{});
+    DefId register_top_level_def(SymbolId name, bool pub, bool compt, bool statik, bool generic,
+                                 Span span, const ast_stmt_t* stmt, OptId<DefId> parent,
+                                 uint8_t align_pref, abi_lang abi = abi_lang::bear);
 
     DefId register_compt_def(SymbolId name, Span span, OptId<DefId> parent,
                              DefValue value = DefUnevaluated{});

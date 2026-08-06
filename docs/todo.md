@@ -17,7 +17,7 @@ main quest
     - [x] write impl into `compt_expr_solver.h`
     - [x] write tests for all types and kinds of structs/unions/variants to make sure layout impls are correct
     - [x] write big test for variant with discriminant count >255 (write a python script)
-    - [ ] fix `alignas` impl
+    - [x] fix `alignas` impl
 
 - [ ] digest (and validate) escape sequences when interning string literal tokens 
 
