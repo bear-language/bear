@@ -6,23 +6,11 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [x] tighten up abi related stuff with `hir::Layout` / `hir::LayoutId`
-    - [x] `struct Layout { i32 width; i32 alignment }`
-    - [x] per-canonical tid caching/memoization of layouts (see todos in `layout.cpp`), but this will largely be done in `context.cpp`
-    - [x] handle the discriminant for variants 
-    - [x] store byte offsets for structs/variant field members per `DefId` in `Context`
-    - [x] write impl for unions (pretty easy, but take max of all fields)
-- [ ] properly impl `@sizeof` and `@alignof`, make them generalized as a primitive query in `hir::Context` and then plug into `hir::ComptExprSolver` and later the runtime expr solver
-    - [x] make them special-cased exprs like other builtins instead of regular preunary operators 
-    - [x] write impl into `compt_expr_solver.h`
-    - [x] write tests for all types and kinds of structs/unions/variants to make sure layout impls are correct
-    - [x] write big test for variant with discriminant count >255 (write a python script)
-    - [x] fix `alignas` impl
-
 - [ ] digest (and validate) escape sequences when interning string literal tokens 
-    - [ ] write impls to satisfy `hir/a54.br`
-    - [ ] hex `\0x00`, octal `\000`
-    - [ ] do it for char literals too
+    - [x] write impls to satisfy `hir/a54.br` but for chars too (non octal and hex escapes)
+    - [ ] hex `\0x00`, octal `\000` 
+        - [ ] for string literals
+        - [ ] for char literals
 
 - [ ] add a `Context::canonical_name` method that walks parents to build `IdSlice<SymbolId>`
 
