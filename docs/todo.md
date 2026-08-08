@@ -114,7 +114,7 @@ lexer & parser
 hir & later 
 ----------- 
 - [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps
-- [ ] add an Exec Stringifier (tedious)
+- [ ] add Exec Stringifier for run-time execs (currently only compt-able values are implemented)
 - [ ] add a Def Stringifier (tedious)  
 - [ ] arbitrary source code reconstruction from hir::Context
 
