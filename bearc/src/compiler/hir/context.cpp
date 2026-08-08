@@ -260,9 +260,91 @@ SymbolId Context::symbol_id_for_identifier_tkn(const token_t* tkn) {
 }
 
 SymbolId Context::symbol_id(Span span) { return symbol_id(span.as_sv(*this)); }
-SymbolId Context::symbol_id_for_str_lit_tkn(const token_t* tkn) {
+SymbolId Context::symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid) {
     assert(tkn->type == TOK_STR_LIT);
-    return symbol_id(tkn->start + 1, tkn->len - 2); // trims outer quotes
+    const char* start = tkn->start + 1; // cuz we don't want opening quote
+    const auto len = tkn->len - 2;      // cuz minus both quotes
+    std::string temp{};
+    for (auto i = 0uz; i < len; ++i) {
+        char c = start[i];
+        if (c == '\\' && start + 1 >= start + len) {
+            // TODO error (trailing \ char)
+            emplace_diagnostic(Span{*this, fid, tkn}, diag_code::called_here, diag_type::error);
+        } else if (c == '\\') {
+            switch (start[i + 1]) {
+            case '0':
+                c = '\0';
+                ++i;
+                break;
+            case 'n':
+                c = '\n';
+                ++i;
+                break;
+            case 'r':
+                c = '\r';
+                ++i;
+                break;
+            case 't':
+                c = '\t';
+                ++i;
+                break;
+            case 'a':
+                c = '\a';
+                ++i;
+                break;
+            case 'b':
+                c = '\b';
+                ++i;
+                break;
+            case 'f':
+                c = '\f';
+                ++i;
+                break;
+            case 'v':
+                c = '\v';
+                ++i;
+                break;
+            case '"':
+                c = '"';
+                ++i;
+                break;
+            case '\'':
+                c = '\'';
+                ++i;
+                break;
+            case '\\':
+                c = '\\';
+                ++i;
+                break;
+            default: {
+                // TODO error
+                token_t temp = *tkn;
+                temp.start = start + i;
+                temp.len = 2;
+                emplace_diagnostic(Span{*this, fid, &temp}, diag_code::invalid_escape_sequence,
+                                   diag_type::error);
+                break;
+            }
+            }
+            temp += c;
+        } else {
+            temp += c;
+        }
+    }
+    OptId<SymbolId> maybe_symbol = str_to_symbol_id_map.at(temp.data());
+    if (maybe_symbol.has_value()) {
+        return maybe_symbol.as_id();
+    }
+    char* sym_start = this->symbol_storage_arena.alloc_as<char*>(
+        len + 1); // +1 for null-term, this is the possible len we'll need
+    strncpy(sym_start, temp.data(), temp.size() + 1);
+
+    // make sym
+    SymbolId sym_id = this->symbols.emplace_and_get_id(std::string_view{sym_start, len});
+    // register sym into map for future fast and cosistent access
+    str_to_symbol_id_map.emplace(sym_start, sym_id);
+    // give sym_id now that it's fully interned
+    return sym_id;
 }
 
 FileId Context::provide_root_file(const char* file_name) {
@@ -564,7 +646,7 @@ OptId<FileId> Context::try_file_from_import_statement(FileId importer_id,
                                                       const ast_stmt_t* import_statement) {
     assert(import_statement->type == AST_STMT_IMPORT);
     const token_t* path_tkn = import_statement->stmt.import.file_path;
-    SymbolId path_symbol_id = symbol_id_for_str_lit_tkn(path_tkn);
+    SymbolId path_symbol_id = symbol_id_for_str_lit_tkn(path_tkn, importer_id);
     const char* path = symbol_id_to_cstr(path_symbol_id);
 
     const std::filesystem::path parent = std::filesystem::path(path).parent_path();

@@ -26,11 +26,11 @@ template <hir::IsId I> class StrIdHashMap {
     void emplace(const char* key, I id) { strimap_emplace(&map, key, id.raw()); }
     bool contains(const char* key) { return strimap_contains(&map, key); }
     OptId<I> at(const char* key) {
-        auto* id = strimap_at(&map, key);
+        int32_t* id = strimap_at(&map, key);
         if (!id) {
             return OptId<I>{};
         }
-        return OptId<I>{static_cast<HirId>(*id)};
+        return OptId<I>{I{static_cast<HirId>(*id)}};
     }
     OptId<I> atn(const char* key, size_t len) {
         auto* id = strimap_atn(&map, key, len);

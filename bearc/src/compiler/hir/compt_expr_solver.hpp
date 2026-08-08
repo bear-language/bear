@@ -551,7 +551,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                 maybe_value = ExecConst{tkn->val.floating};
                 break;
             case TOK_STR_LIT:
-                maybe_value = ExecConst{context.symbol_id_for_str_lit_tkn(tkn)};
+                maybe_value = ExecConst{context.symbol_id_for_str_lit_tkn(tkn, fid)};
                 break;
             case TOK_BOOL_LIT_FALSE:
                 maybe_value = ExecConst{false};

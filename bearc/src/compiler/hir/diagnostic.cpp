@@ -414,6 +414,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::variadic_types_are_only_allowed_in_the_last_paramter_of_a_function:
         return "variadic types are only allowed in the declaration of the last parameter of a "
                "function";
+    case diag_code::invalid_escape_sequence:
+        return "invalid escape sequence";
     }
 
     std::unreachable();

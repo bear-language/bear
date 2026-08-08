@@ -72,7 +72,7 @@ class Context {
     /// should be ordered left, right
     [[nodiscard]] SymbolId concat_symbols(SymbolId sid1, SymbolId sid2);
     /// get a symbol, trimming the "" quotes on the outside when interning
-    [[nodiscard]] SymbolId symbol_id_for_str_lit_tkn(const token_t* tkn);
+    [[nodiscard]] SymbolId symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid);
     [[nodiscard]] FileId file(SymbolId path);
     /// intrinsic file made of a string_literal
     FileId file_intrinsic(SymbolId name, const char* string_literal_src);
