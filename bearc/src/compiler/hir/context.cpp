@@ -268,8 +268,11 @@ SymbolId Context::symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid) {
     for (auto i = 0uz; i < len; ++i) {
         char c = start[i];
         if (c == '\\' && start + 1 >= start + len) {
-            // TODO error (trailing \ char)
-            emplace_diagnostic(Span{*this, fid, tkn}, diag_code::called_here, diag_type::error);
+            token_t temp = *tkn;
+            temp.start = start;
+            temp.len = 1;
+            emplace_diagnostic(Span{*this, fid, &temp}, diag_code::invalid_escape_sequence,
+                               diag_type::error);
         } else if (c == '\\') {
             switch (start[i + 1]) {
             case '0':
@@ -317,7 +320,6 @@ SymbolId Context::symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid) {
                 ++i;
                 break;
             default: {
-                // TODO error
                 token_t temp = *tkn;
                 temp.start = start + i;
                 temp.len = 2;
