@@ -87,11 +87,11 @@ class Context {
     // ------ scoping -----------
     [[nodiscard]] ScopeId get_or_make_root_scope();
     [[nodiscard]] ScopeId root_scope() const;
-    [[nodiscard]] ScopeId make_scope(OptId<ScopeId> parent_scope);
+    [[nodiscard]] ScopeId make_scope(OptId<ScopeId> parent_scope, Span span);
     // makes a named scope with a small capacity
-    [[nodiscard]] ScopeId make_small_scope(OptId<ScopeId> parent_scope);
-    [[nodiscard]] ScopeId make_medium_scope(OptId<ScopeId> parent_scope);
-    [[nodiscard]] ScopeId make_scope(OptId<ScopeId> parent_scope, HirSize capacity);
+    [[nodiscard]] ScopeId make_small_scope(OptId<ScopeId> parent_scope, Span span);
+    [[nodiscard]] ScopeId make_medium_scope(OptId<ScopeId> parent_scope, Span span);
+    [[nodiscard]] ScopeId make_scope(OptId<ScopeId> parent_scope, HirSize capacity, Span span);
     [[nodiscard]] ScopeId make_compt_temp_scope(ScopeId parent_scope, HirSize capacity);
 
     // generate a deftype and insert into the provided scoep
@@ -930,6 +930,8 @@ class Context {
     DataArena def_to_gen_args_arena;
     IdHashMap<DefId, GenericArgIdSliceId> def_to_gen_args;
 
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
     // layout related stuff
     NodeVector<Layout> layouts;
     IdVector<LayoutId> layout_ids;
@@ -940,7 +942,9 @@ class Context {
     DataArena def_id_to_offset_slice_arena;
     IdHashMap<DefId, OffsetSliceId> def_id_to_offset_slice;
 
-    // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    // for getting the scope for a given
+    IdVecMap<FileId, std::vector<std::tuple<Span, ScopeId>>> files_to_spans_to_scopes{
+        0x200}; // TODO impl this
 
     // for parallel ast building
     std::shared_mutex import_file_mutex;

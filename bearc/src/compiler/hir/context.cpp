@@ -745,7 +745,7 @@ const FileAst& Context::ast(FileId file_id) const { return file_asts.at(files.at
 
 ScopeId Context::get_or_make_root_scope() {
     if (scopes.size() == 0) {
-        return make_scope(std::nullopt);
+        return make_scope(std::nullopt, Span::generated());
     }
     // the top-level scope will have to be the first scope!
     return ScopeId{1};
@@ -757,21 +757,23 @@ ScopeId Context::root_scope() const {
     return ScopeId{1};
 }
 
-ScopeId Context::make_scope(OptId<ScopeId> parent_scope) {
+ScopeId Context::make_scope(OptId<ScopeId> parent_scope, Span span) {
+    // TODO deal with span
     return scopes.emplace_and_get_id(parent_scope, scope_arena);
 }
 
-ScopeId Context::make_small_scope(OptId<ScopeId> parent_scope) {
+ScopeId Context::make_small_scope(OptId<ScopeId> parent_scope, Span span) {
     static constexpr size_t CAP = 0x8;
-    return make_scope(parent_scope, CAP);
+    return make_scope(parent_scope, CAP, span);
 }
 
-ScopeId Context::make_medium_scope(OptId<ScopeId> parent_scope) {
+ScopeId Context::make_medium_scope(OptId<ScopeId> parent_scope, Span span) {
     static constexpr size_t CAP = 0x10;
-    return make_scope(parent_scope, CAP);
+    return make_scope(parent_scope, CAP, span);
 }
 
-ScopeId Context::make_scope(OptId<ScopeId> parent_scope, HirSize capacity) {
+ScopeId Context::make_scope(OptId<ScopeId> parent_scope, HirSize capacity, Span span) {
+    // TODO deal with scope
     return scopes.emplace_and_get_id(parent_scope, capacity, scope_arena);
 }
 

@@ -145,6 +145,9 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
     statik |= compt; // all compts are static
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+    // span of this entire current def
+    Span span{context, file, first_tkn, last_tkn};
+
     // special cases (modules and extern blocks)
     // handle module, first search for an existing module to insert into
     if (stmt->type == AST_STMT_MODULE) {
@@ -176,7 +179,8 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
                         parent); // just make span with name token otherwise it will be too long
         ScopeId mod_scope = existing_module
                                 ? get<DefModule>(context.def(existing.as_id()).value).scope
-                                : context.make_scope(scope);
+                                : context.make_scope(scope, span);
+        // TODO: if existing module, register this current span to the existing span
         // warn capitalized_mod if the mod is new and capitalized
         if (!existing_module && is_capital(name_tkn)) {
             context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
@@ -324,9 +328,8 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
     }
 
     // no issues, so register definition
-    DefId did = context.register_top_level_def(
-        name, pub, compt, statik, is_generic,
-        Span(file, context.ast(file).buffer(), first_tkn, last_tkn), stmt, parent, align_pref, abi);
+    DefId did = context.register_top_level_def(name, pub, compt, statik, is_generic, span, stmt,
+                                               parent, align_pref, abi);
 
     if (stmt->type == AST_STMT_FN_DECL || stmt->type == AST_STMT_FN_PROTOTYPE) {
         context.record_function_def(did); // record this function to ensure it gets lowered
@@ -343,8 +346,8 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             }
             if (stmt->type == AST_STMT_FN_DECL || stmt->type == AST_STMT_FN_PROTOTYPE) {
                 const bool is_small_scope = !stmts.has_value();
-                ScopeId new_scope = (is_small_scope) ? context.make_small_scope(scope)
-                                                     : context.make_scope(scope);
+                ScopeId new_scope = (is_small_scope) ? context.make_small_scope(scope, span)
+                                                     : context.make_scope(scope, span);
 
                 context.defs_to_scopes().insert(did, new_scope);
             }
@@ -359,8 +362,8 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             // if the type (namely a variant field decl) doesn't have statements then the scope
             // needn't be large
             const bool is_small_scope = !stmts.has_value();
-            ScopeId types_scope
-                = (is_small_scope) ? context.make_small_scope(scope) : context.make_scope(scope);
+            ScopeId types_scope = (is_small_scope) ? context.make_small_scope(scope, span)
+                                                   : context.make_scope(scope, span);
 
             context.defs_to_scopes().insert(did, types_scope);
             // warn on lowercase structure definition
