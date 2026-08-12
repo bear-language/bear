@@ -12,6 +12,7 @@
 #include "compiler/hir/variant_helpers.hpp"
 #include "type.hpp"
 #include "llvm/ADT/SmallVector.h"
+#include <bit>
 #include <utility>
 
 namespace hir {
