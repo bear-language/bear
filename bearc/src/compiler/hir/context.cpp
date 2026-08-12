@@ -959,6 +959,19 @@ void Context::try_link_custom_diagnostic(DiagnosticId diag) {
 
 Def& Context::def(DefId def_id) { return defs.at(def_id); }
 
+[[nodiscard]] IdSlice<SymbolId> Context::canonical_name(DefId def_id) {
+    llvm::SmallVector<SymbolId> names{};
+    const Def* curr = &def(def_id);
+    // build up [child, child, root]
+    while (curr) {
+        names.push_back(curr->name);
+        curr = (curr->parent.has_value()) ? &def(curr->parent.as_id()) : nullptr;
+    }
+    // reverse as to put in proper order for root..child..child
+    std::reverse(names.begin(), names.end());
+    return freeze_id_vec(names);
+}
+
 const Def& Context::try_func_def(DefId def_id) const { return def(try_func_did(def_id)); }
 
 DefId Context::try_func_did(DefId def_id) const {

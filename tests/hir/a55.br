@@ -1,0 +1,29 @@
+// tests/hir/a55.br
+
+var _0 = @static_assert a as i32 == 0x00;
+var _1 = @static_assert b as i32 == 0x0A;
+var _2 = @static_assert c as i32 == 0x0D;
+var _3 = @static_assert d as i32 == 0x09;
+var _4 = @static_assert e as i32 == 0x07;
+var _5 = @static_assert f as i32 == 0x08;
+var _6 = @static_assert g as i32 == 0x0C;
+var _7 = @static_assert h as i32 == 0x0B;
+var _8 = @static_assert i as i32 == 0x22;
+var _9 = @static_assert j as i32 == 0x27;
+var _10 = @static_assert k as i32 == 0x5C;
+
+var _11 = '\j'; // oops
+
+compt var a = '\0';
+compt var b = '\n';
+compt var c = '\r';
+compt var d = '\t';
+compt var e = '\a';
+compt var f = '\b';
+compt var g = '\f';
+compt var h = '\v';
+compt var i = '\"';
+compt var j = '\'';
+compt var k = '\\';
+
+var _12 = '\'; // oops

@@ -446,6 +446,9 @@ class Context {
     /// accessfor for a def thru a DefId
     [[nodiscard]] Def& def(DefId def_id);
 
+    /// get the canonical name of a definition
+    [[nodiscard]] IdSlice<SymbolId> canonical_name(DefId def_id);
+
     /// trys to access a direct function def or a compt function ptr
     /// basically, if a value is a know compt variable pointing to some known function, we will get
     /// that function's defintion instead of the defintion of the compt variable (of a function

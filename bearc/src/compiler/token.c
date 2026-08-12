@@ -528,24 +528,40 @@ void token_check_if_valid_literal_and_set_value(token_t* tkn) {
         char c;
         if (str[1] == '\\' && len >= 4) { // escaped char
             switch (str[2]) {
+            case '0':
+                c = '\0';
+                break;
             case 'n':
                 c = '\n';
+                break;
+            case 'r':
+                c = '\r';
                 break;
             case 't':
                 c = '\t';
                 break;
-            case '\\':
-                c = '\\';
+            case 'a':
+                c = '\a';
+                break;
+            case 'b':
+                c = '\b';
+                break;
+            case 'f':
+                c = '\f';
+                break;
+            case 'v':
+                c = '\v';
+                break;
+            case '"':
+                c = '"';
                 break;
             case '\'':
                 c = '\'';
                 break;
-            case '"':
-                c = '\"';
+            case '\\':
+                c = '\\';
                 break;
-            case '0':
-                c = '\0';
-                break;
+
             default:
                 tkn->type = TOK_INDETERMINATE;
                 return;

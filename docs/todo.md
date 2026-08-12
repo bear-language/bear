@@ -6,13 +6,10 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] digest (and validate) escape sequences when interning string literal tokens 
-    - [x] write impls to satisfy `hir/a54.br` but for chars too (non octal and hex escapes)
+- [ ] digest (and validate) escape sequences when interning string literal tokens
     - [ ] hex `\0x00`, octal `\000` 
         - [ ] for string literals
         - [ ] for char literals
-
-- [ ] add a `Context::canonical_name` method that walks parents to build `IdSlice<SymbolId>`
 
 - [ ] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
 
