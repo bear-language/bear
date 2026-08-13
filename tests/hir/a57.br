@@ -1,0 +1,5 @@
+// tests/hir/a57.br
+
+import "ansi_codes.br";
+
+var _0 = @note (ANSI_GREEN_FG + ANSI_BOLD + "bold green hello" + ANSI_RESET);
