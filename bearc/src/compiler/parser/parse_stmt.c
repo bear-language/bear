@@ -342,7 +342,7 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
         ast_slice_of_generic_params_t params = parse_generic_params(p);
         decl->stmt.fn_decl.generic_params = params;
         decl->stmt.fn_decl.is_generic = params.len; // true when len != 0
-        parser_expect_token(p, TOK_GT);
+        parser_expect_generic_closing_delim(p);
     }
 
     token_t* lparen = parser_expect_token(p, TOK_LPAREN);
@@ -1111,7 +1111,7 @@ ast_stmt_t* parse_fn_prototype(parser_t* p) {
         ast_slice_of_generic_params_t params = parse_generic_params(p);
         decl->stmt.fn_prototype.is_generic = params.len; // params.len != 0
         decl->stmt.fn_prototype.generic_params = params;
-        parser_expect_token(p, TOK_GT);
+        parser_expect_generic_closing_delim(p);
     }
 
     token_t* lparen = parser_expect_token(p, TOK_LPAREN);

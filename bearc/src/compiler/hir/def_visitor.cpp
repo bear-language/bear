@@ -465,7 +465,13 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             context.link_diagnostic(d0, d1);
         }
 
-        if (context.def(did).generic) {
+        if (const auto& def = context.def(did); def.generic) {
+            // basically: if this is a generic function but the parent is also generic
+            // (non-concrete) then this version can never be instantiatied since this parent is a
+            // non-initianted generic
+            if (def.parent.has_value() && context.def(def.parent.as_id()).generic) {
+                goto cleanup;
+            }
             const auto maybe_generic_params
                 = resolve_generic_params(context.def(did).span.file_id,
                                          context.containing_scope(did), fn_decl.generic_params);
