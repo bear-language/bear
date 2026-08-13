@@ -1,0 +1,35 @@
+// tests/hir/a58.br
+
+struct Foo has Get<i32> {
+    i32 a = 0;
+    mt get() -> i32 => self.a
+}
+
+struct Bar has Get<Foo> {
+    Foo a = {};
+    mt get() -> Foo => self.a
+}
+
+contract Get<T> {
+    mt get() -> T;
+}
+
+struct Getter<G> {
+    fn invoke<T has Get<G>>(T gettable) -> G => gettable.get()
+}
+
+struct _Mew<T> {
+    T a;
+    T b;
+}
+
+
+compt var a = Bar{};
+
+compt var b = Getter..invoke::<Foo, Bar>(a);
+
+var _0 = @static_assert b.get() == 0;
+
+var _1 = @static_assert @same_type(Foo, typeof b);
+
+var _2 = @static_assert b.get() == 1; // oops
