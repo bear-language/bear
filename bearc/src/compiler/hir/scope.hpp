@@ -11,6 +11,7 @@
 
 #include "compiler/hir/id_hash_map.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "compiler/hir/span.hpp"
 #include "utils/data_arena.hpp"
 #include <cstdint>
 
@@ -121,6 +122,11 @@ class Scope {
             f(e);
         }
     }
+};
+
+struct SpanScopePair {
+    Span span;
+    ScopeId scope;
 };
 
 } // namespace hir

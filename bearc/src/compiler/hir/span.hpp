@@ -46,6 +46,14 @@ class Span {
     static Span find_between_tokens(const Context& ctx, FileId fid, const token_t* t1,
                                     const token_t* t2);
     static Span find_between_spans(const Context& ctx, FileId fid, Span s1, Span s2);
+    bool contained_in(Span containing) const {
+        return file_id == containing.file_id && containing.start <= start
+               && containing.start + containing.len >= start + len;
+    };
+    // faster version of contained in that doesn't check matching file_ids
+    bool within_same_file_contained_in(Span containing) const {
+        return containing.start <= start && containing.start + containing.len >= start + len;
+    };
 };
 
 } // namespace hir

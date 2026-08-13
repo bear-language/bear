@@ -33,6 +33,7 @@
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
+#include <inttypes.h>
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
@@ -52,7 +53,7 @@ static constexpr size_t DEFAULT_ID_MAP_ARENA_CAP
 static constexpr size_t SMALL_ARENA_CAP = 0x1000;
 static constexpr size_t DEFAULT_TEMP_SCOPE_ARENA_CAP = 0x10000;
 static constexpr size_t DEFAULT_SYM_TO_FILE_ID_MAP_CAP = 0x80;
-static constexpr size_t DEFAULT_SCOPE_VEC_CAP = 0x80;
+static constexpr size_t DEFAULT_SCOPE_VEC_CAP = 0x100;
 static constexpr size_t DEFAULT_FILE_VEC_CAP = 0x80;
 static constexpr size_t DEFAULT_FILE_AST_VEC_CAP = DEFAULT_FILE_VEC_CAP;
 static constexpr size_t DEFAULT_FILE_ID_VEC_CAP = 0x200;
@@ -119,7 +120,8 @@ Context::Context(const bearc_args_t& args, instances instances)
       offsets{DEFAULT_DEF_CAP}, offset_slices{DEFAULT_DEF_CAP},
       def_id_to_offset_slice_arena{DEFAULT_ARENA_CAP},
       def_id_to_offset_slice{def_id_to_offset_slice_arena, DEFAULT_DEF_CAP},
-      diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
+      file_to_spans_to_scopes{DEFAULT_SCOPE_VEC_CAP}, diagnostics{DEFAULT_DIAG_NUM},
+      diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
       only_one_context_instance((instances == instances::one) && one_instance_status),
       compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]), terse{args.flags[CLI_FLAG_TERSE]},
       strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]} {
@@ -371,6 +373,7 @@ FileId Context::file(SymbolId path_symbol) {
     importee_to_importers.bump();
     importer_to_importees.bump();
     file_to_diagnostics.bump();
+    file_to_spans_to_scopes.bump();
     return file_id;
 }
 
@@ -395,6 +398,7 @@ FileId Context::file_intrinsic(SymbolId name, const char* string_literal_src) {
     importee_to_importers.bump();
     importer_to_importees.bump();
     file_to_diagnostics.bump();
+    file_to_spans_to_scopes.bump();
     return file_id;
 }
 
@@ -440,6 +444,7 @@ FileId Context::file_parallel(SymbolId path_symbol) {
     importee_to_importers.bump();
     importer_to_importees.bump();
     file_to_diagnostics.bump();
+    file_to_spans_to_scopes.bump();
     return file_id;
 }
 
@@ -758,8 +763,9 @@ ScopeId Context::root_scope() const {
 }
 
 ScopeId Context::make_scope(OptId<ScopeId> parent_scope, Span span) {
-    // TODO deal with span
-    return scopes.emplace_and_get_id(parent_scope, scope_arena);
+    const auto scope = scopes.emplace_and_get_id(parent_scope, scope_arena);
+    register_span_to_scope(span, scope);
+    return scope;
 }
 
 ScopeId Context::make_small_scope(OptId<ScopeId> parent_scope, Span span) {
@@ -773,13 +779,56 @@ ScopeId Context::make_medium_scope(OptId<ScopeId> parent_scope, Span span) {
 }
 
 ScopeId Context::make_scope(OptId<ScopeId> parent_scope, HirSize capacity, Span span) {
-    // TODO deal with scope
-    return scopes.emplace_and_get_id(parent_scope, capacity, scope_arena);
+    const auto scope = scopes.emplace_and_get_id(parent_scope, capacity, scope_arena);
+    register_span_to_scope(span, scope);
+    return scope;
 }
 
 ScopeId Context::make_compt_temp_scope(ScopeId parent_scope, HirSize capacity) {
     return scopes.emplace_and_get_id(parent_scope, capacity, *temp_scope_arena,
                                      Scope::storage::variables);
+}
+
+void Context::register_span_to_scope(Span span, ScopeId scope) {
+    if (!span.is_generated()) {
+        file_to_spans_to_scopes.at(span.file_id).emplace_back(span, scope);
+    }
+}
+
+ScopeId Context::scope_for_span(Span span) {
+    // pairs are naturally sorted by start and nested spans are naturally decreasing in length
+    std::span pairs{file_to_spans_to_scopes.at(span.file_id)};
+
+    const auto find_mid = +[](decltype(pairs) pairs) -> size_t { return (pairs.size() - 1) / 2; };
+
+    size_t mid = find_mid(pairs);
+
+    // binary search for span that is approx match
+    while (pairs.size() > 0 && !span.within_same_file_contained_in(pairs[mid].span)) {
+        if (pairs[mid].span.start > span.start) {
+            pairs = pairs.subspan(0, mid);
+        } else if (pairs[mid].span.start < span.start) {
+            pairs = pairs.subspan(mid + 1);
+        } else {
+            break; // starts match, but not directly contained (this means we're overlapping, which
+                   // isn't ideal) but we'll still have to find a best match
+        }
+        mid = find_mid(pairs);
+    }
+
+    auto best_match = pairs[mid];
+    pairs = pairs.subspan(mid);
+    for (const auto pair : pairs) {
+        // gone too far
+        if (!span.within_same_file_contained_in(pair.span)) {
+            break;
+        }
+        // smaller span means better match (more granular)
+        if (pair.span.len < best_match.span.len) {
+            best_match = pair;
+        }
+    }
+    return best_match.scope;
 }
 
 DefId Context::register_generated_deftype(ScopeId scope, SymbolId name, TypeId type_id,

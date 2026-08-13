@@ -11,7 +11,7 @@ main quest
         - [ ] for string literals
         - [ ] for char literals
 
-- [ ] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
+- [x] some basic [lsp-compat](/docs/lsp-compat.md), mostly thru building span -> scope search trees (only build these when a flag is enabled, tho; this will need to be added)
 
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
     - [ ] use positional type inference and return/expected type inference

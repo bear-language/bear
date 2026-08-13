@@ -94,13 +94,17 @@ class Context {
     [[nodiscard]] ScopeId make_scope(OptId<ScopeId> parent_scope, HirSize capacity, Span span);
     [[nodiscard]] ScopeId make_compt_temp_scope(ScopeId parent_scope, HirSize capacity);
 
-    // generate a deftype and insert into the provided scoep
-    // - this will forward all references of some identifer to an arbitrary type
+    void register_span_to_scope(Span span, ScopeId scope);
+    /// finds the scope within the specified span
+    [[nodiscard]] ScopeId scope_for_span(Span span);
+
+    /// generate a deftype and insert into the provided scoep
+    /// - this will forward all references of some identifer to an arbitrary type
     DefId register_generated_deftype(ScopeId scope, SymbolId name, TypeId type_id, DefId parent,
                                      Span span = Span::generated());
 
-    // allow the Context to clean up the memory footprint of temporary scopes
-    // only to be called when it is certain that there are no living ScopeIds to temporary scopes
+    /// allow the Context to clean up the memory footprint of temporary scopes
+    /// only to be called when it is certain that there are no living ScopeIds to temporary scopes
     bool relinquish_temp_scopes();
 
     [[nodiscard]] Scope& scope(ScopeId scope);
@@ -943,8 +947,7 @@ class Context {
     IdHashMap<DefId, OffsetSliceId> def_id_to_offset_slice;
 
     // for getting the scope for a given
-    IdVecMap<FileId, std::vector<std::tuple<Span, ScopeId>>> files_to_spans_to_scopes{
-        0x200}; // TODO impl this
+    IdVecMap<FileId, std::vector<SpanScopePair>> file_to_spans_to_scopes; // TODO impl this
 
     // for parallel ast building
     std::shared_mutex import_file_mutex;
