@@ -1,0 +1,29 @@
+// tests/hir/a56.br
+
+compt var _a = "blahblah\000000blahblah";
+
+compt var b = "blah\00001blue";
+
+var _0 = @static_assert(b[4] as i32 == 1);
+
+compt var c = "blah\00071blue";
+
+var _1 = @static_assert(c[4] as i32 == 57);
+
+compt var d = "blah\07777"; // oops
+
+compt var e = "\0377";
+
+var _2 = @static_assert(e[0] as u8 == 255);
+
+var _3 = "\x";
+
+compt var f = "\x00000000000000000000";
+
+var _4 = @static_assert(f[0] as u8 == 0);
+
+var _5 = @static_assert f == "\x0";
+
+var _6 = @static_assert( "\x12"[0] as u8 == 0x12 );
+
+var _7 = "\x234";

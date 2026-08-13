@@ -262,14 +262,116 @@ SymbolId Context::symbol_id_for_identifier_tkn(const token_t* tkn) {
 }
 
 SymbolId Context::symbol_id(Span span) { return symbol_id(span.as_sv(*this)); }
+
+static auto to_num(const char c) -> char { return static_cast<char>(c - 48); };
+static auto is_oct_char(const char c) { return c >= '0' && c <= '7'; };
+static auto parse_oct(Context& ctx, FileId fid, std::string_view oct_str, const char* start,
+                      const token_t* tkn) -> char {
+    int accum = 0;
+    for (auto ch : oct_str) {
+        accum = (accum * 8) + to_num(ch);
+    }
+    if (accum > 255) {
+        token_t temp = *tkn;
+        temp.start = start;
+        temp.len = oct_str.size() + 2; // because of the leading "\0"
+        ctx.emplace_diagnostic(Span{ctx, fid, &temp}, diag_code::oversized_escape_sequence,
+                               diag_type::error);
+        return '0'; // don't prematurely null terminate cuz that's more bad
+    }
+
+    return static_cast<char>(accum);
+};
+
+static auto to_num_hex(const char c) -> char {
+    switch (c) {
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+        return static_cast<char>(c - 48);
+    case 'a':
+    case 'b':
+    case 'c':
+    case 'd':
+    case 'e':
+    case 'f':
+        return static_cast<char>(c - 87);
+    case 'A':
+    case 'B':
+    case 'C':
+    case 'D':
+    case 'E':
+    case 'F':
+        return static_cast<char>(c - 55);
+    default:
+        return 0; // shouldn't happen
+    }
+};
+
+static auto is_hex_char(const char c) {
+    switch (c) {
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+    case 'a':
+    case 'b':
+    case 'c':
+    case 'd':
+    case 'e':
+    case 'f':
+    case 'A':
+    case 'B':
+    case 'C':
+    case 'D':
+    case 'E':
+    case 'F':
+        return true;
+    default:
+        return false;
+    }
+};
+
+static auto parse_hex(Context& ctx, FileId fid, std::string_view hex_str, const char* start,
+                      const token_t* tkn) -> char {
+    int accum = 0;
+    for (auto ch : hex_str) {
+        accum = (accum * 16) + to_num_hex(ch);
+    }
+    if (accum > 255) {
+        token_t temp = *tkn;
+        temp.start = start;
+        temp.len = hex_str.size() + 2; // because of the leading "\x"
+        ctx.emplace_diagnostic(Span{ctx, fid, &temp}, diag_code::oversized_escape_sequence,
+                               diag_type::error);
+        return '0'; // don't prematurely null terminate cuz that's more bad
+    }
+
+    return static_cast<char>(accum);
+};
+
 SymbolId Context::symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid) {
     assert(tkn->type == TOK_STR_LIT);
     const char* start = tkn->start + 1; // cuz we don't want opening quote
     const auto len = tkn->len - 2;      // cuz minus both quotes
     std::string temp{};
+
     for (auto i = 0uz; i < len; ++i) {
         char c = start[i];
-        if (c == '\\' && start + 1 >= start + len) {
+        if (c == '\\' && i + 1 >= len) {
             token_t temp = *tkn;
             temp.start = start;
             temp.len = 1;
@@ -278,8 +380,20 @@ SymbolId Context::symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid) {
         } else if (c == '\\') {
             switch (start[i + 1]) {
             case '0':
-                c = '\0';
-                ++i;
+                // this means we're octal
+                if (i + 2 < len && is_oct_char(start[i + 2])) {
+                    const char* oct_lit_start = start + i;
+                    i += 2; // leading "\0" in octal
+                    std::string oct_str{};
+                    while (i < len && is_oct_char(start[i])) {
+                        oct_str += start[i];
+                        ++i;
+                    }
+                    c = parse_oct(*this, fid, oct_str, oct_lit_start, tkn);
+                } else {
+                    c = '\0';
+                    ++i;
+                }
                 break;
             case 'n':
                 c = '\n';
@@ -321,6 +435,27 @@ SymbolId Context::symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid) {
                 c = '\\';
                 ++i;
                 break;
+            case 'x': {
+                // this means we're hex
+                if (i + 2 < len && is_hex_char(start[i + 2])) {
+                    const char* hex_lit_start = start + i;
+                    i += 2; // leading "\x" in hex
+                    std::string hex_str{};
+                    while (i < len && is_hex_char(start[i])) {
+                        hex_str += start[i];
+                        ++i;
+                    }
+                    c = parse_hex(*this, fid, hex_str, hex_lit_start, tkn);
+                } else {
+                    token_t temp = *tkn;
+                    temp.start = start + i;
+                    temp.len = 2;
+                    emplace_diagnostic(Span{*this, fid, &temp}, diag_code::invalid_escape_sequence,
+                                       diag_type::error);
+                    ++i; // eats the x
+                }
+                break;
+            }
             default: {
                 token_t temp = *tkn;
                 temp.start = start + i;

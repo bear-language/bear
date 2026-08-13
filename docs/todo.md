@@ -6,11 +6,6 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] digest (and validate) escape sequences when interning string literal tokens
-    - [ ] hex `\0x00`, octal `\000` 
-        - [ ] for string literals
-        - [ ] for char literals
-
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
     - [ ] use positional type inference and return/expected type inference
 

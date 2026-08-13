@@ -416,6 +416,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
                "function";
     case diag_code::invalid_escape_sequence:
         return "invalid escape sequence";
+    case diag_code::oversized_escape_sequence:
+        return "oversized escape sequence";
     }
 
     std::unreachable();
