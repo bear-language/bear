@@ -7,15 +7,23 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
-    - [ ] use positional type inference and return/expected type inference
+```
+basically:
+for each template arg: recursively search across parameter types tracking arg_index (which function argument) and depth (how deep inside the type it is) as well as sub_index which along each step track nested generic type positions, so that nested type detection works for all types e.g. *Foo, &Foo, Foo<Bar,Baz>
 
-- [ ] use positional type inference mechanisms to allow for some kind of variadic functions
+each DeductionStep will be it's own struct with an optional field to the next DeductionStep, and a slice of root DeductionStep nodes will be how the deduction guide is stored. these nodes will arena alloc'd and be indexed with id's (not pointers) for speed
+
+note: base types (that aren't written out as generic) need to resolved since deftypes should be expand as they themselves can point to generic types, so we can't rely purely on written type's lexical structure
+
+the structures can be reused across function call deduction and struct-init deduction although the "execution" of the deduction guide will of course be different
+```
+
+- [ ] use positional type inference mechanisms to allow for some kind of variadic functions (not that similar to gen arg deduction)
     - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}` or pass through some kind of anonymous struct, like Zig
-
     - [ ] get variadic params/args working at compt w/ callable functions
 
 - [ ] reflection improvements
-        - [ ] implement use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members 
+        - [ ] implement use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members (relatively easy but tedious on some special-casing inside the compile-time solver)
 
 
 #### hir phase 2.b (function body resolution):
@@ -29,7 +37,7 @@ main quest
         - [ ] `MoveMapId`: same idea as a scope, but:
             - [ ] tracks DefId -> ExecId tracking where defs were moved (for good diagnostics)
             - [ ] parent MoveMaps should track their children so that each child can confirm that its siblings also move the same definitions 
-- [ ] pseudo borrow checker:
+- [ ] "borrow checker":
     - [ ] allow mutiple immutable and mutable borrows
     - [ ] no lifetimes
     - [ ] strictly ban returning a reference to a local variable directly out of a function
@@ -77,7 +85,7 @@ main quest
     - [ ] update highlighting to have parity with `bear.nvim`
     - [ ] basic cave/bearc integration (run button)
 
-- [ ] Improve debugger compatibility 
+- [ ] Verify/implement debugger compatibility 
 
 side quests
 -----------
