@@ -13,8 +13,6 @@ for each template arg: recursively search across parameter types tracking arg_in
 
 each DeductionStep will be it's own struct with an optional field to the next DeductionStep, and a slice of root DeductionStep nodes will be how the deduction guide is stored. these nodes will arena alloc'd and be indexed with id's (not pointers) for speed
 
-note: base types (that aren't written out as generic) need to resolved since deftypes should be expand as they themselves can point to generic types, so we can't rely purely on written type's lexical structure
-
 the structures can be reused across function call deduction and struct-init deduction although the "execution" of the deduction guide will of course be different
 ```
 
