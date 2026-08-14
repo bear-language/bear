@@ -180,7 +180,10 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
         ScopeId mod_scope = existing_module
                                 ? get<DefModule>(context.def(existing.as_id()).value).scope
                                 : context.make_scope(scope, span);
-        // TODO: if existing module, register this current span to the existing span
+        // if existing module, register this current span to the existing scope
+        if (existing_module) {
+            context.register_span_to_scope(span, mod_scope);
+        }
         // warn capitalized_mod if the mod is new and capitalized
         if (!existing_module && is_capital(name_tkn)) {
             context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
