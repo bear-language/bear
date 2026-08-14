@@ -9,6 +9,9 @@ main quest
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
     - [ ] finish emplacers/getters for `DeductionStep` related things
     - [ ] write building up `DeductionGuide`/`DeductionStep` logic
+    - [ ] use deduction guide inside `ComptExprSolver` for function calls
+    - [ ] do the above ^ but for variant inits 
+    - [ ] do the above ^ but for structs
     - overview:
 ```
 basically:
