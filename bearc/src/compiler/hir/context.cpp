@@ -2354,6 +2354,19 @@ void Context::put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_
     canon_type_ids_to_layout_ids.insert(canon_tid, lay_id);
 }
 
+[[nodiscard]] OptId<DeductionGuideId>
+Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl_t* stmt,
+                                          IdSlice<GenericParamId> gen_params) {
+    ScopeId scope = containing_scope(func_did);
+    FileId fid = def(func_did).span.file_id;
+    // @TODO
+    // - make recursive helper function that can walk function parameter types
+    //    - go thru each gen param to find mention amongst func params building up DeductionSteps as
+    //    we go
+
+    return {};
+}
+
 CanonicalGenericArgsId Context::canonical_gen_args(GenericArgIdSliceId slice_id) {
     return canonical_compt_args_table.canonical(slice_id);
 }

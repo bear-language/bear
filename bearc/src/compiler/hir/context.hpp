@@ -773,6 +773,11 @@ class Context {
 
     void put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_id);
 
+    /// trys to build a deduction guide for a function
+    [[nodiscard]] OptId<DeductionGuideId>
+    try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl_t* stmt,
+                                     IdSlice<GenericParamId> gen_params);
+
     // freeze a vector (llvm::SmallVector) into an IdSlice for leaner storage
     template <IsId I>
     [[nodiscard]] IdSlice<I> freeze_id_vec(const llvm::SmallVectorImpl<I>& vec)

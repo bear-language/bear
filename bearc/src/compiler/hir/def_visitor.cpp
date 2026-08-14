@@ -481,6 +481,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             context.def(did).set_value(DefGenericFunction{
                 .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
                 .generic_params = maybe_generic_params.value()});
+            // @TODO try to make a deduction guide (or lazy init later on)
             goto cleanup;
         }
 
