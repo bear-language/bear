@@ -7,6 +7,9 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
+    - [ ] finish emplacers/getters for `DeductionStep` related things
+    - [ ] write building up `DeductionGuide`/`DeductionStep` logic
+    - overview:
 ```
 basically:
 for each template arg: recursively search across parameter types tracking arg_index (which function argument) and depth (how deep inside the type it is) as well as sub_index which along each step track nested generic type positions, so that nested type detection works for all types e.g. *Foo, &Foo, Foo<Bar,Baz>

@@ -61,6 +61,7 @@ struct GenericParam;
 struct GenericArg;
 struct Diagnostic;
 struct Layout;
+struct DeductionStep;
 
 /// primary means of tracking interned strings in the hir
 using SymbolId = Id<Symbol>;
@@ -217,6 +218,10 @@ using CanonicalGenericArgsIdMapId = Id<IdSlice<CanonicalGenericArgsId>>;
 using CanonicalComptArgsIdMapId = Id<IdSlice<CanonicalGenericArgsId>>;
 
 using OffsetSliceId = Id<IdSlice<Offset>>;
+
+using DeductionStepId = Id<DeductionStep>;
+
+using DeductionGuideId = Id<IdSlice<DeductionStepId>>;
 
 } // namespace hir
 

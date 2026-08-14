@@ -120,8 +120,11 @@ Context::Context(const bearc_args_t& args, instances instances)
       offsets{DEFAULT_DEF_CAP}, offset_slices{DEFAULT_DEF_CAP},
       def_id_to_offset_slice_arena{DEFAULT_ARENA_CAP},
       def_id_to_offset_slice{def_id_to_offset_slice_arena, DEFAULT_DEF_CAP},
-      file_to_spans_to_scopes{DEFAULT_SCOPE_VEC_CAP}, diagnostics{DEFAULT_DIAG_NUM},
-      diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
+      file_to_spans_to_scopes{DEFAULT_SCOPE_VEC_CAP}, deduction_steps{DEFAULT_TYPE_CAP},
+      deduction_step_ids{DEFAULT_TYPE_CAP}, deduction_guides{DEFAULT_TYPE_CAP / 4},
+      def_to_deduction_guides_arena{DEFAULT_ARENA_CAP / 4},
+      def_to_deduction_guides{def_to_deduction_guides_arena, DEFAULT_TYPE_CAP / 4},
+      diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
       only_one_context_instance((instances == instances::one) && one_instance_status),
       compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]), terse{args.flags[CLI_FLAG_TERSE]},
       strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]} {

@@ -13,6 +13,7 @@
 #include "compiler/ast/stmt.h"
 #include "compiler/hir/arena_str_hash_map.hpp"
 #include "compiler/hir/ast_visitor.hpp"
+#include "compiler/hir/deduction.hpp"
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/diagnostic.hpp"
@@ -776,7 +777,7 @@ class Context {
     template <IsId I>
     [[nodiscard]] IdSlice<I> freeze_id_vec(const llvm::SmallVectorImpl<I>& vec)
         requires is_any_of_v<I, TypeId, ExecId, DefId, GenericArgId, FileId, SymbolId,
-                             GenericParamId, LayoutId, Offset>
+                             GenericParamId, LayoutId, Offset, DeductionStepId>
     {
         if constexpr (std::is_same_v<I, TypeId>) {
             return type_ids.freeze_small_vec(vec);
@@ -796,6 +797,8 @@ class Context {
             return layout_ids.freeze_small_vec(vec);
         } else if constexpr (std::is_same_v<I, Offset>) {
             return offsets.freeze_small_vec(vec);
+        } else if constexpr (std::is_same_v<I, DeductionStepId>) {
+            return deduction_step_ids.freeze_small_vec(vec);
         } else {
             static_assert(false, "tried to freeze a vector of an unconsidered hir::Id type");
         }
@@ -828,7 +831,8 @@ class Context {
     DataArena intrinsic_files_set_arena;
     IdSet<SymbolId> intrinsic_files;
 
-    /// FileId -> IdSlice<FileId> since all importees are always known when lowering a given file
+    /// FileId -> IdSlice<FileId> since all importees are always known when lowering a given
+    /// file
     IdVecMap<FileId, IdSlice<FileId>> importer_to_importees;
     /// FileId -> llvm::SmallVector<FileId> since this will be updated less predictably
     IdVecMap<FileId, llvm::SmallVector<FileId>> importee_to_importers;
@@ -859,10 +863,11 @@ class Context {
     IdVector<DefId> def_ids;
     NodeVector<Def> defs;
 
-    /// indicated whether this node is unvisited, visited during top-level resolution, or resolved
+    /// indicated whether this node is unvisited, visited during top-level resolution, or
+    /// resolved
     IdVecMap<DefId, Def::resol_state> def_resol_states; // index with DefId
-    /// cached dense mapping of DefIds to AST nodes for fast resolution, this mapping should never
-    /// be serialized
+    /// cached dense mapping of DefIds to AST nodes for fast resolution, this mapping should
+    /// never be serialized
     IdVecMap<DefId, const ast_stmt_t*> def_ast_nodes;
     /// tracks whether a defintion is used/unused/modified (for tracking dead definitions)
     IdVecMap<DefId, Def::mention_state> def_mention_states;
@@ -892,8 +897,8 @@ class Context {
     IdVector<TypeId> type_ids;
     NodeVector<Type> types;
 
-    // maps a canonical type back to its first TypeId mention so the type's structure can be rebuilt
-    // even if only its canonical value is known
+    // maps a canonical type back to its first TypeId mention so the type's structure can be
+    // rebuilt even if only its canonical value is known
     IdVecMap<CanonicalTypeId, TypeId> canonical_to_type_id;
     DataArena canonical_type_table_arena;
     CanonicalTypeTable canonical_type_table;
@@ -906,8 +911,8 @@ class Context {
     // generic arg canonicalization
     DataArena generic_args_arena;
 
-    // for getting the concrete defs from generic args (routed thru an unspecialized generic defs
-    // that has a map to it's child concrete defs)
+    // for getting the concrete defs from generic args (routed thru an unspecialized generic
+    // defs that has a map to it's child concrete defs)
     IdVecMap<CanonicalGenericArgsIdMapId, IdHashMap<CanonicalGenericArgsId, DefId>>
         canonical_generic_args_id_to_def_id_map;
 
@@ -948,6 +953,13 @@ class Context {
 
     // for getting the scope for a given
     IdVecMap<FileId, std::vector<SpanScopePair>> file_to_spans_to_scopes;
+
+    // for storing generic deduction steps
+    NodeVector<DeductionStep> deduction_steps;
+    IdVector<DeductionStepId> deduction_step_ids;
+    IdVecMap<DeductionGuideId, IdSlice<DeductionStepId>> deduction_guides;
+    DataArena def_to_deduction_guides_arena;
+    IdHashMap<DefId, DeductionGuideId> def_to_deduction_guides;
 
     // for parallel ast building
     std::shared_mutex import_file_mutex;
