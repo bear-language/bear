@@ -31,6 +31,8 @@ the structures can be reused across function call deduction and struct-init dedu
 
 
 #### hir phase 2.b (function body resolution):
+- [ ] impl `RunTimeExprSolver`
+- [ ] build up runtime statements into structured blocks
 - [ ] make sure assignment type checking is properly rigid especially around mutable references.
     - the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
 - [ ] make a system to etch ExecId into a structured linear form within blocks to be naturally connected in a CFG 
@@ -48,7 +50,7 @@ the structures can be reused across function call deduction and struct-init dedu
 - [ ] remember: run-time values that are immutable references and have compile-time initializers can just reference static variables that store that compile-time value
 - [ ] LLVM lowering prep:
     - [ ] tighten up mention/mutation tracking for better `unused variable: foo` diagnostics (and top level decls when not a lib build)
-    - [ ] either queue struct and function declarations (cheaper linear lowering to LLVM) or use a scope iterator 
+    - [ ] either queue structure declarations (as is done for functions) for better LLVM lowering 
     - [ ] just find main thru top-level scope; only require it in non-lib builds 
     - [ ] add a flag for exec/lib build to track diagnostics slightly different (described above)
     - [ ] finalize `extern {}` and `extern C {}` semantics for cross-TU and FFI compilation respectively
