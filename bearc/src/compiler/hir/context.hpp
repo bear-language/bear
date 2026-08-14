@@ -947,7 +947,7 @@ class Context {
     IdHashMap<DefId, OffsetSliceId> def_id_to_offset_slice;
 
     // for getting the scope for a given
-    IdVecMap<FileId, std::vector<SpanScopePair>> file_to_spans_to_scopes; // TODO impl this
+    IdVecMap<FileId, std::vector<SpanScopePair>> file_to_spans_to_scopes;
 
     // for parallel ast building
     std::shared_mutex import_file_mutex;
