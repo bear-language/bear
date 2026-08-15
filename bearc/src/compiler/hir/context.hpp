@@ -825,6 +825,14 @@ class Context {
         return def_id_to_offset_slice.at(did);
     }
 
+    void register_deduction_guide_for_def(DefId did, DeductionGuideId guide_id) {
+        def_to_deduction_guides.insert(did, guide_id);
+    }
+
+    [[nodiscard]] OptId<DeductionGuideId> deduction_guide_for_def(DefId did) {
+        return def_to_deduction_guides.at(did);
+    }
+
   private:
     // containers:
     // ~~~~~~~~~~~~~~~~~ file stuff ~~~~~~~~~~~~~~~~~~~

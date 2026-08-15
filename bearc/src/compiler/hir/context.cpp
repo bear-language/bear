@@ -2385,17 +2385,6 @@ Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl
 Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params_t params,
                                          const ast_type_t* curr_type, SymbolId sid, bool nested) {
 
-    // go to the next param
-    const auto next_param = [this, &step, sid, &params] [[nodiscard]] () -> OptId<DeductionStepId> {
-        ++step.order_idx;
-        // base case (no more args to try)
-        if (step.order_idx >= params.len) {
-            return {};
-        }
-        return recursive_deduction_step_helper(step, params, params.start[step.order_idx]->type,
-                                               sid);
-    };
-
     const auto nested_type = [this, &step, sid, &params] [[nodiscard]] (
                                  const ast_type_t* nested_type) -> OptId<DeductionStepId> {
         const OptId<DeductionStepId> maybe_nested = recursive_deduction_step_helper(
@@ -2422,10 +2411,6 @@ Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params
         if (base_sid == sid) {
             return deduction_steps.emplace_and_get_id(step);
         }
-        // only try to go to the next param if we're not nested
-        if (!nested) {
-            return next_param();
-        }
         break;
     }
     case AST_TYPE_GENERIC: {
@@ -2449,8 +2434,18 @@ Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params
                 break;
             }
             case AST_GENERIC_ARG_EXPR: {
-                // @TODO:
-                // - handle single id expressions: happy base case
+                if (arg->arg.expr->type == AST_EXPR_ID) {
+                    const auto id_slice = arg->arg.expr->expr.id.slice;
+
+                    if (id_slice.len != 1) {
+                        return {};
+                    }
+                    SymbolId base_sid = symbol_id(id_slice.start[0]);
+                    // hit on this type
+                    if (base_sid == sid) {
+                        return deduction_steps.emplace_and_get_id(step);
+                    }
+                }
                 break;
             }
             }
@@ -2458,11 +2453,6 @@ Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params
             // bump the sub-index as we go thru our subtypes within these generic args
             ++step.sub_idx;
         }
-
-        if (!nested) {
-            return next_param();
-        }
-
         break;
     }
     case AST_TYPE_FN_PTR: {
@@ -2477,6 +2467,17 @@ Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params
     case AST_TYPE_DECAY:
     case AST_TYPE_INVALID:
         break;
+    }
+
+    // if we're not nested, try the next param
+    if (!nested) {
+        ++step.order_idx;
+        // base case (no more params to try)
+        if (step.order_idx >= params.len) {
+            return {};
+        }
+        return recursive_deduction_step_helper(step, params, params.start[step.order_idx]->type,
+                                               sid);
     }
     return {};
 }

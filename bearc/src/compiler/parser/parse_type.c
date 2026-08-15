@@ -477,7 +477,6 @@ ast_type_t* parse_type_generic(parser_t* p, ast_type_t* inner) {
     }
     outer->type.generic.id = inner->type.base.id;
     outer->type.generic.mut = inner->type.base.mut;
-    outer->canonical_base = inner->canonical_base;
     parser_mode_e saved = parser_mode(p);
     parser_mode_set(
         p, PARSER_MODE_BAN_ANGLE_BRACKETS_IN_EXPRS); // cleaner template parsing from < and > issues
@@ -489,6 +488,7 @@ ast_type_t* parse_type_generic(parser_t* p, ast_type_t* inner) {
     if (!args.valid) {
         return parser_sync_type(p);
     }
+    outer->canonical_base = outer;
     outer->type.generic.generic_args = args;
     outer->first = inner->first;
     outer->last = parser_prev(p);

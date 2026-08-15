@@ -23,6 +23,9 @@ struct _Mew<T> {
     T b;
 }
 
+struct Triple<A,B,C> {}
+
+compt fn triple<A, B, C>(Triple<A,B,C> foo) -> Triple<A,B,C> => foo if !@err(!(@same_type(A, B) && @same_type(B, C)), "the passed in triple should have A, B, and C of the same type") else foo
 
 compt var a = Bar{};
 
@@ -33,3 +36,7 @@ var _0 = @static_assert b.get() == 0;
 var _1 = @static_assert @same_type(Foo, typeof b);
 
 var _2 = @static_assert b.get() == 1; // oops
+
+compt var bad_trip = Triple::<i32, u32, u64>{};
+
+compt var _3 = triple::<i32, u32, u64>(bad_trip);
