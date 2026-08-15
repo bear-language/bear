@@ -833,6 +833,22 @@ class Context {
         return def_to_deduction_guides.at(did);
     }
 
+    [[nodiscard]] IdSlice<DeductionStepId> deduction_guide(DeductionGuideId gid) {
+        return deduction_guides.at(gid);
+    }
+
+    [[nodiscard]] DeductionStep deduction_step(DeductionStepId step_id) {
+        return deduction_steps.at(step_id);
+    }
+
+    [[nodiscard]] DeductionStepId deduction_step_id(IdIdx<DeductionStepId> step_idx) {
+        return deduction_step_ids.at(step_idx);
+    }
+
+    [[nodiscard]] DeductionStep deduction_step(IdIdx<DeductionStepId> step_idx) {
+        return deduction_steps.at(deduction_step_id(step_idx));
+    }
+
   private:
     // containers:
     // ~~~~~~~~~~~~~~~~~ file stuff ~~~~~~~~~~~~~~~~~~~

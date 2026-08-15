@@ -2720,6 +2720,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         SymbolId func_symbol;
         uint8_t mt_param_adjustment = 0;
         OptId<DefId> maybe_func_did{};
+        bool needs_generic_deduction = false;
 
         const auto prior_diag_cnt = context.diagnostic_count();
 
@@ -2856,27 +2857,52 @@ template <IsDefVisitor V> class ComptExprSolver {
             const Def& called_def
                 = context.def(def_visitor.visit_as_dependent(maybe_func_did.as_id()));
             if (!called_def.holds<DefFunction>()) {
-                const auto code = (called_def.holds<DefGenericFunction>())
-                                      ? diag_code::raw_use_of_generic_function
-                                      : diag_code::not_a_function;
-                context.emplace_diagnostic(Span{context, fid, called},
-                                           diag_code::value_is_not_callable, diag_type::error,
-                                           DiagnosticSubCode{.sub_code = code});
-                return std::nullopt;
+                if (called_def.holds<DefGenericFunction>()) {
+                    needs_generic_deduction = true;
+                } else {
+                    context.emplace_diagnostic(
+                        Span{context, fid, called}, diag_code::value_is_not_callable,
+                        diag_type::error, DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+                    return {};
+                }
+            } else {
+                func = called_def.as<DefFunction>();
+                func_span = called_def.span;
+                func_symbol = called_def.name;
             }
-            func = called_def.as<DefFunction>();
-            func_span = called_def.span;
-            func_symbol = called_def.name;
         }
-
-        const auto func_did = maybe_func_did.as_id();
-
-        const IdSlice<DefId> params = func.params;
-
-        const ast_slice_of_exprs_t exprs = expr->expr.fn_call.args;
 
         HirSize total_arg_cnt = 0;
         bool issue = false;
+        const ast_slice_of_exprs_t exprs = expr->expr.fn_call.args;
+        const auto func_did = maybe_func_did.as_id();
+
+        if (needs_generic_deduction) {
+            return {};
+            const auto maybe_deduction_guide = context.deduction_guide_for_def(func_did);
+            if (maybe_deduction_guide.empty()) {
+                context.emplace_diagnostic_with_message_value(
+                    Span{context, fid, expr},
+                    diag_code::cannot_deduce_generic_paramters_for_function, diag_type::error,
+                    DiagnosticSymbolAfterMessage{.sid = context.def(func_did).name});
+                return {};
+            }
+            for (HirSize i = 0; i < exprs.len; i++) {
+                const ast_expr_t* arg = exprs.start[i];
+
+                OptId<ExecId> maybe_arg_eid = solve_expr(fid, scope, arg);
+                if (maybe_arg_eid.empty()) {
+                    issue = true;
+                } else {
+                    arg_vec.push_back(maybe_arg_eid.as_id());
+                }
+                total_arg_cnt++;
+            }
+            // @TODO
+        }
+
+        const IdSlice<DefId> params = func.params;
+
         for (HirSize i = 0; i < exprs.len; i++) {
             const ast_expr_t* arg = exprs.start[i];
 
@@ -3852,7 +3878,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             Span::combine(lhs_exec.span, rhs_exec.span));
     }
 
-    OptId<ExecId> solve_members_of(FileId fid, ScopeId scope, const ast_expr_t* mems_of_expr) {
+    [[nodiscard]] OptId<ExecId> solve_members_of(FileId fid, ScopeId scope,
+                                                 const ast_expr_t* mems_of_expr) {
         assert(mems_of_expr->type == AST_EXPR_MEMBERS_OF);
 
         OptId<TypeId> maybe_tid = resolve_type(fid, scope, mems_of_expr->expr.members_of.type);
@@ -3892,7 +3919,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             ExecExprListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);
     }
 
-    OptId<ExecId> solve_statics_of(FileId fid, ScopeId scope, const ast_expr_t* mems_of_expr) {
+    [[nodiscard]] OptId<ExecId> solve_statics_of(FileId fid, ScopeId scope,
+                                                 const ast_expr_t* mems_of_expr) {
         assert(mems_of_expr->type == AST_EXPR_STATICS_OF);
 
         OptId<TypeId> maybe_tid = resolve_type(fid, scope, mems_of_expr->expr.statics_of.type);
@@ -3932,8 +3960,8 @@ template <IsDefVisitor V> class ComptExprSolver {
             ExecExprListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);
     }
 
-    OptId<ExecId> try_compt_constant_from_did(FileId fid, ScopeId scope, DefId did, SymbolId sid,
-                                              Span span) {
+    [[nodiscard]] OptId<ExecId> try_compt_constant_from_did(FileId fid, ScopeId scope, DefId did,
+                                                            SymbolId sid, Span span) {
         const Def& def = context.def(did);
         if (def.holds<DefVariable>() && def.as<DefVariable>().compt_value.has_value()) {
             return def.as<DefVariable>().compt_value;
@@ -3954,7 +3982,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         return {};
     }
 
-    OptId<ExecId> solve_reflected_id(FileId fid, ScopeId scope, const ast_expr_t* expr) {
+    [[nodiscard]] OptId<ExecId> solve_reflected_id(FileId fid, ScopeId scope,
+                                                   const ast_expr_t* expr) {
         assert(expr->type == AST_EXPR_REFLECTED_ID);
 
         OptId<ExecId> maybe_symbol_eid = solve_builtin_compt_expr(
@@ -3981,7 +4010,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                                            Span{context, fid, expr->expr.reflected_id.inner});
     }
 
-    OptId<ExecId> solve_reflected_scoped_id(FileId fid, ScopeId scope, const ast_expr_t* expr) {
+    [[nodiscard]] OptId<ExecId> solve_reflected_scoped_id(FileId fid, ScopeId scope,
+                                                          const ast_expr_t* expr) {
         assert(expr->type == AST_EXPR_REFLECTED_SCOPED_ID);
 
         llvm::SmallVector<SymbolId> sid_vec{};
@@ -4037,7 +4067,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
         return {};
     }
-    OptId<ExecId> solve_sizeof(FileId fid, ScopeId scope, const ast_expr_t* expr) {
+    [[nodiscard]] OptId<ExecId> solve_sizeof(FileId fid, ScopeId scope, const ast_expr_t* expr) {
         assert(expr->type == AST_EXPR_SIZEOF);
 
         OptId<TypeId> maybe_tid
@@ -4053,7 +4083,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             ExecConst{static_cast<size_t>(lay.width)}, // ensure this is size
             Span{context, fid, expr});
     }
-    OptId<ExecId> solve_alignof(FileId fid, ScopeId scope, const ast_expr_t* expr) {
+    [[nodiscard]] OptId<ExecId> solve_alignof(FileId fid, ScopeId scope, const ast_expr_t* expr) {
         assert(expr->type == AST_EXPR_ALIGNOF);
 
         OptId<TypeId> maybe_tid
@@ -4068,6 +4098,43 @@ template <IsDefVisitor V> class ComptExprSolver {
         return context.emplace_compt_exec(
             ExecConst{static_cast<size_t>(lay.alignment)}, // ensure this is size
             Span{context, fid, expr});
+    }
+
+    [[nodiscard]] OptId<GenericArgIdSliceId>
+    try_generic_args_from_deduction_guide(llvm::SmallVectorImpl<ExecId> eids,
+                                          DeductionGuideId guide_id) {
+        llvm::SmallVector<GenericArgId> gen_args{};
+
+        const IdSlice<DeductionStepId> guide = context.deduction_guide(guide_id);
+
+        for (auto step_idx = guide.begin(); step_idx != guide.end(); ++step_idx) {
+            const auto step = context.deduction_step(step_idx);
+            if (step.order_idx >= eids.size()) {
+                return {};
+            }
+            const auto maybe_tid = infer_type_from_exec(eids[step.order_idx]);
+            if (maybe_tid.empty()) {
+                return {};
+            }
+            const auto tid = maybe_tid.as_id();
+            const auto maybe_deduce_tid = deduction_step_helper(tid, step);
+            if (maybe_deduce_tid.empty()) {
+                return {};
+            }
+            gen_args.push_back(context.emplace_generic_arg(maybe_tid.as_id()));
+        }
+
+        return context.emplace_generic_arg_id_slice(context.freeze_id_vec(gen_args));
+    }
+
+    [[nodiscard]] OptId<TypeId> deduction_step_helper(TypeId tid, DeductionStep step) {
+        if (step.next.empty()) {
+            return tid;
+        }
+        if (step.next.has_value()) {
+            const auto& ty = context.type(tid);
+            // @TODO
+        }
     }
 
   public:

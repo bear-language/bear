@@ -39,4 +39,6 @@ var _2 = @static_assert b.get() == 1; // oops
 
 compt var bad_trip = Triple::<i32, u32, u64>{};
 
-compt var _3 = triple::<i32, u32, u64>(bad_trip);
+var _3 = triple::<i32, u32, u64>(bad_trip);
+
+var _4 = triple(bad_trip);

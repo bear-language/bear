@@ -19,7 +19,6 @@
 #include "utils/data_arena.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
-#include <iostream>
 #include <optional>
 #include <stddef.h>
 
@@ -483,15 +482,16 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                 .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
                 .generic_params = maybe_generic_params.value()});
 
-            // @TODO try to make a deduction guide (or lazy init later on)
+            // try to make a deduction guide (consider lazy init later on)
             const auto maybe_deduction_guide = context.try_deduction_guide_for_function(
                 did, &stmt->stmt.fn_decl, maybe_generic_params.value());
             if (maybe_deduction_guide.has_value()) {
-                std::cout << "made deduction guide\n"; // TODO debug
+                // std::cout << "made deduction guide\n"; // TODO debug
                 context.register_deduction_guide_for_def(did, maybe_deduction_guide.as_id());
-            } else {
-                std::cout << "couldn't make deduction guide\n"; // TODO debug
             }
+            // else {
+            //    std::cout << "couldn't make deduction guide\n"; // TODO debug
+            // }
             goto cleanup;
         }
 

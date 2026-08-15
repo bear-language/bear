@@ -210,6 +210,7 @@ enum class diag_code : uint8_t {
     variadic_types_are_only_allowed_in_the_last_paramter_of_a_function,
     invalid_escape_sequence,
     oversized_escape_sequence,
+    cannot_deduce_generic_paramters_for_function,
 
     count, // this must be last,
 
