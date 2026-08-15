@@ -6,8 +6,7 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolivng* top-level declarations:
 
-- [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
-    - [ ] finish emplacers/getters for `DeductionStep` related things
+- [ ] generic argument deduction guides for fn calls, variant inits, and struct inits (`@TODO`)
     - [ ] write building up `DeductionGuide`/`DeductionStep` logic
     - [ ] use deduction guide inside `ComptExprSolver` for function calls
     - [ ] do the above ^ but for variant inits 
