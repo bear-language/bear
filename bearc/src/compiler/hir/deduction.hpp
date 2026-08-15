@@ -17,8 +17,6 @@ struct DeductionStep {
     using id_type = DeductionStepId;
     /// the indexed order for this deduction step e.g. which argument we are
     HirSize order_idx{0};
-    /// how deep inside a type to look
-    HirSize depth{0};
     /// subindex into nested generics or function pointers
     HirSize sub_idx{0};
     /// the absent of next implies this is the terminal step

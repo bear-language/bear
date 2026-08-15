@@ -143,6 +143,21 @@ static void print_closing_green_brace_newline(void) {
     print_indent(), printf("%s}%s\n", ansi_bold_green(), ansi_reset());
 }
 
+static void print_id_slice(token_ptr_slice_t ids) {
+    printer_do_indent();
+    printf("%s`%s", ansi_bold_green(), ansi_reset());
+    for (size_t i = 0; i < ids.len; i++) {
+        int len = (int)ids.start[i]->len;
+        const char* start = ids.start[i]->start;
+        printf("%s%.*s%s", ansi_bold_cyan(), len, start, ansi_reset());
+        if (ids.len != 1 && i != ids.len - 1) {
+            printf("%s%s%s", ansi_bold_green(), token_to_string_map()[TOK_SCOPE_RES], ansi_reset());
+        }
+    }
+    printf("%s`%s", ansi_bold_green(), ansi_reset());
+    printer_deindent();
+}
+
 static void print_type(ast_type_t* type) {
     printer_do_indent();
     print_indent();
@@ -194,13 +209,19 @@ static void print_type(ast_type_t* type) {
         break;
     case AST_TYPE_GENERIC:
         print_title("generic type");
-        print_type(type->type.generic.inner);
+        printer_do_indent();
+        print_indent();
+        print_id_slice(type->type.generic.id);
+        puts(",");
         print_delineator_from_type(TOK_GENERIC_SEP);
         print_opening_delim_from_type(TOK_LT);
         for (size_t i = 0; i < type->type.generic.generic_args.len; i++) {
             print_generic_type_arg(type->type.generic.generic_args.start[i]);
         }
         print_closing_delim_from_type(TOK_GT);
+        if (type->type.generic.mut) {
+            print_mut();
+        }
         print_closing_green_brace();
         break;
     case AST_TYPE_INVALID:
@@ -270,21 +291,6 @@ static void print_param(ast_param_t* param) {
     print_var_name(param->name);
     print_closing_green_brace();
     puts(",");
-}
-
-static void print_id_slice(token_ptr_slice_t ids) {
-    printer_do_indent();
-    printf("%s`%s", ansi_bold_green(), ansi_reset());
-    for (size_t i = 0; i < ids.len; i++) {
-        int len = (int)ids.start[i]->len;
-        const char* start = ids.start[i]->start;
-        printf("%s%.*s%s", ansi_bold_cyan(), len, start, ansi_reset());
-        if (ids.len != 1 && i != ids.len - 1) {
-            printf("%s%s%s", ansi_bold_green(), token_to_string_map()[TOK_SCOPE_RES], ansi_reset());
-        }
-    }
-    printf("%s`%s", ansi_bold_green(), ansi_reset());
-    printer_deindent();
 }
 
 static void print_id_slice_name(token_ptr_slice_t id) {

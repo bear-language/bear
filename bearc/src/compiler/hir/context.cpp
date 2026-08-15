@@ -2357,13 +2357,127 @@ void Context::put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_
 [[nodiscard]] OptId<DeductionGuideId>
 Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl_t* stmt,
                                           IdSlice<GenericParamId> gen_params) {
-    ScopeId scope = containing_scope(func_did);
-    FileId fid = def(func_did).span.file_id;
-    // @TODO
-    // - make recursive helper function that can walk function parameter types
-    //    - go thru each gen param to find mention amongst func params building up DeductionSteps as
-    //    we go
 
+    const ast_slice_of_params_t params = stmt->params;
+
+    if (!params.len) {
+        return {};
+    }
+
+    llvm::SmallVector<DeductionStepId> deduction_steps;
+    for (auto gen_param_idx = gen_params.begin(); gen_param_idx != gen_params.end();
+         ++gen_param_idx) {
+        SymbolId sid = this->gen_param(gen_param_idx).name;
+        DeductionStep step{};
+        // we know params.len >= 1
+        const auto maybe_ded_step
+            = recursive_deduction_step_helper(step, params, params.start[0]->type, sid);
+        if (maybe_ded_step.empty()) {
+            return {};
+        }
+        deduction_steps.push_back(maybe_ded_step.as_id());
+    }
+
+    return deduction_guides.emplace_and_get_id(freeze_id_vec(deduction_steps));
+}
+
+[[nodiscard]] OptId<DeductionStepId>
+Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params_t params,
+                                         const ast_type_t* curr_type, SymbolId sid, bool nested) {
+
+    // go to the next param
+    const auto next_param = [this, &step, sid, &params] [[nodiscard]] () -> OptId<DeductionStepId> {
+        ++step.order_idx;
+        // base case (no more args to try)
+        if (step.order_idx >= params.len) {
+            return {};
+        }
+        return recursive_deduction_step_helper(step, params, params.start[step.order_idx]->type,
+                                               sid);
+    };
+
+    const auto nested_type = [this, &step, sid, &params] [[nodiscard]] (
+                                 const ast_type_t* nested_type) -> OptId<DeductionStepId> {
+        const OptId<DeductionStepId> maybe_nested = recursive_deduction_step_helper(
+            step, params, nested_type, sid, true); // nested = true
+        if (maybe_nested.has_value()) {
+            step.next = maybe_nested;
+            return deduction_steps.emplace_and_get_id(step);
+        }
+        // nested was unsuccessful, so return none
+        return {};
+    };
+
+    // tries to get the canonical_base
+    const auto* type = curr_type->canonical_base;
+
+    switch (type->tag) {
+    case AST_TYPE_BASE: {
+        const auto id_slice = type->type.base.id;
+        if (id_slice.len != 1) {
+            return {};
+        }
+        SymbolId base_sid = symbol_id(id_slice.start[0]);
+        // hit on this type
+        if (base_sid == sid) {
+            return deduction_steps.emplace_and_get_id(step);
+        }
+        // only try to go to the next param if we're not nested
+        if (!nested) {
+            return next_param();
+        }
+        break;
+    }
+    case AST_TYPE_GENERIC: {
+        const auto gen_args = type->type.generic.generic_args;
+
+        for (size_t i = 0; i < gen_args.len; ++i) {
+            const ast_generic_arg_t* arg = gen_args.start[i];
+
+            // poison guard
+            if (!arg->valid) {
+                continue;
+            }
+
+            // try nested
+            switch (arg->tag) {
+            case AST_GENERIC_ARG_TYPE: {
+                const auto maybe_nested = nested_type(arg->arg.type);
+                if (maybe_nested.has_value()) {
+                    return maybe_nested;
+                }
+                break;
+            }
+            case AST_GENERIC_ARG_EXPR: {
+                // @TODO:
+                // - handle single id expressions: happy base case
+                break;
+            }
+            }
+
+            // bump the sub-index as we go thru our subtypes within these generic args
+            ++step.sub_idx;
+        }
+
+        if (!nested) {
+            return next_param();
+        }
+
+        break;
+    }
+    case AST_TYPE_FN_PTR: {
+        // @TODO, base this on the generic's approach
+        break;
+    }
+        // these should never be canonical bases
+    case AST_TYPE_REF_PTR:
+    case AST_TYPE_ARR:
+    case AST_TYPE_SLICE:
+    case AST_TYPE_TYPEOF:
+    case AST_TYPE_DECAY:
+    case AST_TYPE_INVALID:
+        break;
+    }
     return {};
 }
 

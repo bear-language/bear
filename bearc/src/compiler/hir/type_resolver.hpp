@@ -330,34 +330,7 @@ template <IsDefVisitor V> class TypeResolver {
 
         assert(type_node->tag == AST_TYPE_GENERIC);
 
-        const ast_type_t* inner = type_node->type.generic.inner;
-
-        // this shouldn't happen (but just in case)
-        if (inner->tag != AST_TYPE_BASE) {
-
-            const OptId<TypeId> maybe_inner_tid = resolve_type(fid, scope, inner);
-            if (maybe_inner_tid.empty()) {
-                return {}; // poisoned
-            }
-            const auto inner_tid = maybe_inner_tid.as_id();
-
-            auto d0 = context.emplace_diagnostic(
-                context.type(inner_tid).span, diag_code::is_not_generic, diag_type::error,
-                DiagnosticTypeBeforeMessage{.tid = inner_tid},
-                DiagnosticSubCode{.sub_code = diag_code::does_not_take_generic_arguments});
-            const auto maybe_did_for_tid = context.try_def_for_type(inner_tid);
-            if (maybe_did_for_tid.empty()) {
-                return {};
-            }
-            const Def& d = context.def(maybe_did_for_tid.as_id());
-            auto d1 = context.emplace_diagnostic_with_message_value(
-                d.span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = d.name});
-            context.link_diagnostic(d0, d1);
-            return {};
-        }
-
-        const token_ptr_slice_t id_slice = inner->type.base.id;
+        const token_ptr_slice_t id_slice = type_node->type.generic.id;
         const Span span{context, fid, id_slice};
 
         const auto maybe_gen_args = ComptExprSolver{context, def_visitor}.lower_generic_args(
@@ -393,14 +366,14 @@ template <IsDefVisitor V> class TypeResolver {
                                                    .gen_args_slice = maybe_gen_args.as_id(),
                                                    .generic = true},
                                         Span{context, fid, type_node->first, type_node->last},
-                                        inner->type.base.mut);
+                                        type_node->type.generic.mut);
         }
         if (context.is_variant(maybe_instant.as_id())) {
             return context.emplace_type(TypeVariant{.def_id = maybe_instant.as_id(),
                                                     .gen_args_slice = maybe_gen_args.as_id(),
                                                     .generic = true},
                                         Span{context, fid, type_node->first, type_node->last},
-                                        inner->type.base.mut);
+                                        type_node->type.generic.mut);
         }
         return {}; // oops
     }

@@ -1262,6 +1262,10 @@ class Context {
             emplace_generic_arg_id_slice(last ? remaining_args : (maybe_gen_args.value())));
     }
     void register_import_files_parallel(const char* const* file_paths, uint32_t count);
+
+    [[nodiscard]] OptId<DeductionStepId>
+    recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params_t params,
+                                    const ast_type_t* curr_type, SymbolId sid, bool nested = false);
 };
 
 } // namespace hir

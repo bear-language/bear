@@ -49,8 +49,9 @@ typedef struct ast_type_slice {
 } ast_type_slice_t;
 
 typedef struct ast_type_generic {
-    ast_type_t* inner;
+    token_ptr_slice_t id;
     ast_slice_of_generic_args_t generic_args;
+    bool mut;
 } ast_type_generic_t;
 
 typedef struct ast_slice_of_types {

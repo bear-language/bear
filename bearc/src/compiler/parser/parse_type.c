@@ -475,15 +475,16 @@ ast_type_t* parse_type_generic(parser_t* p, ast_type_t* inner) {
         compiler_error_list_emplace(p->error_list, inner->last, ERR_EXPECTED_BASE_TYPE_IN_GENERIC);
         return parser_sync_type(p);
     }
-    outer->type.generic.inner = inner;
+    outer->type.generic.id = inner->type.base.id;
+    outer->type.generic.mut = inner->type.base.mut;
     outer->canonical_base = inner->canonical_base;
     parser_mode_e saved = parser_mode(p);
     parser_mode_set(
         p, PARSER_MODE_BAN_ANGLE_BRACKETS_IN_EXPRS); // cleaner template parsing from < and > issues
     ast_slice_of_generic_args_t args = parse_slice_of_generic_args(p);
     parser_mode_set(p, saved); // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    if (parser_peek_match(p, TOK_MUT) && inner->tag == AST_TYPE_BASE) {
-        inner->type.base.mut = true; // force inner to be mut
+    if (parser_peek_match(p, TOK_MUT)) {
+        outer->type.generic.mut = true; // mut
     }
     if (!args.valid) {
         return parser_sync_type(p);

@@ -15,7 +15,7 @@ main quest
     - overview:
 ```
 basically:
-for each template arg: recursively search across parameter types tracking arg_index (which function argument) and depth (how deep inside the type it is) as well as sub_index which along each step track nested generic type positions, so that nested type detection works for all types e.g. *Foo, &Foo, Foo<Bar,Baz>
+for each template arg: recursively search across parameter types tracking arg_index (which function argument) as well as sub_index which along each step track nested generic type positions, so that nested type detection works for all types e.g. *Foo, &Foo, Foo<Bar,Baz>
 
 each DeductionStep will be it's own struct with an optional field to the next DeductionStep, and a slice of root DeductionStep nodes will be how the deduction guide is stored. these nodes will arena alloc'd and be indexed with id's (not pointers) for speed
 
