@@ -2443,11 +2443,12 @@ Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params
                     SymbolId base_sid = symbol_id(id_slice.start[0]);
                     // hit on this type
                     if (base_sid == sid) {
+
+                        // @TODO the problem is that we're not calling nested_type here so walking
+                        // later just stop at the top level generic
+
                         return deduction_steps.emplace_and_get_id(step);
                     }
-
-                    // @TODO the problem is that we're not calling nested_type here so walking later
-                    // just stop at the top level generic
                 }
                 break;
             }
