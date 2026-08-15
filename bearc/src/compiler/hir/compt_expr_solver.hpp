@@ -31,6 +31,7 @@
 #include "compiler/token.h"
 #include <cassert>
 #include <cstddef>
+#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -2875,10 +2876,10 @@ template <IsDefVisitor V> class ComptExprSolver {
         HirSize total_arg_cnt = 0;
         bool issue = false;
         const ast_slice_of_exprs_t exprs = expr->expr.fn_call.args;
-        const auto func_did = maybe_func_did.as_id();
+        auto func_did = maybe_func_did.as_id();
+        IdSlice<DefId> params{};
 
         if (needs_generic_deduction) {
-            return {};
             const auto maybe_deduction_guide = context.deduction_guide_for_def(func_did);
             if (maybe_deduction_guide.empty()) {
                 context.emplace_diagnostic_with_message_value(
@@ -2898,29 +2899,50 @@ template <IsDefVisitor V> class ComptExprSolver {
                 }
                 total_arg_cnt++;
             }
-            // @TODO
-        }
-
-        const IdSlice<DefId> params = func.params;
-
-        for (HirSize i = 0; i < exprs.len; i++) {
-            const ast_expr_t* arg = exprs.start[i];
-
-            const auto param_index = i + mt_param_adjustment;
-
-            OptId<TypeId> maybe_into_tid = (param_index < params.len())
-                                               ? OptId<TypeId>{context.def(params.get(param_index))
-                                                                   .template as<DefVariable>()
-                                                                   .type_id}
-                                               : std::nullopt;
-
-            OptId<ExecId> maybe_arg_eid = solve_expr(fid, scope, arg, maybe_into_tid);
-            if (maybe_arg_eid.empty()) {
-                issue = true;
-            } else {
-                arg_vec.push_back(maybe_arg_eid.as_id());
+            const auto maybe_gen_args
+                = try_generic_args_from_deduction_guide(arg_vec, maybe_deduction_guide.as_id());
+            if (maybe_gen_args.empty()) {
+                context.emplace_diagnostic_with_message_value(
+                    Span{context, fid, expr},
+                    diag_code::cannot_deduce_generic_paramters_for_function, diag_type::error,
+                    DiagnosticSymbolAfterMessage{.sid = context.def(func_did).name});
+                return {};
             }
-            total_arg_cnt++;
+
+            const OptId<DefId> maybe_gen_instant
+                = context.try_generic_instantiation(def_visitor, func_did, maybe_gen_args.as_id());
+            if (maybe_gen_instant.empty()) {
+                return {};
+            }
+            func = context.def(maybe_gen_instant.as_id()).template as<DefFunction>();
+            func_did = maybe_gen_instant.as_id();
+            params = func.params;
+            func_span = context.def(maybe_gen_instant.as_id()).span;
+            func_symbol = context.def(maybe_gen_instant.as_id()).name;
+        } else {
+
+            params = func.params;
+
+            for (HirSize i = 0; i < exprs.len; i++) {
+                const ast_expr_t* arg = exprs.start[i];
+
+                const auto param_index = i + mt_param_adjustment;
+
+                OptId<TypeId> maybe_into_tid
+                    = (param_index < params.len())
+                          ? OptId<TypeId>{context.def(params.get(param_index))
+                                              .template as<DefVariable>()
+                                              .type_id}
+                          : std::nullopt;
+
+                OptId<ExecId> maybe_arg_eid = solve_expr(fid, scope, arg, maybe_into_tid);
+                if (maybe_arg_eid.empty()) {
+                    issue = true;
+                } else {
+                    arg_vec.push_back(maybe_arg_eid.as_id());
+                }
+                total_arg_cnt++;
+            }
         }
 
         auto adjusted_arg_len = total_arg_cnt;
@@ -4101,7 +4123,7 @@ template <IsDefVisitor V> class ComptExprSolver {
     }
 
     [[nodiscard]] OptId<GenericArgIdSliceId>
-    try_generic_args_from_deduction_guide(llvm::SmallVectorImpl<ExecId> eids,
+    try_generic_args_from_deduction_guide(const llvm::SmallVectorImpl<ExecId>& eids,
                                           DeductionGuideId guide_id) {
         llvm::SmallVector<GenericArgId> gen_args{};
 
@@ -4131,10 +4153,34 @@ template <IsDefVisitor V> class ComptExprSolver {
         if (step.next.empty()) {
             return tid;
         }
-        if (step.next.has_value()) {
-            const auto& ty = context.type(tid);
+
+        const auto try_nested_generic_tid
+            = [this, tid,
+               &step] [[nodiscard]] (GenericArgIdSliceId gen_args_slice_id) -> OptId<TypeId> {
+            const auto args = context.gen_arg_id_slice(gen_args_slice_id);
+            if (step.sub_idx >= args.len()) {
+                return {};
+            }
+            const GenericArg arg = context.gen_arg(args.get(step.sub_idx));
+            if (!arg.holds<TypeId>()) {
+                return {};
+            }
+            return deduction_step_helper(arg.as<TypeId>(),
+                                         context.deduction_step(step.next.as_id()));
+        };
+
+        const auto& ty = context.type(tid);
+        if (ty.holds<TypeStruct>() && ty.as<TypeStruct>().gen_args_slice.has_value()) {
+            return try_nested_generic_tid(ty.as<TypeStruct>().gen_args_slice.as_id());
+        }
+        if (ty.holds<TypeVariant>() && ty.as<TypeVariant>().gen_args_slice.has_value()) {
+            return try_nested_generic_tid(ty.as<TypeVariant>().gen_args_slice.as_id());
+        }
+        if (ty.holds<TypeFnPtr>()) {
             // @TODO
         }
+
+        return {};
     }
 
   public:

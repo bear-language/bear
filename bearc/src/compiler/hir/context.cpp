@@ -2445,6 +2445,8 @@ Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params
                     if (base_sid == sid) {
                         return deduction_steps.emplace_and_get_id(step);
                     }
+
+                    // @TODO the problem is that we're not called nested_type here
                 }
                 break;
             }
