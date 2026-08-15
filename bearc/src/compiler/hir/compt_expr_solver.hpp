@@ -4155,8 +4155,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         const auto try_nested_generic_tid
-            = [this, tid,
-               &step] [[nodiscard]] (GenericArgIdSliceId gen_args_slice_id) -> OptId<TypeId> {
+            = [this, &step] [[nodiscard]] (GenericArgIdSliceId gen_args_slice_id) -> OptId<TypeId> {
             const auto args = context.gen_arg_id_slice(gen_args_slice_id);
             if (step.sub_idx >= args.len()) {
                 return {};
@@ -4170,13 +4169,15 @@ template <IsDefVisitor V> class ComptExprSolver {
         };
 
         const auto& ty = context.type(tid);
-        if (ty.holds<TypeStruct>() && ty.as<TypeStruct>().gen_args_slice.has_value()) {
-            return try_nested_generic_tid(ty.as<TypeStruct>().gen_args_slice.as_id());
+        if (ty.template holds<TypeStruct>()
+            && ty.template as<TypeStruct>().gen_args_slice.has_value()) {
+            return try_nested_generic_tid(ty.template as<TypeStruct>().gen_args_slice.as_id());
         }
-        if (ty.holds<TypeVariant>() && ty.as<TypeVariant>().gen_args_slice.has_value()) {
-            return try_nested_generic_tid(ty.as<TypeVariant>().gen_args_slice.as_id());
+        if (ty.template holds<TypeVariant>()
+            && ty.template as<TypeVariant>().gen_args_slice.has_value()) {
+            return try_nested_generic_tid(ty.template as<TypeVariant>().gen_args_slice.as_id());
         }
-        if (ty.holds<TypeFnPtr>()) {
+        if (ty.template holds<TypeFnPtr>()) {
             // @TODO
         }
 

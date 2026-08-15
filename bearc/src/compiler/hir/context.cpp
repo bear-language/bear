@@ -33,10 +33,10 @@
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
-#include <inttypes.h>
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
+#include <span>
 #include <stddef.h>
 #include <string_view>
 #include <thread>
