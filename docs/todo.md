@@ -7,12 +7,10 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits (`@TODO`)
-    - [x] write building up `DeductionGuide`/`DeductionStep` logic
-    - [x] use deduction guide inside `ComptExprSolver` for function calls
-    - [ ] do the above ^ but for structs
-    - [ ] do the above ^ but for variant inits?
+    - [ ] struct deduction guide use (building them is impl'd but untested)
+    - [ ] variant deduction guides (building and use)
 
-- [ ] use positional type inference mechanisms to allow for some kind of variadic functions (not that similar to gen arg deduction)
+- [ ] variadic functions? 
     - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}` or pass through some kind of anonymous struct, like Zig
     - [ ] get variadic params/args working at compt w/ callable functions
 
