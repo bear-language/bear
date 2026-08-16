@@ -43,6 +43,18 @@ compt var good_trip = Triple::<u8,u8,u8>{};
 
 var _3 = triple::<i32, u32, u64>(bad_trip);
 
-var _4 = triple(bad_trip);
+var _4 = triple(Triple::<i8, i16, i32>{});
 
 var _5 = triple(good_trip);
+
+compt fn tetra(i8 a, i16 b, i32 c) -> i64 => a + b + c 
+
+compt fn quad<A, B, C, D>(*fn(A,B,C)->D foo, A a, B b, C c) -> D => foo(a, b, c)
+
+compt var c = quad(tetra, 1 as i8, 1 as i16, 1); // quite the deduction
+
+var _6 = @static_assert c == 3;
+
+var _7 = @static_assert c == 4; // oops
+
+var _8 = quad(tetra, 1, 1, "1"); // oops

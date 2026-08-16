@@ -31,7 +31,6 @@
 #include "compiler/token.h"
 #include <cassert>
 #include <cstddef>
-#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -4139,19 +4138,24 @@ template <IsDefVisitor V> class ComptExprSolver {
                 return {};
             }
             const auto tid = maybe_tid.as_id();
-            const auto maybe_deduce_tid = deduction_step_helper(tid, step);
-            if (maybe_deduce_tid.empty()) {
+            const auto maybe_deduced_tid = deduction_step_helper(tid, step);
+            if (maybe_deduced_tid.empty()) {
                 return {};
             }
-            gen_args.push_back(context.emplace_generic_arg(maybe_tid.as_id()));
+            gen_args.push_back(context.emplace_generic_arg(maybe_deduced_tid.as_id()));
         }
 
-        return context.emplace_generic_arg_id_slice(context.freeze_id_vec(gen_args));
+        const auto gargs = context.emplace_generic_arg_id_slice(context.freeze_id_vec(gen_args));
+        return gargs;
     }
 
     [[nodiscard]] OptId<TypeId> deduction_step_helper(TypeId tid, DeductionStep step) {
         if (step.next.empty()) {
             return tid;
+        }
+
+        if (step.next.empty()) {
+            return {};
         }
 
         const auto try_nested_generic_tid
@@ -4178,7 +4182,16 @@ template <IsDefVisitor V> class ComptExprSolver {
             return try_nested_generic_tid(ty.template as<TypeVariant>().gen_args_slice.as_id());
         }
         if (ty.template holds<TypeFnPtr>()) {
-            // @TODO
+            TypeFnPtr tfnp = ty.as<TypeFnPtr>();
+            if (step.sub_idx == DeductionStep::RETURN_TYPE && tfnp.return_type.has_value()) {
+                return deduction_step_helper(tfnp.return_type.as_id(),
+                                             context.deduction_step(step.next.as_id()));
+            }
+            if (step.sub_idx >= tfnp.param_types.len()) {
+                return {};
+            }
+            const auto sub_tid = context.type_id(tfnp.param_types.get(step.sub_idx));
+            return deduction_step_helper(sub_tid, context.deduction_step(step.next.as_id()));
         }
 
         return {};

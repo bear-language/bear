@@ -7,19 +7,11 @@ main quest
 - all while in the process of *resolivng* top-level declarations:
 
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits (`@TODO`)
-    - [ ] write building up `DeductionGuide`/`DeductionStep` logic
-    - [ ] use deduction guide inside `ComptExprSolver` for function calls
+    - [x] write building up `DeductionGuide`/`DeductionStep` logic
+    - [x] use deduction guide inside `ComptExprSolver` for function calls
     - [ ] do the above ^ but for variant inits 
     - [ ] do the above ^ but for structs
     - overview:
-```
-basically:
-for each template arg: recursively search across parameter types tracking arg_index (which function argument) as well as sub_index which along each step track nested generic type positions, so that nested type detection works for all types e.g. *Foo, &Foo, Foo<Bar,Baz>
-
-each DeductionStep will be it's own struct with an optional field to the next DeductionStep, and a slice of root DeductionStep nodes will be how the deduction guide is stored. these nodes will arena alloc'd and be indexed with id's (not pointers) for speed
-
-the structures can be reused across function call deduction and struct-init deduction although the "execution" of the deduction guide will of course be different
-```
 
 - [ ] use positional type inference mechanisms to allow for some kind of variadic functions (not that similar to gen arg deduction)
     - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}` or pass through some kind of anonymous struct, like Zig

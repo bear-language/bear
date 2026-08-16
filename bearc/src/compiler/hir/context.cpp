@@ -2438,15 +2438,12 @@ Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params
                     const auto id_slice = arg->arg.expr->expr.id.slice;
 
                     if (id_slice.len != 1) {
-                        return {};
+                        continue;
                     }
                     SymbolId base_sid = symbol_id(id_slice.start[0]);
                     // hit on this type
                     if (base_sid == sid) {
-
-                        // @TODO the problem is that we're not calling nested_type here so walking
-                        // later just stop at the top level generic
-
+                        step.next = deduction_steps.emplace_and_get_id(DeductionStep{});
                         return deduction_steps.emplace_and_get_id(step);
                     }
                 }
@@ -2460,7 +2457,23 @@ Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params
         break;
     }
     case AST_TYPE_FN_PTR: {
-        // @TODO, base this on the generic's approach
+        if (type->type.fn_ptr.return_type) {
+            step.sub_idx = DeductionStep::RETURN_TYPE;
+            const auto maybe_nested = nested_type(type->type.fn_ptr.return_type);
+            if (maybe_nested.has_value()) {
+                return maybe_nested;
+            }
+            step.sub_idx = 0; // reset since return type failed
+        }
+
+        for (size_t i = 0; i < type->type.fn_ptr.param_types.len; ++i) {
+            const ast_type_t* sub_type = type->type.fn_ptr.param_types.start[i];
+            const auto maybe_nested = nested_type(sub_type);
+            if (maybe_nested.has_value()) {
+                return maybe_nested;
+            }
+            ++step.sub_idx;
+        }
         break;
     }
         // these should never be canonical bases

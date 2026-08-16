@@ -19,6 +19,7 @@ struct DeductionStep {
     HirSize order_idx{0};
     /// subindex into nested generics or function pointers
     HirSize sub_idx{0};
+    static constexpr HirSize RETURN_TYPE = HIR_SIZE_MAX;
     /// the absent of next implies this is the terminal step
     OptId<DeductionStepId> next{};
 };
