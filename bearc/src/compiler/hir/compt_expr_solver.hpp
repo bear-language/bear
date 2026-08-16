@@ -143,6 +143,11 @@ template <IsDefVisitor V> class ComptExprSolver {
                 TypeUnion{.def_id = exec.as<ExecExprUnionInit>().union_def_id}, Span::generated(),
                 false);
         }
+        if (exec.holds<ExecExprStructMemberInit>()) {
+            return context.def(exec.as<ExecExprStructMemberInit>().field_def)
+                .as<DefVariable>()
+                .type_id;
+        }
 
     novel_issue:
         // report issue
