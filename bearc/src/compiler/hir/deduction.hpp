@@ -9,7 +9,9 @@
 #ifndef BEARC_COMPILER_HIR_DEDUCTION_HPP
 #define BEARC_COMPILER_HIR_DEDUCTION_HPP
 
+#include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "llvm/ADT/SmallVector.h"
 
 namespace hir {
 
@@ -23,6 +25,11 @@ struct DeductionStep {
     /// the absent of next implies this is the terminal step
     OptId<DeductionStepId> next{};
 };
+
+[[nodiscard]] OptId<GenericArgIdSliceId>
+try_generic_args_from_deduction_guide(IsExprSolver auto& solver,
+                                      const llvm::SmallVectorImpl<ExecId>& eids,
+                                      DeductionGuideId guide_id);
 
 } // namespace hir
 
