@@ -11,7 +11,6 @@ main quest
     - [x] use deduction guide inside `ComptExprSolver` for function calls
     - [ ] do the above ^ but for structs
     - [ ] do the above ^ but for variant inits?
-    - overview:
 
 - [ ] use positional type inference mechanisms to allow for some kind of variadic functions (not that similar to gen arg deduction)
     - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}` or pass through some kind of anonymous struct, like Zig
