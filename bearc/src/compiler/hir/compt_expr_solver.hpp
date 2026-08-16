@@ -2599,6 +2599,10 @@ template <IsDefVisitor V> class ComptExprSolver {
                 return context.emplace_exec(mem_exec.value, Span{context, fid, expr}, true);
             }
 
+            if (rhs_expr->type == AST_EXPR_FN_CALL) {
+                return solve_fn_call(fid, scope, rhs_expr, lhs_eid);
+            }
+
             if (!lhs_exec.holds<ExecExprStructInit>()) {
                 auto d0 = context.emplace_diagnostic(Span{context, fid, expr->expr.binary.op},
                                                      diag_code::cannot_access_a_member_value,
@@ -2651,9 +2655,6 @@ template <IsDefVisitor V> class ComptExprSolver {
                     return std::nullopt;
                 }
                 return context.emplace_exec(mem_exec_val.value, Span{context, fid, expr}, true);
-            }
-            if (rhs_expr->type == AST_EXPR_FN_CALL) {
-                return solve_fn_call(fid, scope, rhs_expr, lhs_eid);
             }
             context.emplace_diagnostic(Span{context, fid, expr},
                                        diag_code::value_does_not_refer_to_a_named_mem,
@@ -2732,7 +2733,6 @@ template <IsDefVisitor V> class ComptExprSolver {
         if (maybe_self_val.has_value()) {
             const auto self_val = maybe_self_val.as_id();
             const Exec& exec = context.exec(self_val);
-            assert(exec.holds<ExecExprStructInit>());
             arg_vec.push_back(self_val);
             const ast_expr_t* called = expr->expr.fn_call.left_expr;
             if (called->type == AST_EXPR_ID) {
@@ -2747,19 +2747,44 @@ template <IsDefVisitor V> class ComptExprSolver {
                 const SymbolId func_name = context.symbol_id(id_tok);
                 const Span fn_name_span{context, fid, id_tok};
 
-                if ((expr->expr.fn_call.is_generic)) {
-                    if (const auto maybe_gen_arg_id
-                        = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
-                        maybe_gen_arg_id.has_value()) {
-                        maybe_func_did = context.look_up_generic_member_function_guarding_hid(
+                // structs have special look up rules cuz we need to look into their member
+                // functions
+                if (exec.holds<ExecExprStructInit>()) {
+                    if ((expr->expr.fn_call.is_generic)) {
+                        if (const auto maybe_gen_arg_id = lower_generic_args(
+                                fid, scope, expr->expr.fn_call.generic_args, false);
+                            maybe_gen_arg_id.has_value()) {
+                            maybe_func_did = context.look_up_generic_member_function_guarding_hid(
+                                def_visitor,
+                                context.def(exec.as<ExecExprStructInit>().struct_def_id), func_name,
+                                func_span, scope, maybe_gen_arg_id.as_id());
+                        }
+                    } else {
+                        maybe_func_did = context.look_up_member_function_guarding_hid(
                             def_visitor, context.def(exec.as<ExecExprStructInit>().struct_def_id),
-                            func_name, func_span, scope, maybe_gen_arg_id.as_id());
+                            func_name, fn_name_span, scope);
                     }
                 } else {
-                    maybe_func_did = context.look_up_member_function_guarding_hid(
-                        def_visitor, context.def(exec.as<ExecExprStructInit>().struct_def_id),
-                        func_name, fn_name_span, scope);
+                    if ((expr->expr.fn_call.is_generic)) {
+                        if (const auto maybe_gen_arg_id = lower_generic_args(
+                                fid, scope, expr->expr.fn_call.generic_args, false);
+                            maybe_gen_arg_id.has_value()) {
+                            maybe_func_did = context.look_up_scoped_variable_generic(
+                                def_visitor, scope,
+                                context.freeze_id_vec(llvm::SmallVector<SymbolId, 1>{func_name}),
+                                func_span, maybe_gen_arg_id.as_id());
+                        }
+                        if (maybe_func_did.has_value()) {
+                            maybe_func_did = context.try_func_did(maybe_func_did.as_id());
+                        }
+                    } else {
+                        maybe_func_did = context.look_up_variable(scope, func_name);
+                        if (maybe_func_did.has_value()) {
+                            maybe_func_did = context.try_func_did(maybe_func_did.as_id());
+                        }
+                    }
                 }
+
                 if (maybe_func_did.empty()) {
                     return std::nullopt;
                 }
@@ -2777,20 +2802,32 @@ template <IsDefVisitor V> class ComptExprSolver {
                 }
                 maybe_func_did = e.as<ExecFnPtr>().func_def_id;
             }
+
             auto func_did = maybe_func_did.as_id();
             const Def& func_def = context.def(func_did);
-            assert(func_def.holds<DefFunction>());
 
-            func = func_def.as<DefFunction>();
+            if (!func_def.holds<DefFunction>()) {
+                if (func_def.holds<DefGenericFunction>()) {
+                    needs_generic_deduction = true;
+                } else {
+                    context.emplace_diagnostic(
+                        Span{context, fid, called}, diag_code::value_is_not_callable,
+                        diag_type::error, DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+                    return {};
+                }
+            } else {
 
-            mt_param_adjustment = 1;
+                func = func_def.as<DefFunction>();
+
+                func_span = func_def.span;
+                func_symbol = func_def.name;
+            }
 
             if (func.posioned) {
                 return std::nullopt;
             }
 
-            func_span = func_def.span;
-            func_symbol = func_def.name;
+            mt_param_adjustment = 1;
         } else {
             const ast_expr_t* called = expr->expr.fn_call.left_expr;
             if (called->type == AST_EXPR_ID) {
@@ -2886,10 +2923,15 @@ template <IsDefVisitor V> class ComptExprSolver {
         if (needs_generic_deduction) {
             const auto maybe_deduction_guide = context.deduction_guide_for_def(func_did);
             if (maybe_deduction_guide.empty()) {
-                context.emplace_diagnostic_with_message_value(
+                const auto d0 = context.emplace_diagnostic_with_message_value(
                     Span{context, fid, expr},
                     diag_code::cannot_deduce_generic_paramters_for_function, diag_type::error,
                     DiagnosticSymbolAfterMessage{.sid = context.def(func_did).name});
+                const auto d1 = context.emplace_diagnostic_with_message_value(
+                    context.name_span_for_def(func_did), diag_code::declared_here_as_generic,
+                    diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
+                context.link_diagnostic(d0, d1);
                 return {};
             }
             for (HirSize i = 0; i < exprs.len; i++) {
@@ -2906,10 +2948,15 @@ template <IsDefVisitor V> class ComptExprSolver {
             const auto maybe_gen_args = try_generic_args_from_deduction_guide(
                 *this, arg_vec, maybe_deduction_guide.as_id());
             if (maybe_gen_args.empty()) {
-                context.emplace_diagnostic_with_message_value(
+                const auto d0 = context.emplace_diagnostic_with_message_value(
                     Span{context, fid, expr},
                     diag_code::cannot_deduce_generic_paramters_for_function, diag_type::error,
                     DiagnosticSymbolAfterMessage{.sid = context.def(func_did).name});
+                const auto d1 = context.emplace_diagnostic_with_message_value(
+                    context.name_span_for_def(func_did), diag_code::declared_here_as_generic,
+                    diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
+                context.link_diagnostic(d0, d1);
                 return {};
             }
 
@@ -2969,11 +3016,15 @@ template <IsDefVisitor V> class ComptExprSolver {
                     DiagnosticSymButGotSym{.leading = func_symbol,
                                            .sid1 = params_len_sym_id,
                                            .sid2 = args_len_sym_id});
-            } else {
+            } else if (mt_param_adjustment) {
                 context.emplace_diagnostic(
                     Span{context, fid, expr},
                     diag_code::free_function_taking_zero_arguments_called_as_method,
                     diag_type::error);
+            } else {
+                context.emplace_diagnostic_with_message_value(
+                    Span{context, fid, expr}, diag_code::takes_no_arguments, diag_type::error,
+                    DiagnosticSymbolBeforeMessage{.sid = func_symbol});
             }
 
             issue = true;

@@ -211,6 +211,7 @@ enum class diag_code : uint8_t {
     invalid_escape_sequence,
     oversized_escape_sequence,
     cannot_deduce_generic_paramters_for_function,
+    takes_no_arguments,
 
     count, // this must be last,
 

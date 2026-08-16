@@ -1,0 +1,37 @@
+// tests/hir/a59.br
+
+mod hir_a59;
+
+variant Opt<T> {
+    Some(T val),
+    None,
+}
+
+fn some<T>(T val) -> Opt<T> => Opt..Some::<T>(val)
+
+fn none<T>() -> Opt<T> => Opt..None::<T>()
+
+compt var a = some(1);
+
+compt Opt<i32> _0 = none(); 
+
+compt var b = Opt..Some(1);
+
+fn has_some<T>(Opt<T> maybe_has_some) -> bool => maybe_has_some is Some
+
+compt var c = a.has_some();
+
+var _1 = @static_assert c;
+
+var _2 = @static_assert match a {
+    Some => true,
+    None => false,
+};
+
+var _3 = @static_assert some(3) == some(50); // oops
+
+var _4 = @static_assert some(5) == none::<i32>(5); // oops
+
+fn foo() -> bool => true
+
+var _5 = @static_assert some(5) == 5.foo(); // oops

@@ -420,6 +420,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "oversized escape sequence";
     case diag_code::cannot_deduce_generic_paramters_for_function:
         return "cannot deduce generic paramters for function";
+    case diag_code::takes_no_arguments:
+        return "takes no arguments";
     }
 
     std::unreachable();

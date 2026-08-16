@@ -55,4 +55,4 @@ var _5 = @static_assert f == 5, "oops";
 
 compt TwiceWrap g = factory..make(1);
 
-compt i32 h = g.get().get(); // oops
+compt i32 h = g.get().get(); 

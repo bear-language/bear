@@ -9,8 +9,8 @@ main quest
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits (`@TODO`)
     - [x] write building up `DeductionGuide`/`DeductionStep` logic
     - [x] use deduction guide inside `ComptExprSolver` for function calls
-    - [ ] do the above ^ but for variant inits 
     - [ ] do the above ^ but for structs
+    - [ ] do the above ^ but for variant inits?
     - overview:
 
 - [ ] use positional type inference mechanisms to allow for some kind of variadic functions (not that similar to gen arg deduction)
