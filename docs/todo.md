@@ -22,6 +22,7 @@ main quest
 
 #### hir phase 2.b (function body resolution):
 - [ ] impl `RunTimeExprSolver`
+    - [ ] use deduction guides for structs/functions/variants
 - [ ] build up runtime statements into structured blocks
 - [ ] make sure assignment type checking is properly rigid especially around mutable references.
     - the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 

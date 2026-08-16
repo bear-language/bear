@@ -778,6 +778,11 @@ class Context {
     try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl_t* stmt,
                                      IdSlice<GenericParamId> gen_params);
 
+    /// trys to build a deduction guide for a struct
+    [[nodiscard]] OptId<DeductionGuideId>
+    try_deduction_guide_for_struct(DefId struct_did, const ast_stmt_struct_decl_t* stmt,
+                                   IdSlice<GenericParamId> gen_params);
+
     // freeze a vector (llvm::SmallVector) into an IdSlice for leaner storage
     template <IsId I>
     [[nodiscard]] IdSlice<I> freeze_id_vec(const llvm::SmallVectorImpl<I>& vec)
@@ -1288,8 +1293,13 @@ class Context {
     void register_import_files_parallel(const char* const* file_paths, uint32_t count);
 
     [[nodiscard]] OptId<DeductionStepId>
-    recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params_t params,
-                                    const ast_type_t* curr_type, SymbolId sid, bool nested = false);
+    recursive_deduction_step_helper_for_params(DeductionStep step, ast_slice_of_params_t params,
+                                               const ast_type_t* curr_type, SymbolId sid,
+                                               bool nested = false);
+    [[nodiscard]] OptId<DeductionStepId>
+    recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice_of_stmts_t stmts,
+                                              const ast_type_t* curr_type, SymbolId sid,
+                                              bool nested = false);
 };
 
 } // namespace hir

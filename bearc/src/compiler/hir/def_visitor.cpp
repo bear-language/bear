@@ -486,11 +486,11 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             const auto maybe_deduction_guide = context.try_deduction_guide_for_function(
                 did, &stmt->stmt.fn_decl, maybe_generic_params.value());
             if (maybe_deduction_guide.has_value()) {
-                // std::cout << "made deduction guide\n"; // TODO debug
+                // std::cout << "made deduction guide\n";
                 context.register_deduction_guide_for_def(did, maybe_deduction_guide.as_id());
             }
             // else {
-            //    std::cout << "couldn't make deduction guide\n"; // TODO debug
+            //    std::cout << "couldn't make deduction guide\n";
             // }
             goto cleanup;
         }

@@ -11,6 +11,7 @@
 #include "cli/import_path.h"
 #include "compiler/ast/printer.h"
 #include "compiler/ast/stmt.h"
+#include "compiler/ast/stmt_slice.h"
 #include "compiler/hir/ast_visitor.hpp"
 #include "compiler/hir/compt_expr_solver.hpp"
 #include "compiler/hir/def.hpp"
@@ -2371,7 +2372,7 @@ Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl
         DeductionStep step{};
         // we know params.len >= 1
         const auto maybe_ded_step
-            = recursive_deduction_step_helper(step, params, params.start[0]->type, sid);
+            = recursive_deduction_step_helper_for_params(step, params, params.start[0]->type, sid);
         if (maybe_ded_step.empty()) {
             return {};
         }
@@ -2381,13 +2382,13 @@ Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl
     return deduction_guides.emplace_and_get_id(freeze_id_vec(deduction_steps));
 }
 
-[[nodiscard]] OptId<DeductionStepId>
-Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params_t params,
-                                         const ast_type_t* curr_type, SymbolId sid, bool nested) {
+[[nodiscard]] OptId<DeductionStepId> Context::recursive_deduction_step_helper_for_params(
+    DeductionStep step, ast_slice_of_params_t params, const ast_type_t* curr_type, SymbolId sid,
+    bool nested) {
 
     const auto nested_type = [this, &step, sid, &params] [[nodiscard]] (
                                  const ast_type_t* nested_type) -> OptId<DeductionStepId> {
-        const OptId<DeductionStepId> maybe_nested = recursive_deduction_step_helper(
+        const OptId<DeductionStepId> maybe_nested = recursive_deduction_step_helper_for_params(
             step, params, nested_type, sid, true); // nested = true
         if (maybe_nested.has_value()) {
             step.next = maybe_nested;
@@ -2493,10 +2494,60 @@ Context::recursive_deduction_step_helper(DeductionStep step, ast_slice_of_params
         if (step.order_idx >= params.len) {
             return {};
         }
-        return recursive_deduction_step_helper(step, params, params.start[step.order_idx]->type,
-                                               sid);
+        return recursive_deduction_step_helper_for_params(step, params,
+                                                          params.start[step.order_idx]->type, sid);
     }
     return {};
+}
+
+[[nodiscard]] OptId<DeductionGuideId>
+Context::try_deduction_guide_for_struct(DefId struct_did, const ast_stmt_struct_decl_t* stmt,
+                                        IdSlice<GenericParamId> gen_params) {
+    const ast_slice_of_stmts_t stmts = stmt->fields;
+
+    if (!stmts.len) {
+        return {};
+    }
+
+    llvm::SmallVector<DeductionStepId> deduction_steps;
+    for (auto gen_param_idx = gen_params.begin(); gen_param_idx != gen_params.end();
+         ++gen_param_idx) {
+        SymbolId sid = this->gen_param(gen_param_idx).name;
+        DeductionStep step{};
+        const ast_type_t* ty = nullptr;
+        for (size_t i = 0; i < stmts.len; ++i) {
+
+            const auto tag = stmts.start[i]->type;
+
+            if (tag == AST_STMT_VAR_DECL) {
+                ty = stmts.start[i]->stmt.var_decl.type;
+                break;
+            }
+            if (tag == AST_STMT_VAR_INIT_DECL) {
+                ty = stmts.start[i]->stmt.var_init_decl.type;
+                break;
+            }
+
+            ++step.order_idx;
+        }
+        if (!ty) {
+            return {};
+        }
+        const auto maybe_ded_step = recursive_deduction_step_helper_for_stmts(step, stmts, ty, sid);
+        if (maybe_ded_step.empty()) {
+            return {};
+        }
+        deduction_steps.push_back(maybe_ded_step.as_id());
+    }
+
+    return deduction_guides.emplace_and_get_id(freeze_id_vec(deduction_steps));
+}
+
+[[nodiscard]] OptId<DeductionStepId>
+Context::recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice_of_stmts_t stmts,
+                                                   const ast_type_t* curr_type, SymbolId sid,
+                                                   bool nested) {
+    // TODO
 }
 
 CanonicalGenericArgsId Context::canonical_gen_args(GenericArgIdSliceId slice_id) {
