@@ -9,6 +9,7 @@
 #include "compiler/hir/context.hpp"
 #include "cli/args.h"
 #include "cli/import_path.h"
+#include "compiler/ast/expr.h"
 #include "compiler/ast/printer.h"
 #include "compiler/ast/stmt.h"
 #include "compiler/ast/stmt_slice.h"
@@ -1417,7 +1418,7 @@ ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
 
 [[nodiscard]] const Def& Context::def(IdIdx<DefId> id) const { return defs.at(def_ids.at(id)); }
 
-[[nodiscard]] OptId<DefId> Context::try_struct_def(DefId did) const {
+[[nodiscard]] OptId<DefId> Context::ensure_struct_def(DefId did) const {
     const Def& d = def(did);
     if (d.holds<DefStruct>()) {
         return did;
@@ -1431,7 +1432,24 @@ ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
     return {};
 }
 
-[[nodiscard]] OptId<DefId> Context::try_union_def(DefId did) const {
+[[nodiscard]] OptId<DefId> Context::ensure_struct_or_generic_struct_def(DefId did) const {
+    const Def& d = def(did);
+    if (d.holds<DefStruct>()) {
+        return did;
+    }
+    if (d.holds<DefGenericStruct>()) {
+        return did;
+    }
+    if (d.holds<DefDeftype>()) {
+        const Type& t = type(d.as<DefDeftype>().type);
+        if (t.holds<TypeStruct>()) {
+            return t.as<TypeStruct>().def_id;
+        }
+    }
+    return {};
+}
+
+[[nodiscard]] OptId<DefId> Context::ensure_union_def(DefId did) const {
     const Def& d = def(did);
     if (d.holds<DefUnion>()) {
         return did;
@@ -1445,7 +1463,7 @@ ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
     return {};
 }
 
-[[nodiscard]] OptId<DefId> Context::try_variant_def(DefId did) const {
+[[nodiscard]] OptId<DefId> Context::ensure_variant_def(DefId did) const {
     const Def& d = def(did);
     if (d.holds<DefVariant>()) {
         return did;
@@ -2500,6 +2518,31 @@ Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl
     return {};
 }
 
+/// returns nullptr if missed
+static const ast_type_t* try_next_type(const ast_slice_of_stmts_t stmts, DeductionStep& step,
+                                       bool skip = false) {
+    const ast_type_t* ty = nullptr;
+    if (skip) {
+        ++step.order_idx;
+    }
+    for (; step.order_idx < stmts.len; ++step.order_idx) {
+
+        const auto i = step.order_idx;
+
+        const auto tag = stmts.start[i]->type;
+
+        if (tag == AST_STMT_VAR_DECL) {
+            ty = stmts.start[i]->stmt.var_decl.type;
+            break;
+        }
+        if (tag == AST_STMT_VAR_INIT_DECL) {
+            ty = stmts.start[i]->stmt.var_init_decl.type;
+            break;
+        }
+    }
+    return ty;
+}
+
 [[nodiscard]] OptId<DeductionGuideId>
 Context::try_deduction_guide_for_struct(DefId struct_did, const ast_stmt_struct_decl_t* stmt,
                                         IdSlice<GenericParamId> gen_params) {
@@ -2514,22 +2557,7 @@ Context::try_deduction_guide_for_struct(DefId struct_did, const ast_stmt_struct_
          ++gen_param_idx) {
         SymbolId sid = this->gen_param(gen_param_idx).name;
         DeductionStep step{};
-        const ast_type_t* ty = nullptr;
-        for (size_t i = 0; i < stmts.len; ++i) {
-
-            const auto tag = stmts.start[i]->type;
-
-            if (tag == AST_STMT_VAR_DECL) {
-                ty = stmts.start[i]->stmt.var_decl.type;
-                break;
-            }
-            if (tag == AST_STMT_VAR_INIT_DECL) {
-                ty = stmts.start[i]->stmt.var_init_decl.type;
-                break;
-            }
-
-            ++step.order_idx;
-        }
+        const ast_type_t* ty = try_next_type(stmts, step);
         if (!ty) {
             return {};
         }
@@ -2547,7 +2575,116 @@ Context::try_deduction_guide_for_struct(DefId struct_did, const ast_stmt_struct_
 Context::recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice_of_stmts_t stmts,
                                                    const ast_type_t* curr_type, SymbolId sid,
                                                    bool nested) {
-    // TODO
+    const auto nested_type = [this, &step, sid, &stmts] [[nodiscard]] (
+                                 const ast_type_t* nested_type) -> OptId<DeductionStepId> {
+        const OptId<DeductionStepId> maybe_nested = recursive_deduction_step_helper_for_stmts(
+            step, stmts, nested_type, sid, true); // nested = true
+        if (maybe_nested.has_value()) {
+            step.next = maybe_nested;
+            return deduction_steps.emplace_and_get_id(step);
+        }
+        // nested was unsuccessful, so return none
+        return {};
+    };
+
+    // tries to get the canonical_base
+    const auto* type = curr_type->canonical_base;
+
+    switch (type->tag) {
+    case AST_TYPE_BASE: {
+        const auto id_slice = type->type.base.id;
+        if (id_slice.len != 1) {
+            return {};
+        }
+        SymbolId base_sid = symbol_id(id_slice.start[0]);
+        // hit on this type
+        if (base_sid == sid) {
+            return deduction_steps.emplace_and_get_id(step);
+        }
+        break;
+    }
+    case AST_TYPE_GENERIC: {
+        const auto gen_args = type->type.generic.generic_args;
+
+        for (size_t i = 0; i < gen_args.len; ++i) {
+            const ast_generic_arg_t* arg = gen_args.start[i];
+
+            // poison guard
+            if (!arg->valid) {
+                continue;
+            }
+
+            // try nested
+            switch (arg->tag) {
+            case AST_GENERIC_ARG_TYPE: {
+                const auto maybe_nested = nested_type(arg->arg.type);
+                if (maybe_nested.has_value()) {
+                    return maybe_nested;
+                }
+                break;
+            }
+            case AST_GENERIC_ARG_EXPR: {
+                if (arg->arg.expr->type == AST_EXPR_ID) {
+                    const auto id_slice = arg->arg.expr->expr.id.slice;
+
+                    if (id_slice.len != 1) {
+                        continue;
+                    }
+                    SymbolId base_sid = symbol_id(id_slice.start[0]);
+                    // hit on this type
+                    if (base_sid == sid) {
+                        step.next = deduction_steps.emplace_and_get_id(DeductionStep{});
+                        return deduction_steps.emplace_and_get_id(step);
+                    }
+                }
+                break;
+            }
+            }
+
+            // bump the sub-index as we go thru our subtypes within these generic args
+            ++step.sub_idx;
+        }
+        break;
+    }
+    case AST_TYPE_FN_PTR: {
+        if (type->type.fn_ptr.return_type) {
+            step.sub_idx = DeductionStep::RETURN_TYPE;
+            const auto maybe_nested = nested_type(type->type.fn_ptr.return_type);
+            if (maybe_nested.has_value()) {
+                return maybe_nested;
+            }
+            step.sub_idx = 0; // reset since return type failed
+        }
+
+        for (size_t i = 0; i < type->type.fn_ptr.param_types.len; ++i) {
+            const ast_type_t* sub_type = type->type.fn_ptr.param_types.start[i];
+            const auto maybe_nested = nested_type(sub_type);
+            if (maybe_nested.has_value()) {
+                return maybe_nested;
+            }
+            ++step.sub_idx;
+        }
+        break;
+    }
+        // these should never be canonical bases
+    case AST_TYPE_REF_PTR:
+    case AST_TYPE_ARR:
+    case AST_TYPE_SLICE:
+    case AST_TYPE_TYPEOF:
+    case AST_TYPE_DECAY:
+    case AST_TYPE_INVALID:
+        break;
+    }
+
+    // if we're not nested, try the next type
+    if (!nested) {
+        const auto* ty = try_next_type(stmts, step, true);
+        if (!ty) {
+            return {};
+        }
+        return recursive_deduction_step_helper_for_stmts(step, stmts, ty, sid);
+    }
+    return {};
 }
 
 CanonicalGenericArgsId Context::canonical_gen_args(GenericArgIdSliceId slice_id) {

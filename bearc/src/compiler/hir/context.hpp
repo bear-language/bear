@@ -574,13 +574,15 @@ class Context {
 
     [[nodiscard]] const Def& def(IdIdx<DefId> id) const;
     /// try to get a struct DefId, bypassing deftypes
-    [[nodiscard]] OptId<DefId> try_struct_def(DefId did) const;
+    [[nodiscard]] OptId<DefId> ensure_struct_def(DefId did) const;
+
+    [[nodiscard]] OptId<DefId> ensure_struct_or_generic_struct_def(DefId did) const;
 
     /// try to get a union DefId, bypassing deftypes
-    [[nodiscard]] OptId<DefId> try_union_def(DefId did) const;
+    [[nodiscard]] OptId<DefId> ensure_union_def(DefId did) const;
 
     /// try to get a variant DefId, bypassing deftypes
-    [[nodiscard]] OptId<DefId> try_variant_def(DefId did) const;
+    [[nodiscard]] OptId<DefId> ensure_variant_def(DefId did) const;
 
     [[nodiscard]] DefId def_id(IdIdx<DefId> id) const;
 

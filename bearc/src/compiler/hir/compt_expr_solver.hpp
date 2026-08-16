@@ -939,12 +939,12 @@ template <IsDefVisitor V> class ComptExprSolver {
                 const auto did = def_visitor.visit_as_dependent(maybe_did.as_id());
 
                 // try as union
-                auto maybe_union_def = context.try_union_def(did);
+                auto maybe_union_def = context.ensure_union_def(did);
                 if (maybe_union_def.has_value()) {
                     return handle_union_init(fid, scope, maybe_union_def.as_id(), expr);
                 }
 
-                maybe_struct_did = context.try_struct_def(did);
+                maybe_struct_did = context.ensure_struct_def(did);
 
                 if (maybe_struct_did.empty()) {
                     const Def& def = context.def(did);
@@ -1155,7 +1155,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         llvm::SmallVector<ExecId> member_init_execs;
         bool cooked = false;
-        for (auto i = 0u; i < member_dids.len(); i++) {
+        for (auto i = 0uz; i < member_dids.len(); i++) {
             auto didx = member_dids.get(i);
             const auto member_did = context.def_id(didx);
             const Def& member = context.def(didx);

@@ -247,6 +247,16 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             context.def(did).set_value(DefGenericStruct{
                 .generics_args_to_concrete_defs_map = context.make_generic_args_map_and_get_id(),
                 .generic_params = maybe_generic_params.value()});
+
+            // TODO: struct deduction guides
+            /*
+            const auto maybe_deduction_guide = context.try_deduction_guide_for_struct(
+                did, &stmt->stmt.struct_decl, maybe_generic_params.value());
+            if (maybe_deduction_guide.has_value()) {
+                context.register_deduction_guide_for_def(did, maybe_deduction_guide.as_id());
+            }
+            */
+
             goto cleanup;
         }
 
