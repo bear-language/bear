@@ -145,7 +145,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         if (exec.holds<ExecExprStructMemberInit>()) {
             return context.def(exec.as<ExecExprStructMemberInit>().field_def)
-                .as<DefVariable>()
+                .template as<DefVariable>()
                 .type_id;
         }
 
