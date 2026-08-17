@@ -1195,7 +1195,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                 return std::nullopt; // malformed, so was already reported by parser
             }
             const token_t* proposed_member_name_tkn = member_init_expr->expr.struct_member_init.id;
-            const token_t* assign_op = member_init_expr->expr.struct_member_init.id;
+            const token_t* assign_op = member_init_expr->expr.struct_member_init.assign_op;
 
             if (assign_op->type == TOK_ASSIGN_MOVE) {
                 context.emplace_diagnostic(Span(fid, context.ast(fid).buffer(), assign_op),
