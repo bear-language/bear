@@ -260,6 +260,8 @@ class Context {
     [[nodiscard]] OptId<DefId> look_up_member_var_guarding_hid(const Def& struct_def,
                                                                SymbolId symbol_id, Span id_span,
                                                                ScopeId local_scope);
+
+    /// returns some only when a DefFunction or DefGenericFunction is found
     [[nodiscard]] OptId<DefId>
     look_up_member_function_guarding_hid(IsDefVisitor auto& def_visitor, const Def& struct_def,
                                          SymbolId symbol_id, Span id_span, ScopeId local_scope) {
@@ -283,7 +285,7 @@ class Context {
             return std::nullopt;
         }
         const Def& def = this->try_func_def(def_visitor.visit_as_dependent(maybe_did.as_id()));
-        if (!def.holds<DefFunction>()) {
+        if (!def.holds<DefFunction>() && !def.holds<DefGenericFunction>()) {
             auto d0 = emplace_diagnostic_with_message_value(
                 id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
                 DiagnosticSymbolAfterMessage{.sid = struct_def.name});

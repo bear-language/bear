@@ -1,0 +1,76 @@
+// tests/hir/a60.br
+
+import "ansi_codes.br";
+
+mod note_printer_demo;
+
+contract ToComptStr {
+    compt mt to_compt_str() -> str;
+}
+
+compt fn to_compt_str<T>(T item) -> str => {
+    item.to_compt_str() if @has_contract(decay T, ToComptStr)
+        else item if @same_type(decay typeof item, str)
+        else list_to_str(item) if @defined(item.len)
+        else item as str
+}
+
+compt fn list_to_str(var list) -> str => ("[" + list_helper(list, 0) + "]")
+
+compt fn list_helper(var list, var i) -> str => {
+    "" if i == list.len 
+        else to_compt_str(list[i]) + maybe_comma(list.len, i) + list_helper(list, i + 1) 
+}
+
+compt fn maybe_comma(var len, var i) => "" if (i >= len - 1) else ", "
+
+
+// compile-time diagnostic printer helper struct
+struct DiagPrinter {
+
+    DiagType diag_type = DiagType..Note;
+
+    variant DiagType {
+        Error,
+        Warn,
+        Note,
+        Help,
+    }
+
+    compt fn new() -> Self => ({})
+
+    compt mt with_diag_type(DiagType dty) -> Self => Self{.diag_type = dty}
+
+    compt mt print<T>(T val) -> Self => self if true && msg(self.diag_type, val) else self
+
+    hid compt fn msg<T>(DiagType dty, T val) -> bool => {
+        match dty {
+            Error => @err(get_str(val)),
+            Warn => @warn(get_str(val)),
+            Note => @note(get_str(val)),
+            Help => @help(get_str(val)),
+        }
+    }
+
+    hid compt fn get_str<T>(T val) -> str => to_compt_str(val)
+
+}
+
+use DiagPrinter..DiagType..Error;
+use DiagPrinter..DiagType..Warn;
+use DiagPrinter..DiagType..Note;
+use DiagPrinter..DiagType..Help;
+
+compt var make_printer = DiagPrinter..new;
+
+var _00 = @static_assert @same_type(typeof make_printer, *fn()->DiagPrinter);
+
+compt var p = make_printer();
+var _0 = p.print("Hello, World!");
+var _1 = p.with_diag_type(Help).print("Hello, Earth!");
+var _2 = p.with_diag_type(Warn).print("Hello, Venus!");
+var _3 = p.with_diag_type(Error).print("Hello, Mars!");
+compt [&]str moons_of_jupiter = ["Europa", "Io", "Ganymede", "Castillo"];
+var _4 = p.print("The four biggest moons of Jupiter are: " + ANSI_BLUE_FG + list_to_str(moons_of_jupiter) + ANSI_RESET);
+var _5 = p.print(ANSI_MAGENTA_FG + "Saturn isn't quite as big as Jupiter" + ANSI_RESET);
+var _6 = p.with_diag_type(Help).print(["The", "most", "famous", "moon", "besides", "Earth's", "is", "Saturn's", "Titan"]);
