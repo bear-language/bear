@@ -26,8 +26,9 @@ namespace hir {
 // ------ struct impls -------
 
 struct ExecBlock {
-    ScopeId scope;
     IdSlice<ExecId> execs;
+    ScopeId scope;
+    MoveMapId move_map;
 };
 
 struct ExecExprStmt {
@@ -56,7 +57,7 @@ struct ExecYieldStmt {
     OptId<ExecId> yield_value;
 };
 
-struct ExecExprVariable {
+struct ExecAssignable {
     DefId def_id;
     TypeId type_id;
 };
@@ -82,7 +83,7 @@ using f32 = float;
 using f64 = double;
 
 /// represents literals/constant builtin types
-struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
+struct ExecComptConstant : NodeWithVariantValue<ExecComptConstant> {
     ConstantValue value;
     bool matches_type(builtin_type type) const {
         switch (value.index()) {
@@ -333,33 +334,29 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
         return false;
     }
 
-    bool less_than_signed(ExecExprComptConstant other) const { return to_i64() < other.to_i64(); }
+    bool less_than_signed(ExecComptConstant other) const { return to_i64() < other.to_i64(); }
 
-    bool less_than_unsigned(ExecExprComptConstant other) const {
-        return to_size() < other.to_size();
-    }
+    bool less_than_unsigned(ExecComptConstant other) const { return to_size() < other.to_size(); }
 
-    bool less_than_or_equal_signed(ExecExprComptConstant other) const {
+    bool less_than_or_equal_signed(ExecComptConstant other) const {
         return to_i64() <= other.to_i64();
     }
 
-    bool less_than_or_equal_unsigned(ExecExprComptConstant other) const {
+    bool less_than_or_equal_unsigned(ExecComptConstant other) const {
         return to_size() <= other.to_size();
     }
 
-    bool greater_than_signed(ExecExprComptConstant other) const {
-        return to_i64() > other.to_i64();
-    }
+    bool greater_than_signed(ExecComptConstant other) const { return to_i64() > other.to_i64(); }
 
-    bool greater_than_unsigned(ExecExprComptConstant other) const {
+    bool greater_than_unsigned(ExecComptConstant other) const {
         return to_size() > other.to_size();
     }
 
-    bool greater_than_or_equal_signed(ExecExprComptConstant other) const {
+    bool greater_than_or_equal_signed(ExecComptConstant other) const {
         return to_i64() >= other.to_i64();
     }
 
-    bool greater_than_or_equal_unsigned(ExecExprComptConstant other) const {
+    bool greater_than_or_equal_unsigned(ExecComptConstant other) const {
         return to_size() >= other.to_size();
     }
 
@@ -372,19 +369,19 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
     SymbolId to_symbol_id(Context& ctx) const;
 
     // returns none if conversion fails, diagnostics must be reported outside of this method
-    [[nodiscard]] std::optional<ExecExprComptConstant> try_safe_convert_to(builtin_type type) const;
+    [[nodiscard]] std::optional<ExecComptConstant> try_safe_convert_to(builtin_type type) const;
 
-    ExecExprComptConstant(ConstantValue constval) : value{constval} {}
+    ExecComptConstant(ConstantValue constval) : value{constval} {}
 
-    [[nodiscard]] std::optional<ExecExprComptConstant> try_up_convert_to(builtin_type type) const;
-    [[nodiscard]] std::optional<ExecExprComptConstant> try_down_convert_to(builtin_type type) const;
+    [[nodiscard]] std::optional<ExecComptConstant> try_up_convert_to(builtin_type type) const;
+    [[nodiscard]] std::optional<ExecComptConstant> try_down_convert_to(builtin_type type) const;
 
     [[nodiscard]] bool has_binary_op(binary_op op) const;
     [[nodiscard]] bool has_unary_op(unary_op op) const;
 
     [[nodiscard]] bool equals_zero() const;
 
-    using ExecConst = ExecExprComptConstant;
+    using ExecConst = ExecComptConstant;
 
     [[nodiscard]] static std::optional<ExecConst> plus(Context& ctx, ExecConst lhs, ExecConst rhs);
     [[nodiscard]] static std::optional<ExecConst> minus(ExecConst lhs, ExecConst rhs);
@@ -415,7 +412,7 @@ struct ExecExprComptConstant : NodeWithVariantValue<ExecExprComptConstant> {
     [[nodiscard]] static std::optional<ExecConst> preunary_bit_not(ExecConst ec);
 };
 
-using ExecConst = ExecExprComptConstant;
+using ExecConst = ExecComptConstant;
 
 struct ExecExprListLiteral {
     IdSlice<ExecId> elems;
@@ -429,78 +426,69 @@ struct ExecRange {
     ExecId end;
 };
 
-struct ExecExprAssignMove {
+struct ExecAssignment {
     ExecId lhs;
     ExecId rhs;
 };
 
-struct ExecExprAssignEqual {
-    ExecId lhs;
-    ExecId rhs;
-};
-
-struct ExecExprIs {
+struct ExecIs {
     ExecId variant_instance;
     ExecId variant_decomp;
 };
 
-struct ExecExprMemberAccess {
+struct ExecMemberAccess {
     ExecId owner;
     ExecId member;
 };
 
-struct ExecExprPointerMemberAccess {
-    ExecId owner;
-    ExecId member;
-};
-
-struct ExecExprBinary {
+struct ExecBinary {
     ExecId lhs;
     ExecId rhs;
     binary_op op;
 };
 
-struct ExecExprCast {
+struct ExecCast {
     ExecId expr;
     TypeId target;
 };
 
-struct ExecExprPreUnary {
+struct ExecPreUnary {
     ExecId expr;
     unary_op op;
 };
 
-struct ExecExprPostUnary {
+struct ExecPostUnary {
     ExecId expr;
     unary_op op;
 };
 
-struct ExecExprSubscript {
+struct ExecSubscript {
     ExecId base;
     ExecId index;
 };
 
-struct ExecExprFnCall {
+struct ExecFnCall {
     ExecId callee;
     IdSlice<ExecId> args;
 };
 
-struct ExecExprBorrow {
+struct ExecBorrow {
     ExecId borrowee;
 };
 
-struct ExecExprDeref {
+struct ExecDeref {
     ExecId expr;
 };
 
-struct ExecExprUnionInit {
+struct ExecUnionInit {
     ExecId member_init;
     DefId union_def_id;
     HirSize active_member_idx;
-    bool move;
+    bool move{false};
 };
 
 struct ExecExprVariantInit {
+    /// this should be a ExecVariantFieldInit
     ExecId payload_init;
     DefId variant_def_id;
     HirSize active_member_idx;
@@ -519,7 +507,7 @@ struct ExecExprStructInit {
 struct ExecExprStructMemberInit {
     DefId field_def;
     ExecId value;
-    bool move;
+    bool move{false};
 };
 
 struct ExecFnPtr {
@@ -545,7 +533,7 @@ struct ExecExprMatch {
 };
 
 struct ExecExprMatchBranch {
-    IdSlice<ExecId> patterns;
+    IdSlice<ExecId> pattern;
     ExecId body;
 };
 
@@ -558,12 +546,11 @@ using ExecValue = std::variant<
     ExecReturnStmt, ExecYieldStmt,
 
     // expressions
-    ExecExprUnionInit, ExecExprVariantInit, ExecExprStructInit, ExecExprStructMemberInit,
-    ExecExprVariable, ExecExprComptConstant, ExecExprListLiteral, ExecExprAssignMove,
-    ExecExprAssignEqual, ExecExprIs, ExecExprMemberAccess, ExecExprPointerMemberAccess,
-    ExecExprBinary, ExecExprCast, ExecExprPreUnary, ExecExprPostUnary, ExecExprSubscript,
-    ExecExprFnCall, ExecExprBorrow, ExecExprDeref, ExecExprClosure, ExecExprVariantDecomp,
-    ExecExprMatch, ExecExprMatchBranch, ExecFnPtr, ExecVariantFieldInit, ExecRange>;
+    ExecUnionInit, ExecExprVariantInit, ExecExprStructInit, ExecExprStructMemberInit,
+    ExecAssignable, ExecComptConstant, ExecExprListLiteral, ExecAssignment, ExecIs,
+    ExecMemberAccess, ExecBinary, ExecCast, ExecPreUnary, ExecPostUnary, ExecSubscript, ExecFnCall,
+    ExecBorrow, ExecDeref, ExecExprClosure, ExecExprVariantDecomp, ExecExprMatch,
+    ExecExprMatchBranch, ExecFnPtr, ExecVariantFieldInit, ExecRange>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {

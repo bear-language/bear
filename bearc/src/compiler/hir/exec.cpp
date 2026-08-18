@@ -984,7 +984,7 @@ bool Exec::can_be_compt(const Context& ctx) {
         [&](const ExecReturnStmt&) -> bool { return false; },
         [&](const ExecYieldStmt&) -> bool { return false; },
         // exprs
-        [&](const ExecExprVariable& t) -> bool { return get_d(t.def_id).compt; },
+        [&](const ExecAssignable& t) -> bool { return get_d(t.def_id).compt; },
         [&](const ExecConst&) -> bool { return true; },
         [&](const ExecExprListLiteral& t) -> bool {
             // just check each elem
@@ -995,29 +995,19 @@ bool Exec::can_be_compt(const Context& ctx) {
             }
             return true;
         },
-        [&](const ExecExprAssignMove& t) -> bool {
-            return get_e(t.lhs).compt && get_e(t.rhs).compt;
-        },
-        [&](const ExecExprAssignEqual& t) -> bool {
-            return get_e(t.lhs).compt && get_e(t.rhs).compt;
-        },
-        [&](const ExecExprIs& t) -> bool {
+        [&](const ExecAssignment& t) -> bool { return get_e(t.lhs).compt && get_e(t.rhs).compt; },
+        [&](const ExecIs& t) -> bool {
             return get_e(t.variant_instance).compt && get_e(t.variant_decomp).compt;
         },
-        [&](const ExecExprMemberAccess& t) -> bool {
+        [&](const ExecMemberAccess& t) -> bool {
             return get_e(t.owner).compt && get_e(t.member).compt;
         },
-        [&](const ExecExprPointerMemberAccess& t) -> bool {
-            return get_e(t.owner).compt && get_e(t.member).compt;
-        },
-        [&](const ExecExprBinary& t) -> bool { return get_e(t.lhs).compt && get_e(t.rhs).compt; },
-        [&](const ExecExprCast& t) -> bool { return get_e(t.expr).compt; },
-        [&](const ExecExprPreUnary& t) -> bool { return get_e(t.expr).compt; },
-        [&](const ExecExprPostUnary& t) -> bool { return get_e(t.expr).compt; },
-        [&](const ExecExprSubscript& t) -> bool {
-            return get_e(t.base).compt && get_e(t.index).compt;
-        },
-        [&](const ExecExprFnCall& t) -> bool {
+        [&](const ExecBinary& t) -> bool { return get_e(t.lhs).compt && get_e(t.rhs).compt; },
+        [&](const ExecCast& t) -> bool { return get_e(t.expr).compt; },
+        [&](const ExecPreUnary& t) -> bool { return get_e(t.expr).compt; },
+        [&](const ExecPostUnary& t) -> bool { return get_e(t.expr).compt; },
+        [&](const ExecSubscript& t) -> bool { return get_e(t.base).compt && get_e(t.index).compt; },
+        [&](const ExecFnCall& t) -> bool {
             const bool callee = get_e(t.callee).compt;
             // check all args, ret false if one isn't compt
             for (auto eidx = t.args.begin(); eidx != t.args.end(); eidx++) {
@@ -1027,8 +1017,8 @@ bool Exec::can_be_compt(const Context& ctx) {
             }
             return callee;
         },
-        [&](const ExecExprBorrow& t) -> bool { return get_e(t.borrowee).compt; },
-        [&](const ExecExprDeref& t) -> bool { return get_e(t.expr).compt; },
+        [&](const ExecBorrow& t) -> bool { return get_e(t.borrowee).compt; },
+        [&](const ExecDeref& t) -> bool { return get_e(t.expr).compt; },
         [&](const ExecExprStructInit& t) -> bool {
             for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); eidx++) {
                 if (!eidx_to_e(eidx).compt) {
@@ -1044,7 +1034,7 @@ bool Exec::can_be_compt(const Context& ctx) {
         [&](const ExecExprMatch&) -> bool { return false; },
         [&](const ExecExprMatchBranch&) -> bool { return false; },
         [&](const ExecFnPtr&) -> bool { return true; },
-        [&](const ExecExprUnionInit&) -> bool { return true; },
+        [&](const ExecUnionInit&) -> bool { return true; },
         [&](const ExecExprVariantInit&) -> bool { return true; },
         [&](const ExecVariantFieldInit&) -> bool { return true; },
         [&](const ExecRange&) -> bool { return true; },
@@ -2052,7 +2042,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         [](const ExecLoopStmt& t) -> std::string { return "loop {...}"; },
         [](const ExecReturnStmt& t) -> std::string { return "return"; },
         [](const ExecYieldStmt& t) -> std::string { return "yield"; },
-        [&ctx](const ExecExprUnionInit& t) -> std::string {
+        [&ctx](const ExecUnionInit& t) -> std::string {
             return std::string(ctx.symbol_id_to_cstr(ctx.def(t.union_def_id).name)) + "{...}";
         },
         [&ctx](const ExecExprVariantInit& t) -> std::string {
@@ -2092,10 +2082,10 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             return "." + std::string(ctx.symbol_id_to_cstr(ctx.def(t.field_def).name))
                    + ((t.move) ? " <- " : " = ") + exec_to_string(ctx, t.value);
         },
-        [&ctx](const ExecExprVariable& t) -> std::string {
+        [&ctx](const ExecAssignable& t) -> std::string {
             return ctx.symbol_id_to_cstr(ctx.def(t.def_id).name);
         },
-        [&ctx](const ExecExprComptConstant& t) -> std::string { return t.to_string(ctx); },
+        [&ctx](const ExecComptConstant& t) -> std::string { return t.to_string(ctx); },
         [&ctx](const ExecExprListLiteral& t) -> std::string {
             std::string str{};
 
@@ -2114,55 +2104,47 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 
             return str;
         },
-        [](const ExecExprAssignMove& t) -> std::string {
+        [](const ExecAssignment& t) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprAssignEqual& t) -> std::string {
+        [](const ExecIs& t) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprIs& t) -> std::string {
+        [](const ExecMemberAccess& t) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprMemberAccess& t) -> std::string {
+        [](const ExecBinary& t) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprPointerMemberAccess& t) -> std::string {
+        [](const ExecCast& t) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprBinary& t) -> std::string {
+        [](const ExecPreUnary& t) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprCast& t) -> std::string {
+        [](const ExecPostUnary& t) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprPreUnary& t) -> std::string {
+        [](const ExecSubscript& t) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprPostUnary& t) -> std::string {
+        [](const ExecFnCall& t) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprSubscript& t) -> std::string {
+        [](const ExecBorrow& t) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprFnCall& t) -> std::string {
-            // todo
-            return {};
-        },
-        [](const ExecExprBorrow& t) -> std::string {
-            // todo
-            return {};
-        },
-        [](const ExecExprDeref& t) -> std::string {
+        [](const ExecDeref& t) -> std::string {
             // todo
             return {};
         },

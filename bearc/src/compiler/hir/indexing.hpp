@@ -62,6 +62,7 @@ struct GenericArg;
 struct Diagnostic;
 struct Layout;
 struct DeductionStep;
+class MoveMap;
 
 /// primary means of tracking interned strings in the hir
 using SymbolId = Id<Symbol>;
@@ -99,6 +100,8 @@ using DiagnosticId = Id<Diagnostic>;
 using LayoutId = Id<Layout>;
 
 using Offset = Id<HirSize>;
+
+using MoveMapId = Id<MoveMap>;
 
 /// to be stored in a HirSymbolId -> HirSymbol table
 class Symbol {

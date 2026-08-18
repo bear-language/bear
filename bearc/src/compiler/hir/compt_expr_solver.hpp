@@ -64,8 +64,8 @@ template <IsDefVisitor V> class ComptExprSolver {
 
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid) {
         const Exec& exec = context.exec(eid);
-        if (exec.holds<ExecExprComptConstant>()) {
-            auto bin_type = exec.as<ExecExprComptConstant>().type_builtin();
+        if (exec.holds<ExecComptConstant>()) {
+            auto bin_type = exec.as<ExecComptConstant>().type_builtin();
             return context.emplace_type(TypeBuiltin{.type = bin_type}, Span::generated(), false);
         }
         if (exec.holds<ExecExprStructInit>()) {
@@ -138,10 +138,9 @@ template <IsDefVisitor V> class ComptExprSolver {
                                             Span::generated(), false);
             }
         }
-        if (exec.holds<ExecExprUnionInit>()) {
-            return context.emplace_type(
-                TypeUnion{.def_id = exec.as<ExecExprUnionInit>().union_def_id}, Span::generated(),
-                false);
+        if (exec.holds<ExecUnionInit>()) {
+            return context.emplace_type(TypeUnion{.def_id = exec.as<ExecUnionInit>().union_def_id},
+                                        Span::generated(), false);
         }
         if (exec.holds<ExecExprStructMemberInit>()) {
             return context.def(exec.as<ExecExprStructMemberInit>().field_def)
@@ -1133,10 +1132,11 @@ template <IsDefVisitor V> class ComptExprSolver {
             return {}; // poisoned
         }
         return context.emplace_compt_exec(
-            ExecExprUnionInit{.member_init = maybe_val.as_id(),
-                              .union_def_id = union_did,
-                              .active_member_idx = context.def(matched_did).member_idx,
-                              .move = false},
+            ExecUnionInit{
+                .member_init = maybe_val.as_id(),
+                .union_def_id = union_did,
+                .active_member_idx = context.def(matched_did).member_idx,
+            },
             Span{context, fid, expr});
     }
     [[nodiscard]] OptId<ExecId> handle_struct_init(FileId fid, ScopeId scope, DefId struct_did,
@@ -1175,7 +1175,9 @@ template <IsDefVisitor V> class ComptExprSolver {
                 // get default value for the member field
                 if (default_val.has_value()) {
                     ExecExprStructMemberInit init{
-                        .field_def = member_did, .value = default_val.as_id(), .move = false};
+                        .field_def = member_did,
+                        .value = default_val.as_id(),
+                    };
                     member_init_execs.emplace_back(
                         context.register_exec(context, init, Span::generated(), true));
                 } else {
@@ -1224,7 +1226,9 @@ template <IsDefVisitor V> class ComptExprSolver {
             // emplace the init execs
             member_init_execs.emplace_back(context.emplace_exec(
                 ExecExprStructMemberInit{
-                    .field_def = member_did, .value = hopefully_exec.as_id(), .move = false},
+                    .field_def = member_did,
+                    .value = hopefully_exec.as_id(),
+                },
                 proposed_member_span, true));
         }
         if (rel_arity == relative_arity::too_many) {
@@ -1605,8 +1609,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         assert(op == binary_op::range_exclusive || op == binary_op::range_inclusive);
         const Exec& lhs = context.exec(lhs_eid);
         const Exec& rhs = context.exec(rhs_eid);
-        ExecExprComptConstant lhs_val = lhs.as<ExecConst>();
-        ExecExprComptConstant rhs_val = rhs.as<ExecConst>();
+        ExecComptConstant lhs_val = lhs.as<ExecConst>();
+        ExecComptConstant rhs_val = rhs.as<ExecConst>();
 
         // converge types, if possible
         guard_try_converge_types(/* & */ lhs_val, op, /* & */ rhs_val);
@@ -2268,7 +2272,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         const bool same_type_bool_val = context.equivalent_type(lhs_tid, rhs_tid);
 
-        return context.emplace_exec(ExecExprComptConstant{same_type_bool_val},
+        return context.emplace_exec(ExecComptConstant{same_type_bool_val},
                                     Span{context, fid, same_type_expr->first, same_type_expr->last},
                                     true);
     }
@@ -2293,7 +2297,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         const bool infas_type_bool_val = context.type_inferable_as(lhs_tid, rhs_tid);
 
-        return context.emplace_exec(ExecExprComptConstant{infas_type_bool_val},
+        return context.emplace_exec(ExecComptConstant{infas_type_bool_val},
                                     Span{context, fid, infas_expr->first, infas_expr->last}, true);
     }
 
@@ -2312,7 +2316,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         SymbolId sid = context.symbol_id(type_to_string_as_mentioned(context, tid));
 
-        return context.emplace_exec(ExecExprComptConstant{sid},
+        return context.emplace_exec(ExecComptConstant{sid},
                                     Span{context, fid, tts_expr->first, tts_expr->last}, true);
     }
     [[nodiscard]] OptId<ExecId> handle_static_assert(FileId fid, ScopeId scope,
@@ -2536,10 +2540,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             const ast_expr_t* rhs_expr = expr->expr.binary.rhs;
             Span rhs_span{context, fid, rhs_expr};
 
-            if (lhs_exec.holds<ExecExprUnionInit>()) {
+            if (lhs_exec.holds<ExecUnionInit>()) {
                 {
                     const Def& union_def = context.def(def_visitor.visit_as_transparent(
-                        lhs_exec.as<ExecExprUnionInit>().union_def_id));
+                        lhs_exec.as<ExecUnionInit>().union_def_id));
                     assert(union_def.holds<DefUnion>());
                 }
                 token_ptr_slice_t id_slice = rhs_expr->expr.id.slice;
@@ -2549,14 +2553,13 @@ template <IsDefVisitor V> class ComptExprSolver {
                 }
 
                 auto maybe_mem_var = context.look_up_variable(
-                    context.def(lhs_exec.as<ExecExprUnionInit>().union_def_id)
+                    context.def(lhs_exec.as<ExecUnionInit>().union_def_id)
                         .template as<DefUnion>()
                         .scope,
                     context.symbol_id(id_slice.start[0]));
 
                 if (maybe_mem_var.empty()) {
-                    const Def& union_def
-                        = context.def(lhs_exec.as<ExecExprUnionInit>().union_def_id);
+                    const Def& union_def = context.def(lhs_exec.as<ExecUnionInit>().union_def_id);
                     Span spn{context, fid, id_slice};
                     auto d0 = context.emplace_diagnostic_with_message_value(
                         spn, diag_code::does_not_name_a_field_of_union, diag_type::error,
@@ -2568,12 +2571,12 @@ template <IsDefVisitor V> class ComptExprSolver {
                     return {};
                 }
 
-                const Def& union_def = context.def(lhs_exec.as<ExecExprUnionInit>().union_def_id);
+                const Def& union_def = context.def(lhs_exec.as<ExecUnionInit>().union_def_id);
                 const Def& var_def = context.def(maybe_mem_var.as_id());
-                if (var_def.member_idx != lhs_exec.as<ExecExprUnionInit>().active_member_idx) {
+                if (var_def.member_idx != lhs_exec.as<ExecUnionInit>().active_member_idx) {
                     const Def& curr_member
                         = context.def(union_def.as<DefUnion>().ordered_members.get(
-                            lhs_exec.as<ExecExprUnionInit>().active_member_idx));
+                            lhs_exec.as<ExecUnionInit>().active_member_idx));
                     DiagLinker dlinker{context};
                     dlinker.link(context.emplace_diagnostic_with_message_value(
                         Span{context, fid, id_slice}, diag_code::compt_union_does_not_hold_field,
@@ -2587,7 +2590,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                     return {};
                 }
 
-                const Exec& mem_exec = context.exec(lhs_exec.as<ExecExprUnionInit>().member_init);
+                const Exec& mem_exec = context.exec(lhs_exec.as<ExecUnionInit>().member_init);
 
                 if (!exec_is_compt_viable(mem_exec)) {
 
@@ -2714,8 +2717,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         return context.emplace_exec(ExecConst{defined}, span, true);
     }
     [[nodiscard]] bool exec_is_compt_viable(const Exec& exec) {
-        return exec.holds_any_of<ExecConst, ExecExprStructInit, ExecExprListLiteral,
-                                 ExecExprUnionInit, ExecExprVariantInit>();
+        return exec.holds_any_of<ExecConst, ExecExprStructInit, ExecExprListLiteral, ExecUnionInit,
+                                 ExecExprVariantInit>();
     }
     [[nodiscard]] OptId<ExecId> solve_fn_call(FileId fid, ScopeId scope, const ast_expr_t* expr,
                                               OptId<ExecId> maybe_self_val = std::nullopt) {

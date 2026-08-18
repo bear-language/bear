@@ -11,6 +11,7 @@
 
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/span.hpp"
+#include "compiler/hir/type.hpp"
 #include "compiler/hir/variant_helpers.hpp"
 #include <cstdint>
 #include <utility>
@@ -114,6 +115,20 @@ struct DefVariant {
             return 4;
         }
         return 8; // i guess bro
+    }
+    builtin_type type_of_discriminant() const {
+        const auto mems = ordered_members;
+
+        if (mems.len() <= UINT8_MAX) {
+            return builtin_type::i8;
+        }
+        if (mems.len() <= UINT16_MAX) {
+            return builtin_type::i16;
+        }
+        if (mems.len() <= UINT32_MAX) {
+            return builtin_type::i32;
+        }
+        return builtin_type::i64; // i guess bro
     }
 };
 
