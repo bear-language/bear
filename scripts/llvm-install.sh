@@ -2,7 +2,7 @@
 
 # starting from project root dir
 cd bearc || exit
-git clone --branch llvmorg-21.1.6 --depth 1 https://github.com/llvm/llvm-project.git
+git clone --branch llvmorg-22.1.8 --depth 1 https://github.com/llvm/llvm-project.git
 
 mkdir llvm-build
 cd llvm-build || exit
