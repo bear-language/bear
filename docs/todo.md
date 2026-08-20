@@ -6,7 +6,7 @@ main quest
 #### hir phase 2.a:
 - all while in the process of *resolving* top-level declarations:
 
-- [ ] generic argument deduction guides for fn calls, variant inits, and struct inits (`@TODO`)
+- [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
     - [ ] struct deduction guide use (building them is impl'd but untested)
     - [ ] variant deduction guides (building and use)
 
@@ -22,8 +22,20 @@ main quest
 - [ ] impl `RunTimeExprSolver`
     - [ ] use deduction guides for functions/(variants/structs?)
 - [ ] build up runtime statements into structured blocks
-- [ ] make sure assignment type checking is properly rigid especially around mutable references.
-    - the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
+- [ ] make sure assignment type checking is properly rigid around mutable types (especially references).
+    - note: (impl. detail) the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
+    - [ ] when calling a function, disregard the outer-most mutability of the type (unless it's a reference)
+    - [ ] assignment requires recursively that thru references or within pointers/slices: immut <- mut but not mut <- immut 
+    - [ ] ensure these work:
+        - [ ] T       -> mut T
+        - [ ] mut T   -> T
+        - [ ] &T      -> &mut T (fail)
+        - [ ] &mut T  -> &T 
+```
+how it works (save this for later type system docs)
+ Mutability is a capability attached to the layer through which the value is accessed. When comparing nested types, mutability may be weakened (mut -> immut) but never strengthened (immut -> mut). Top-level value mutability is erased for by-value expressions and at function-call boundaries, whereas reference-layer mutability is preserved.
+
+```
 - [ ] make a system to etch ExecId into a structured linear form within blocks to be naturally connected in a CFG 
     - [ ] this should be directly conducive to 3AC for all `hir::Exec`s
 - [ ] move checker
