@@ -4,7 +4,7 @@ main quest
 ----------
 
 #### hir phase 2.a:
-- all while in the process of *resolivng* top-level declarations:
+- all while in the process of *resolving* top-level declarations:
 
 - [ ] generic argument deduction guides for fn calls, variant inits, and struct inits (`@TODO`)
     - [ ] struct deduction guide use (building them is impl'd but untested)
