@@ -124,7 +124,12 @@ class Context {
 
     /// gets the root scope, i.e. the scope for the top-level namespace, where main() lives (in an
     /// program)
+    /// - note: this should only be called when get_or_make_root_scope() has already been called at
+    /// least once
     [[nodiscard]] ScopeId root_scope() const;
+    /// gets the root scope, i.e. the scope for the top-level namespace, where main() lives (in an
+    /// program), and makes the root scope if it doesn't already exist
+    [[nodiscard]] ScopeId get_or_make_root_scope();
 
     /// makes a scope for storing SymbolId -> DefId mappings
     ///
@@ -1088,7 +1093,6 @@ class Context {
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    [[nodiscard]] ScopeId get_or_make_root_scope();
     [[nodiscard]] FileId provide_root_file(const char* file_name);
     /// forceably emplaces ast, not checking if it has already been processed. This function is
     /// wrapped by file handling logic and should thus not be used directly anywhere else
