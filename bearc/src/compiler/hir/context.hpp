@@ -43,31 +43,54 @@ namespace hir {
  */
 class Context {
   public:
-    // enum class to initialize Context with additional information that can improve performance
+    /// enum class to initialize Context with additional information that can improve performance
     enum class instances : uint8_t { one, multiple };
 
+    /// constructs a context instance from (cli) flags
+    /// - internally set instances to instances::multiple, which means performance will be
+    /// unneccesarily worsened if there is only one context instance in your program
     Context(const bearc_args_t& args);
+
+    /// constructs a context instance from (cli) flags
+    /// - instances must be set appropriately (instances::one if there is one Context in the
+    /// program, else instances::multiple)
     Context(const bearc_args_t& args, instances instances);
+
+    /// context is not copy constructable (would be too expensive)
     Context(const Context&) = delete;
+
+    /// context is not copy assignable (would be too expensive)
     Context& operator=(const Context&) = delete;
+
+    /// gets the total diagnostic count for this context, including all errors, warnings, tips
+    /// (help), and notes
     int diagnostic_count() const noexcept;
     int error_count() const noexcept;
     int warning_count() const noexcept;
     int note_count() const noexcept;
     int help_count() const noexcept;
+    /// indicates whether compact diagnostics are enabled.
+    /// - when this is active, diagnostic look "clang-style" instead of the normal "rust-style"
     bool compact_diagnostics_enabled() const noexcept;
+    /// checks if this context has any given cli flag enabled
     bool has_flag(cli_flag_e flag) const noexcept;
 
     // abi related info stuff
 
-    /// gets the pointer size in bytes
+    /// gets the register size in bytes for the context
     [[nodiscard]] HirSize register_size_bytes() const { return register_size_bytes_; }
+    /// gets the pointer size in bytes for the context
     [[nodiscard]] HirSize pointer_size_bytes() const { return pointer_size_bytes_; }
 
     // ----- accessors / emplacers --------
+
+    /// gets the SymbolId for the (string span of) a token
     [[nodiscard]] SymbolId symbol_id(const token_t* tkn);
+    /// gets the SymbolId for a string span
     [[nodiscard]] SymbolId symbol_id(const char* start, size_t len);
+    /// gets the SymbolId of a string_view
     [[nodiscard]] SymbolId symbol_id(std::string_view sv);
+    /// gets the SymbolId for token of tag TOK_IDENTIFIER or of some builtin type like TOK_i32, etc.
     [[nodiscard]] SymbolId symbol_id_for_identifier_tkn(const token_t* tkn);
     [[nodiscard]] SymbolId symbol_id(Span span);
     /// should be ordered left, right
