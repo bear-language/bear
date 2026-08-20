@@ -152,6 +152,7 @@ class Context {
     [[nodiscard]] ScopeId make_scope(OptId<ScopeId> parent_scope, HirSize capacity, Span span);
     [[nodiscard]] ScopeId make_compt_temp_scope(ScopeId parent_scope, HirSize capacity);
 
+    void register_span_to_scope(Span span, ScopeId scope);
     /// finds the scope within the specified span
     [[nodiscard]] ScopeId scope_for_span(Span span);
 
@@ -1353,8 +1354,6 @@ class Context {
     }
     void register_import_files_parallel(const char* const* file_paths, uint32_t count);
     void register_intrinsic_files();
-
-    void register_span_to_scope(Span span, ScopeId scope);
 
     [[nodiscard]] OptId<DeductionStepId>
     recursive_deduction_step_helper_for_params(DeductionStep step, ast_slice_of_params_t params,
