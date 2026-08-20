@@ -22,9 +22,7 @@ perf.data*
 vgcore*
 
 # llvm
-llvm/
-llvm-build/
-llvm-project/
+bearc/llvm*/
 
 # python 
 .venv/
