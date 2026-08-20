@@ -6,25 +6,15 @@
 // Copyright (C) 2025-2026 Zachary Mahan
 // Licensed under the GNU GPL v3. See LICENSE for details.
 
-#include "compiler/compile.h"
-#include "cli/args.h"
 #include "compiler/codegen/llvm/codegen.hpp"
 #include "compiler/hir/context.hpp"
-#include <stddef.h>
+namespace codegen {
 
-extern "C" {
+CodeGen::CodeGen(hir::Context& ctx) : ctx{ctx} {}
 
-int compile_file(const bearc_args_t* args) {
-    hir::Context ctx{*args, hir::Context::instances::one};
-    ctx.try_print_info();
-    const auto diag_cnt = ctx.diagnostic_count();
-
-    if (!diag_cnt) {
-        codegen::CodeGen cg{ctx};
-        return cg.emit();
-    }
-
-    return diag_cnt;
+bool CodeGen::emit() {
+    // TODO
+    return ctx.error_count() != 0;
 }
 
-} // extern "C"
+} // namespace codegen
