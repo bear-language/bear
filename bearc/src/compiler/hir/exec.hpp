@@ -414,7 +414,7 @@ struct ExecComptConstant : NodeWithVariantValue<ExecComptConstant> {
 
 using ExecConst = ExecComptConstant;
 
-struct ExecExprListLiteral {
+struct ExecListLiteral {
     IdSlice<ExecId> elems;
     OptId<TypeId> elem_type_id;
     size_t len() const noexcept { return elems.len(); }
@@ -547,10 +547,10 @@ using ExecValue = std::variant<
 
     // expressions
     ExecUnionInit, ExecExprVariantInit, ExecExprStructInit, ExecExprStructMemberInit,
-    ExecAssignable, ExecComptConstant, ExecExprListLiteral, ExecAssignment, ExecIs,
-    ExecMemberAccess, ExecBinary, ExecCast, ExecPreUnary, ExecPostUnary, ExecSubscript, ExecFnCall,
-    ExecBorrow, ExecDeref, ExecExprClosure, ExecExprVariantDecomp, ExecExprMatch,
-    ExecExprMatchBranch, ExecFnPtr, ExecVariantFieldInit, ExecRange>;
+    ExecAssignable, ExecComptConstant, ExecListLiteral, ExecAssignment, ExecIs, ExecMemberAccess,
+    ExecBinary, ExecCast, ExecPreUnary, ExecPostUnary, ExecSubscript, ExecFnCall, ExecBorrow,
+    ExecDeref, ExecExprClosure, ExecExprVariantDecomp, ExecExprMatch, ExecExprMatchBranch,
+    ExecFnPtr, ExecVariantFieldInit, ExecRange>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {

@@ -29,8 +29,12 @@ main quest
     - [ ] ensure these work:
         - [ ] T       -> mut T
         - [ ] mut T   -> T
-        - [ ] &T      -> &mut T (fail)
+        - [ ] &T      -> &mut T         (fail)
         - [ ] &mut T  -> &T 
+        - [ ] * T       -> *mut T       (fail)
+        - [ ] * mut T   -> *T        
+        - [ ] \[&]T      -> \[&] T mut  (fail)
+        - [ ] \[&] T mut -> \[&]T       
 ```
 how it works (save this for later type system docs)
  Mutability is a capability attached to the layer through which the value is accessed. When comparing nested types, mutability may be weakened (mut -> immut) but never strengthened (immut -> mut). Top-level value mutability is erased for by-value expressions and at function-call boundaries, whereas reference-layer mutability is preserved.

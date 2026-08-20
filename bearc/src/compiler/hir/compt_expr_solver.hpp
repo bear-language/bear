@@ -84,8 +84,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                                                    .generic = maybe_gen_args.has_value()},
                                         Span::generated(), false);
         }
-        if (exec.holds<ExecExprListLiteral>()) {
-            auto list_exec = exec.as<ExecExprListLiteral>();
+        if (exec.holds<ExecListLiteral>()) {
+            auto list_exec = exec.as<ExecListLiteral>();
             auto maybe_contained_type = list_exec.elem_type_id;
             if (maybe_contained_type.empty()) {
                 goto novel_issue;
@@ -1332,7 +1332,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                                                diag_type::error));
         };
 
-        if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecExprListLiteral>(rhs_exec)) {
+        if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecListLiteral>(rhs_exec)) {
             return solve_list_eq(lhs_exec, rhs_exec, op);
         }
 
@@ -1350,7 +1350,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_any_eq(lhs_eid, rhs_eid, op);
         }
 
-        if (op == binary_op::plus && lhs_exec.holds_same<ExecExprListLiteral>(rhs_exec)) {
+        if (op == binary_op::plus && lhs_exec.holds_same<ExecListLiteral>(rhs_exec)) {
             return solve_list_concat(lhs_eid, rhs_eid);
         }
 
@@ -1866,13 +1866,21 @@ template <IsDefVisitor V> class ComptExprSolver {
             if (maybe_eid.empty()) {
                 return std::nullopt; // poisoned
             }
-            const OptId<TypeId> maybe_tid = infer_type_from_exec(maybe_eid.as_id());
-            if (maybe_tid.empty()) {
-                return std::nullopt; // poisoned
-            }
-            const auto tid = maybe_tid.as_id();
 
             if (maybe_into_tid.has_value()) {
+                const auto& exec = context.exec(maybe_eid.as_id());
+
+                if (exec.template holds<ExecListLiteral>()
+                    && !exec.template as<ExecListLiteral>().len()) {
+                    return maybe_eid;
+                }
+
+                const OptId<TypeId> maybe_tid = infer_type_from_exec(maybe_eid.as_id());
+
+                if (maybe_tid.empty()) {
+                    return std::nullopt; // poisoned
+                }
+                const auto tid = maybe_tid.as_id();
                 TypeId list_tid = maybe_tid.as_id();
 
                 const auto& into_type = context.type(maybe_into_tid.as_id());
@@ -1933,7 +1941,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
             auto eid = maybe_eid.as_id();
             auto exec = context.exec(eid);
-            if (exec.template holds<ExecExprListLiteral>()) {
+            if (exec.template holds<ExecListLiteral>()) {
                 return context.emplace_exec(exec.value, expr_span, true);
             }
             break;
@@ -1946,7 +1954,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
             auto eid = maybe_eid.as_id();
             auto exec = context.exec(eid);
-            if (exec.template holds<ExecExprListLiteral>()) {
+            if (exec.template holds<ExecListLiteral>()) {
                 return context.emplace_exec(exec.value, expr_span, true);
             }
             break;
@@ -2030,8 +2038,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         // guard empty
         if (list_slice.len == 0) {
             return context.emplace_compt_exec(
-                ExecExprListLiteral{.elems = IdSlice<ExecId>{},
-                                    .elem_type_id = maybe_elem_into_type},
+                ExecListLiteral{.elems = IdSlice<ExecId>{}, .elem_type_id = maybe_elem_into_type},
                 whole_list_span);
         }
 
@@ -2114,8 +2121,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         // fine, homogeneous, so return
         return context.emplace_compt_exec(
-            ExecExprListLiteral{.elems = elem_slice, .elem_type_id = type_for_list},
-            whole_list_span);
+            ExecListLiteral{.elems = elem_slice, .elem_type_id = type_for_list}, whole_list_span);
     }
 
     [[nodiscard]] OptId<ExecId> handle_any_id(FileId fid, ScopeId scope,
@@ -2501,7 +2507,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                        && context.symbol_id(id_slice.start[0]) == context.symbol_id<"len">();
             };
 
-            if (lhs_exec.holds<ExecExprListLiteral>() && rhs->type == AST_EXPR_ID) {
+            if (lhs_exec.holds<ExecListLiteral>() && rhs->type == AST_EXPR_ID) {
                 const auto id_slice = rhs->expr.id.slice;
                 if (matches_len_builtin(id_slice)) {
                     return solve_list_len(lhs_exec, Span{context, fid, id_slice});
@@ -2519,7 +2525,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             // be helpful if we do this:
             // [1, 2, 3].len() => should be just `len`
             // "123123123".len() => should be just `len`
-            if (((lhs_exec.holds<ExecExprListLiteral>())
+            if (((lhs_exec.holds<ExecListLiteral>())
                  || (lhs_exec.holds<ExecConst>() && lhs_exec.as<ExecConst>().holds<SymbolId>()))
                 && rhs->type == AST_EXPR_FN_CALL
                 && rhs->expr.fn_call.left_expr->type == AST_EXPR_ID) {
@@ -2717,7 +2723,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         return context.emplace_exec(ExecConst{defined}, span, true);
     }
     [[nodiscard]] bool exec_is_compt_viable(const Exec& exec) {
-        return exec.holds_any_of<ExecConst, ExecExprStructInit, ExecExprListLiteral, ExecUnionInit,
+        return exec.holds_any_of<ExecConst, ExecExprStructInit, ExecListLiteral, ExecUnionInit,
                                  ExecExprVariantInit>();
     }
     [[nodiscard]] OptId<ExecId> solve_fn_call(FileId fid, ScopeId scope, const ast_expr_t* expr,
@@ -3191,13 +3197,18 @@ template <IsDefVisitor V> class ComptExprSolver {
     }
 
     [[nodiscard]] OptId<ExecId> try_convert_to(ExecId eid, TypeId tid) {
+        const Exec& exec = context.exec(eid);
+
+        // since lengthless exec can't be inferred
+        if (exec.holds<ExecListLiteral>() && !exec.as<ExecListLiteral>().len()) {
+            return eid;
+        }
+
         OptId<TypeId> maybe_inferred_etid = infer_type_from_exec(eid);
         if (maybe_inferred_etid.has_value()
             && context.equivalent_type(maybe_inferred_etid.as_id(), tid)) {
             return eid;
         }
-
-        const Exec& exec = context.exec(eid);
 
         if (!exec.holds<ExecConst>()) {
             return std::nullopt;
@@ -3238,8 +3249,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         const auto lhs_eid = maybe_lhs_eid.as_id();
         const Exec& ordered_exec = context.exec(maybe_lhs_eid.as_id());
 
-        if (ordered_exec.holds<ExecExprListLiteral>()) {
-            ExecExprListLiteral list = ordered_exec.as<ExecExprListLiteral>();
+        if (ordered_exec.holds<ExecListLiteral>()) {
+            ExecListLiteral list = ordered_exec.as<ExecListLiteral>();
             OptId<ExecId> maybe_idx
                 = solve_expr(fid, scope, expr->expr.subscript.subexpr,
                              context.emplace_type(TypeBuiltin{.type = builtin_type::u64},
@@ -3301,8 +3312,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         return std::nullopt;
     }
     [[nodiscard]] OptId<ExecId> solve_list_len(const Exec& list_exec, Span len_span) {
-        assert(list_exec.holds<ExecExprListLiteral>());
-        return context.emplace_exec(ExecConst{list_exec.as<ExecExprListLiteral>().len()},
+        assert(list_exec.holds<ExecListLiteral>());
+        return context.emplace_exec(ExecConst{list_exec.as<ExecListLiteral>().len()},
                                     Span::combine(list_exec.span, len_span), true);
     }
     [[nodiscard]] OptId<ExecId> solve_str_len(const Exec& str_exec, Span len_span) {
@@ -3315,10 +3326,10 @@ template <IsDefVisitor V> class ComptExprSolver {
     // bool_not_equal should be passed
     [[nodiscard]] OptId<ExecId> solve_list_eq(const Exec& list1, const Exec& list2,
                                               binary_op eq_neq) {
-        assert(list1.holds_same<ExecExprListLiteral>(list2));
+        assert(list1.holds_same<ExecListLiteral>(list2));
         assert(bin_op_is_eq_neq(eq_neq));
-        ExecExprListLiteral l1 = list1.as<ExecExprListLiteral>();
-        ExecExprListLiteral l2 = list2.as<ExecExprListLiteral>();
+        ExecListLiteral l1 = list1.as<ExecListLiteral>();
+        ExecListLiteral l2 = list2.as<ExecListLiteral>();
 
         // decides true/false for == and != based on equality
         auto emplace_val_based_on_eq = [this, eq_neq, &list1, &list2](const bool eq) {
@@ -3912,10 +3923,10 @@ template <IsDefVisitor V> class ComptExprSolver {
         const Exec& lhs_exec = context.exec(lhs_eid);
         const Exec& rhs_exec = context.exec(rhs_eid);
 
-        if (lhs_exec.as<ExecExprListLiteral>().elem_type_id.has_value()
-            && rhs_exec.as<ExecExprListLiteral>().elem_type_id.has_value()
-            && !context.equivalent_type(lhs_exec.as<ExecExprListLiteral>().elem_type_id.as_id(),
-                                        rhs_exec.as<ExecExprListLiteral>().elem_type_id.as_id())) {
+        if (lhs_exec.as<ExecListLiteral>().elem_type_id.has_value()
+            && rhs_exec.as<ExecListLiteral>().elem_type_id.has_value()
+            && !context.equivalent_type(lhs_exec.as<ExecListLiteral>().elem_type_id.as_id(),
+                                        rhs_exec.as<ExecListLiteral>().elem_type_id.as_id())) {
             auto d0 = context.emplace_diagnostic(Span::combine(lhs_exec.span, rhs_exec.span),
                                                  diag_code::invalid_operands_for_binary_expression,
                                                  diag_type::error);
@@ -3931,13 +3942,13 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
         llvm::SmallVector<ExecId> list_vec{};
 
-        const auto lhs_slice = lhs_exec.as<ExecExprListLiteral>().elems;
+        const auto lhs_slice = lhs_exec.as<ExecListLiteral>().elems;
 
         for (auto eidx = lhs_slice.begin(); eidx != lhs_slice.end(); ++eidx) {
             list_vec.push_back(context.exec_id(eidx));
         }
 
-        const auto rhs_slice = rhs_exec.as<ExecExprListLiteral>().elems;
+        const auto rhs_slice = rhs_exec.as<ExecListLiteral>().elems;
 
         for (auto eidx = rhs_slice.begin(); eidx != rhs_slice.end(); ++eidx) {
             list_vec.push_back(context.exec_id(eidx));
@@ -3947,14 +3958,14 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         OptId<TypeId> maybe_elem_type_id{};
 
-        if (lhs_exec.as<ExecExprListLiteral>().elem_type_id.has_value()) {
-            maybe_elem_type_id = lhs_exec.as<ExecExprListLiteral>().elem_type_id;
-        } else if (rhs_exec.as<ExecExprListLiteral>().elem_type_id.has_value()) {
-            maybe_elem_type_id = rhs_exec.as<ExecExprListLiteral>().elem_type_id;
+        if (lhs_exec.as<ExecListLiteral>().elem_type_id.has_value()) {
+            maybe_elem_type_id = lhs_exec.as<ExecListLiteral>().elem_type_id;
+        } else if (rhs_exec.as<ExecListLiteral>().elem_type_id.has_value()) {
+            maybe_elem_type_id = rhs_exec.as<ExecListLiteral>().elem_type_id;
         }
 
         return context.emplace_compt_exec(
-            ExecExprListLiteral{.elems = combined_slice, .elem_type_id = maybe_elem_type_id},
+            ExecListLiteral{.elems = combined_slice, .elem_type_id = maybe_elem_type_id},
             Span::combine(lhs_exec.span, rhs_exec.span));
     }
 
@@ -3992,11 +4003,11 @@ template <IsDefVisitor V> class ComptExprSolver {
             const IdSlice<ExecId> elems = context.freeze_id_vec(strs);
 
             return context.emplace_compt_exec(
-                ExecExprListLiteral{.elems = elems, .elem_type_id = elem_tid}, span);
+                ExecListLiteral{.elems = elems, .elem_type_id = elem_tid}, span);
         }
 
-        return context.emplace_compt_exec(
-            ExecExprListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);
+        return context.emplace_compt_exec(ExecListLiteral{.elems = {}, .elem_type_id = elem_tid},
+                                          span);
     }
 
     [[nodiscard]] OptId<ExecId> solve_statics_of(FileId fid, ScopeId scope,
@@ -4033,11 +4044,11 @@ template <IsDefVisitor V> class ComptExprSolver {
             const IdSlice<ExecId> elems = context.freeze_id_vec(strs);
 
             return context.emplace_compt_exec(
-                ExecExprListLiteral{.elems = elems, .elem_type_id = elem_tid}, span);
+                ExecListLiteral{.elems = elems, .elem_type_id = elem_tid}, span);
         }
 
-        return context.emplace_compt_exec(
-            ExecExprListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);
+        return context.emplace_compt_exec(ExecListLiteral{.elems = {}, .elem_type_id = elem_tid},
+                                          span);
     }
 
     [[nodiscard]] OptId<ExecId> try_compt_constant_from_did(FileId fid, ScopeId scope, DefId did,

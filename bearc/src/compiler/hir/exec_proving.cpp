@@ -120,12 +120,12 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             }
             return t.to_size() == o.to_size();
         },
-        [&other, &ctx](const ExecExprListLiteral& t) -> bool {
-            if (!other.holds<ExecExprListLiteral>()) {
+        [&other, &ctx](const ExecListLiteral& t) -> bool {
+            if (!other.holds<ExecListLiteral>()) {
                 return false;
             }
 
-            const auto o = other.as<ExecExprListLiteral>();
+            const auto o = other.as<ExecListLiteral>();
 
             if (o.len() != t.len()) {
                 return false;
@@ -278,12 +278,12 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             return ((o.is_signed_integral() && o.is_signed_integral())
                     || o.hash_identity() == t.hash_identity());
         },
-        [&e2, &ctx](const ExecExprListLiteral& t) -> bool {
-            if (!e2.holds<ExecExprListLiteral>()) {
+        [&e2, &ctx](const ExecListLiteral& t) -> bool {
+            if (!e2.holds<ExecListLiteral>()) {
                 return false;
             }
 
-            const auto o = e2.as<ExecExprListLiteral>();
+            const auto o = e2.as<ExecListLiteral>();
 
             // this means one is empty (thus being typeless as far as we are concerned, so it can be
             // equivalent to any list lit)
@@ -366,7 +366,7 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
         [](const ExecComptConstant& t) -> size_t {
             return transform(t.hash_identity(), t.to_size());
         },
-        [&ctx](const ExecExprListLiteral& t) -> size_t {
+        [&ctx](const ExecListLiteral& t) -> size_t {
             size_t h = t.elem_type_id.raw();
             h = transform(h, t.len());
             for (auto eidx = t.elems.begin(); eidx != t.elems.end(); ++eidx) {

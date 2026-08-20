@@ -1,0 +1,31 @@
+// tests/hir/a61.br
+
+mod hir_a61;
+
+fn p0(mut i32 a, mut i32 b) -> i32 => a+b
+
+var _0 = @static_assert 2 == p0(1, 1);
+
+fn p1(&mut i32 a, &mut i32 b) -> i32 => a+b
+
+var _1 = @static_assert 2 == p1(1, 1); // oops
+
+fn p2(&i32 a, &i32 b) -> i32 => a+b
+
+var _2 = @static_assert 2 == p2(1, 1);
+
+fn p3([&]i32 a, [&]i32 b) -> i32 => 0 if @err(!(a.len > 0) && (b.len > 0), "arguments a and b should both have len >= 1") else a[0]+b[0]
+
+var _3 = @static_assert 2 == p3([], [1]); //oops
+
+var _4 = @static_assert [].len; // oops
+
+var _5 = @static p3([1], [1]) == 2;
+
+fn p4([&mut]i32 a, [&mut]i32 b) -> i32 => 0 if @err(!(a.len > 0) && (b.len > 0), "arguments a and b should both have len >= 1") else a[0]+b[0]
+
+var _6 = @static_assert p4([1], [1]) == 2;
+
+fn p5([&mut]i32 mut a, [&mut]i32 mut b) -> i32 => 0 if @err(!(a.len > 0) && (b.len > 0), "arguments a and b should both have len >= 1") else a[0]+b[0]
+
+var _7 = @static_assert p5([1], [1]) == 2; // oops

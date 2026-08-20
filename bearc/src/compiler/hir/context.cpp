@@ -1900,6 +1900,10 @@ bool Context::equivalent_type(TypeId tid1, TypeId tid2) const {
     return type(tid1).canonical == type(tid2).canonical;
 }
 
+[[nodiscard]] bool Context::equivalent_type_ignoring_mut(TypeId tid1, TypeId tid2) {
+    return TypeComparator<DoConsiderMut>{*this}(type(tid1), type(tid2));
+}
+
 bool Context::type_inferable_as(TypeId tid1, TypeId tid2) {
     return TypeTransformer<TypeInferer<DoConsiderMut>>{*this}(tid1, tid2);
 }

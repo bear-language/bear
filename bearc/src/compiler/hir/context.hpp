@@ -622,7 +622,12 @@ class Context {
 
     [[nodiscard]] TypeId type_id(IdIdx<TypeId> tid) const;
 
+    /// checks if two types are exactly equivalent
     [[nodiscard]] bool equivalent_type(TypeId tid1, TypeId tid2) const;
+
+    /// checks if two types are equivalent, ignoring mut qualifiers
+    /// note: this is a lot slower than equivalent_type(TypeId,TypeId))
+    [[nodiscard]] bool equivalent_type_ignoring_mut(TypeId tid1, TypeId tid2);
 
     [[nodiscard]] bool type_inferable_as(TypeId tid1, TypeId tid2);
 

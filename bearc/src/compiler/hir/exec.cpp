@@ -986,7 +986,7 @@ bool Exec::can_be_compt(const Context& ctx) {
         // exprs
         [&](const ExecAssignable& t) -> bool { return get_d(t.def_id).compt; },
         [&](const ExecConst&) -> bool { return true; },
-        [&](const ExecExprListLiteral& t) -> bool {
+        [&](const ExecListLiteral& t) -> bool {
             // just check each elem
             for (auto eidx = t.elems.begin(); eidx != t.elems.end(); eidx++) {
                 if (!eidx_to_e(eidx).compt) {
@@ -2086,7 +2086,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             return ctx.symbol_id_to_cstr(ctx.def(t.def_id).name);
         },
         [&ctx](const ExecComptConstant& t) -> std::string { return t.to_string(ctx); },
-        [&ctx](const ExecExprListLiteral& t) -> std::string {
+        [&ctx](const ExecListLiteral& t) -> std::string {
             std::string str{};
 
             str.reserve(512); // decent amount
