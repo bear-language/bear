@@ -69,6 +69,7 @@ class Context {
     int warning_count() const noexcept;
     int note_count() const noexcept;
     int help_count() const noexcept;
+
     /// indicates whether compact diagnostics are enabled.
     /// - when this is active, diagnostic look "clang-style" instead of the normal "rust-style"
     bool compact_diagnostics_enabled() const noexcept;
@@ -78,9 +79,9 @@ class Context {
     // abi related info stuff
 
     /// gets the register size in bytes for the context
-    [[nodiscard]] HirSize register_size_bytes() const { return register_size_bytes_; }
+    [[nodiscard]] HirSize register_size_bytes() const noexcept { return register_size_bytes_; }
     /// gets the pointer size in bytes for the context
-    [[nodiscard]] HirSize pointer_size_bytes() const { return pointer_size_bytes_; }
+    [[nodiscard]] HirSize pointer_size_bytes() const noexcept { return pointer_size_bytes_; }
 
     // ----- accessors / emplacers --------
 
@@ -92,33 +93,65 @@ class Context {
     [[nodiscard]] SymbolId symbol_id(std::string_view sv);
     /// gets the SymbolId for token of tag TOK_IDENTIFIER or of some builtin type like TOK_i32, etc.
     [[nodiscard]] SymbolId symbol_id_for_identifier_tkn(const token_t* tkn);
+    /// gets the SymbolId for a given source code Span
     [[nodiscard]] SymbolId symbol_id(Span span);
     /// should be ordered left, right
     [[nodiscard]] SymbolId concat_symbols(SymbolId sid1, SymbolId sid2);
     /// get a symbol, trimming the "" quotes on the outside when interning
     [[nodiscard]] SymbolId symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid);
+    /// register (or retireve) from a path
+    ///
+    /// \param path - SymbolId of the interned path string
     [[nodiscard]] FileId file(SymbolId path);
     /// intrinsic file made of a string_literal
+    ///
+    /// \param name - name, or path, that the intrinsic file
+    /// \param string_literal_src - the src
     FileId file_intrinsic(SymbolId name, const char* string_literal_src);
-    /// registers intrinsic files
-    void register_intrinsic_files();
+
+    /// registers a file in parallel
     FileId file_parallel(SymbolId path);
+    /// registers a file from a given filesystem path
     [[nodiscard]] FileId file(std::filesystem::path& path);
+    /// retrieves the file name for a given FileId
     [[nodiscard]] const char* file_name(FileId id) const;
+    /// gets the FileAst for a given file
     [[nodiscard]] FileAst& ast(FileId file_id);
+    /// gets the FileAst for a given file
     [[nodiscard]] const FileAst& ast(FileId file_id) const;
 
     // ------ scoping -----------
-    [[nodiscard]] ScopeId get_or_make_root_scope();
+
+    /// gets the root scope, i.e. the scope for the top-level namespace, where main() lives (in an
+    /// program)
     [[nodiscard]] ScopeId root_scope() const;
+
+    /// makes a scope for storing SymbolId -> DefId mappings
+    ///
+    /// \param parent_scope - optional parent scope for the new scope
+    /// \param span - span of this scope, which is recorded to map span -> scope, not the other way
+    /// around
     [[nodiscard]] ScopeId make_scope(OptId<ScopeId> parent_scope, Span span);
-    // makes a named scope with a small capacity
+    /// makes a named scope with a small capacity
+    ///
+    /// \param parent_scope - optional parent scope for the new scope
+    /// \param span - span of this scope, which is recorded to map span -> scope, not the other way
+    /// around
     [[nodiscard]] ScopeId make_small_scope(OptId<ScopeId> parent_scope, Span span);
+    /// makes a named scope with a medium capacity
+    ///
+    /// \param parent_scope - optional parent scope for the new scope
+    /// \param span - span of this scope, which is recorded to map span -> scope, not the other way
+    /// around
     [[nodiscard]] ScopeId make_medium_scope(OptId<ScopeId> parent_scope, Span span);
+    /// makes a named scope with a medium capacity
+    ///
+    /// \param parent_scope - optional parent scope for the new scope
+    /// \param span - span of this scope, which is recorded to map span -> scope, not the other way
+    /// around
     [[nodiscard]] ScopeId make_scope(OptId<ScopeId> parent_scope, HirSize capacity, Span span);
     [[nodiscard]] ScopeId make_compt_temp_scope(ScopeId parent_scope, HirSize capacity);
 
-    void register_span_to_scope(Span span, ScopeId scope);
     /// finds the scope within the specified span
     [[nodiscard]] ScopeId scope_for_span(Span span);
 
@@ -1054,6 +1087,7 @@ class Context {
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^
 
+    [[nodiscard]] ScopeId get_or_make_root_scope();
     [[nodiscard]] FileId provide_root_file(const char* file_name);
     /// forceably emplaces ast, not checking if it has already been processed. This function is
     /// wrapped by file handling logic and should thus not be used directly anywhere else
@@ -1318,6 +1352,9 @@ class Context {
             emplace_generic_arg_id_slice(last ? remaining_args : (maybe_gen_args.value())));
     }
     void register_import_files_parallel(const char* const* file_paths, uint32_t count);
+    void register_intrinsic_files();
+
+    void register_span_to_scope(Span span, ScopeId scope);
 
     [[nodiscard]] OptId<DeductionStepId>
     recursive_deduction_step_helper_for_params(DeductionStep step, ast_slice_of_params_t params,
