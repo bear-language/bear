@@ -31,6 +31,7 @@
 #include "compiler/token.h"
 #include <cassert>
 #include <cstddef>
+#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -183,7 +184,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         // error but still try to solve
         if (orig_which_can_be_ref.mut && orig_which_can_be_ref.holds<TypeRef>()) {
             context.emplace_diagnostic_with_message_value(
-                Span{context, fid, expr}, diag_code::cannot_bind_compt_values_to_mutable_ref_type,
+                Span{context, fid, expr}, diag_code::cannot_assign_compt_value_to_mutable_ref_type,
                 diag_type::error, DiagnosticTypeAfterMessage{.tid = maybe_into_tid.as_id()});
         }
         const TypeId into_tid = context.try_decay(maybe_into_tid.as_id());
@@ -412,13 +413,17 @@ template <IsDefVisitor V> class ComptExprSolver {
             return solve_alignof(fid, scope, expr);
         case AST_EXPR_SIZEOF:
             return solve_sizeof(fid, scope, expr);
+        case AST_EXPR_SAME_TYPE:
+            return handle_same_type(fid, scope, expr);
         case AST_EXPR_GROUPING:
+            return handle_any_typed_expr(fid, scope, expr);
+
+            // try should all fall thru to builtin
         case AST_EXPR_PRE_UNARY:
         case AST_EXPR_POST_UNARY:
         case AST_EXPR_LITERAL:
         case AST_EXPR_TYPE:
         case AST_EXPR_BORROW:
-        case AST_EXPR_SAME_TYPE:
         case AST_EXPR_TYPE_TO_STR:
         case AST_EXPR_STATIC_ASSERT:
         case AST_EXPR_DEFINED:
@@ -510,8 +515,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         std::optional<ExecConst> maybe_value;
         switch (expr->type) {
         case AST_EXPR_ID: {
-            Span id_span{fid, context.ast(fid).buffer(), expr->expr.id.slice.start[0],
-                         expr->expr.id.slice.start[expr->expr.id.slice.len - 1]};
+            Span id_span{context, fid, expr->expr.id.slice};
             OptId<ExecId> maybe_eid = handle_any_id(fid, scope, expr->expr.id.slice);
             if (maybe_eid.empty()) {
                 return {};
@@ -814,8 +818,10 @@ template <IsDefVisitor V> class ComptExprSolver {
             assert(maybe_converted.value().matches_type(into_builtin.value()));
             return emplace_e(maybe_converted.value());
         }
-        context.emplace_diagnostic(Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
-                                   diag_code::cannot_resolve_at_compt, diag_type::error);
+        context.emplace_diagnostic(Span(context, fid, expr), diag_code::cannot_resolve_at_compt,
+                                   diag_type::error);
+
+        std::cout << "6\n"; // TODO debug
         // as to not duplicate compt errors from bubbling up
         return std::nullopt;
     }
@@ -1887,12 +1893,14 @@ template <IsDefVisitor V> class ComptExprSolver {
 
                 if (into_type.template holds<TypeSlice>()) {
                     DiagLinker dl{context};
-                    if (into_type.mut) {
+
+                    if (context.type(into_type.try_inner().as_id()).mut) {
                         dl.link(context.emplace_diagnostic_with_message_value(
                             context.exec(maybe_eid.as_id()).span,
-                            diag_code::cannot_bind_compt_values_to_mutable_slice_type,
+                            diag_code::cannot_assign_compt_value_to_mutable_slice_type,
                             diag_type::error,
                             DiagnosticTypeAfterMessage{.tid = maybe_into_tid.as_id()}));
+                        return {};
                     }
 
                     const Type& list_type = context.type(list_tid);
@@ -2603,6 +2611,7 @@ template <IsDefVisitor V> class ComptExprSolver {
                     context.emplace_diagnostic(Span{context, fid, expr},
                                                diag_code::cannot_resolve_at_compt,
                                                diag_type::error);
+
                     return std::nullopt;
                 }
                 return context.emplace_exec(mem_exec.value, Span{context, fid, expr}, true);

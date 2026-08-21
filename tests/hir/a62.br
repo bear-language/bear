@@ -1,0 +1,9 @@
+// tests/hir/a62.br
+
+[&mut] i32 _0 = [0, 1, 2];
+
+[&] mut i32 _1 = [0, 1, 2]; // oops
+
+compt [&mut]i32 _2 = [0, 1, 2]; // oops
+
+compt [&] mut i32 _3 = [0, 1, 2]; // oops

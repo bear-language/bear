@@ -10,7 +10,7 @@ contract ToComptStr {
 
 compt fn to_compt_str<T>(T item) -> str => {
     item.to_compt_str() if @has_contract(decay T, ToComptStr)
-        else item if @same_type(decay typeof item, str)
+        else item if @same_type(T, str)
         else list_to_str(item) if @defined(item.len)
         else item as str
 }

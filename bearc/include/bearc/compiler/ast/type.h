@@ -100,4 +100,23 @@ typedef struct ast_type_with_contracts {
     bool valid;
 } ast_type_with_contracts_t;
 
+static inline ast_type_t* type_try_inner(const ast_type_t* ty) {
+    switch (ty->tag) {
+    case AST_TYPE_BASE:
+        return NULL;
+    case AST_TYPE_REF_PTR:
+        return ty->type.ptr_ref.inner;
+    case AST_TYPE_ARR:
+        return ty->type.arr.inner;
+    case AST_TYPE_SLICE:
+        return ty->type.slice.inner;
+    case AST_TYPE_GENERIC:
+    case AST_TYPE_FN_PTR:
+    case AST_TYPE_TYPEOF:
+    case AST_TYPE_DECAY:
+    case AST_TYPE_INVALID:
+        return NULL;
+    }
+}
+
 #endif // !COMPILER_AST_TYPE

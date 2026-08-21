@@ -1,0 +1,23 @@
+// tests/hir/a63.br
+
+mod hir_a63;
+
+fn first_elem<T>([&]T list) -> T => list[0]
+
+compt var a = first_elem::<i32>([1, 2, 3]); // fine
+
+compt var b = first_elem([1, 2, 3]); // fine
+
+fn first_elem_arr<T>([3]T list) -> T => list[0]
+
+compt var c = first_elem_arr([1, 2, 3]); // fine
+
+fn first_elem_n<T, i32 N>([N]T list) -> T => list[0]
+
+compt var d = first_elem_n::<i32, 3>([1,2,3]);
+
+var _0 = @static_assert 4 == a + b + c + d; 
+
+var _1 = @static_assert first_elem_n::<i32, 3> != first_elem_arr::<i32>;
+
+var _2 = @static_assert first_elem::<i32> == first_elem_arr::<i32>; // oops

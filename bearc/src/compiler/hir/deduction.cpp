@@ -19,7 +19,17 @@ namespace hir {
 [[nodiscard]] OptId<TypeId> deduction_step_helper(Context& context, TypeId tid,
                                                   DeductionStep step) {
     if (step.next.empty()) {
-        return tid;
+        TypeId curr = tid;
+        while (step.depth) {
+            const auto& ty = context.type(curr);
+            if (ty.try_inner().empty()) {
+                // we're at the canonical base
+                break;
+            }
+            curr = ty.try_inner().as_id();
+            --step.depth;
+        }
+        return curr;
     }
 
     if (step.next.empty()) {

@@ -124,7 +124,7 @@ struct Type : NodeWithVariantValue<Type> {
     Type(const TypeValue& value, Span span, bool mut)
         : value{value}, span{span}, canonical{HIR_ID_NONE}, mut{mut} {}
 
-    OptId<TypeId> try_inner() {
+    OptId<TypeId> try_inner() const {
         using OTid = OptId<TypeId>;
         auto vs = Ovld{
             [](const TypeBuiltin&) -> OTid { return OTid{}; },

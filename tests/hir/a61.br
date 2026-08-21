@@ -20,7 +20,7 @@ var _3 = @static_assert 2 == p3([], [1]); //oops
 
 var _4 = @static_assert [].len; // oops
 
-var _5 = @static p3([1], [1]) == 2;
+var _5 = @static_assert p3([1], [1]) == 2;
 
 fn p4([&mut]i32 a, [&mut]i32 b) -> i32 => 0 if @err(!(a.len > 0) && (b.len > 0), "arguments a and b should both have len >= 1") else a[0]+b[0]
 

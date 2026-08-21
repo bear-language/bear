@@ -19,6 +19,8 @@ struct DeductionStep {
     using id_type = DeductionStepId;
     /// the indexed order for this deduction step e.g. which argument we are
     HirSize order_idx{0};
+    /// the depth inside the current type
+    HirSize depth{0};
     /// subindex into nested generics or function pointers
     HirSize sub_idx{0};
     static constexpr HirSize RETURN_TYPE = HIR_SIZE_MAX;

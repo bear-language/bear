@@ -1781,9 +1781,13 @@ bool Context::scope_has_parent(ScopeId local_scope, ScopeId possible_parent) con
                     const OptId<TypeId> maybe_tid
                         = solver.infer_type_from_exec(d.as<DefVariable>().compt_value.as_id());
                     if (maybe_tid.has_value()) {
-                        const auto ty = type(maybe_tid.as_id());
+                        const auto& ty = type(maybe_tid.as_id());
                         // this is a compt list literal
-                        if (ty.holds<TypeArr>()) {
+                        if (ty.holds_any_of<TypeArr, TypeSlice>()) {
+                            return true;
+                        }
+                        if (ty.holds<TypeBuiltin>()
+                            && ty.as<TypeBuiltin>().type == builtin_type::str) {
                             return true;
                         }
                     }
@@ -2421,11 +2425,19 @@ Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl
     };
 
     // tries to get the canonical_base
-    const auto* type = curr_type->canonical_base;
+    const auto* canon_base_type = curr_type->canonical_base;
+    const auto* curr = curr_type;
+    while (curr != canon_base_type) {
+        curr = type_try_inner(curr);
+        if (!curr) {
+            break;
+        }
+        ++step.depth;
+    }
 
-    switch (type->tag) {
+    switch (canon_base_type->tag) {
     case AST_TYPE_BASE: {
-        const auto id_slice = type->type.base.id;
+        const auto id_slice = canon_base_type->type.base.id;
         if (id_slice.len != 1) {
             return {};
         }
@@ -2437,7 +2449,7 @@ Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl
         break;
     }
     case AST_TYPE_GENERIC: {
-        const auto gen_args = type->type.generic.generic_args;
+        const auto gen_args = canon_base_type->type.generic.generic_args;
 
         for (size_t i = 0; i < gen_args.len; ++i) {
             const ast_generic_arg_t* arg = gen_args.start[i];
@@ -2480,17 +2492,17 @@ Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl
         break;
     }
     case AST_TYPE_FN_PTR: {
-        if (type->type.fn_ptr.return_type) {
+        if (canon_base_type->type.fn_ptr.return_type) {
             step.sub_idx = DeductionStep::RETURN_TYPE;
-            const auto maybe_nested = nested_type(type->type.fn_ptr.return_type);
+            const auto maybe_nested = nested_type(canon_base_type->type.fn_ptr.return_type);
             if (maybe_nested.has_value()) {
                 return maybe_nested;
             }
             step.sub_idx = 0; // reset since return type failed
         }
 
-        for (size_t i = 0; i < type->type.fn_ptr.param_types.len; ++i) {
-            const ast_type_t* sub_type = type->type.fn_ptr.param_types.start[i];
+        for (size_t i = 0; i < canon_base_type->type.fn_ptr.param_types.len; ++i) {
+            const ast_type_t* sub_type = canon_base_type->type.fn_ptr.param_types.start[i];
             const auto maybe_nested = nested_type(sub_type);
             if (maybe_nested.has_value()) {
                 return maybe_nested;
@@ -2592,11 +2604,19 @@ Context::recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice
     };
 
     // tries to get the canonical_base
-    const auto* type = curr_type->canonical_base;
+    const auto* canon_base_type = curr_type->canonical_base;
+    const auto* curr = curr_type;
+    while (curr != canon_base_type) {
+        curr = type_try_inner(curr);
+        if (!curr) {
+            break;
+        }
+        ++step.depth;
+    }
 
-    switch (type->tag) {
+    switch (canon_base_type->tag) {
     case AST_TYPE_BASE: {
-        const auto id_slice = type->type.base.id;
+        const auto id_slice = canon_base_type->type.base.id;
         if (id_slice.len != 1) {
             return {};
         }
@@ -2608,7 +2628,7 @@ Context::recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice
         break;
     }
     case AST_TYPE_GENERIC: {
-        const auto gen_args = type->type.generic.generic_args;
+        const auto gen_args = canon_base_type->type.generic.generic_args;
 
         for (size_t i = 0; i < gen_args.len; ++i) {
             const ast_generic_arg_t* arg = gen_args.start[i];
@@ -2651,17 +2671,17 @@ Context::recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice
         break;
     }
     case AST_TYPE_FN_PTR: {
-        if (type->type.fn_ptr.return_type) {
+        if (canon_base_type->type.fn_ptr.return_type) {
             step.sub_idx = DeductionStep::RETURN_TYPE;
-            const auto maybe_nested = nested_type(type->type.fn_ptr.return_type);
+            const auto maybe_nested = nested_type(canon_base_type->type.fn_ptr.return_type);
             if (maybe_nested.has_value()) {
                 return maybe_nested;
             }
             step.sub_idx = 0; // reset since return type failed
         }
 
-        for (size_t i = 0; i < type->type.fn_ptr.param_types.len; ++i) {
-            const ast_type_t* sub_type = type->type.fn_ptr.param_types.start[i];
+        for (size_t i = 0; i < canon_base_type->type.fn_ptr.param_types.len; ++i) {
+            const ast_type_t* sub_type = canon_base_type->type.fn_ptr.param_types.start[i];
             const auto maybe_nested = nested_type(sub_type);
             if (maybe_nested.has_value()) {
                 return maybe_nested;

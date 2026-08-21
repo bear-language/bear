@@ -384,10 +384,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "`deftype` statements take the form of `deftype NewType = Previous..Type`";
     case diag_code::invalid_operands_for_binary_expression:
         return "invalid operands for binary expression";
-    case diag_code::cannot_bind_compt_values_to_mutable_ref_type:
-        return "cannot bind compile-time constant value to mutable reference type";
-    case diag_code::cannot_bind_compt_values_to_mutable_slice_type:
-        return "cannot bind compile-time constant value to mutable slice type";
+    case diag_code::cannot_assign_compt_value_to_mutable_ref_type:
+        return "cannot cannot compile-time constant value to mutable reference type";
+    case diag_code::cannot_assign_compt_value_to_mutable_slice_type:
+        return "cannot assign compile-time constant value to mutable slice type";
     case diag_code::compt_declarations_should_not_be_ref_type:
         return "compile-time constant declaration should not of reference type";
     case diag_code::should_not_be_declared_hid:
