@@ -107,6 +107,7 @@ side quests
 misc 
 ----
 - [ ] `--all-src-locs` to show all source locations, even in chained diagnostics
+
 tools
 ----- 
 - [ ] highlighing for isize
