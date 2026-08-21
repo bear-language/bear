@@ -31,7 +31,6 @@
 #include "compiler/token.h"
 #include <cassert>
 #include <cstddef>
-#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -821,9 +820,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         context.emplace_diagnostic(Span(context, fid, expr), diag_code::cannot_resolve_at_compt,
                                    diag_type::error);
 
-        std::cout << "6\n"; // TODO debug
         // as to not duplicate compt errors from bubbling up
-        return std::nullopt;
+        return {};
     }
 
     /**

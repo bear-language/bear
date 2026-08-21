@@ -26,7 +26,9 @@ namespace hir {
 // ------ struct impls -------
 
 struct ExecBlock {
+    // TODO move this stuff into Context storage and use a BlockId
     IdSlice<ExecId> execs;
+    IdSlice<DefId> defs;
     ScopeId scope;
     MoveMapId move_map;
 };
