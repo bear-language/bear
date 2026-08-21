@@ -272,23 +272,6 @@ TypeToStringValue TypeToString<C>::transform(TypeToStringValue res1, TypeToStrin
     return TypeToStringValue{.str = std::move(res1.str) + std::move(res2.str)};
 }
 
-template <TypeTransformerFunctor F> OptId<TypeId> TypeTransformer<F>::try_inner(const Type& type) {
-    using OTid = OptId<TypeId>;
-    auto vs = Ovld{
-        [&](const TypeBuiltin&) -> OTid { return OTid{}; },
-        [&](const TypeStruct&) -> OTid { return OTid{}; },
-        [&](const TypeVariant&) -> OTid { return OTid{}; },
-        [&](const TypeUnion&) -> OTid { return OTid{}; },
-        [&](const TypeDeftype&) -> OTid { return OTid{}; },
-        [&](const TypeArr& t) -> OTid { return t.inner; },
-        [&](const TypeSlice& t) -> OTid { return t.inner; },
-        [&](const TypeRef& t) -> OTid { return t.inner; },
-        [&](const TypePtr& t) -> OTid { return t.inner; },
-        [&](const TypeFnPtr&) -> OTid { return OTid{}; },
-        [&](const TypeVar&) -> OTid { return OTid{}; },
-    };
-    return type.visit(vs);
-}
 template <TypeTransformerFunctor F> Type TypeTransformer<F>::get_type(TypeId tid) const noexcept {
     return context.type(tid);
 };
@@ -310,7 +293,7 @@ typename F::value_type TypeTransformer<F>::invoke(TypeId tid, auto get_type_func
     OptId<TypeId> maybe_tid{tid};
 
     while (true) {
-        maybe_tid = try_inner(t);
+        maybe_tid = t.try_inner();
         if (maybe_tid.has_value()) {
             t = get_type_functor(maybe_tid.as_id());
         }
@@ -337,8 +320,8 @@ typename F::value_type TypeTransformer<F>::invoke(TypeId tid1, TypeId tid2, auto
     OptId<TypeId> maybe_tid2{tid2};
 
     while (true) {
-        maybe_tid1 = try_inner(t1);
-        maybe_tid2 = try_inner(t2);
+        maybe_tid1 = t1.try_inner();
+        maybe_tid2 = t2.try_inner();
         if (maybe_tid1.has_value()) {
             t1 = get_type_functor(maybe_tid1.as_id());
         }

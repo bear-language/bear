@@ -123,6 +123,24 @@ struct Type : NodeWithVariantValue<Type> {
     // canonical should get immediately set by context
     Type(const TypeValue& value, Span span, bool mut)
         : value{value}, span{span}, canonical{HIR_ID_NONE}, mut{mut} {}
+
+    OptId<TypeId> try_inner() {
+        using OTid = OptId<TypeId>;
+        auto vs = Ovld{
+            [](const TypeBuiltin&) -> OTid { return OTid{}; },
+            [](const TypeStruct&) -> OTid { return OTid{}; },
+            [](const TypeVariant&) -> OTid { return OTid{}; },
+            [](const TypeUnion&) -> OTid { return OTid{}; },
+            [](const TypeDeftype&) -> OTid { return OTid{}; },
+            [](const TypeArr& t) -> OTid { return t.inner; },
+            [](const TypeSlice& t) -> OTid { return t.inner; },
+            [](const TypeRef& t) -> OTid { return t.inner; },
+            [](const TypePtr& t) -> OTid { return t.inner; },
+            [](const TypeFnPtr&) -> OTid { return OTid{}; },
+            [](const TypeVar&) -> OTid { return OTid{}; },
+        };
+        return std::visit(vs, value);
+    }
 };
 
 template <class F>
@@ -141,7 +159,6 @@ concept TypeTransformerFunctor = requires(F f, Context& context, const Type& t1,
 
 template <TypeTransformerFunctor F> class TypeTransformer {
     Context& context;
-    OptId<TypeId> try_inner(const Type& type);
     Type get_type(TypeId tid) const noexcept;
     Type get_type_as_mentioned(TypeId tid) const noexcept;
 
