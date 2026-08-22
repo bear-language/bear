@@ -1095,6 +1095,7 @@ class Context {
     bool compact_diagnostics{false};
     bool terse{false};
     bool strict_syntax{false};
+    bool all_src_locs{false};
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^
 

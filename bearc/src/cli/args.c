@@ -17,9 +17,9 @@ bool is_valid_cli_flag_long(const char* flag);
 cli_flag_e search_cli_long_flags_for_valid_flag(const char* flag);
 
 const cli_flag_e short_flag_map[UCHAR_MAX] = {
-    ['h'] = CLI_FLAG_HELP,          ['v'] = CLI_FLAG_VERSION,     ['c'] = CLI_FLAG_COMPILE,
+    ['h'] = CLI_FLAG_HELP,          ['V'] = CLI_FLAG_VERSION,     ['c'] = CLI_FLAG_COMPILE,
     ['I'] = CLI_FLAG_IMPORT_PATH,   ['o'] = CLI_FLAG_OUTPUT,      ['t'] = CLI_FLAG_TERSE,
-    ['s'] = CLI_FLAG_STRICT_SYNTAX, ['i'] = CLI_FLAG_IMPORT_FILE,
+    ['s'] = CLI_FLAG_STRICT_SYNTAX, ['i'] = CLI_FLAG_IMPORT_FILE, ['a'] = CLI_FLAG_ALL_SRC_LOCS,
 };
 
 // LONG FLAG NAME MAP
@@ -36,7 +36,8 @@ cli_flag_long_mapping_t cli_flag_long_map[] = {{"help", CLI_FLAG_HELP},
                                                {"compact-diags", CLI_FLAG_COMPACT_DIAGS},
                                                {"terse", CLI_FLAG_TERSE},
                                                {"import-file", CLI_FLAG_IMPORT_FILE},
-                                               {"strict-syntax", CLI_FLAG_STRICT_SYNTAX}};
+                                               {"strict-syntax", CLI_FLAG_STRICT_SYNTAX},
+                                               {"all-src-locs", CLI_FLAG_ALL_SRC_LOCS}};
 static bool is_valid_cli_flag_short(const char* arg) {
     return strlen(arg) == 2 && arg[0] == '-' && short_flag_map[(unsigned char)arg[1]];
 }

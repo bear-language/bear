@@ -129,7 +129,8 @@ Context::Context(const bearc_args_t& args, instances instances)
       diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
       only_one_context_instance((instances == instances::one) && one_instance_status),
       compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]), terse{args.flags[CLI_FLAG_TERSE]},
-      strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]} {
+      strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]},
+      all_src_locs{args.flags[CLI_FLAG_ALL_SRC_LOCS]} {
 
     one_instance_status = false; // we exist now
 
@@ -1080,7 +1081,9 @@ void Context::print_diagnostic(DiagnosticId diag_id, bool print_file) {
     }
     // if terse, only print errors and warnings
     if (!terse || diag.type == diag_type::error || diag.type == diag_type::warning) {
-        diag.print(*this, print_file);
+        diag.print(*this, this->all_src_locs
+                              || print_file); // always print files when --all-src-locs is enabled,
+                                              // else this is determined by chaining logic
     }
     // mark used
     diagnostics_used.at(diag_id) = true;

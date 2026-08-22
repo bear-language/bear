@@ -130,7 +130,7 @@ void cli_help(void) {
     const char* options_title = "options:\n";
     const char* usage_args = " <file_name>";
     const char* usage_args_flags = "flags";
-    const char* options = "        [--version | -v]  display current bearc version\n"
+    const char* options = "        [--version | -V]  display current bearc version\n"
                           "        [--help | -h]     display this help message\n";
     const char* flags_title = "flags:\n";
     const char* flags
@@ -142,7 +142,9 @@ void cli_help(void) {
           "        [--compact-diags]      print diagnostics that are vertically compact\n"
           "        [--terse | -t]         only print error and warning diagnostics\n"
           "        [--strict-syntax | -s] stop compilation after parsing when syntax errors are "
-          "present\n";
+          "found\n"
+          "        [--all-src-locs | -a]  show all source code locations, even in chain "
+          "diagnostics\n";
     const char* flags_w_args_title = "flags with arguments:\n";
     const char* flags_w_args
         = "        [--import-path | -I] <import_dirs...>  supply import paths\n"
