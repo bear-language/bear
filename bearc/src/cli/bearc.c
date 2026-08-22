@@ -143,7 +143,7 @@ void cli_help(void) {
           "        [--terse | -t]         only print error and warning diagnostics\n"
           "        [--strict-syntax | -s] stop compilation after parsing when syntax errors are "
           "found\n"
-          "        [--all-src-locs | -a]  show all source code locations, even in chain "
+          "        [--all-src-locs | -a]  show all source code locations, even in chained "
           "diagnostics\n";
     const char* flags_w_args_title = "flags with arguments:\n";
     const char* flags_w_args
