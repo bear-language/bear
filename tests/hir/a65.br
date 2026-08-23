@@ -39,6 +39,10 @@ use Color..Red;
 use Color..Green;
 use Color..Blue;
 
-compt var cols = [Red, Green, Blue, Green];
+compt var cols = [Red(), Green(), Blue(), Green()];
 
 compt var _2 = @static_assert filter(cols, color_matches::Red()) == [Red()];
+
+compt var _3 = @static_assert filter([-1, -1], is_pos) == [];
+
+compt var _4 = @static_assert filter([-1, -1], is_pos) == filter([Red, Red, Green], color_matches::Blue());
