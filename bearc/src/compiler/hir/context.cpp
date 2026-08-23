@@ -2418,7 +2418,7 @@ Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl
     const auto nested_type = [this, &step, sid, &params] [[nodiscard]] (
                                  const ast_type_t* nested_type) -> OptId<DeductionStepId> {
         const OptId<DeductionStepId> maybe_nested = recursive_deduction_step_helper_for_params(
-            step, params, nested_type, sid, true); // nested = true
+            DeductionStep{}, params, nested_type, sid, true); // nested = true
         if (maybe_nested.has_value()) {
             step.next = maybe_nested;
             return deduction_steps.emplace_and_get_id(step);
@@ -2597,7 +2597,7 @@ Context::recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice
     const auto nested_type = [this, &step, sid, &stmts] [[nodiscard]] (
                                  const ast_type_t* nested_type) -> OptId<DeductionStepId> {
         const OptId<DeductionStepId> maybe_nested = recursive_deduction_step_helper_for_stmts(
-            step, stmts, nested_type, sid, true); // nested = true
+            DeductionStep{}, stmts, nested_type, sid, true); // nested = true
         if (maybe_nested.has_value()) {
             step.next = maybe_nested;
             return deduction_steps.emplace_and_get_id(step);

@@ -230,19 +230,23 @@ template <IsDefVisitor V> class ComptExprSolver {
             if (maybe_eid.empty()) {
                 return std::nullopt; // poison
             }
-            auto maybe_tid = infer_type_from_exec(maybe_eid.as_id());
-            if (maybe_tid.empty()) {
-                return std::nullopt; // poison
-            }
 
-            // guard diff type
-            if (!context.equivalent_type(into_tid, maybe_tid.as_id())) {
+            const auto maybe_conv_eid = try_convert_to(maybe_eid.as_id(), into_tid);
+
+            if (maybe_conv_eid.empty()) {
+
+                auto maybe_tid = infer_type_from_exec(maybe_eid.as_id());
+                if (maybe_tid.empty()) {
+                    return std::nullopt; // poison
+                }
+
                 context.emplace_diagnostic_with_message_value(
-                    Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
-                    diag_code::cannot_convert_value_of_type, diag_type::error,
+                    Span(context, fid, expr), diag_code::cannot_convert_value_of_type,
+                    diag_type::error,
                     DiagnosticTypeToType{.from = maybe_tid.as_id(), .to = into_tid});
                 return std::nullopt;
             }
+            return maybe_conv_eid;
         }
 
         // try TypeArr at compt
@@ -336,7 +340,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             return maybe_eid.as_id();
         }
 
-        // handle MyThingy..ThingyField
+        // handle MyThingy..ThingyField (without the MyThingy..ThingyField() syntax)
         if (into_type.holds<TypeVariant>()) {
             OptId<ExecId> maybe_eid{};
 
@@ -3204,12 +3208,12 @@ template <IsDefVisitor V> class ComptExprSolver {
                                     true);
     }
 
-    [[nodiscard]] OptId<ExecId> try_convert_to(ExecId eid, TypeId tid) {
+    [[nodiscard]] OptId<ExecId> try_convert_to(ExecId eid, TypeId into_tid) {
         const Exec& exec = context.exec(eid);
 
         // since lengthless exec can't be inferred
         if (exec.holds<ExecListLiteral>() && !exec.as<ExecListLiteral>().len()) {
-            const auto& ty = context.type(tid);
+            const auto& ty = context.type(into_tid);
             if (ty.template holds<TypeSlice>()) {
                 return eid;
             }
@@ -3217,23 +3221,23 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         // make sure all list literals can be assigned to compt slices
-        if (exec.holds<ExecListLiteral>() && context.type(tid).template holds<TypeSlice>()
+        if (exec.holds<ExecListLiteral>() && context.type(into_tid).template holds<TypeSlice>()
             && exec.as<ExecListLiteral>().elem_type_id.has_value()
-            && context.equivalent_type(context.type(tid).template as<TypeSlice>().inner,
+            && context.equivalent_type(context.type(into_tid).template as<TypeSlice>().inner,
                                        exec.as<ExecListLiteral>().elem_type_id.as_id())) {
             return eid;
         }
 
         OptId<TypeId> maybe_inferred_etid = infer_type_from_exec(eid);
         if (maybe_inferred_etid.has_value()
-            && context.equivalent_type(maybe_inferred_etid.as_id(), tid)) {
+            && context.equivalent_type(maybe_inferred_etid.as_id(), into_tid)) {
             return eid;
         }
 
         if (!exec.holds<ExecConst>()) {
             return std::nullopt;
         }
-        const Type& type = context.type(tid);
+        const Type& type = context.type(into_tid);
         if (!type.holds<TypeBuiltin>()) {
             return std::nullopt;
         }

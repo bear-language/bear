@@ -15,6 +15,12 @@ compt fn is_pos(var val) -> bool => val > 0
 
 compt fn is_neg<T>(T val) -> bool => val < 0
 
+compt fn map<T, K>([&]T elems, *fn(T)->K mapper) -> [&]K => map_helper(elems, mapper, 0)
+
+compt fn map_helper<T, K>([&]T elems, *fn(T)->K mapper, u32 i) -> [&]K => 
+    [] if (i >= elems.len) else
+        [mapper(elems[i])] + map_helper(elems, mapper, i + 1)
+
 compt [&]i32 a = filter([1, -1, 2, 3], is_pos);
 
 var _a = @help list_to_str(a);
@@ -46,3 +52,38 @@ compt var _2 = @static_assert filter(cols, color_matches::Red()) == [Red()];
 compt var _3 = @static_assert filter([-1, -1], is_pos) == [];
 
 compt var _4 = @static_assert filter([-1, -1], is_pos) == filter([Red, Red, Green], color_matches::Blue());
+
+compt var _5 = @static_assert [-1, -1, 0, 60, 68].filter(is_pos).filter(is_neg::i32) == [Red, Red, Green].filter(color_matches::Blue());
+
+compt var _6 = @static_assert [-2, -1, 0, 1, 2].map(is_pos) == [false, false, false, true, true];
+
+deftype RgbPx = [3]u8;
+
+compt fn col_to_rgb(Color c) -> RgbPx => match(c) {
+    Red => [255 as u8, 0 as u8, 0 as u8],
+    Green => [0 as u8, 255 as u8, 0 as u8],
+    Blue => [0 as u8, 0 as u8, 255 as u8],
+}
+
+compt fn rgb_to_col_str(RgbPx px) -> str => 
+    "red" if (px == col_to_rgb(Red)) else 
+    "green" if (px == col_to_rgb(Green)) else 
+    "blue" if (px == col_to_rgb(Blue)) else 
+    ("error" if @err("invalid RGBPx") else "error")
+
+compt var _7 = @static_assert 
+    cols.filter(color_matches::Green())
+        .map(col_to_rgb)
+        .map(rgb_to_col_str) == ["green", "green"];
+
+// factor that ^ out here -|
+//                         |
+compt fn cols_to_strs_for_one_col([&]Color cols, Color col) -> [&]str => (
+    cols.filter(color_matches::col)
+        .map(col_to_rgb)
+        .map(rgb_to_col_str) 
+)
+
+compt var my_map = cols_to_strs_for_one_col; 
+
+compt var _8 = @static_assert [Red, Red, Red, Green, Blue, Green, Blue].my_map(Blue) == ["blue", "blue"];
