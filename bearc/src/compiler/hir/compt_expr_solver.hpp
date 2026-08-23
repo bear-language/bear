@@ -31,7 +31,6 @@
 #include "compiler/token.h"
 #include <cassert>
 #include <cstddef>
-#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
