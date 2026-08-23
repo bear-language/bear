@@ -2806,6 +2806,10 @@ template <IsDefVisitor V> class ComptExprSolver {
                 }
 
                 if (maybe_func_did.empty()) {
+                    context.emplace_diagnostic(
+                        Span{context, fid, expr->expr.fn_call.left_expr},
+                        diag_code::use_of_undeclared_identifier, diag_type::error,
+                        DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
                     return std::nullopt;
                 }
             } else {

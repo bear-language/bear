@@ -17,9 +17,17 @@ compt fn is_neg<T>(T val) -> bool => val < 0
 
 compt fn map<T, K>([&]T elems, *fn(T)->K mapper) -> [&]K => map_helper(elems, mapper, 0)
 
-compt fn map_helper<T, K>([&]T elems, *fn(T)->K mapper, u32 i) -> [&]K => 
+hid compt fn map_helper<T, K>([&]T elems, *fn(T)->K mapper, u32 i) -> [&]K => 
     [] if (i >= elems.len) else
         [mapper(elems[i])] + map_helper(elems, mapper, i + 1)
+
+compt fn balloon<T>([&]T elems, u32 factor) -> [&]T => balloon_helper(elems, factor, 0)
+
+hid compt fn balloon_helper<T>([&]T elems, u32 factor, u32 i) -> [&]T => 
+    [] if i >= elems.len else (ballooner(elems[i], factor)) + balloon_helper(elems, factor, i + 1)
+
+compt fn ballooner<T>(T elem, u32 factor) -> [&]T => 
+    [] if factor == 0 else [elem] + ballooner(elem, factor - 1)
 
 compt [&]i32 a = filter([1, -1, 2, 3], is_pos);
 
@@ -87,3 +95,9 @@ compt fn cols_to_strs_for_one_col([&]Color cols, Color col) -> [&]str => (
 compt var my_map = cols_to_strs_for_one_col; 
 
 compt var _8 = @static_assert [Red, Red, Red, Green, Blue, Green, Blue].my_map(Blue) == ["blue", "blue"];
+
+compt var _9 = @static_assert [Red].balloon(3).my_map(Red) == ["red"].balloon(3);
+
+compt var _10 = @static_assert [Red, Green, Blue].balloon(3).my_map(Blue) + [Red].ballon(3) == ["blue", "red"].balloon(3); // oops
+
+compt var _11 = @static_assert [Red, Green, Blue].balloon(3).my_map(Blue) + [Red].balloon(3).my_map(Red) == ["blue", "red"].balloon(3);
