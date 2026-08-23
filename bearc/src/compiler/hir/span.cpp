@@ -45,6 +45,11 @@ Span::Span(const Context& ctx, FileId file_id, token_ptr_slice_t token_slice)
 Span Span::generated() { return Span{0, 0, FileId{HIR_ID_NONE}, 0, 0}; }
 
 Span Span::combine(Span span1, Span span2) {
+    if (span1.file_id != span2.file_id) {
+        // assert(false && "tried to combine two hir::Spans from different files");
+        return span1; // TODO: better than failing, i guess? alternatively, we could return
+                      // Span::generated() but that's more lossy, although less deceptive
+    }
     return Span(span1.start, span2.start - span1.start + span2.len, span1.file_id, span1.line,
                 span1.col);
 }

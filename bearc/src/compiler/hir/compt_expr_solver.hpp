@@ -31,6 +31,7 @@
 #include "compiler/token.h"
 #include <cassert>
 #include <cstddef>
+#include <iostream>
 #include <optional>
 #include <utility>
 namespace hir {
@@ -3052,8 +3053,8 @@ template <IsDefVisitor V> class ComptExprSolver {
         if (!func.poisoned() && issue) {
             if (context.diagnostic_count() > prior_diag_cnt) {
                 auto d = context.emplace_diagnostic_with_message_value(
-                    {context, fid, fn_stmt->stmt.fn_decl.name}, diag_code::declared_here,
-                    diag_type::note, DiagnosticSymbolBeforeMessage{.sid = func_symbol});
+                    context.name_span_for_def(func_did), diag_code::declared_here, diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = func_symbol});
                 context.force_link_diagnostic(d);
             }
         }
@@ -3208,6 +3209,18 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         // since lengthless exec can't be inferred
         if (exec.holds<ExecListLiteral>() && !exec.as<ExecListLiteral>().len()) {
+            const auto& ty = context.type(tid);
+            if (ty.template holds<TypeSlice>()) {
+                return eid;
+            }
+            return {};
+        }
+
+        // make sure all list literals can be assigned to compt slices
+        if (exec.holds<ExecListLiteral>() && context.type(tid).template holds<TypeSlice>()
+            && exec.as<ExecListLiteral>().elem_type_id.has_value()
+            && context.equivalent_type(context.type(tid).template as<TypeSlice>().inner,
+                                       exec.as<ExecListLiteral>().elem_type_id.as_id())) {
             return eid;
         }
 

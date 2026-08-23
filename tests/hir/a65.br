@@ -1,0 +1,44 @@
+// tests/hir/a65.br
+
+import "compt_str.br";
+
+mod hir_a64;
+
+compt fn filter<T>([&]T elems, *fn(T)->bool ok) -> [&]T => filter_helper(elems, ok, 0)
+
+hid compt fn filter_helper<T>([&]T elems, *fn(T)->bool ok, u32 i) -> [&]T =>
+    [] if (i >= elems.len) else
+        ([elems[i]] + filter_helper(elems, ok, i + 1)) if ok(elems[i]) else
+        (filter_helper(elems, ok, i + 1))
+
+compt fn is_pos(var val) -> bool => val > 0
+
+compt fn is_neg<T>(T val) -> bool => val < 0
+
+compt [&]i32 a = filter([1, -1, 2, 3], is_pos);
+
+var _a = @help list_to_str(a);
+
+compt var _0 = @static_assert a == [1, 2, 3]; 
+
+compt [&]i32 b = filter([1, -1, 2, 3], is_neg::i32); // we gotta give is_neg generic args here
+
+compt var _1 = @static_assert b == [-1]; 
+
+var _b = @help list_to_str(b);
+
+variant Color {
+    Red,
+    Green,
+    Blue,
+}
+
+compt fn color_matches<Color C>(Color c) -> bool => c == C
+
+use Color..Red;
+use Color..Green;
+use Color..Blue;
+
+compt var cols = [Red, Green, Blue, Green];
+
+compt var _2 = @static_assert filter(cols, color_matches::Red()) == [Red()];

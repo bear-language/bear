@@ -131,11 +131,6 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
                 return false;
             }
 
-            // make sure both either have an elem type or both don't
-            if (o.elem_type_id.has_value() != t.elem_type_id.has_value()) {
-                return false;
-            }
-
             if (o.elem_type_id.has_value() && t.elem_type_id.has_value()
                 && !ctx.equivalent_type(o.elem_type_id.as_id(), t.elem_type_id.as_id())) {
                 return false;
@@ -175,6 +170,20 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
             return true;
         },
+        [&other, &ctx](const ExecFnPtr& t) -> bool {
+            if (!other.holds<ExecFnPtr>()) {
+                return false;
+            }
+            if (other.as<ExecFnPtr>().fn_ptr_tid.has_value() != t.fn_ptr_tid.has_value()) {
+                return false;
+            }
+            // both don't have tids
+            if (t.fn_ptr_tid.empty()) {
+                return true;
+            }
+            return ctx.equivalent_type(t.fn_ptr_tid.as_id(),
+                                       other.as<ExecFnPtr>().fn_ptr_tid.as_id());
+        },
         [](const ExecAssignment& t) -> bool { return false; },
         [](const ExecIs& t) -> bool { return false; },
         [](const ExecMemberAccess& t) -> bool { return false; },
@@ -190,7 +199,6 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecExprVariantDecomp& t) -> bool { return false; },
         [](const ExecExprMatch& t) -> bool { return false; },
         [](const ExecExprMatchBranch& t) -> bool { return false; },
-        [](const ExecFnPtr& t) -> bool { return false; },
     };
 
     return ctx.exec(eid1).visit(vs);

@@ -1,0 +1,22 @@
+// tests/lib/compt_str.br
+
+contract ToComptStr {
+    compt mt to_compt_str() -> str;
+}
+
+compt fn to_compt_str<T>(T item) -> str => {
+    item.to_compt_str() if @has_contract(decay T, ToComptStr)
+        else item if @same_type(T, str)
+        else list_to_str(item) if @defined(item.len)
+        else item as str
+}
+
+compt fn list_to_str(var list) -> str => ("[" + list_helper(list, 0) + "]")
+
+compt fn list_helper(var list, var i) -> str => {
+    "" if i == list.len 
+        else to_compt_str(list[i]) + maybe_comma(list.len, i) + list_helper(list, i + 1) 
+}
+
+compt fn maybe_comma(var len, var i) => "" if (i >= len - 1) else ", "
+
