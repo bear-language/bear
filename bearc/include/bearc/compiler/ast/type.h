@@ -102,8 +102,6 @@ typedef struct ast_type_with_contracts {
 
 static inline ast_type_t* type_try_inner(const ast_type_t* ty) {
     switch (ty->tag) {
-    case AST_TYPE_BASE:
-        return NULL;
     case AST_TYPE_REF_PTR:
         return ty->type.ptr_ref.inner;
     case AST_TYPE_ARR:
@@ -115,8 +113,10 @@ static inline ast_type_t* type_try_inner(const ast_type_t* ty) {
     case AST_TYPE_TYPEOF:
     case AST_TYPE_DECAY:
     case AST_TYPE_INVALID:
-        return NULL;
+    case AST_TYPE_BASE:
+        break;
     }
+    return NULL;
 }
 
 #endif // !COMPILER_AST_TYPE
