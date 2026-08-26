@@ -2779,7 +2779,7 @@ Context::try_generic_args_for_def_recursive(DefId did) const {
     case AST_STMT_VARIANT_DEF:
         return st->stmt.variant_decl.generic_params.len;
     case AST_STMT_FN_DECL:
-        return st->stmt.fn_decl.generic_params.len;
+        return st->stmt.fn_decl->generic_params.len;
     case AST_STMT_CONTRACT_DEF:
         return st->stmt.contract_decl.generic_params.len;
     default:

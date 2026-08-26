@@ -782,7 +782,7 @@ void pretty_print_stmt(const ast_stmt_t* stmt) {
         break;
     case AST_STMT_FN_DECL:
         print_title("function declaration");
-        ast_stmt_fn_decl_t fn = stmt->stmt.fn_decl;
+        ast_stmt_fn_decl_t fn = *stmt->stmt.fn_decl;
         print_op(fn.kw);
         printer_do_indent();
         if (fn.is_mut) {
@@ -983,7 +983,7 @@ void pretty_print_stmt(const ast_stmt_t* stmt) {
         break;
     case AST_STMT_FN_PROTOTYPE: {
         print_title("function prototype");
-        ast_stmt_fn_decl_t fd = stmt->stmt.fn_prototype;
+        ast_stmt_fn_decl_t fd = *stmt->stmt.fn_prototype;
         print_op(fd.kw);
         printer_do_indent();
         if (fd.is_mut) {

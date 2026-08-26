@@ -533,7 +533,7 @@ TopLevelInfo FileAstVisitor::top_level_info_for(const ast_stmt_t* stmt) {
         // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     case AST_STMT_FN_DECL: {
-        token_ptr_slice_t name_slice = stmt->stmt.fn_decl.name;
+        token_ptr_slice_t name_slice = stmt->stmt.fn_decl->name;
         // struct prefix name resolution deffered to later stages
         if (name_slice.len == 2) {
             scope_prefix_tkn = name_slice.start[0];
@@ -542,14 +542,14 @@ TopLevelInfo FileAstVisitor::top_level_info_for(const ast_stmt_t* stmt) {
             name_tkn = name_slice.start[0];
         }
         kind = scope_kind::variable;
-        is_generic = stmt->stmt.fn_decl.is_generic;
+        is_generic = stmt->stmt.fn_decl->is_generic;
         break;
     }
     case AST_STMT_FN_PROTOTYPE: {
         // guranteed to be just one long
-        name_tkn = stmt->stmt.fn_prototype.name.start[0];
+        name_tkn = stmt->stmt.fn_prototype->name.start[0];
         kind = scope_kind::variable;
-        is_generic = stmt->stmt.fn_prototype.is_generic;
+        is_generic = stmt->stmt.fn_prototype->is_generic;
         break;
     }
     case AST_STMT_DEFTYPE:

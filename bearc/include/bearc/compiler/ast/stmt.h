@@ -307,8 +307,10 @@ typedef union ast_stmt_u {
     ast_stmt_import_t import;
     ast_stmt_use_t use;
     ast_stmt_expr_t stmt_expr;
-    ast_stmt_fn_decl_t fn_decl;
-    ast_stmt_fn_decl_t fn_prototype;
+    // declared as a pointer to lessen the width of the union
+    ast_stmt_fn_decl_t* fn_decl;
+    // declared as a pointer to lessen the width of the union
+    ast_stmt_fn_decl_t* fn_prototype;
     ast_stmt_var_decl_init_t var_init_decl;
     ast_stmt_var_decl_t var_decl;
     ast_stmt_if_t if_stmt;

@@ -3129,7 +3129,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             context.insert_variable(temp_scope, context.def(params.get(i)).name, param);
         }
 
-        if (!fn_stmt->stmt.fn_decl.only_expr) {
+        if (!fn_stmt->stmt.fn_decl->only_expr) {
             auto d0 = context.emplace_diagnostic(
                 Span{context, fid, expr}, diag_code::cannot_evaluate_non_pure_expr_fn_at_compt,
                 diag_type::error);
@@ -3149,7 +3149,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             return std::nullopt;
         }
 
-        const ast_expr_t* body_expr = fn_stmt->stmt.fn_decl.expr;
+        const ast_expr_t* body_expr = fn_stmt->stmt.fn_decl->expr;
 
         // make sure to use the file_id for the function's expression
         OptId<ExecId> maybe_eid = solve_expr(context.def(func_did).span.file_id, temp_scope,

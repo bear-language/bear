@@ -386,7 +386,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         break;
     }
     case AST_STMT_FN_PROTOTYPE: {
-        const ast_stmt_fn_decl fn_decl = stmt->stmt.fn_prototype;
+        const ast_stmt_fn_decl fn_decl = *stmt->stmt.fn_prototype;
         const auto fid = context.def(did).span.file_id;
 
         OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl, context.def(did));
@@ -446,7 +446,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         break;
     }
     case AST_STMT_FN_DECL: {
-        const ast_stmt_fn_decl fn_decl = stmt->stmt.fn_decl;
+        const ast_stmt_fn_decl fn_decl = *stmt->stmt.fn_decl;
         Def& def = context.def(did);
         const auto fid = def.span.file_id;
         const HirSize prior_diag_count = context.diagnostic_count();
@@ -494,7 +494,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
 
             // try to make a deduction guide (consider lazy init later on)
             const auto maybe_deduction_guide = context.try_deduction_guide_for_function(
-                did, &stmt->stmt.fn_decl, maybe_generic_params.value());
+                did, stmt->stmt.fn_decl, maybe_generic_params.value());
             if (maybe_deduction_guide.has_value()) {
                 // std::cout << "made deduction guide\n";
                 context.register_deduction_guide_for_def(did, maybe_deduction_guide.as_id());
@@ -824,7 +824,7 @@ TopLevelDefVisitor::resolve_params(FileId fid, ScopeId scope, DefId func_def,
         assert(fn_node->type == AST_STMT_FN_DECL || fn_node->type == AST_STMT_FN_PROTOTYPE);
         auto hopefully_self_param
             = resolve_param(fid, scope, func_def, self_type.as_id(), context.symbol_id<"self">(),
-                            Span{context, fid, fn_node->stmt.fn_decl.kw});
+                            Span{context, fid, fn_node->stmt.fn_decl->kw});
         if (hopefully_self_param.empty()) {
             return freeze_params(true); // poisoned
         }

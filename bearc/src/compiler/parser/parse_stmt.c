@@ -72,6 +72,10 @@ ast_slice_of_stmts_t parser_freeze_stmt_spill_arr(parser_t* p, spill_arr_ptr_t* 
 
 ast_stmt_t* parser_alloc_stmt(parser_t* p) { return arena_alloc(p->arena, sizeof(ast_stmt_t)); }
 
+ast_stmt_fn_decl_t* parser_alloc_fn_stmt(parser_t* p) {
+    return arena_alloc(p->arena, sizeof(ast_stmt_fn_decl_t));
+}
+
 static ast_stmt_t* parser_sync_stmt(parser_t* p) {
     token_range_t range = parser_sync_call(p, &token_is_syncable_stmt_delim);
     ast_stmt_t* dummy_stmt = parser_alloc_stmt(p);
@@ -311,22 +315,23 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
     ast_stmt_t* decl = parser_alloc_stmt(p);
     decl->type = AST_STMT_FN_DECL;
 
-    decl->stmt.fn_decl.kw = parser_eat(p); // fine because we knew to enter this function
+    decl->stmt.fn_decl = parser_alloc_fn_stmt(p);
+    decl->stmt.fn_decl->kw = parser_eat(p); // fine because we knew to enter this function
 
     parser_shed_visibility_qualis_with_error(p);
 
     token_t* mut = parser_match_token(p, TOK_MUT);
 
-    if (mut && decl->stmt.fn_decl.kw->type != TOK_MT) {
+    if (mut && decl->stmt.fn_decl->kw->type != TOK_MT) {
         compiler_error_list_emplace(p->error_list, mut, ERR_MUT_QUALIFIER_ON_NON_MT);
     }
 
-    decl->stmt.fn_decl.is_mut = mut; // token ptr into bool
+    decl->stmt.fn_decl->is_mut = mut; // token ptr into bool
 
     parser_shed_visibility_qualis_with_error(p);
 
     token_ptr_slice_t id_slice = parse_id_token_slice(p, TOK_SCOPE_RES);
-    decl->stmt.fn_decl.name = id_slice;
+    decl->stmt.fn_decl->name = id_slice;
     size_t len = id_slice.len;
     // if the Name..method chain is too long OR the function is an fn
     if (len > 2) {
@@ -336,12 +341,12 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
     } else if (len == 0) {
         cooked = true;
     }
-    decl->stmt.fn_decl.is_generic = false;
+    decl->stmt.fn_decl->is_generic = false;
     parser_match_token(p, TOK_GENERIC_SEP); // this is fine
     if (parser_match_token(p, TOK_LT)) {
         ast_slice_of_generic_params_t params = parse_generic_params(p);
-        decl->stmt.fn_decl.generic_params = params;
-        decl->stmt.fn_decl.is_generic = params.len; // true when len != 0
+        decl->stmt.fn_decl->generic_params = params;
+        decl->stmt.fn_decl->is_generic = params.len; // true when len != 0
         parser_expect_generic_closing_delim(p);
     }
 
@@ -350,7 +355,7 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
         return parser_sync_stmt(p);
     }
 
-    decl->stmt.fn_decl.params = parse_slice_of_params(p, TOK_COMMA, TOK_RPAREN);
+    decl->stmt.fn_decl->params = parse_slice_of_params(p, TOK_COMMA, TOK_RPAREN);
 
     token_t* rparen = parser_expect_token(p, TOK_RPAREN);
     if (!rparen) {
@@ -362,25 +367,25 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
     if (!rarrow) {
         rarrow = parser_match_token(p, TOK_RARROW);
     }
-    decl->stmt.fn_decl.discardable = false;
+    decl->stmt.fn_decl->discardable = false;
     if (rarrow) {
         if (rarrow->type == TOK_DISCARD_RARROW) {
-            decl->stmt.fn_decl.discardable = true;
+            decl->stmt.fn_decl->discardable = true;
         }
         ast_type_t* return_type = parse_type(p);
         if (return_type->tag == AST_TYPE_INVALID) {
             cooked = true;
         }
-        decl->stmt.fn_decl.return_type = return_type;
+        decl->stmt.fn_decl->return_type = return_type;
     } else {
-        decl->stmt.fn_decl.ret_arrow = NULL;
-        decl->stmt.fn_decl.return_type = NULL;
+        decl->stmt.fn_decl->ret_arrow = NULL;
+        decl->stmt.fn_decl->return_type = NULL;
     }
     bool only_expr = parser_match_token(p, TOK_EQ_ARROW);
 
     // handle fn foo() -> i32 => expr or {expr}
     if (only_expr) {
-        decl->stmt.fn_decl.block = NULL;
+        decl->stmt.fn_decl->block = NULL;
 
         token_t* lbrace = parser_match_token(p, TOK_LBRACE);
 
@@ -388,7 +393,7 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
         if (expr->type == AST_EXPR_INVALID) {
             cooked = true;
         }
-        decl->stmt.fn_decl.expr = expr;
+        decl->stmt.fn_decl->expr = expr;
 
         if (lbrace && !parser_expect_token(p, TOK_RBRACE)) {
             if (parser_prev(p)->type == TOK_SEMICOLON) {
@@ -406,13 +411,13 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
         if (block->type == AST_STMT_INVALID) {
             cooked = true;
         }
-        decl->stmt.fn_decl.block = block;
-        decl->stmt.fn_decl.expr = NULL;
+        decl->stmt.fn_decl->block = block;
+        decl->stmt.fn_decl->expr = NULL;
     }
 
-    decl->stmt.fn_decl.only_expr = only_expr;
+    decl->stmt.fn_decl->only_expr = only_expr;
 
-    decl->first = decl->stmt.fn_decl.kw;
+    decl->first = decl->stmt.fn_decl->kw;
     decl->last = parser_prev(p);
 
     if (cooked) {
@@ -1078,25 +1083,26 @@ ast_stmt_t* parse_fn_prototype(parser_t* p) {
     }
     bool cooked = false;
     ast_stmt_t* decl = parser_alloc_stmt(p);
+    decl->stmt.fn_prototype = parser_alloc_fn_stmt(p);
     decl->type = AST_STMT_FN_PROTOTYPE;
 
     parser_shed_visibility_qualis_with_error(p);
 
     token_t* kw = parser_expect_token_call(p, &token_is_mt_or_fn, ERR_EXPECTED_FN_OR_MT);
-    decl->stmt.fn_prototype.kw = kw;
+    decl->stmt.fn_prototype->kw = kw;
 
     token_t* mut = parser_match_token(p, TOK_MUT);
 
-    if (mut && decl->stmt.fn_prototype.kw->type != TOK_MT) {
+    if (mut && decl->stmt.fn_prototype->kw->type != TOK_MT) {
         compiler_error_list_emplace(p->error_list, mut, ERR_MUT_QUALIFIER_ON_NON_MT);
     }
 
-    decl->stmt.fn_prototype.is_mut = mut; // token ptr into bool
+    decl->stmt.fn_prototype->is_mut = mut; // token ptr into bool
 
     parser_shed_visibility_qualis_with_error(p);
 
     token_ptr_slice_t id_slice = parse_id_token_slice(p, TOK_SCOPE_RES);
-    decl->stmt.fn_prototype.name = id_slice;
+    decl->stmt.fn_prototype->name = id_slice;
     if (id_slice.len > 1) {
         compiler_error_list_emplace(p->error_list, id_slice.start[0],
                                     ERR_TOO_MANY_QUALIFICATIONS_ON_FUNCTION);
@@ -1106,11 +1112,11 @@ ast_stmt_t* parse_fn_prototype(parser_t* p) {
     }
     parser_match_token(p, TOK_GENERIC_SEP); // this is fine
 
-    decl->stmt.fn_prototype.is_generic = false;
+    decl->stmt.fn_prototype->is_generic = false;
     if (parser_match_token(p, TOK_LT)) {
         ast_slice_of_generic_params_t params = parse_generic_params(p);
-        decl->stmt.fn_prototype.is_generic = params.len; // params.len != 0
-        decl->stmt.fn_prototype.generic_params = params;
+        decl->stmt.fn_prototype->is_generic = params.len; // params.len != 0
+        decl->stmt.fn_prototype->generic_params = params;
         parser_expect_generic_closing_delim(p);
     }
 
@@ -1119,7 +1125,7 @@ ast_stmt_t* parse_fn_prototype(parser_t* p) {
         return parser_sync_stmt(p);
     }
 
-    decl->stmt.fn_prototype.params = parse_slice_of_params(p, TOK_COMMA, TOK_RPAREN);
+    decl->stmt.fn_prototype->params = parse_slice_of_params(p, TOK_COMMA, TOK_RPAREN);
 
     token_t* rparen = parser_expect_token(p, TOK_RPAREN);
     if (!rparen) {
@@ -1130,24 +1136,24 @@ ast_stmt_t* parse_fn_prototype(parser_t* p) {
     if (!rarrow) {
         rarrow = parser_match_token(p, TOK_RARROW);
     }
-    decl->stmt.fn_prototype.discardable = false;
+    decl->stmt.fn_prototype->discardable = false;
     if (rarrow) {
         if (rarrow->type == TOK_DISCARD_RARROW) {
-            decl->stmt.fn_prototype.discardable = true;
+            decl->stmt.fn_prototype->discardable = true;
         }
         ast_type_t* return_type = parse_type(p);
         if (return_type->tag == AST_TYPE_INVALID) {
             cooked = true;
         }
-        decl->stmt.fn_prototype.return_type = return_type;
+        decl->stmt.fn_prototype->return_type = return_type;
     } else {
-        decl->stmt.fn_prototype.ret_arrow = NULL;
-        decl->stmt.fn_prototype.return_type = NULL;
+        decl->stmt.fn_prototype->ret_arrow = NULL;
+        decl->stmt.fn_prototype->return_type = NULL;
     }
-    decl->stmt.fn_prototype.only_expr = false;
-    decl->stmt.fn_prototype.expr = NULL;
+    decl->stmt.fn_prototype->only_expr = false;
+    decl->stmt.fn_prototype->expr = NULL;
     parser_expect_token(p, TOK_SEMICOLON);
-    decl->first = decl->stmt.fn_prototype.kw;
+    decl->first = decl->stmt.fn_prototype->kw;
     decl->last = parser_prev(p);
     if (cooked) {
         return parser_sync_stmt(p);
