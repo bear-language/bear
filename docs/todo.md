@@ -1,24 +1,9 @@
 ### todos
 
-main quest
-----------
+#### misc / priority 
+- [ ] make preunary `^` / `^ mut` the "address of" operator, as to leave `&` for just references
 
-#### hir phase 2.a:
-- all while in the process of *resolving* top-level declarations:
-
-- [ ] generic argument deduction guides for fn calls, variant inits, and struct inits
-    - [ ] struct deduction guide use (building them is impl'd but untested)
-    - [ ] variant deduction guides (building and use)
-
-- [ ] variadic functions? 
-    - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}` or pass through some kind of anonymous struct, like Zig
-    - [ ] get variadic params/args working at compt w/ callable functions
-
-- [ ] reflection improvements
-        - [ ] implement use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members (relatively easy but tedious on some special-casing inside the compile-time solver)
-
-
-#### hir phase 2.b (function body resolution):
+#### function body resolution / runtime eval:
 - [ ] impl `RunTimeExprSolver`
     - [ ] use deduction guides for functions/(variants/structs?)
 - [ ] build up runtime statements into structured blocks
@@ -61,6 +46,19 @@ how it works (save this for later type system docs)
     - [ ] finalize `extern {}` and `extern C {}` semantics for cross-TU and FFI compilation respectively
         - [ ] hand out errors for C-incompatible functions when under a C abi extern, like no references, generics, etc.
 
+#### top-level resol / compt improvements:
+- [ ] deduction guides
+    - [ ] struct deduction guide use (building them is impl'd but untested)
+    - [ ] variant deduction guides (building and use)
+
+- [ ] variadic functions? 
+    - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}` or pass through some kind of anonymous struct, like Zig
+    - [ ] get variadic params/args working at compt w/ callable functions
+
+- [ ] reflection improvements
+        - [ ] implement use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members (relatively easy but tedious on some special-casing inside the compile-time solver)
+
+
 #### optimizations
 - [ ] `hir::Context` ctor that takes a stale context and a list of updated files, and then based on the stale context's files (necessary for above flag and also AST reuse for the future LSP):
 ```
@@ -98,9 +96,6 @@ how it works (save this for later type system docs)
 
 - [ ] Verify/implement debugger compatibility 
 
-side quests
------------
-
 #### chores
 - [ ] fix highlighting of "\\\\" in bear.nvim
 
@@ -115,7 +110,6 @@ lexer & parser
     - [ ] add binary integer literals `0b1010101` (keeping dec, hex, and float that we currently already have)
     - [ ] set a tkn to TOK_OVERSIZED_INT_ERR if there's no decimal and it's greater than u64 max or less than i64 min
     - [ ] suffixes?
-    
 
 hir & later 
 ----------- 
