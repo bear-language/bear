@@ -439,7 +439,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                   : std::nullopt;
 
         if (return_tid.has_value() && !parent_is_contract(context.def(did))) {
-            context.report_invalid_return_type(return_tid.as_id());
+            context.report_invalid_return_type(return_tid.as_id(), !func_is_runtime);
         }
 
         context.def(did).set_value(DefFunctionPrototype{.params = params,
@@ -559,7 +559,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                   ? TypeResolver{context, *this}.resolve_type(fid, scope, fn_decl.return_type)
                   : std::nullopt;
         if (return_tid.has_value()) {
-            context.report_invalid_return_type(return_tid.as_id());
+            context.report_invalid_return_type(return_tid.as_id(), !func_is_runtime);
         }
 
         const HirSize posterior_diag_count = context.diagnostic_count();
@@ -1044,32 +1044,15 @@ TopLevelDefVisitor::resolve_generic_param(FileId fid, ScopeId scope,
             return {};
         }
         SymbolId name = context.symbol_id(gen_var.name);
-        bool cooked = false;
         DiagLinker dl{context};
 
-        auto on_not_already_cooked = [this, &dl, maybe_tid, name]() {
+        if (TypeTransformer<TypeContainsMut>{context}(maybe_tid.as_id())) {
             dl.link(context.emplace_diagnostic_with_message_value(
                 context.type(maybe_tid.as_id()).span, diag_code::invalid_type_for_generic_paramter,
                 diag_type::error, DiagnosticSymbolAfterMessage{.sid = name}));
-        };
-
-        if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())) {
-            on_not_already_cooked();
-            dl.link(context.emplace_diagnostic(
-                context.type(maybe_tid.as_id()).span,
-                diag_code::generic_parameter_variable_must_have_an_explicit_type, diag_type::note));
-            cooked = true;
-        }
-        if (TypeTransformer<TypeContainsMut>{context}(maybe_tid.as_id())) {
-            if (!cooked) {
-                on_not_already_cooked();
-            }
             dl.link(context.emplace_diagnostic(
                 context.type(maybe_tid.as_id()).span,
                 diag_code::generic_parameter_variable_must_be_immutable, diag_type::note));
-            cooked = true;
-        }
-        if (cooked) {
             return {};
         }
         return context.emplace_generic_param(Span{context, fid, gen_param->first, gen_param->last},
@@ -1220,6 +1203,11 @@ DefId InsideBodyDefVisitor::visit_as_independent(DefId def) { return def; }
 
 DefId InsideBodyDefVisitor::visit_as_mutator(DefId def) {
     context.promote_mention_state_of(def, Def::mention_state::mutated);
+    return def;
+}
+
+DefId InsideBodyDefVisitor::visit_and_resolve_if_needed(DefId def) {
+    context.promote_mention_state_of(def, Def::mention_state::used);
     return def;
 }
 

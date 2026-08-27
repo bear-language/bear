@@ -1,0 +1,62 @@
+// tests/hir/a66.br
+
+mod hir_a66;
+
+
+struct Foo <*fn(var)->var ink_ptr> {
+    compt var invoke = ink_ptr;
+}
+
+compt fn identity(var val) -> var => (val)
+
+compt fn i32_iden(i32 val) -> i32 => (val)
+
+compt Foo<identity> foo = {};
+
+deftype MyFoo = Foo<identity>;
+
+compt i32 a = MyFoo..invoke(12);
+
+compt i32 b = Foo..invoke::<i32_iden>(12);
+
+var _0 = @static_assert(a == b);
+
+var _1 = @note @type_to_str(typeof Foo..invoke::i32_iden);
+
+struct Wrap<T> {
+    T a;
+    fn new(T a) -> Self => Self{.a = a}
+    fn always_true() -> bool => true
+    fn even(&Self self) -> bool => self.a % 2 == 0
+    fn same(Self a, Self b) -> bool => a.a == b.a
+}
+
+deftype IntWrap = Wrap<i32>;
+
+compt var _2 = @static_assert true == IntWrap..always_true();
+
+deftype FooIntWrap = Foo<IntWrap..even>;
+
+compt var _3 = @static_assert FooIntWrap..invoke(IntWrap..new(32));
+
+compt var _4 = @static_assert FooIntWrap..invoke(IntWrap..new(33)), "IntWrap is not even"; // oops
+
+deftype OopsFooIntWrap = Foo<IntWrap..same>; // oops, not inferable
+
+struct Bar <T> {
+    T a;
+    fn new(T a) -> Self => Self{.a = a}
+}
+
+deftype BarVar = Bar<var>; // oops
+
+struct Boo<T> {
+    deftype constraint = T;
+    compt fn fits<P>() -> bool => @inferable_as(P, T);
+}
+
+deftype BooConstraint = Boo<[&]var>;
+
+var _5 = @static_assert BooConstraint..fits::<[&]i32>();
+
+var _6 = @static_assert BooConstraint..fits::<*i32>(); // oops

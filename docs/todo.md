@@ -1,5 +1,9 @@
 ### todos
 
+#### misc/priority 
+
+- [ ] finish `Context::try_default_value_for_type`
+
 #### function body resolution / runtime eval:
 - [ ] move checker structures
     - [ ] Scopes in runtime functions should be composed of a `ScopeId` and `MoveMapId`

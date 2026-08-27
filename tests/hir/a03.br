@@ -1,6 +1,6 @@
 // tests/hir/a03.br
 
-struct Foo<T, var val> { // oops
+struct Foo<T, var val> { 
     var my_val = val;
     fn get() -> Self => Self{}
 }
@@ -18,6 +18,6 @@ struct Boo<T, mut var val> { // oops
 
 struct Tester {
     Foo<i32,42> my_guy_0 = Foo..get::<i32,42>();
-    Bar<i32,42> my_guy_1 = Bar..get::<i32,42>();
-    Boo<i32,42> my_guy_2 = Boo..get::<i32,42>();
+    Bar<i32,42> my_guy_1 = Bar..get::<i32,42>(); // oops 
+    Boo<i32,42> my_guy_2 = Boo..get::<i32,42>(); // oops
 }

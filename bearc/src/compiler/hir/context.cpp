@@ -1953,11 +1953,11 @@ bool Context::compatible_contract_params(IdSlice<TypeId> s1, IdSlice<TypeId> s2,
     return true;
 }
 
-bool Context::report_invalid_return_type(TypeId return_tid) {
+bool Context::report_invalid_return_type(TypeId return_tid, bool is_compt) {
     const Type& ty = type(return_tid);
     const Type& canon_ty = type(try_decay(return_tid));
     DiagLinker dlinker{*this};
-    if (TypeTransformer<TypeContainsVar>{*this}(return_tid)) {
+    if (TypeTransformer<TypeContainsVar>{*this}(return_tid) && !is_compt) {
         dlinker.link(emplace_diagnostic_with_message_value(
             ty.span, diag_code::invalid_return_type, diag_type::error,
             DiagnosticTypeAfterMessage{.tid = return_tid}));

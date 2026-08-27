@@ -2829,8 +2829,9 @@ template <IsDefVisitor V> class ComptExprSolver {
                 maybe_func_did = e.as<ExecFnPtr>().func_def_id;
             }
 
-            auto func_did = maybe_func_did.as_id();
-            const Def& func_def = context.def(func_did);
+            maybe_func_did = context.try_func_did(
+                def_visitor.visit_and_resolve_if_needed(maybe_func_did.as_id()));
+            const Def& func_def = context.def(maybe_func_did.as_id());
 
             if (!func_def.holds<DefFunction>()) {
                 if (func_def.holds<DefGenericFunction>()) {
@@ -2920,7 +2921,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                 maybe_func_did = e.as<ExecFnPtr>().func_def_id;
             }
 
-            maybe_func_did = context.try_func_did(maybe_func_did.as_id());
+            maybe_func_did = context.try_func_did(
+                def_visitor.visit_and_resolve_if_needed(maybe_func_did.as_id()));
 
             const Def& called_def
                 = context.def(def_visitor.visit_as_dependent(maybe_func_did.as_id()));
@@ -3235,7 +3237,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
         OptId<TypeId> maybe_inferred_etid = infer_type_from_exec(eid);
         if (maybe_inferred_etid.has_value()
-            && context.equivalent_type(maybe_inferred_etid.as_id(), into_tid)) {
+            && context.type_inferable_as(maybe_inferred_etid.as_id(), into_tid)) {
             return eid;
         }
 

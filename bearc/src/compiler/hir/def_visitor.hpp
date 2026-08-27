@@ -33,6 +33,8 @@ concept IsDefVisitor = requires(T t, DefId def) {
     { t.visit_as_transparent(def) } -> std::same_as<DefId>;
     // alter mention state (mutated)
     { t.visit_as_mutator(def) } -> std::same_as<DefId>;
+    // tries to eagerly resolve, if possible
+    { t.visit_and_resolve_if_needed(def) } -> std::same_as<DefId>;
 };
 
 class TopLevelDefVisitor {
@@ -45,7 +47,6 @@ class TopLevelDefVisitor {
     bool began_resolution;
 
     DefId resolve_def(DefId did);
-    DefId visit_and_resolve_if_needed(DefId def);
     void report_cycle(DefId culprit,
                       diag_code code = diag_code::circular_definition_layout_cannot_be_resolved);
     [[nodiscard]] std::optional<IdSlice<GenericParamId>>
@@ -60,6 +61,7 @@ class TopLevelDefVisitor {
 
   public:
     TopLevelDefVisitor(Context& context) : context{context}, began_resolution{false} {}
+    DefId visit_and_resolve_if_needed(DefId def);
     void resolve_top_level_definitions();
     /// visit a DefId where the def being visited is depended on by the visitor
     DefId visit_as_dependent(DefId def);
@@ -102,6 +104,8 @@ class InsideBodyDefVisitor {
     DefId visit_as_independent(DefId def);
 
     DefId visit_as_mutator(DefId def);
+
+    DefId visit_and_resolve_if_needed(DefId def);
 };
 static_assert(IsDefVisitor<InsideBodyDefVisitor>);
 

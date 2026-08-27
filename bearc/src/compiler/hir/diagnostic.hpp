@@ -179,7 +179,6 @@ enum class diag_code : uint8_t {
     use_of_undefined_type,
     declared_here_without_necessary_contracts,
     invalid_type_for_generic_paramter,
-    generic_parameter_variable_must_have_an_explicit_type,
     generic_parameter_variable_must_be_immutable,
     raw_use_of_generic_function,
     out_of_line_scoped_member_functions_not_allowed_for_generic_structs,

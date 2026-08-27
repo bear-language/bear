@@ -637,7 +637,7 @@ class Context {
                                                   DefId struct_id);
 
     // returns true on an invalid return type
-    bool report_invalid_return_type(TypeId return_tid);
+    bool report_invalid_return_type(TypeId return_tid, bool is_compt);
 
     [[nodiscard]] const Def& def(DefId id) const;
 
@@ -1270,7 +1270,7 @@ class Context {
                                 DiagnosticSymbolBeforeMessage{.sid = param.name}));
                             return false;
                         }
-                        if (!equivalent_type(maybe_tid.as_id(), expected_tid)) {
+                        if (!type_inferable_as(maybe_tid.as_id(), expected_tid)) {
                             dl.link(emplace_diagnostic_with_message_value(
                                 exec(eid).span, diag_code::generic_argument_expected_value_of_type,
                                 diag_type::error,
