@@ -1,12 +1,18 @@
 ### todos
 
-#### misc / priority 
-- [ ] make preunary `^` / `^ mut` the "address of" operator, as to leave `&` for just references
-
 #### function body resolution / runtime eval:
+- [ ] move checker structures
+    - [ ] Scopes in runtime functions should be composed of a `ScopeId` and `MoveMapId`
+        - [ ] `ScopeId`: same as current impl, for symbol look-up
+        - [ ] `MoveMapId`: same idea as a scope, but:
+            - [ ] tracks DefId -> ExecId tracking where defs were moved (for good diagnostics)
+            - [ ] parent MoveMaps should track their children so that each child can confirm that its siblings also move the same definitions 
+- [ ] make a system to etch ExecId into a structured linear form within blocks to be naturally connected in a CFG 
+    - [ ] this should be directly conducive to 3AC for all `hir::Exec`s
+    - [ ] See `ExecBlock`
+- [ ] build up runtime statements into structured blocks
 - [ ] impl `RunTimeExprSolver`
     - [ ] use deduction guides for functions/(variants/structs?)
-- [ ] build up runtime statements into structured blocks
 - [ ] make sure assignment type checking is properly rigid around mutable types (especially references).
     - note: (impl. detail) the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
     - [ ] when calling a function, disregard the outer-most mutability of the type (unless it's a reference)
@@ -25,14 +31,6 @@ how it works (save this for later type system docs)
  Mutability is a capability attached to the layer through which the value is accessed. When comparing nested types, mutability may be weakened (mut -> immut) but never strengthened (immut -> mut). Top-level value mutability is erased for by-value expressions and at function-call boundaries, whereas reference-layer mutability is preserved.
 
 ```
-- [ ] make a system to etch ExecId into a structured linear form within blocks to be naturally connected in a CFG 
-    - [ ] this should be directly conducive to 3AC for all `hir::Exec`s
-- [ ] move checker
-    - [ ] Scopes in runtime functions should be composed of a `ScopeId` and `MoveMapId`
-        - [ ] `ScopeId`: same as current impl, for symbol look-up
-        - [ ] `MoveMapId`: same idea as a scope, but:
-            - [ ] tracks DefId -> ExecId tracking where defs were moved (for good diagnostics)
-            - [ ] parent MoveMaps should track their children so that each child can confirm that its siblings also move the same definitions 
 - [ ] "borrow checker":
     - [ ] allow mutiple immutable and mutable borrows
     - [ ] no lifetimes
