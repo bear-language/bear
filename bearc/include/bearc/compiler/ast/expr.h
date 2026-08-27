@@ -42,6 +42,8 @@ typedef enum ast_expr_type {
 
     // borrow like & or &mut
     AST_EXPR_BORROW,
+    // address of like ^ or ^mut
+    AST_EXPR_ADDR_OF,
 
     // builtins
     AST_EXPR_SAME_TYPE,
@@ -134,6 +136,11 @@ typedef struct ast_expr_borrow {
     ast_expr_t* borrowed;
     token_t* mut;
 } ast_expr_borrow_t;
+
+typedef struct ast_expr_addres_of {
+    ast_expr_t* inner;
+    token_t* mut;
+} ast_expr_addres_of;
 
 // generics ~~~~~~~~~~~~~~~~~~
 typedef union ast_generic_arg_u {
@@ -283,6 +290,7 @@ typedef union ast_expr_u {
     ast_expr_struct_init_t struct_init;
     ast_expr_struct_member_init_t struct_member_init;
     ast_expr_borrow_t borrow;
+    ast_expr_addres_of addr_of;
     ast_expr_variant_decomp_t variant_decomp;
     ast_expr_block_t block;
     ast_expr_match_branch_t match_branch;

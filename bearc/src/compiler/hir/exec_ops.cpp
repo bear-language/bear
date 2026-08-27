@@ -31,7 +31,7 @@ std::optional<binary_op> token_to_binary_op(const token_t* tkn) {
         return binary_op::range_exclusive;
     case TOK_ELLIPSE_EQ:
         return binary_op::range_inclusive;
-    case TOK_BIT_XOR:
+    case TOK_CARET:
         return binary_op::bit_xor;
     case TOK_AMPER:
         return binary_op::bit_and;

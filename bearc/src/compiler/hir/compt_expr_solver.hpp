@@ -212,7 +212,6 @@ template <IsDefVisitor V> class ComptExprSolver {
             }
             auto inner_tid = into_type.as<TypePtr>().inner;
             auto inner = context.type(inner_tid);
-            // TODO pointers should be assignable to addresses (of l-values) at compt
             auto d0 = context.emplace_diagnostic(
                 into_type.span, diag_code::pointers_are_not_assignable_at_compt, diag_type::error);
             if (inner.template holds_any_of<TypeStruct, TypeBuiltin>()) {
@@ -423,6 +422,7 @@ template <IsDefVisitor V> class ComptExprSolver {
 
             // try should all fall thru to builtin
         case AST_EXPR_PRE_UNARY:
+        case AST_EXPR_ADDR_OF:
         case AST_EXPR_POST_UNARY:
         case AST_EXPR_LITERAL:
         case AST_EXPR_TYPE:
@@ -440,7 +440,6 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_MATCH_BRANCH:
         case AST_EXPR_ELSE_MATCH_PATTERN:
         case AST_EXPR_INVALID:
-
             break;
         }
 
@@ -780,6 +779,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_BORROW:
         case AST_EXPR_STRUCT_MEMBER_INIT:
         case AST_EXPR_CLOSURE:
+        case AST_EXPR_ADDR_OF:
         case AST_EXPR_VARIANT_DECOMP:
         case AST_EXPR_BLOCK:
         case AST_EXPR_MATCH_BRANCH:
@@ -1050,6 +1050,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_STATICS_OF:
         case AST_EXPR_ALIGNOF:
         case AST_EXPR_SIZEOF:
+        case AST_EXPR_ADDR_OF:
         case AST_EXPR_INVALID:
             break;
         }
@@ -1994,6 +1995,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         case AST_EXPR_REFLECTED_SCOPED_ID:
             return guard_exec_type(solve_reflected_scoped_id(fid, scope, expr));
         case AST_EXPR_LITERAL:
+        case AST_EXPR_ADDR_OF:
         case AST_EXPR_GROUPING:
         case AST_EXPR_PRE_UNARY:
         case AST_EXPR_POST_UNARY:

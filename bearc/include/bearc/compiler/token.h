@@ -58,7 +58,7 @@ typedef enum token_type {
     TOK_BAR = '|',     // |
     TOK_AMPER = '&',   // & ------> means bitwise and, also means reference
     TOK_BIT_NOT = '~', // ~
-    TOK_BIT_XOR = '^', // ^
+    TOK_CARET = '^',   // ^
 
     // bool
     TOK_BOOL_NOT = '!', // !

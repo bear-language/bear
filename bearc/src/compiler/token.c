@@ -50,7 +50,7 @@ static unsigned char char_to_token_map[TOKEN_CHAR_TO_TOKEN_MAP_SIZE] = {
     ['|'] = TOK_BAR,
     ['&'] = TOK_AMPER,
     ['~'] = TOK_BIT_NOT,
-    ['^'] = TOK_BIT_XOR,
+    ['^'] = TOK_CARET,
 
     // boolean
     ['!'] = TOK_BOOL_NOT,
@@ -246,7 +246,7 @@ static const char* token_to_string_map_impl[TOK__NUM] = {
     [TOK_BAR] = "|",
     [TOK_AMPER] = "&",
     [TOK_BIT_NOT] = "~",
-    [TOK_BIT_XOR] = "^",
+    [TOK_CARET] = "^",
 
     // boolean
     [TOK_BOOL_NOT] = "!",
@@ -434,7 +434,7 @@ static char first_char_in_mc_op_tok_map[TOKEN_CHAR_TO_TOKEN_MAP_SIZE] = {
     ['|'] = TOK_BAR,
     ['&'] = TOK_AMPER,
     ['~'] = TOK_BIT_NOT,
-    ['^'] = TOK_BIT_XOR,
+    ['^'] = TOK_CARET,
 
     // boolean
     ['!'] = TOK_BOOL_NOT,

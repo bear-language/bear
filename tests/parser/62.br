@@ -1,0 +1,17 @@
+// tests/parser/62.br
+
+struct Foo {
+    i32 a = 0;
+}
+
+Foo foo = {};
+
+*Foo p_foo = ^foo;
+
+&Foo r_foo = &foo;
+
+mut Foo m_foo = {};
+
+*Foo mut p_m_foo = ^mut m_foo;
+
+&mut Foo r_m_foo = &mut foo;

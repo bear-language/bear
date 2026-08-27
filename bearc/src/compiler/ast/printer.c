@@ -728,6 +728,17 @@ void pretty_print_expr(const ast_expr_t* expression) {
         print_type(expr.expr.size_of.type);
         print_closing_green_brace();
         break;
+    case AST_EXPR_ADDR_OF:
+        print_title("address of");
+        printer_do_indent();
+        print_op_from_type(TOK_CARET);
+        if (expr.expr.addr_of.mut) {
+            print_op_from_type(TOK_MUT);
+        }
+        printer_deindent();
+        pretty_print_expr(expr.expr.addr_of.inner);
+        print_closing_green_brace();
+        break;
     }
     puts(",");
     printer_deindent();

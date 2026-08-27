@@ -83,6 +83,8 @@ ast_expr_t* parse_expr_generic_id(parser_t* p, token_ptr_slice_t id_slice,
 
 ast_expr_t* parse_expr_borrow(parser_t* p);
 
+ast_expr_t* parse_expr_addr_of(parser_t* p);
+
 ast_expr_t* parse_expr_variant_decomp(parser_t* p);
 
 ast_expr_t* parse_expr_variant_decomp_with_leading_id(parser_t* p, token_ptr_slice_t id);

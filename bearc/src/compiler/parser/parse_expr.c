@@ -310,6 +310,8 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
     switch (parser_peek(p)->type) {
     case TOK_AMPER:
         return parse_expr_borrow(p);
+    case TOK_CARET:
+        return parse_expr_addr_of(p);
     case TOK_COMPT:
         return parse_expr_compt(p);
     case TOK_SAME_TYPE:
@@ -870,6 +872,20 @@ ast_expr_t* parse_expr_borrow(parser_t* p) {
     s->expr.borrow.mut = parser_match_token(p, TOK_MUT);
     s->expr.borrow.borrowed = parse_expr(p);
     s->first = amper;
+    s->last = parser_prev(p);
+    return s;
+}
+
+ast_expr_t* parse_expr_addr_of(parser_t* p) {
+    ast_expr_t* s = parser_alloc_expr(p);
+    s->type = AST_EXPR_ADDR_OF;
+    token_t* caret = parser_expect_token(p, TOK_CARET);
+    if (!caret) {
+        return parser_sync_expr(p);
+    }
+    s->expr.addr_of.mut = parser_match_token(p, TOK_MUT);
+    s->expr.addr_of.inner = parse_expr(p);
+    s->first = caret;
     s->last = parser_prev(p);
     return s;
 }
