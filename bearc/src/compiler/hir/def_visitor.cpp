@@ -133,9 +133,13 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                 type.span, diag_code::should_have_explicit_type, diag_type::error,
                 DiagnosticStructMemberSymBeforeMsg{.mem_sid = def.name});
         };
-        def.set_value(DefVariable{.type_id = maybe_tid.as_id(), .compt_value = std::nullopt});
-        // TODO handle invalid non-initialized statements
-        // search for default value/default method
+        def.set_value(
+            DefVariable{.type_id = maybe_tid.as_id(),
+                        // this function emits diagnostics if there's a problem and returns an
+                        // optional, which is what we need here
+                        .compt_value = context.try_default_value_for_type(maybe_tid.as_id())
+
+            });
         break;
     }
     case AST_STMT_VAR_INIT_DECL: {

@@ -2314,6 +2314,11 @@ bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) {
     return type_inferable_as(tid1, tid2);
 }
 
+[[nodiscard]] OptId<ExecId> Context::try_default_value_for_type(TypeId tid) {
+    // TODO
+    return {};
+}
+
 bool Context::type_matches_struct_def(TypeId tid, DefId did) {
     const TypeId canon_tid = this->try_decay(tid);
     const Type& ty = type(canon_tid);

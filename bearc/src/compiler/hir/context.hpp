@@ -734,6 +734,12 @@ class Context {
     DiagRange report_function_disagreement_with_contract(DefId contract_fn_proto_did,
                                                          DefId function_did, DefId struct_did);
 
+    /// tries to get the default (compt) value for a variable definition of some type
+    /// - emits diagnostics when a default value is not found
+    ///
+    /// return some (compt) ExecId if a value is found, else returns none
+    [[nodiscard]] OptId<ExecId> try_default_value_for_type(TypeId tid);
+
     /// checks if a (decayed) type matches a struct def
     [[nodiscard]] bool type_matches_struct_def(TypeId tid, DefId did);
 
