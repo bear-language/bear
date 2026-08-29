@@ -2739,23 +2739,23 @@ template <IsDefVisitor V> class ComptExprSolver {
         return exec.holds_any_of<ExecConst, ExecExprStructInit, ExecListLiteral, ExecUnionInit,
                                  ExecExprVariantInit>();
     }
-    [[nodiscard]] OptId<ExecId> solve_fn_call(FileId fid, ScopeId scope, const ast_expr_t* expr,
-                                              OptId<ExecId> maybe_self_val = std::nullopt) {
-        assert(expr->type == AST_EXPR_FN_CALL);
-        llvm::SmallVector<ExecId> arg_vec{};
-        DefFunction func;
-        Span func_span = Span::generated();
-        SymbolId func_symbol;
-        uint8_t mt_param_adjustment = 0;
-        OptId<DefId> maybe_func_did{};
-        bool needs_generic_deduction = false;
 
-        const auto prior_diag_cnt = context.diagnostic_count();
+    struct FuncLookUp {
+        DefId func_did;
+        OptId<ExecId> maybe_variant_init_res;
+        bool needs_generic_deduction{false};
+        bool did_variant_initializer{false};
+    };
+
+    [[nodiscard]] std::optional<FuncLookUp>
+    try_func_look_up(FileId fid, ScopeId scope, const ast_expr_t* expr,
+                     OptId<ExecId> maybe_self_val = std::nullopt) {
+        OptId<DefId> maybe_func_did{};
+        bool needs_generic_deduction{false};
+        OptId<ExecId> maybe_res{};
 
         if (maybe_self_val.has_value()) {
-            const auto self_val = maybe_self_val.as_id();
-            const Exec& exec = context.exec(self_val);
-            arg_vec.push_back(self_val);
+            const Exec& exec = context.exec(maybe_self_val.as_id());
             const ast_expr_t* called = expr->expr.fn_call.left_expr;
             if (called->type == AST_EXPR_ID) {
 
@@ -2779,7 +2779,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                             maybe_func_did = context.look_up_generic_member_function_guarding_hid(
                                 def_visitor,
                                 context.def(exec.as<ExecExprStructInit>().struct_def_id), func_name,
-                                func_span, scope, maybe_gen_arg_id.as_id());
+                                Span{context, fid, expr->expr.fn_call.left_expr}, scope,
+                                maybe_gen_arg_id.as_id());
                         }
                     } else {
                         maybe_func_did = context.look_up_member_function_guarding_hid(
@@ -2794,7 +2795,8 @@ template <IsDefVisitor V> class ComptExprSolver {
                             maybe_func_did = context.look_up_scoped_variable_generic(
                                 def_visitor, scope,
                                 context.freeze_id_vec(llvm::SmallVector<SymbolId, 1>{func_name}),
-                                func_span, maybe_gen_arg_id.as_id());
+                                Span{context, fid, expr->expr.fn_call.left_expr},
+                                maybe_gen_arg_id.as_id());
                         }
                         if (maybe_func_did.has_value()) {
                             maybe_func_did = context.try_func_did(maybe_func_did.as_id());
@@ -2842,19 +2844,11 @@ template <IsDefVisitor V> class ComptExprSolver {
                         diag_type::error, DiagnosticSubCode{.sub_code = diag_code::not_a_function});
                     return {};
                 }
-            } else {
-
-                func = func_def.as<DefFunction>();
-
-                func_span = func_def.span;
-                func_symbol = func_def.name;
+            }
+            if (func_def.holds<DefFunction>() && func_def.as<DefFunction>().poisoned()) {
+                return {};
             }
 
-            if (func.posioned) {
-                return std::nullopt;
-            }
-
-            mt_param_adjustment = 1;
         } else {
             const ast_expr_t* called = expr->expr.fn_call.left_expr;
             if (called->type == AST_EXPR_ID) {
@@ -2894,7 +2888,11 @@ template <IsDefVisitor V> class ComptExprSolver {
                     }
 
                     if (maybe_func_did.has_value()) {
-                        return handle_variant_init(fid, scope, expr, maybe_func_did.as_id());
+                        maybe_res = handle_variant_init(fid, scope, expr, maybe_func_did.as_id());
+                        return FuncLookUp{.func_did = maybe_func_did.as_id(),
+                                          .maybe_variant_init_res = maybe_res,
+                                          .needs_generic_deduction = needs_generic_deduction,
+                                          .did_variant_initializer = true};
                     }
 
                     // no corresponding variant either, so this is just the
@@ -2935,17 +2933,51 @@ template <IsDefVisitor V> class ComptExprSolver {
                         diag_type::error, DiagnosticSubCode{.sub_code = diag_code::not_a_function});
                     return {};
                 }
-            } else {
-                func = called_def.as<DefFunction>();
-                func_span = called_def.span;
-                func_symbol = called_def.name;
             }
+        }
+        if (maybe_func_did.has_value()) {
+            return FuncLookUp{.func_did = maybe_func_did.as_id(),
+                              .maybe_variant_init_res = maybe_res,
+                              .needs_generic_deduction = needs_generic_deduction,
+                              .did_variant_initializer
+                              = false}; // we early return in that case (see above)
+        }
+        return {};
+    }
+    [[nodiscard]] OptId<ExecId> solve_fn_call(FileId fid, ScopeId scope, const ast_expr_t* expr,
+                                              OptId<ExecId> maybe_self_val = std::nullopt) {
+        assert(expr->type == AST_EXPR_FN_CALL);
+        const auto prior_diag_cnt = context.diagnostic_count();
+
+        // try to find our function, instantiated generic function, or raw generic function (in this
+        // case we must later deduce generic arguments)
+        const std::optional<FuncLookUp> look_up_res
+            = try_func_look_up(fid, scope, expr, maybe_self_val);
+
+        // failure, so propogate up
+        if (!look_up_res.has_value()) {
+            return {};
+        }
+
+        // the look-up internally solved a variant initialzier, so just return the result of that
+        if (look_up_res->did_variant_initializer) {
+            return look_up_res->maybe_variant_init_res;
+        }
+
+        // our running func_did (this will only get updated henceforth if we deduce generic args for
+        // a raw generic function)
+        DefId func_did = look_up_res->func_did;
+        bool needs_generic_deduction = look_up_res->needs_generic_deduction;
+
+        llvm::SmallVector<ExecId> arg_vec{};
+
+        if (maybe_self_val.has_value()) {
+            arg_vec.push_back(maybe_self_val.as_id());
         }
 
         HirSize total_arg_cnt = 0;
         bool issue = false;
         const ast_slice_of_exprs_t exprs = expr->expr.fn_call.args;
-        auto func_did = maybe_func_did.as_id();
         IdSlice<DefId> params{};
 
         if (needs_generic_deduction) {
@@ -2993,19 +3025,16 @@ template <IsDefVisitor V> class ComptExprSolver {
             if (maybe_gen_instant.empty()) {
                 return {};
             }
-            func = context.def(maybe_gen_instant.as_id()).template as<DefFunction>();
             func_did = maybe_gen_instant.as_id();
-            params = func.params;
-            func_span = context.def(maybe_gen_instant.as_id()).span;
-            func_symbol = context.def(maybe_gen_instant.as_id()).name;
+            params = context.def(maybe_gen_instant.as_id()).template as<DefFunction>().params;
         } else {
 
-            params = func.params;
+            params = context.def(func_did).template as<DefFunction>().params;
 
             for (HirSize i = 0; i < exprs.len; i++) {
                 const ast_expr_t* arg = exprs.start[i];
 
-                const auto param_index = i + mt_param_adjustment;
+                const auto param_index = i + (maybe_self_val.has_value() ? 1 : 0);
 
                 OptId<TypeId> maybe_into_tid
                     = (param_index < params.len())
@@ -3025,7 +3054,7 @@ template <IsDefVisitor V> class ComptExprSolver {
         }
 
         auto adjusted_arg_len = total_arg_cnt;
-        auto adjusted_param_len = params.len() - mt_param_adjustment;
+        auto adjusted_param_len = params.len() - (maybe_self_val.has_value() ? 1 : 0);
 
         if (adjusted_arg_len != adjusted_param_len) {
 
@@ -3041,10 +3070,10 @@ template <IsDefVisitor V> class ComptExprSolver {
 
                 context.emplace_diagnostic_with_message_value(
                     span_of_interest, diag_code::expected, diag_type::error,
-                    DiagnosticSymButGotSym{.leading = func_symbol,
+                    DiagnosticSymButGotSym{.leading = context.def(func_did).name,
                                            .sid1 = params_len_sym_id,
                                            .sid2 = args_len_sym_id});
-            } else if (mt_param_adjustment) {
+            } else if (maybe_self_val.has_value()) {
                 context.emplace_diagnostic(
                     Span{context, fid, expr},
                     diag_code::free_function_taking_zero_arguments_called_as_method,
@@ -3052,7 +3081,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             } else {
                 context.emplace_diagnostic_with_message_value(
                     Span{context, fid, expr}, diag_code::takes_no_arguments, diag_type::error,
-                    DiagnosticSymbolBeforeMessage{.sid = func_symbol});
+                    DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
             }
 
             issue = true;
@@ -3061,11 +3090,11 @@ template <IsDefVisitor V> class ComptExprSolver {
         const ast_stmt_t* fn_stmt = context.def_ast_node(func_did);
         assert(fn_stmt->type == AST_STMT_FN_DECL);
 
-        if (!func.poisoned() && issue) {
+        if (!context.def(func_did).template as<DefFunction>().poisoned() && issue) {
             if (context.diagnostic_count() > prior_diag_cnt) {
                 auto d = context.emplace_diagnostic_with_message_value(
                     context.name_span_for_def(func_did), diag_code::declared_here, diag_type::note,
-                    DiagnosticSymbolBeforeMessage{.sid = func_symbol});
+                    DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
                 context.force_link_diagnostic(d);
             }
         }
@@ -3100,10 +3129,11 @@ template <IsDefVisitor V> class ComptExprSolver {
         if (call_depth > MAX_COMPT_CALL_FRAMES) {
             auto d0 = context.emplace_diagnostic_with_message_value(
                 Span{context, fid, expr}, diag_code::only_message_value_is_meaningful,
-                diag_type::error, DiagnosticComptStackOverflow{.function_sid = func_symbol});
+                diag_type::error,
+                DiagnosticComptStackOverflow{.function_sid = context.def(func_did).name});
             auto d1 = context.emplace_diagnostic_with_message_value(
-                func_span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = func_symbol});
+                context.name_span_for_def(func_did), diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
 
             context.link_diagnostic(d0, d1);
 
@@ -3138,12 +3168,13 @@ template <IsDefVisitor V> class ComptExprSolver {
                 Span{context, fid, expr}, diag_code::cannot_evaluate_non_pure_expr_fn_at_compt,
                 diag_type::error);
             auto d1 = context.emplace_diagnostic_with_message_value(
-                func_span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = func_symbol});
+                context.name_span_for_def(func_did), diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
             context.link_diagnostic(d0, d1);
             if (context.def(func_did).compt) {
                 auto d2 = context.emplace_diagnostic_with_message_value(
-                    func_span, diag_code::declare_using_pure_expression_syntax_replacing_body_with,
+                    context.name_span_for_def(func_did),
+                    diag_code::declare_using_pure_expression_syntax_replacing_body_with,
                     diag_type::help,
                     DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"=> (Expression)">()});
                 context.link_diagnostic(d1, d2);
@@ -3156,25 +3187,33 @@ template <IsDefVisitor V> class ComptExprSolver {
         const ast_expr_t* body_expr = fn_stmt->stmt.fn_decl->expr;
 
         // make sure to use the file_id for the function's expression
-        OptId<ExecId> maybe_eid = solve_expr(context.def(func_did).span.file_id, temp_scope,
-                                             body_expr, func.return_type);
+        OptId<ExecId> maybe_eid
+            = solve_expr(context.def(func_did).span.file_id, temp_scope, body_expr,
+                         context.def(func_did).template as<DefFunction>().return_type);
 
         // try to get proper return type if possible
-        if (maybe_eid.has_value() && func.return_type.has_value()) {
+        if (maybe_eid.has_value()
+            && context.def(func_did).template as<DefFunction>().return_type.has_value()) {
             const auto orig_eid = maybe_eid.as_id();
-            maybe_eid = try_convert_to(maybe_eid.as_id(), func.return_type.as_id());
+            maybe_eid = try_convert_to(
+                maybe_eid.as_id(),
+                context.def(func_did).template as<DefFunction>().return_type.as_id());
             if (maybe_eid.empty()) {
                 if (const auto maybe_tid = infer_type_from_exec(orig_eid); maybe_tid.has_value()) {
                     context.emplace_diagnostic_with_message_value(
                         Span{context, fid, expr}, diag_code::cannot_convert_value_of_type,
                         diag_type::error,
                         DiagnosticTypeToType{.from = maybe_tid.as_id(),
-                                             .to = func.return_type.as_id()});
+                                             .to = context.def(func_did)
+                                                       .template as<DefFunction>()
+                                                       .return_type.as_id()});
                 } else {
                     context.emplace_diagnostic_with_message_value(
                         Span{context, fid, expr}, diag_code::cannot_convert_expression_to_type,
                         diag_type::error,
-                        DiagnosticTypeAfterMessage{.tid = func.return_type.as_id()});
+                        DiagnosticTypeAfterMessage{.tid = context.def(func_did)
+                                                              .template as<DefFunction>()
+                                                              .return_type.as_id()});
                 }
             }
         }
@@ -3187,7 +3226,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             && (maybe_eid.empty() || post_diag_cnt > prior_diag_cnt)) {
             const auto d = context.emplace_diagnostic_with_message_value(
                 Span{context, fid, expr}, diag_code::called_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = func_symbol});
+                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
             if (post_diag_cnt > prior_diag_cnt) {
                 context.force_link_diagnostic(d);
             }
