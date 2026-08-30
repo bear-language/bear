@@ -3,8 +3,11 @@
 #### misc/priority 
 
 - [ ] finish `Context::try_default_value_for_type`
-    - [x] continue refactoring `ComptExprSolver::solve_fn_call`
-    - [ ] actual impl
+    - [x] `ComptExprSolver::solve_fn_call`
+    - [ ] actual impl: basically make sure that `Foo..default()` exists and that:
+        - [ ] it actually has the right signature
+        - [ ] recommend the struct using it gives itself the `Default` contract (although just warn/help for this, don't error)
+        - [ ] perhaps factor out common logic for this so the same thing (roughly) can be done for `copy()`, `clone()`, etc.
 
 #### function body resolution / runtime eval:
 - [ ] move checker structures
