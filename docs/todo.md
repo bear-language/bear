@@ -3,7 +3,8 @@
 #### misc/priority 
 
 - [ ] finish `Context::try_default_value_for_type`
-    - [ ] continue refactoring `ComptExprSolver::solve_fn_call`
+    - [x] continue refactoring `ComptExprSolver::solve_fn_call`
+    - [ ] actual impl
 
 #### function body resolution / runtime eval:
 - [ ] move checker structures
