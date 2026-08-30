@@ -446,10 +446,6 @@ template <IsDefVisitor V> class ComptExprSolver {
         return solve_builtin_compt_expr(fid, scope, expr, {}, {});
     }
 
-    void enter_compt_fn() { ++call_depth; }
-
-    void exit_compt_fn() { --call_depth; }
-
     [[nodiscard]] OptId<ExecId> solve_builtin_compt_expr(FileId fid, ScopeId scope,
                                                          const ast_expr_t* expr,
                                                          std::optional<builtin_type> into_builtin,
@@ -828,6 +824,174 @@ template <IsDefVisitor V> class ComptExprSolver {
         return {};
     }
 
+    /// tries to make a function call at compile-time. internally, this memoizes all results inside
+    /// of context. the memozation simply maps argument values to return value.
+    ///
+    /// internally, the logic works just like generic instantiation, but for regular function calls:
+    ///
+    /// args: {compt_exec1, compt_exec2, ...} -> canonicalize values inside context -> get a
+    /// CanonicalArgsId back -> use that Id to key into a map (CanonicalArgsId -> ExecId) inside of
+    /// context -> get an ExecId value for the given Id, or if no value exists yet for that Id,
+    /// calculate the ExecId value and store it at that Id for future calls
+    ///
+    /// - arg_vec - should already be verified to be correct for this function (appropriate types of
+    /// execs for functions params, all compt values)
+    /// - prior_diag_cnt - just pass in context.diagnostic_count() if in doubt
+    /// - span - span of the function call expression
+    [[nodiscard]] OptId<ExecId> try_compt_fn_call(DefId func_did,
+                                                  llvm::SmallVectorImpl<ExecId>& arg_vec,
+                                                  const int prior_diag_cnt,
+                                                  const Span span = Span::generated()) {
+        const auto params = context.def(func_did).template as<DefFunction>().params;
+
+        // get canonical args
+        const CanonicalGenericArgsId canonical_args
+            = exec_vec_to_canonical_arg_id(context, arg_vec);
+
+        // if this function has a compt args map and there's a value for these args:
+        if (context.def(func_did).template as<DefFunction>().maybe_compt_args_map_id.has_value()) {
+            const auto maybe_memoized = context
+                                            .compt_args_map(context.def(func_did)
+                                                                .template as<DefFunction>()
+                                                                .maybe_compt_args_map_id.as_id())
+                                            .at(canonical_args);
+            if (maybe_memoized.has_value()) {
+                return maybe_memoized.as_id();
+            }
+        }
+
+        // mark that we're starting another call
+        enter_compt_fn();
+        if (call_depth > MAX_COMPT_CALL_FRAMES) {
+            auto d0 = context.emplace_diagnostic_with_message_value(
+                span, diag_code::only_message_value_is_meaningful, diag_type::error,
+                DiagnosticComptStackOverflow{.function_sid = context.def(func_did).name});
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                context.name_span_for_def(func_did), diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
+
+            context.link_diagnostic(d0, d1);
+
+            // poison before exit to prevent cascading diags
+            context.def(func_did).template as<DefFunction>().poison_infinite_recursion();
+
+            exit_compt_fn();
+
+            return {};
+        }
+
+        const auto maybe_existing = context.try_scope_for_top_level_def(func_did);
+
+        ScopeId temp_scope
+            = maybe_existing.has_value()
+                  ? context.make_compt_temp_scope(maybe_existing.as_id(), params.len())
+                  : context.make_compt_temp_scope(context.containing_scope(func_did), params.len());
+
+        for (HirSize i = 0; i < params.len(); i++) {
+            const Def& param_def = context.def(params.get(i));
+            assert(param_def.holds<DefVariable>());
+            const DefVariable& param_var = param_def.as<DefVariable>();
+            ExecId eid = arg_vec[i];
+            const auto param = context.register_compt_def(
+                param_def.name, param_def.span, func_did,
+                DefVariable{.type_id = param_var.type_id, .compt_value = eid});
+            context.insert_variable(temp_scope, context.def(params.get(i)).name, param);
+        }
+
+        const ast_stmt_t* fn_stmt = context.def_ast_node(func_did);
+        assert(fn_stmt->type == AST_STMT_FN_DECL);
+
+        if (!fn_stmt->stmt.fn_decl->only_expr) {
+            auto d0 = context.emplace_diagnostic(
+                span, diag_code::cannot_evaluate_non_pure_expr_fn_at_compt, diag_type::error);
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                context.name_span_for_def(func_did), diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
+            context.link_diagnostic(d0, d1);
+            if (context.def(func_did).compt) {
+                auto d2 = context.emplace_diagnostic_with_message_value(
+                    context.name_span_for_def(func_did),
+                    diag_code::declare_using_pure_expression_syntax_replacing_body_with,
+                    diag_type::help,
+                    DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"=> (Expression)">()});
+                context.link_diagnostic(d1, d2);
+            }
+            context.def(func_did).template as<DefFunction>().poison();
+            exit_compt_fn();
+            return {};
+        }
+
+        const ast_expr_t* body_expr = fn_stmt->stmt.fn_decl->expr;
+
+        // make sure to use the file_id for the function's expression
+        OptId<ExecId> maybe_eid
+            = solve_expr(context.def(func_did).span.file_id, temp_scope, body_expr,
+                         context.def(func_did).template as<DefFunction>().return_type);
+
+        // try to get proper return type if possible
+        if (maybe_eid.has_value()
+            && context.def(func_did).template as<DefFunction>().return_type.has_value()) {
+            const auto orig_eid = maybe_eid.as_id();
+            maybe_eid = try_convert_to(
+                maybe_eid.as_id(),
+                context.def(func_did).template as<DefFunction>().return_type.as_id());
+            if (maybe_eid.empty()) {
+                if (const auto maybe_tid = infer_type_from_exec(orig_eid); maybe_tid.has_value()) {
+                    context.emplace_diagnostic_with_message_value(
+                        span, diag_code::cannot_convert_value_of_type, diag_type::error,
+                        DiagnosticTypeToType{.from = maybe_tid.as_id(),
+                                             .to = context.def(func_did)
+                                                       .template as<DefFunction>()
+                                                       .return_type.as_id()});
+                } else {
+                    context.emplace_diagnostic_with_message_value(
+                        span, diag_code::cannot_convert_expression_to_type, diag_type::error,
+                        DiagnosticTypeAfterMessage{.tid = context.def(func_did)
+                                                              .template as<DefFunction>()
+                                                              .return_type.as_id()});
+                }
+            }
+        }
+
+        // mark that we're done
+        exit_compt_fn();
+
+        const auto post_diag_cnt = context.diagnostic_count();
+        if (!context.def(func_did).template as<DefFunction>().posioned
+            && (maybe_eid.empty() || post_diag_cnt > prior_diag_cnt)) {
+            const auto d = context.emplace_diagnostic_with_message_value(
+                span, diag_code::called_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
+            if (post_diag_cnt > prior_diag_cnt) {
+                context.force_link_diagnostic(d);
+            }
+        }
+
+        if (maybe_eid.empty()) {
+            return {};
+        }
+
+        // memoize result
+        const auto maybe_map_id
+            = context.def(func_did).template as<DefFunction>().maybe_compt_args_map_id;
+        if (maybe_map_id.empty()) {
+            const CanonicalComptArgsIdMapId map_id = context.make_compt_args_map(); // make new map
+            context.def(func_did).template as<DefFunction>().maybe_compt_args_map_id
+                = map_id; // set it
+            context.compt_args_map(map_id).insert(canonical_args,
+                                                  maybe_eid.as_id()); // memoize in new map
+        } else {
+            context.compt_args_map(maybe_map_id.as_id())
+                .insert(canonical_args, maybe_eid.as_id()); // memoize in existing map
+        }
+
+        return context.emplace_exec(context.exec(maybe_eid.as_id()).value, span, true);
+    }
+
+  private:
+    void enter_compt_fn() { ++call_depth; }
+    void exit_compt_fn() { --call_depth; }
+
     /**
      * solve a struct's value at compile-time, this essentially attempts a canonicalization down
      * to a struct-init eexpression where each field is evaluatable at compile-time
@@ -1079,7 +1243,6 @@ template <IsDefVisitor V> class ComptExprSolver {
         return maybe_eid;
     }
 
-  private:
     [[nodiscard]] OptId<ExecId> handle_union_init(FileId fid, ScopeId scope, DefId union_did,
                                                   const ast_expr_t* expr) {
         assert(context.def(union_did).template holds<DefUnion>());
@@ -3097,169 +3260,6 @@ template <IsDefVisitor V> class ComptExprSolver {
         return true;
     }
 
-    /// tries to make a function call at compile-time. internally, this memoizes all results inside
-    /// of context. the memozation simply maps argument values to return value.
-    ///
-    /// internally, the logic works just like generic instantiation, but for regular function calls:
-    ///
-    /// args: {compt_exec1, compt_exec2, ...} -> canonicalize values inside context -> get a
-    /// CanonicalArgsId back -> use that Id to key into a map (CanonicalArgsId -> ExecId) inside of
-    /// context -> get an ExecId value for the given Id, or if no value exists yet for that Id,
-    /// calculate the ExecId value and store it at that Id for future calls
-    ///
-    /// - arg_vec - should already be verified to be correct for this function (appropriate types of
-    /// execs for functions params, all compt values)
-    /// - prior_diag_cnt - just pass in context.diagnostic_count() if in doubt
-    /// - span - span of the function call expression
-    [[nodiscard]] OptId<ExecId> try_fn_call(DefId func_did, llvm::SmallVectorImpl<ExecId>& arg_vec,
-                                            const int prior_diag_cnt,
-                                            const Span span = Span::generated()) {
-        const auto params = context.def(func_did).template as<DefFunction>().params;
-
-        // get canonical args
-        const CanonicalGenericArgsId canonical_args
-            = exec_vec_to_canonical_arg_id(context, arg_vec);
-
-        // if this function has a compt args map and there's a value for these args:
-        if (context.def(func_did).template as<DefFunction>().maybe_compt_args_map_id.has_value()) {
-            const auto maybe_memoized = context
-                                            .compt_args_map(context.def(func_did)
-                                                                .template as<DefFunction>()
-                                                                .maybe_compt_args_map_id.as_id())
-                                            .at(canonical_args);
-            if (maybe_memoized.has_value()) {
-                return maybe_memoized.as_id();
-            }
-        }
-
-        // mark that we're starting another call
-        enter_compt_fn();
-        if (call_depth > MAX_COMPT_CALL_FRAMES) {
-            auto d0 = context.emplace_diagnostic_with_message_value(
-                span, diag_code::only_message_value_is_meaningful, diag_type::error,
-                DiagnosticComptStackOverflow{.function_sid = context.def(func_did).name});
-            auto d1 = context.emplace_diagnostic_with_message_value(
-                context.name_span_for_def(func_did), diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
-
-            context.link_diagnostic(d0, d1);
-
-            // poison before exit to prevent cascading diags
-            context.def(func_did).template as<DefFunction>().poison_infinite_recursion();
-
-            exit_compt_fn();
-
-            return {};
-        }
-
-        const auto maybe_existing = context.try_scope_for_top_level_def(func_did);
-
-        ScopeId temp_scope
-            = maybe_existing.has_value()
-                  ? context.make_compt_temp_scope(maybe_existing.as_id(), params.len())
-                  : context.make_compt_temp_scope(context.containing_scope(func_did), params.len());
-
-        for (HirSize i = 0; i < params.len(); i++) {
-            const Def& param_def = context.def(params.get(i));
-            assert(param_def.holds<DefVariable>());
-            const DefVariable& param_var = param_def.as<DefVariable>();
-            ExecId eid = arg_vec[i];
-            const auto param = context.register_compt_def(
-                param_def.name, param_def.span, func_did,
-                DefVariable{.type_id = param_var.type_id, .compt_value = eid});
-            context.insert_variable(temp_scope, context.def(params.get(i)).name, param);
-        }
-
-        const ast_stmt_t* fn_stmt = context.def_ast_node(func_did);
-        assert(fn_stmt->type == AST_STMT_FN_DECL);
-
-        if (!fn_stmt->stmt.fn_decl->only_expr) {
-            auto d0 = context.emplace_diagnostic(
-                span, diag_code::cannot_evaluate_non_pure_expr_fn_at_compt, diag_type::error);
-            auto d1 = context.emplace_diagnostic_with_message_value(
-                context.name_span_for_def(func_did), diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
-            context.link_diagnostic(d0, d1);
-            if (context.def(func_did).compt) {
-                auto d2 = context.emplace_diagnostic_with_message_value(
-                    context.name_span_for_def(func_did),
-                    diag_code::declare_using_pure_expression_syntax_replacing_body_with,
-                    diag_type::help,
-                    DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"=> (Expression)">()});
-                context.link_diagnostic(d1, d2);
-            }
-            context.def(func_did).template as<DefFunction>().poison();
-            exit_compt_fn();
-            return {};
-        }
-
-        const ast_expr_t* body_expr = fn_stmt->stmt.fn_decl->expr;
-
-        // make sure to use the file_id for the function's expression
-        OptId<ExecId> maybe_eid
-            = solve_expr(context.def(func_did).span.file_id, temp_scope, body_expr,
-                         context.def(func_did).template as<DefFunction>().return_type);
-
-        // try to get proper return type if possible
-        if (maybe_eid.has_value()
-            && context.def(func_did).template as<DefFunction>().return_type.has_value()) {
-            const auto orig_eid = maybe_eid.as_id();
-            maybe_eid = try_convert_to(
-                maybe_eid.as_id(),
-                context.def(func_did).template as<DefFunction>().return_type.as_id());
-            if (maybe_eid.empty()) {
-                if (const auto maybe_tid = infer_type_from_exec(orig_eid); maybe_tid.has_value()) {
-                    context.emplace_diagnostic_with_message_value(
-                        span, diag_code::cannot_convert_value_of_type, diag_type::error,
-                        DiagnosticTypeToType{.from = maybe_tid.as_id(),
-                                             .to = context.def(func_did)
-                                                       .template as<DefFunction>()
-                                                       .return_type.as_id()});
-                } else {
-                    context.emplace_diagnostic_with_message_value(
-                        span, diag_code::cannot_convert_expression_to_type, diag_type::error,
-                        DiagnosticTypeAfterMessage{.tid = context.def(func_did)
-                                                              .template as<DefFunction>()
-                                                              .return_type.as_id()});
-                }
-            }
-        }
-
-        // mark that we're done
-        exit_compt_fn();
-
-        const auto post_diag_cnt = context.diagnostic_count();
-        if (!context.def(func_did).template as<DefFunction>().posioned
-            && (maybe_eid.empty() || post_diag_cnt > prior_diag_cnt)) {
-            const auto d = context.emplace_diagnostic_with_message_value(
-                span, diag_code::called_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
-            if (post_diag_cnt > prior_diag_cnt) {
-                context.force_link_diagnostic(d);
-            }
-        }
-
-        if (maybe_eid.empty()) {
-            return {};
-        }
-
-        // memoize result
-        const auto maybe_map_id
-            = context.def(func_did).template as<DefFunction>().maybe_compt_args_map_id;
-        if (maybe_map_id.empty()) {
-            const CanonicalComptArgsIdMapId map_id = context.make_compt_args_map(); // make new map
-            context.def(func_did).template as<DefFunction>().maybe_compt_args_map_id
-                = map_id; // set it
-            context.compt_args_map(map_id).insert(canonical_args,
-                                                  maybe_eid.as_id()); // memoize in new map
-        } else {
-            context.compt_args_map(maybe_map_id.as_id())
-                .insert(canonical_args, maybe_eid.as_id()); // memoize in existing map
-        }
-
-        return context.emplace_exec(context.exec(maybe_eid.as_id()).value, span, true);
-    }
-
     [[nodiscard]] OptId<ExecId> solve_fn_call(FileId fid, ScopeId scope, const ast_expr_t* expr,
                                               OptId<ExecId> maybe_self_val = std::nullopt) {
         assert(expr->type == AST_EXPR_FN_CALL);
@@ -3299,7 +3299,7 @@ template <IsDefVisitor V> class ComptExprSolver {
             return {};
         }
 
-        return try_fn_call(func_did, arg_vec, prior_diag_cnt, Span{context, fid, expr});
+        return try_compt_fn_call(func_did, arg_vec, prior_diag_cnt, Span{context, fid, expr});
     }
 
     [[nodiscard]] OptId<ExecId> try_convert_to(ExecId eid, TypeId into_tid) {
