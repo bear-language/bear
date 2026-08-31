@@ -2,13 +2,6 @@
 
 #### misc/priority 
 
-- [ ] finish `Context::try_default_value_for_type`
-    - [x] `ComptExprSolver::solve_fn_call`
-    - [ ] actual impl: basically make sure that `Foo..default()` exists and that:
-        - [ ] it actually has the right signature
-        - [ ] recommend the struct using it gives itself the `Default` contract (although just warn/help for this, don't error)
-        - [ ] perhaps factor out common logic for this so the same thing (roughly) can be done for `copy()`, `clone()`, etc.
-
 #### function body resolution / runtime eval:
 - [ ] move checker structures
     - [ ] Scopes in runtime functions should be composed of a `ScopeId` and `MoveMapId`
@@ -23,9 +16,8 @@
 - [ ] impl `RunTimeExprSolver`
     - [ ] use deduction guides for functions/(variants/structs?)
 - [ ] make sure assignment type checking is properly rigid around mutable types (especially references).
+    - [ ] this is already impl'd: see `Context::assignable_from_type_to_type`, but a version of this basic on inferable types (with `var` inference) is needed for variable decls
     - note: (impl. detail) the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
-    - [ ] when calling a function, disregard the outer-most mutability of the type (unless it's a reference)
-    - [ ] assignment requires recursively that thru references or within pointers/slices: immut <- mut but not mut <- immut 
     - [ ] ensure these work:
         - [ ] T       -> mut T
         - [ ] mut T   -> T

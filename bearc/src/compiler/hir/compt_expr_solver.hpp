@@ -839,7 +839,7 @@ template <IsDefVisitor V> class ComptExprSolver {
     /// - prior_diag_cnt - just pass in context.diagnostic_count() if in doubt
     /// - span - span of the function call expression
     [[nodiscard]] OptId<ExecId> try_compt_fn_call(DefId func_did,
-                                                  llvm::SmallVectorImpl<ExecId>& arg_vec,
+                                                  const llvm::SmallVectorImpl<ExecId>& arg_vec,
                                                   const int prior_diag_cnt,
                                                   const Span span = Span::generated()) {
         const auto params = context.def(func_did).template as<DefFunction>().params;

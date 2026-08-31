@@ -95,10 +95,11 @@ src_buffer_t src_buffer_from_file_createn(const char* file_name, size_t name_len
 }
 src_buffer_t src_buffer_from_string_literal(const char* literal_file_name,
                                             const char* literal_buffer) {
+    size_t src_len = strlen(literal_buffer);
     src_buffer_t buffer = {.file_name = literal_file_name,
                            .data = (char*)literal_buffer,
-                           .size = 0,
-                           .src_len = strlen(literal_buffer),
+                           .size = src_len + strlen(literal_file_name) + 2,
+                           .src_len = src_len,
                            .owns_data = false};
     return buffer;
 }

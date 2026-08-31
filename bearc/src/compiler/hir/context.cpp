@@ -18,6 +18,7 @@
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/diagnostic.hpp"
+#include "compiler/hir/exec.hpp"
 #include "compiler/hir/file.hpp"
 #include "compiler/hir/generic.hpp"
 #include "compiler/hir/indexing.hpp"
@@ -42,6 +43,7 @@
 #include <stddef.h>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <variant>
 namespace hir {
 
@@ -554,6 +556,14 @@ struct Range<T> {
 }
         )";
     file_intrinsic(symbol_id(range_name), range_src);
+    const char* default_name = "intrinsic/default";
+    const char* default_src =
+        R"(
+contract Default {
+    fn default() -> Self;
+}
+        )";
+    file_intrinsic(symbol_id(default_name), default_src);
 }
 
 FileId Context::file_parallel(SymbolId path_symbol) {
@@ -1256,6 +1266,10 @@ ScopeId Context::scope_for_top_level_def(DefId def_id) const {
     return def_ast_nodes.at(def_id)->type == AST_STMT_STRUCT_DEF;
 }
 
+[[nodiscard]] bool Context::is_union_def(DefId def_id) const {
+    return def_ast_nodes.at(def_id)->type == AST_STMT_UNION_DEF;
+}
+
 OptId<ScopeId> Context::try_scope_for_top_level_def(DefId def_id) const {
     const auto& def = defs.at(def_id);
     // no parent means parent scope is root scope
@@ -1907,6 +1921,57 @@ bool Context::equivalent_type(TypeId tid1, TypeId tid2) const {
     return type(tid1).canonical == type(tid2).canonical;
 }
 
+[[nodiscard]] bool Context::assignable_from_type_to(TypeId from, TypeId to) {
+
+    const Type& from_ty = type(from);
+    const Type& to_ty = type(to);
+
+    // references have special rules since they behave a bit differently (they're not really
+    // textbook 'by-value' how other types are)
+    if (from_ty.holds_same<TypeRef>(to_ty)) {
+        return assignable_from_type_to_refs(from, to);
+    }
+
+    TypeComparator<DoNotConsiderMut> equivalent_not_considering_mut_for_one_layer{*this};
+
+    if (!equivalent_not_considering_mut_for_one_layer(from_ty, to_ty)) {
+        return false;
+    }
+
+    const auto from_inner = from_ty.try_inner();
+    const auto to_inner = to_ty.try_inner();
+
+    // all good, no inner type
+    if (from_inner.empty() && to_inner.empty()) {
+        return true;
+    }
+
+    // one has an inner and the other doesn't -> not strucurally equivalent
+    if (from_inner.has_value() != to_inner.has_value()) {
+        return false;
+    }
+
+    // make sure the inners are all the same
+    return equivalent_type(from_inner.as_id(), to_inner.as_id());
+}
+
+[[nodiscard]] bool Context::assignable_from_type_to_refs(TypeId from, TypeId to) {
+
+    const Type& from_ty = type(from);
+    const Type& to_ty = type(to);
+
+    assert(from_ty.holds_same<TypeRef>(to_ty));
+
+    // cannot assign a const ref to a mut ref
+    if (to_ty.mut && !from_ty.mut) {
+        return false;
+    }
+
+    // .as_id() is safe here because we know both of these hold ref types which always have inner
+    // types
+    return equivalent_type(from_ty.try_inner().as_id(), to_ty.try_inner().as_id());
+}
+
 [[nodiscard]] bool Context::equivalent_type_ignoring_mut(TypeId tid1, TypeId tid2) {
     return TypeTransformer<TypeComparator<DoConsiderMut>>{*this}(tid1, tid2);
 }
@@ -2314,8 +2379,148 @@ bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) {
     return type_inferable_as(tid1, tid2);
 }
 
-[[nodiscard]] OptId<ExecId> Context::try_default_value_for_type(TypeId tid) {
-    // TODO
+[[nodiscard]] OptId<ExecId> Context::try_default_value_for_type(TypeId tid, Span span,
+                                                                const bool compt) {
+
+    const Type ty = type(tid);
+
+    if (ty.holds<TypeRef>()) {
+        emplace_diagnostic(span, diag_code::references_need_explicit_initializers,
+                           diag_type::error);
+        return {};
+    }
+
+    if (ty.holds<TypeBuiltin>()) {
+        return default_value_for_builtin_type(ty.as<TypeBuiltin>());
+    }
+    // default for ptr is just null
+    if (ty.holds<TypePtr>()) {
+        return emplace_compt_exec(ExecConst{nullptr}, Span::generated());
+    }
+    // empty slice, this is only fine when the inner type isn't mut
+    if (ty.holds<TypeSlice>() && !type(ty.as<TypeSlice>().inner).mut) {
+        return emplace_compt_exec(ExecListLiteral{.elems = {}, .elem_type_id = {}},
+                                  Span::generated());
+    }
+
+    // try contract-based defaults
+    return default_value_for_type_using_default_contract(tid, span, compt);
+}
+
+[[nodiscard]] ExecId Context::default_value_for_builtin_type(TypeBuiltin ty) {
+    const Span s = Span::generated();
+    switch (ty.type) {
+    case builtin_type::u8:
+        return emplace_compt_exec(ExecConst{static_cast<u8>(0)}, s);
+    case builtin_type::i8:
+        return emplace_compt_exec(ExecConst{static_cast<i8>(0)}, s);
+    case builtin_type::u16:
+        return emplace_compt_exec(ExecConst{static_cast<u16>(0)}, s);
+    case builtin_type::i16:
+        return emplace_compt_exec(ExecConst{static_cast<i16>(0)}, s);
+    case builtin_type::u32:
+        return emplace_compt_exec(ExecConst{static_cast<u32>(0)}, s);
+    case builtin_type::i32:
+        return emplace_compt_exec(ExecConst{static_cast<i32>(0)}, s);
+    case builtin_type::u64:
+        return emplace_compt_exec(ExecConst{static_cast<u64>(0)}, s);
+    case builtin_type::i64:
+        return emplace_compt_exec(ExecConst{static_cast<i64>(0)}, s);
+    case builtin_type::charr:
+        return emplace_compt_exec(ExecConst{'\0'}, s);
+    case builtin_type::f32:
+        return emplace_compt_exec(ExecConst{0.0f}, s);
+    case builtin_type::f64:
+        return emplace_compt_exec(ExecConst{0.0}, s);
+    case builtin_type::voidd:
+        return emplace_compt_exec(ExecConst{static_cast<u8>(0)},
+                                  s); // zero byte seems reasonable, this shouldn't
+                                      // really matter or be used, though
+    case builtin_type::str:
+        return emplace_compt_exec(ExecConst{symbol_id<"">()}, s); // empty string
+    case builtin_type::nullpointer:
+        return emplace_compt_exec(ExecConst{nullptr}, s);
+    case builtin_type::boolean:
+        return emplace_compt_exec(ExecConst{false}, s);
+    }
+    std::unreachable();
+}
+
+[[nodiscard]] OptId<ExecId>
+Context::default_value_for_type_using_default_contract(TypeId tid, Span span, const bool compt) {
+    const auto maybe_default_did = look_up_type(root_scope(), symbol_id<"Default">());
+
+    // for resolving stuff if needed
+    TopLevelDefVisitor def_visitor{*this};
+
+    if (!maybe_default_did.has_value()
+        || !def(def_visitor.visit_and_resolve_if_needed(maybe_default_did.as_id()))
+                .holds<DefContract>()) {
+        return {}; // something's messed up (this shouldn't happen since Default is intrinsic)
+    }
+
+    const DefId default_did = maybe_default_did.as_id();
+
+    const bool has_default_contract = type_has_contract(tid, default_did);
+
+    const auto report_problem = [this, &span, tid, has_default_contract] {
+        if (!has_default_contract) {
+            emplace_diagnostic_with_message_value(
+                span, diag_code::does_not_have_contract_default_so_an_initial_value_is_needed,
+                diag_type::error, DiagnosticTypeBeforeMessage{.tid = tid});
+        }
+        // else do nothing since not properly satisfying Default is seperate issue
+    };
+
+    const auto maybe_scope = try_scope_for_type(tid);
+
+    if (maybe_scope.empty()) {
+        return {};
+    }
+
+    const auto scope = maybe_scope.as_id();
+
+    const auto maybe_fn_did = look_up_variable(scope, symbol_id<"default">());
+
+    if (maybe_fn_did.empty()) {
+        report_problem();
+        return {};
+    }
+
+    const auto fn_did = def_visitor.visit_and_resolve_if_needed(maybe_fn_did.as_id());
+
+    if (!def(fn_did).holds<DefFunction>()) {
+        return {};
+    }
+
+    const DefFunction fn_def = def(fn_did).as<DefFunction>();
+
+    // the default function shouldn't take args since it's `default()`
+    if (fn_def.params.len()) {
+        report_problem();
+        return {};
+    }
+
+    if (!fn_def.return_type.has_value()
+        || !assignable_from_type_to(fn_def.return_type.as_id(), tid)) {
+        report_problem();
+        return {};
+    }
+
+    if (!compt) {
+        return {}; // TODO return the runtime fn-call here
+    }
+
+    const llvm::SmallVector<ExecId, 1> no_args{};
+    return ComptExprSolver<TopLevelDefVisitor>{*this, def_visitor}.try_compt_fn_call(
+        fn_did, no_args, diagnostic_count());
+}
+
+[[nodiscard]] OptId<ScopeId> Context::try_scope_for_type(TypeId tid) {
+    const Type& ty = type(try_decay(tid));
+    if (ty.holds<TypeStruct>()) {
+        return scope_for_top_level_def(ty.as<TypeStruct>().def_id);
+    }
     return {};
 }
 

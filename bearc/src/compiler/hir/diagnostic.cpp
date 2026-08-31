@@ -420,6 +420,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot deduce generic paramters for function";
     case diag_code::takes_no_arguments:
         return "takes no arguments";
+    case diag_code::does_not_have_contract_default_so_an_initial_value_is_needed:
+        return "does not have contract `Default` so an initial value is needed";
+    case diag_code::references_need_explicit_initializers:
+        return "references need explicit initializers";
     }
 
     std::unreachable();

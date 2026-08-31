@@ -625,6 +625,9 @@ class Context {
     /// checks if two types are exactly equivalent
     [[nodiscard]] bool equivalent_type(TypeId tid1, TypeId tid2) const;
 
+    /// assignable type, like when it comes to assigning one value to another
+    [[nodiscard]] bool assignable_from_type_to(TypeId from, TypeId to);
+
     /// checks if two types are equivalent, ignoring mut qualifiers
     /// note: this is a lot slower than equivalent_type(TypeId,TypeId))
     [[nodiscard]] bool equivalent_type_ignoring_mut(TypeId tid1, TypeId tid2);
@@ -689,6 +692,8 @@ class Context {
 
     [[nodiscard]] bool is_struct_def(DefId def_id) const;
 
+    [[nodiscard]] bool is_union_def(DefId def_id) const;
+
     [[nodiscard]] DefId begin_def_id() const;
 
     [[nodiscard]] DefId end_def_id() const;
@@ -738,7 +743,19 @@ class Context {
     /// - emits diagnostics when a default value is not found
     ///
     /// return some (compt) ExecId if a value is found, else returns none
-    [[nodiscard]] OptId<ExecId> try_default_value_for_type(TypeId tid);
+    ///
+    /// - tid - the type
+    /// - compt - indicates whether this should be fully solved at compt
+    [[nodiscard]] OptId<ExecId> try_default_value_for_type(TypeId tid, Span span,
+                                                           bool compt = true);
+
+    [[nodiscard]] ExecId default_value_for_builtin_type(TypeBuiltin ty);
+
+    [[nodiscard]] OptId<ExecId> default_value_for_type_using_default_contract(TypeId tid, Span span,
+                                                                              bool compt);
+
+    /// tries to get the type's actual scope, not its containing scope
+    [[nodiscard]] OptId<ScopeId> try_scope_for_type(TypeId tid);
 
     /// checks if a (decayed) type matches a struct def
     [[nodiscard]] bool type_matches_struct_def(TypeId tid, DefId did);
@@ -1379,6 +1396,10 @@ class Context {
     recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice_of_stmts_t stmts,
                                               const ast_type_t* curr_type, SymbolId sid,
                                               bool nested = false);
+
+    // helper where both types are references (this has special rules due to how references are
+    // internally stored in context)
+    [[nodiscard]] bool assignable_from_type_to_refs(TypeId from, TypeId to);
 };
 
 } // namespace hir

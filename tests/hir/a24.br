@@ -1,5 +1,7 @@
 // tests/hir/a24.br 
 
+mod hir_a24;
+
 variant Opt<T> {
     Some(T val),
     None

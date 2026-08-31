@@ -1,0 +1,39 @@
+// tests/hir/a67.br
+
+mod hir_a67;
+
+// test default values
+
+struct Foo has Default {
+    i32 a = 0;
+    fn default() -> Self => Self{}
+}
+
+Foo _0;
+
+u8 _1;
+i8 _2;
+mut u16 _3;
+i16 _4;
+u32 _5;
+i32 _6;
+u64 _7;
+mut i64 _8;
+*i32 _9;
+str _10;
+bool _11;
+
+var _12; //oops
+*var _13; //oops
+
+[&]i32 _14;
+
+struct Bar {
+    u64 a;
+}
+
+Bar _15; //oops
+*Bar _16;
+&Bar _17; //oops
+
+&Foo _18; //oops

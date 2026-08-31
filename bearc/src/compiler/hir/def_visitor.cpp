@@ -109,6 +109,10 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         return (def.parent.has_value()) ? context.is_struct_def(def.parent.as_id()) : false;
     };
 
+    auto parent_is_union = [this](const Def& def) {
+        return (def.parent.has_value()) ? context.is_union_def(def.parent.as_id()) : false;
+    };
+
     switch (stmt->type) {
     case AST_STMT_VAR_DECL: {
         Def& def = context.def(did);
@@ -133,13 +137,15 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                 type.span, diag_code::should_have_explicit_type, diag_type::error,
                 DiagnosticStructMemberSymBeforeMsg{.mem_sid = def.name});
         };
-        def.set_value(
-            DefVariable{.type_id = maybe_tid.as_id(),
-                        // this function emits diagnostics if there's a problem and returns an
-                        // optional, which is what we need here
-                        .compt_value = context.try_default_value_for_type(maybe_tid.as_id())
+        def.set_value(DefVariable{
+            .type_id = maybe_tid.as_id(),
+            // this function emits diagnostics if there's a problem and
+            // returns an optional, which is what we need here
+            .compt_value = (parent_is_struct(def) || parent_is_union(def))
+                               ? std::nullopt
+                               : context.try_default_value_for_type(maybe_tid.as_id(), def.span)
 
-            });
+        });
         break;
     }
     case AST_STMT_VAR_INIT_DECL: {
