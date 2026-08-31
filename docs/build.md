@@ -4,12 +4,32 @@
 - Ninja
 ### Linux/MacOS
 ```bash
-git clone https://github.com/zachMahan64/bear-lang.git
-cd bear-lang && mkdir build && cd build && cmake .. && make
+# installing LLVM development packages:
+
+# Ubuntu / Debian
+sudo apt install llvm-dev 
+
+# Fedora / RHEL 
+sudo dnf install llvm-devel
+
+# Arch 
+sudo pacman -S llvm
+
+# macOS
+brew install llvm # follow instructions after install to put this on your path
+
+# manual cmake build
+cmake -B build -S .
+cmake --build build
+
+# convient scripts:
+./scripts/clean-all.sh [Release|Debug] # builds bearc and libbearc
+./scripts/clean.sh     [Release|Debug] # builds bearc
+./scripts/build-tests.sh               # build and run tests
                                                          # if you want BearLang on your path:
 cd bearc
 pwd                                                      # and copy result
-echo "export PATH='result/from/pwd/:\$PATH'" >> ~/.zshrc  # or .bashrc, etc.
+echo "export PATH='result/from/pwd/:\$PATH'" >> ~/.zshrc # or .bashrc, etc.
 source ~/.zshrc                                          # or .bashrc, etc.
 bearc -v                                                 # check to ensure it works
 ```
@@ -32,11 +52,11 @@ source ~/.bashrc
 bearc -v                                                  # check to ensure it works
 ```
 
-### Building LLVM
+### Building a custom LLVM distribution
 ```bash
 # starting from project root dir
 cd bearc
-git clone --branch llvmorg-21.1.6 --depth 1 https://github.com/llvm/llvm-project.git
+git clone --branch llvmorg-22.1.8 --depth 1 https://github.com/llvm/llvm-project.git
 
 mkdir llvm-build
 cd llvm-build
