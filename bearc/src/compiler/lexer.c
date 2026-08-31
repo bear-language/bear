@@ -13,8 +13,8 @@
 #include <stddef.h>
 
 vector_t lexer_tokenize_src_buffer(const src_buffer_t* buf) {
-    vector_t tkn_vec
-        = vector_create_and_reserve(sizeof(token_t), buf->size / LEXER_ESTIMATED_CHARS_PER_TOKEN);
+    vector_t tkn_vec = vector_create_and_reserve(sizeof(token_t),
+                                                 buf->src_len / LEXER_ESTIMATED_CHARS_PER_TOKEN);
 
     // tkn string view params
     char* start = buf->data;               // start of tkn's view into buf
@@ -24,7 +24,7 @@ vector_t lexer_tokenize_src_buffer(const src_buffer_t* buf) {
     token_t tkn; // scratch token
 
     char* pos = buf->data;
-    const char* end_of_buf = buf->data + buf->size;
+    const char* end_of_buf = buf->data + buf->src_len;
     char c;  // cached curr char, pos[0]
     char n1; // cached next char for lookaheads, pos[1]
 
