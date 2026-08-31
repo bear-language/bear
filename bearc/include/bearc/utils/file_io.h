@@ -22,9 +22,10 @@ typedef struct src_buffer {
     const char* file_name;
     /// owns, freed by destroy_char_buffer_from_file
     char* data;
-    // size of char buffer, in bytes/chars
-    size_t size;
-    /// length of src file
+    // total size of char buffer, in bytes/chars
+    size_t total_size;
+    /// length of src file, use this to get the length of the actual buffer (total_size include the
+    /// file_name)
     size_t src_len;
     bool owns_data;
 } src_buffer_t;

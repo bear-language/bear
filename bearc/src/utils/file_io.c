@@ -66,7 +66,7 @@ int read_file_to_src_buffer(src_buffer_t* buffer, const char* file_name) {
     // ensure null term for both src and file name
     buffer->data[src_len] = '\0';
     buffer->data[size - 1] = '\0';
-    buffer->size = size;
+    buffer->total_size = size;
     buffer->src_len = src_len;
     return 0;
 }
@@ -74,7 +74,7 @@ int read_file_to_src_buffer(src_buffer_t* buffer, const char* file_name) {
 // returns an src_buffer_t by value, which will need to be destructed by src_buffer_destroy
 src_buffer_t src_buffer_from_file_create(const char* file_name) {
     src_buffer_t buffer
-        = {.file_name = file_name, .data = NULL, .size = 0, .src_len = 0, .owns_data = true};
+        = {.file_name = file_name, .data = NULL, .total_size = 0, .src_len = 0, .owns_data = true};
     if (read_file_to_src_buffer(&buffer, file_name) < 0) {
         printf("%serror%s: could not read file: %s\n", ansi_bold_red(), ansi_reset(), file_name);
     }
@@ -87,7 +87,7 @@ src_buffer_t src_buffer_from_file_createn(const char* file_name, size_t name_len
     strncpy(file_name_nt, file_name, name_len);
     file_name_nt[name_len] = '\0';
     src_buffer_t buffer
-        = {.file_name = file_name, .data = NULL, .size = 0, .src_len = 0, .owns_data = true};
+        = {.file_name = file_name, .data = NULL, .total_size = 0, .src_len = 0, .owns_data = true};
     if (read_file_to_src_buffer(&buffer, file_name) < 0) {
         printf("%serror%s: could not read file: %s\n", ansi_bold_red(), ansi_reset(), file_name);
     }
@@ -98,7 +98,7 @@ src_buffer_t src_buffer_from_string_literal(const char* literal_file_name,
     size_t src_len = strlen(literal_buffer);
     src_buffer_t buffer = {.file_name = literal_file_name,
                            .data = (char*)literal_buffer,
-                           .size = src_len + strlen(literal_file_name) + 2,
+                           .total_size = src_len + strlen(literal_file_name) + 2,
                            .src_len = src_len,
                            .owns_data = false};
     return buffer;
