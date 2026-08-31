@@ -126,7 +126,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         if (def.compt) {
             context.emplace_diagnostic_with_message_value(
                 def.span, diag_code::a_compt_variable_should_be_explicitly_initialized,
-                diag_type::error, DiagnosticSymbolBeforeMessage{.sid = def.name});
+                diag_type::warning, DiagnosticSymbolBeforeMessage{.sid = def.name});
         }
         // error when struct member does not have an explicit type
 

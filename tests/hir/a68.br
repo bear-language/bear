@@ -1,0 +1,17 @@
+// tests/hir/a68.br
+
+compt i32 a = 42;
+
+compt &i32 mut b = &a; // oops
+
+compt typeof b _c; // oops 
+
+compt [&]i32 _d; // oops
+
+[&]i32 _e;
+
+[&mut]i32 mut _f;
+
+compt [&mut]i32 mut _g;
+
+compt [&mut]i32 mut _h = [];

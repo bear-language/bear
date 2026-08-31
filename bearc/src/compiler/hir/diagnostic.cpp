@@ -387,7 +387,7 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::cannot_assign_compt_value_to_mutable_slice_type:
         return "cannot assign compile-time constant value to mutable slice type";
     case diag_code::compt_declarations_should_not_be_ref_type:
-        return "compile-time constant declaration should not of reference type";
+        return "compile-time constant declaration should not be of reference type";
     case diag_code::should_not_be_declared_hid:
         return "should not be declared `hid`";
     case diag_code::matching_on_floats_may_cause_unintended_behavior:
