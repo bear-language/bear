@@ -38,16 +38,18 @@ sudo pacman -S llvm
 # macOS
 brew install llvm # follow instructions after install to put this on your path
 
-# manual cmake build
+# next build bearc:
+git clone https://github.com/bear-language/bear.git
+cd bear
 cmake -B build -S .
 cmake --build build
 
-# convient scripts:
+# convient scripts for developers:
 ./scripts/clean-all.sh [Release|Debug] # builds bearc and libbearc
 ./scripts/clean.sh     [Release|Debug] # builds bearc
 ./scripts/build-tests.sh               # build and run tests
 ```
-- Also, you will probably want to put `/path/to/bearc/build/bearc/` on your path.
+- Also, you will probably want to put `/path/to/bear/build/bearc/` on your path.
 #### Run
 ```
 bearc --help          # to see CLI usage
