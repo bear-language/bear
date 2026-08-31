@@ -422,8 +422,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "takes no arguments";
     case diag_code::does_not_have_contract_default_so_an_initial_value_is_needed:
         return "does not have contract `Default` so an initial value is needed";
-    case diag_code::references_need_explicit_initializers:
-        return "references need explicit initializers";
+    case diag_code::reference_does_not_have_an_explicit_initializer:
+        return "reference does not have an explicit initializer";
     }
 
     std::unreachable();

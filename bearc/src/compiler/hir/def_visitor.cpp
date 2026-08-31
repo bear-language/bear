@@ -141,7 +141,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
             .type_id = maybe_tid.as_id(),
             // this function emits diagnostics if there's a problem and
             // returns an optional, which is what we need here
-            .compt_value = (parent_is_struct(def) || parent_is_union(def))
+            .compt_value = (!def.statik && (parent_is_struct(def) || parent_is_union(def)))
                                ? std::nullopt
                                : context.try_default_value_for_type(maybe_tid.as_id(), def.span)
 

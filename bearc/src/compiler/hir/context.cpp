@@ -2385,7 +2385,7 @@ bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) {
     const Type ty = type(tid);
 
     if (ty.holds<TypeRef>()) {
-        emplace_diagnostic(span, diag_code::references_need_explicit_initializers,
+        emplace_diagnostic(span, diag_code::reference_does_not_have_an_explicit_initializer,
                            diag_type::error);
         return {};
     }

@@ -212,7 +212,7 @@ enum class diag_code : uint8_t {
     cannot_deduce_generic_paramters_for_function,
     takes_no_arguments,
     does_not_have_contract_default_so_an_initial_value_is_needed,
-    references_need_explicit_initializers,
+    reference_does_not_have_an_explicit_initializer,
 
     count, // this must be last,
 

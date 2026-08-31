@@ -10,7 +10,7 @@ struct Nodette {
 
     mut Nodette nodette; // oops
 
-    static mut Nodette nodette_static; // fine
+    static mut Nodette nodette_static; // oops, not initialized properly
 
     mut Node node; // fine
     
