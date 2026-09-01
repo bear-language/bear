@@ -38,8 +38,6 @@ struct DefFunction {
     IdSlice<TypeId> param_types;
     OptId<TypeId> return_type;
     OptId<ExecId> body;
-    /// if this function was derived from an original generic function
-    OptId<DefId> original;
     // generic args, if any
     OptId<GenericArgIdSliceId> maybe_generic_args;
     // to access a map from canonical compt (same mechanism as generic) args to memoized ExecId

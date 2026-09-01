@@ -578,12 +578,10 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
                 diag_code::in_generic_instantiated_here, diag_type::note));
         }
 
-        // handle methods explicitly
         def.set_value(DefFunction{.params = params,
                                   .param_types = param_types,
                                   .return_type = return_tid,
                                   .body = std::nullopt,
-                                  .original = std::nullopt, // not generic
                                   .maybe_generic_args = maybe_generic_args,
                                   .discardable = fn_decl.discardable,
                                   .takes_self = takes_self,
