@@ -63,6 +63,7 @@ struct Diagnostic;
 struct Layout;
 struct DeductionStep;
 class MoveMap;
+struct Block;
 
 /// primary means of tracking interned strings in the hir
 using SymbolId = Id<Symbol>;
@@ -102,6 +103,8 @@ using LayoutId = Id<Layout>;
 using Offset = Id<HirSize>;
 
 using MoveMapId = Id<MoveMap>;
+
+using BlockId = Id<Block>;
 
 /// to be stored in a HirSymbolId -> HirSymbol table
 class Symbol {

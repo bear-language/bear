@@ -73,6 +73,7 @@ static constexpr size_t DEFAULT_DEF_SLICE_COUNT = 0x100;
 static constexpr size_t DEFAULT_CANONICAL_TT_CAP = 0x1000;
 static constexpr size_t DEFAULT_CANONICAL_GEN_ARGS_CAP = 0x1000;
 static constexpr size_t DEFAULT_CANONICAL_COMPT_ARGS_CAP = 0x4000;
+static constexpr size_t DEFAULT_BLOCK_CAP = 0x400;
 
 Context::Context(const bearc_args_t& args) : Context(args, instances::multiple) {}
 
@@ -86,13 +87,14 @@ Context::Context(const bearc_args_t& args, instances instances)
       intrinsic_files{intrinsic_files_set_arena, 0x20}, importer_to_importees{DEFAULT_FILE_VEC_CAP},
       importee_to_importers{DEFAULT_FILE_VEC_CAP}, file_to_diagnostics{EXPECTED_HIGH_NUM_IMPORTS},
       scope_arena{DEFAULT_SCOPE_ARENA_CAP}, scopes{DEFAULT_SCOPE_VEC_CAP},
+      move_maps(DEFAULT_SCOPE_VEC_CAP),
       temp_scope_arena{std::make_unique<DataArena>(DEFAULT_TEMP_SCOPE_ARENA_CAP)},
       symbol_storage_arena{DEFAULT_SYMBOL_ARENA_CAP}, symbol_map_arena{DEFAULT_SYMBOL_ARENA_CAP},
       str_to_symbol_id_map{symbol_map_arena}, symbol_ids{DEFAULT_SYMBOL_VEC_CAP},
       symbols{DEFAULT_SYMBOL_VEC_CAP}, exec_ids{DEFAULT_EXEC_VEC_CAP}, execs{DEFAULT_EXEC_VEC_CAP},
-      def_ids{DEFAULT_DEF_CAP}, defs{DEFAULT_DEF_CAP}, def_resol_states{DEFAULT_DEF_CAP},
-      def_ast_nodes(DEFAULT_DEF_CAP), def_mention_states{DEFAULT_DEF_CAP},
-      def_to_scope{id_map_arena, DEFAULT_DEF_CAP},
+      blocks{DEFAULT_BLOCK_CAP}, def_ids{DEFAULT_DEF_CAP}, defs{DEFAULT_DEF_CAP},
+      def_resol_states{DEFAULT_DEF_CAP}, def_ast_nodes(DEFAULT_DEF_CAP),
+      def_mention_states{DEFAULT_DEF_CAP}, def_to_scope{id_map_arena, DEFAULT_DEF_CAP},
       def_to_scope_for_funcs{id_map_arena, DEFAULT_DEF_CAP}, ordered_def_slices{DEFAULT_DEF_CAP},
       def_to_ordered_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT},
       def_to_static_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT},
@@ -1380,6 +1382,12 @@ TypeId Context::emplace_type(const TypeValue& value, Span span, bool mut) {
 [[nodiscard]] const Exec& Context::exec(IdIdx<ExecId> id) const {
     return execs.at(exec_ids.at(id));
 }
+
+[[nodiscard]] BlockId Context::emplace_block(Block block) {
+    return blocks.emplace_and_get_id(block);
+}
+
+[[nodiscard]] const Block& Context::block(BlockId bid) const { return blocks.at(bid); }
 
 [[nodiscard]] GenericArg Context::gen_arg(GenericArgId id) const { return generic_args.at(id); }
 

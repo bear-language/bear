@@ -662,6 +662,10 @@ class Context {
 
     [[nodiscard]] const Exec& exec(IdIdx<ExecId> id) const;
 
+    [[nodiscard]] BlockId emplace_block(Block block);
+
+    [[nodiscard]] const Block& block(BlockId bid) const;
+
     [[nodiscard]] GenericArg gen_arg(GenericArgId id) const;
 
     [[nodiscard]] GenericArg gen_arg(IdIdx<GenericArgId> id) const;
@@ -975,6 +979,7 @@ class Context {
     // ~~~~~~~~~~~~~~~~~~~~~ scopes ~~~~~~~~~~~~~~~~~~~~~~~
     DataArena scope_arena;
     NodeVector<Scope> scopes;
+    NodeVector<MoveMap> move_maps;
     std::unique_ptr<DataArena> temp_scope_arena;
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     /// const char* -> hir::SymbolId
@@ -986,6 +991,8 @@ class Context {
 
     IdVector<ExecId> exec_ids;
     NodeVector<Exec> execs;
+
+    NodeVector<Block> blocks;
 
     // ~~~~ defs ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IdVector<DefId> def_ids;

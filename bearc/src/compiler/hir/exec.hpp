@@ -14,6 +14,7 @@
 #include "compiler/hir/span.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/variant_helpers.hpp"
+#include <compiler/hir/scope.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -25,12 +26,15 @@ namespace hir {
 
 // ------ struct impls -------
 
-struct ExecBlock {
-    // TODO move this stuff into Context storage and use a BlockId
+struct Block {
+    using id_type = BlockId;
     IdSlice<ExecId> execs;
     IdSlice<DefId> defs;
-    ScopeId scope;
-    MoveMapId move_map;
+    LexicalCtx lctx;
+};
+
+struct ExecBlock {
+    BlockId block;
 };
 
 struct ExecExprStmt {

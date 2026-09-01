@@ -8,7 +8,7 @@
         - [ ] `ScopeId`: same as current impl, for symbol look-up
         - [ ] `MoveMapId`: same idea as a scope, but:
             - [ ] tracks DefId -> ExecId tracking where defs were moved (for good diagnostics)
-            - [ ] parent MoveMaps should track their children so that each child can confirm that its siblings also move the same definitions 
+            - [ ] parent MoveMaps should track their children so that each child can confirm that its siblings also move the same definitions or verify this eagerly
 - [ ] make a system to etch ExecId into a structured linear form within blocks to be naturally connected in a CFG 
     - [ ] this should be directly conducive to 3AC for all `hir::Exec`s
     - [ ] See `ExecBlock`

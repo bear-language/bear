@@ -17,6 +17,17 @@
 
 namespace hir {
 
+class MoveMap {
+    // TODO
+  public:
+    using id_type = MoveMapId;
+};
+
+struct LexicalCtx {
+    ScopeId scope;
+    MoveMapId map;
+};
+
 class Context;
 
 using ScopeIdMap = IdHashMap<SymbolId, DefId>;
