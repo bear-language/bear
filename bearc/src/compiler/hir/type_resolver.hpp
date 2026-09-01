@@ -21,8 +21,8 @@
 
 namespace hir {
 
-template <IsDefVisitor V> class TypeResolver {
-    V& def_visitor;
+class TypeResolver {
+    DefVisitor& def_visitor;
     Context& context;
 
     [[nodiscard]] OptId<TypeId> type_base(FileId fid, ScopeId scope, const ast_type_t* type,
@@ -211,7 +211,7 @@ template <IsDefVisitor V> class TypeResolver {
             return std::nullopt;
         }
 
-        auto maybe_size_exec = ComptExprSolver<V>{context, def_visitor}.solve_builtin_compt_expr(
+        auto maybe_size_exec = ComptExprSolver{context, def_visitor}.solve_builtin_compt_expr(
             fid, scope, type->type.arr.size_expr, builtin_type::u64, std::nullopt);
 
         if (!maybe_size_exec.has_value()) {
@@ -379,7 +379,7 @@ template <IsDefVisitor V> class TypeResolver {
     }
 
   public:
-    TypeResolver(Context& ctx, V& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
+    TypeResolver(Context& ctx, DefVisitor& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
 
     [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, ScopeId scope, const ast_type_t* type,
                                              bool need_layout_info) {

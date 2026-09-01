@@ -193,7 +193,7 @@ Context::Context(const bearc_args_t& args, instances instances)
     // std::cout << "Exec: " << sizeof(Exec) << '\n';
     // std::cout << "Def: " << sizeof(Def) << '\n';
 
-    TopLevelDefVisitor def_vis{*this};
+    DefVisitor def_vis{*this};
     def_vis.resolve_top_level_definitions();
     // ensure all functions are lowered
     for (const DefId did : all_function_dids) {
@@ -1819,8 +1819,8 @@ bool Context::scope_has_parent(ScopeId local_scope, ScopeId possible_parent) con
                 const auto did = maybe_did.as_id();
                 const Def& d = def(did);
                 if (d.holds<DefVariable>() && d.as<DefVariable>().compt_value.has_value()) {
-                    TopLevelDefVisitor def_vis{*this};
-                    ComptExprSolver<TopLevelDefVisitor> solver{*this, def_vis};
+                    DefVisitor def_vis{*this};
+                    ComptExprSolver solver{*this, def_vis};
                     const OptId<TypeId> maybe_tid
                         = solver.infer_type_from_exec(d.as<DefVariable>().compt_value.as_id());
                     if (maybe_tid.has_value()) {
@@ -1850,8 +1850,8 @@ bool Context::scope_has_parent(ScopeId local_scope, ScopeId possible_parent) con
                 if (type.holds<TypeStruct>()) {
                     curr_did = type.as<TypeStruct>().def_id;
                 } else if (var_def.compt_value.has_value()) {
-                    TopLevelDefVisitor def_vis{*this};
-                    ComptExprSolver<TopLevelDefVisitor> solver{*this, def_vis};
+                    DefVisitor def_vis{*this};
+                    ComptExprSolver solver{*this, def_vis};
                     const OptId<TypeId> maybe_tid
                         = solver.infer_type_from_exec(var_def.compt_value.as_id());
                     if (maybe_tid.has_value()
@@ -2477,7 +2477,7 @@ Context::default_value_for_type_using_default_contract(TypeId tid, Span span, co
     const auto maybe_default_did = look_up_type(root_scope(), symbol_id<"Default">());
 
     // for resolving stuff if needed
-    TopLevelDefVisitor def_visitor{*this};
+    DefVisitor def_visitor{*this};
 
     if (!maybe_default_did.has_value()
         || !def(def_visitor.visit_and_resolve_if_needed(maybe_default_did.as_id()))
@@ -2538,8 +2538,8 @@ Context::default_value_for_type_using_default_contract(TypeId tid, Span span, co
     }
 
     const llvm::SmallVector<ExecId, 1> no_args{};
-    return ComptExprSolver<TopLevelDefVisitor>{*this, def_visitor}.try_compt_fn_call(
-        fn_did, no_args, diagnostic_count());
+    return ComptExprSolver{*this, def_visitor}.try_compt_fn_call(fn_did, no_args,
+                                                                 diagnostic_count());
 }
 
 [[nodiscard]] OptId<ScopeId> Context::try_scope_for_type(TypeId tid) {
@@ -3172,13 +3172,8 @@ void Context::register_import_files_parallel(const char* const* file_paths, uint
     }
 }
 
-template <IsDefVisitor V> OptId<TypeId> Context::infer_type_from_exec(V& def_visitor, ExecId eid) {
-    return ComptExprSolver<V>{*this, def_visitor}.infer_type_from_exec(eid);
+OptId<TypeId> Context::infer_type_from_exec(DefVisitor& def_visitor, ExecId eid) {
+    return ComptExprSolver{*this, def_visitor}.infer_type_from_exec(eid);
 }
-// concrete instants
-template OptId<TypeId>
-Context::infer_type_from_exec<InsideBodyDefVisitor>(InsideBodyDefVisitor& def_visitor, ExecId eid);
-template OptId<TypeId>
-Context::infer_type_from_exec<TopLevelDefVisitor>(TopLevelDefVisitor& def_visitor, ExecId eid);
 
 } // namespace hir

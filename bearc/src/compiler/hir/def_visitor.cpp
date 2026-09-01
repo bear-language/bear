@@ -24,7 +24,7 @@
 
 namespace hir {
 
-void TopLevelDefVisitor::resolve_top_level_definitions() {
+void DefVisitor::resolve_top_level_definitions() {
     assert(!this->began_resolution && "already began resolving top level declarations");
     this->began_resolution = true;
     auto last_top_level = context.end_def_id();
@@ -32,7 +32,7 @@ void TopLevelDefVisitor::resolve_top_level_definitions() {
         visit_as_independent(d);
     }
 }
-DefId TopLevelDefVisitor::visit_and_resolve_if_needed(DefId def) {
+DefId DefVisitor::visit_and_resolve_if_needed(DefId def) {
     const auto resol_st = context.resol_state_of(def);
     if (resol_st == Def::resol_state::resolved || resol_st == Def::resol_state::in_progress
         || resol_st == Def::resol_state::attempting_insantiation) {
@@ -46,12 +46,12 @@ DefId TopLevelDefVisitor::visit_and_resolve_if_needed(DefId def) {
     return d;
 }
 
-DefId TopLevelDefVisitor::visit_as_transparent(DefId def) noexcept {
+DefId DefVisitor::visit_as_transparent(DefId def) noexcept {
     context.promote_mention_state_of(def, Def::mention_state::used);
     return def;
 }
 
-DefId TopLevelDefVisitor::visit_as_dependent(DefId def) {
+DefId DefVisitor::visit_as_dependent(DefId def) {
     if (context.resol_state_of(def) == Def::resol_state::in_progress) {
         // reports the double diagnostic revealing the origin of the circular def
         report_cycle(def);
@@ -63,7 +63,7 @@ DefId TopLevelDefVisitor::visit_as_dependent(DefId def) {
     return def;
 }
 
-DefId TopLevelDefVisitor::visit_and_check_for_circular_instantiation(DefId def) {
+DefId DefVisitor::visit_and_check_for_circular_instantiation(DefId def) {
     if (context.resol_state_of(def) == Def::resol_state::attempting_insantiation) {
         // reports the double diagnostic revealing the origin of the circular def
         report_cycle(def, diag_code::circular_generic_instantiation);
@@ -75,12 +75,12 @@ DefId TopLevelDefVisitor::visit_and_check_for_circular_instantiation(DefId def) 
     return def;
 }
 
-DefId TopLevelDefVisitor::visit_as_independent(DefId def) {
+DefId DefVisitor::visit_as_independent(DefId def) {
     // no need to check for cycles here since this is an independent def
     return visit_and_resolve_if_needed(def);
 }
 
-DefId TopLevelDefVisitor::visit_as_mutator(DefId def) {
+DefId DefVisitor::visit_as_mutator(DefId def) {
     if (context.resol_state_of(def) == Def::resol_state::in_progress) {
         report_cycle(def);
         return def;
@@ -91,7 +91,7 @@ DefId TopLevelDefVisitor::visit_as_mutator(DefId def) {
     return def;
 }
 
-DefId TopLevelDefVisitor::resolve_def(DefId did) {
+DefId DefVisitor::resolve_def(DefId did) {
 
     auto check_to_err_when_compt_is_mut = [&](TypeId tid, const Def& def) {
         if (contains_mut(context, tid) && def.compt) {
@@ -116,7 +116,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
     switch (stmt->type) {
     case AST_STMT_VAR_DECL: {
         Def& def = context.def(did);
-        OptId<TypeId> maybe_tid = TypeResolver<TopLevelDefVisitor>{context, *this}.resolve_type(
+        OptId<TypeId> maybe_tid = TypeResolver{context, *this}.resolve_type(
             span.file_id, scope, stmt->stmt.var_decl.type, parent_is_struct(def));
         if (!maybe_tid.has_value()) {
             goto cleanup;
@@ -150,7 +150,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
     }
     case AST_STMT_VAR_INIT_DECL: {
         const auto var_init_decl = stmt->stmt.var_init_decl;
-        OptId<TypeId> maybe_tid = TypeResolver<TopLevelDefVisitor>{context, *this}.resolve_type(
+        OptId<TypeId> maybe_tid = TypeResolver{context, *this}.resolve_type(
             span.file_id, scope, var_init_decl.type,
             parent_is_struct(context.def(did))); // needs layout info if parent is struct
         if (!maybe_tid.has_value()) {
@@ -385,7 +385,7 @@ DefId TopLevelDefVisitor::resolve_def(DefId did) {
         if (stmt->stmt.deftype.aliased_type_expr->type != AST_EXPR_TYPE) {
             goto cleanup; // already malformed during parsing
         }
-        OptId<TypeId> maybe_type = TypeResolver<TopLevelDefVisitor>{context, *this}.resolve_type(
+        OptId<TypeId> maybe_type = TypeResolver{context, *this}.resolve_type(
             span.file_id, scope, stmt->stmt.deftype.aliased_type_expr->expr.type_expr.type);
         if (!maybe_type.has_value()) {
             goto cleanup;
@@ -750,7 +750,7 @@ cleanup:
     return did;
 }
 
-void TopLevelDefVisitor::report_cycle(DefId culprit, diag_code code) {
+void DefVisitor::report_cycle(DefId culprit, diag_code code) {
     // culprit is the origin, but accomplice has just referred to the culprit
     assert(!def_stack.empty());
     DefId accomplice = def_stack[def_stack.size() - 1];
@@ -785,8 +785,8 @@ void TopLevelDefVisitor::report_cycle(DefId culprit, diag_code code) {
     assert(false && "failed to find culprit defintion when reporting a circular defintion");
 }
 
-OptId<DefId> TopLevelDefVisitor::resolve_param(FileId fid, ScopeId scope, DefId func_def,
-                                               const ast_param_t* param) {
+OptId<DefId> DefVisitor::resolve_param(FileId fid, ScopeId scope, DefId func_def,
+                                       const ast_param_t* param) {
 
     if (!param->valid) {
         return std::nullopt;
@@ -807,8 +807,8 @@ OptId<DefId> TopLevelDefVisitor::resolve_param(FileId fid, ScopeId scope, DefId 
     return resolve_param(fid, scope, func_def, tid, name, span);
 }
 
-OptId<DefId> TopLevelDefVisitor::resolve_param(FileId fid, ScopeId scope, DefId func_def,
-                                               TypeId tid, SymbolId name, Span span) {
+OptId<DefId> DefVisitor::resolve_param(FileId fid, ScopeId scope, DefId func_def, TypeId tid,
+                                       SymbolId name, Span span) {
     auto param_did = context.register_compt_def(name, span, func_def);
 
     context.def(param_did).set_value(DefVariable{.type_id = tid, .compt_value = std::nullopt});
@@ -817,8 +817,8 @@ OptId<DefId> TopLevelDefVisitor::resolve_param(FileId fid, ScopeId scope, DefId 
 }
 
 [[nodiscard]] DefFunction::ParamResolResult
-TopLevelDefVisitor::resolve_params(FileId fid, ScopeId scope, DefId func_def,
-                                   const ast_slice_of_params_t params, OptId<TypeId> self_type) {
+DefVisitor::resolve_params(FileId fid, ScopeId scope, DefId func_def,
+                           const ast_slice_of_params_t params, OptId<TypeId> self_type) {
 
     llvm::SmallVector<DefId> vec;
 
@@ -851,7 +851,7 @@ TopLevelDefVisitor::resolve_params(FileId fid, ScopeId scope, DefId func_def,
     return freeze_params(false); // not poisoned
 }
 
-bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {
+bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {
 
     const Def& struct_def = context.def(struct_did);
     assert(struct_def.holds<DefStruct>());
@@ -974,7 +974,7 @@ bool TopLevelDefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_d
     return cooked;
 }
 
-bool TopLevelDefVisitor::try_satisfy_contracts(DefId struct_did, IdSlice<DefId> contract_dids) {
+bool DefVisitor::try_satisfy_contracts(DefId struct_did, IdSlice<DefId> contract_dids) {
     bool cooked = false;
     for (auto didx = contract_dids.begin(); didx != contract_dids.end(); ++didx) {
         cooked |= try_satisfy_contract(struct_did, context.def_id(didx));
@@ -983,8 +983,8 @@ bool TopLevelDefVisitor::try_satisfy_contracts(DefId struct_did, IdSlice<DefId> 
 }
 
 [[nodiscard]] std::optional<IdSlice<GenericParamId>>
-TopLevelDefVisitor::resolve_generic_params(FileId fid, ScopeId scope,
-                                           ast_slice_of_generic_params_t gen_params) {
+DefVisitor::resolve_generic_params(FileId fid, ScopeId scope,
+                                   ast_slice_of_generic_params_t gen_params) {
     llvm::SmallVector<GenericParamId> param_vec;
     DataArena arena{0x200};
     IdHashMap<SymbolId, GenericParamId> param_map{arena, 0x80};
@@ -1021,8 +1021,8 @@ TopLevelDefVisitor::resolve_generic_params(FileId fid, ScopeId scope,
     return context.freeze_id_vec(param_vec);
 }
 [[nodiscard]] OptId<GenericParamId>
-TopLevelDefVisitor::resolve_generic_param(FileId fid, ScopeId scope,
-                                          const ast_generic_parameter_t* gen_param) {
+DefVisitor::resolve_generic_param(FileId fid, ScopeId scope,
+                                  const ast_generic_parameter_t* gen_param) {
 
     switch (gen_param->tag) {
     case AST_GENERIC_PARAM_TYPE: {
@@ -1069,9 +1069,8 @@ TopLevelDefVisitor::resolve_generic_param(FileId fid, ScopeId scope,
     return {};
 }
 
-IdSlice<DefId>
-TopLevelDefVisitor::resolve_contracts_for_generic_param(FileId fid, ScopeId scope,
-                                                        ast_slice_of_exprs_t contracts) {
+IdSlice<DefId> DefVisitor::resolve_contracts_for_generic_param(FileId fid, ScopeId scope,
+                                                               ast_slice_of_exprs_t contracts) {
 
     llvm::SmallVector<DefId> contract_vec{};
 
@@ -1124,8 +1123,8 @@ TopLevelDefVisitor::resolve_contracts_for_generic_param(FileId fid, ScopeId scop
 }
 
 [[nodiscard]] IdSlice<DefId>
-TopLevelDefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId did,
-                                                        ast_slice_of_exprs_t contracts) {
+DefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId did,
+                                                ast_slice_of_exprs_t contracts) {
     if (contracts.len == 0) {
         return {};
     }
@@ -1191,28 +1190,6 @@ TopLevelDefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope
     }
 
     return context.freeze_id_vec(contract_dids);
-}
-
-DefId InsideBodyDefVisitor::visit_as_dependent(DefId def) {
-    context.promote_mention_state_of(def, Def::mention_state::used);
-    return def;
-}
-
-DefId InsideBodyDefVisitor::visit_as_transparent(DefId def) {
-    context.promote_mention_state_of(def, Def::mention_state::used);
-    return def;
-}
-
-DefId InsideBodyDefVisitor::visit_as_independent(DefId def) { return def; }
-
-DefId InsideBodyDefVisitor::visit_as_mutator(DefId def) {
-    context.promote_mention_state_of(def, Def::mention_state::mutated);
-    return def;
-}
-
-DefId InsideBodyDefVisitor::visit_and_resolve_if_needed(DefId def) {
-    context.promote_mention_state_of(def, Def::mention_state::used);
-    return def;
 }
 
 } // namespace hir

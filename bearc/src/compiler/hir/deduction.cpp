@@ -105,21 +105,11 @@ try_generic_args_from_deduction_guide(IsExprSolver auto& solver,
     return gargs;
 }
 
+template OptId<GenericArgIdSliceId> try_generic_args_from_deduction_guide<ComptExprSolver>(
+    ComptExprSolver& solver, const llvm::SmallVectorImpl<ExecId>& eids, DeductionGuideId guide_id);
 template OptId<GenericArgIdSliceId>
-try_generic_args_from_deduction_guide<RuntimeExprSolver<TopLevelDefVisitor>>(
-    RuntimeExprSolver<TopLevelDefVisitor>& solver, const llvm::SmallVectorImpl<ExecId>& eids,
-    DeductionGuideId guide_id);
-template OptId<GenericArgIdSliceId>
-try_generic_args_from_deduction_guide<ComptExprSolver<TopLevelDefVisitor>>(
-    ComptExprSolver<TopLevelDefVisitor>& solver, const llvm::SmallVectorImpl<ExecId>& eids,
-    DeductionGuideId guide_id);
-template OptId<GenericArgIdSliceId>
-try_generic_args_from_deduction_guide<RuntimeExprSolver<InsideBodyDefVisitor>>(
-    RuntimeExprSolver<InsideBodyDefVisitor>& solver, const llvm::SmallVectorImpl<ExecId>& eids,
-    DeductionGuideId guide_id);
-template OptId<GenericArgIdSliceId>
-try_generic_args_from_deduction_guide<ComptExprSolver<InsideBodyDefVisitor>>(
-    ComptExprSolver<InsideBodyDefVisitor>& solver, const llvm::SmallVectorImpl<ExecId>& eids,
-    DeductionGuideId guide_id);
+try_generic_args_from_deduction_guide<RuntimeExprSolver>(RuntimeExprSolver& solver,
+                                                         const llvm::SmallVectorImpl<ExecId>& eids,
+                                                         DeductionGuideId guide_id);
 
 } // namespace hir

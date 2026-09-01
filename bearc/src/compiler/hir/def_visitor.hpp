@@ -16,28 +16,13 @@
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
 #include "llvm/ADT/SmallVector.h"
-#include <concepts>
 #include <optional>
 
 namespace hir {
 
 class Context;
 
-template <typename T>
-concept IsDefVisitor = requires(T t, DefId def) {
-    // do not alter mention state
-    { t.visit_as_independent(def) } -> std::same_as<DefId>;
-    // alter mention state (mentioned)
-    { t.visit_as_dependent(def) } -> std::same_as<DefId>;
-    // alter mention state (mentioned) and never resolve
-    { t.visit_as_transparent(def) } -> std::same_as<DefId>;
-    // alter mention state (mutated)
-    { t.visit_as_mutator(def) } -> std::same_as<DefId>;
-    // tries to eagerly resolve, if possible
-    { t.visit_and_resolve_if_needed(def) } -> std::same_as<DefId>;
-};
-
-class TopLevelDefVisitor {
+class DefVisitor {
 
     static constexpr size_t DEF_STACK_SIZE = 512;
 
@@ -74,7 +59,7 @@ class TopLevelDefVisitor {
                    OptId<TypeId> self_type = std::nullopt);
 
   public:
-    TopLevelDefVisitor(Context& context) : context{context}, began_resolution{false} {}
+    DefVisitor(Context& context) : context{context}, began_resolution{false} {}
     DefId visit_and_resolve_if_needed(DefId def);
     void resolve_top_level_definitions();
     /// visit a DefId where the def being visited is depended on by the visitor
@@ -89,24 +74,6 @@ class TopLevelDefVisitor {
     /// visit when not all info is need (i.e. just validate existence for pointers/references)
     DefId visit_as_transparent(DefId def) noexcept;
 };
-static_assert(IsDefVisitor<TopLevelDefVisitor>);
-
-class InsideBodyDefVisitor {
-    Context& context;
-
-  public:
-    InsideBodyDefVisitor(Context& context) : context{context} {}
-    DefId visit_as_dependent(DefId def);
-
-    DefId visit_as_transparent(DefId def);
-
-    DefId visit_as_independent(DefId def);
-
-    DefId visit_as_mutator(DefId def);
-
-    DefId visit_and_resolve_if_needed(DefId def);
-};
-static_assert(IsDefVisitor<InsideBodyDefVisitor>);
 
 } // namespace hir
 

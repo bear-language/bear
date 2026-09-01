@@ -16,11 +16,12 @@
 namespace hir {
 
 // TODO
-template <IsDefVisitor V> struct RuntimeExprSolver {
-    V& def_visitor;
+struct RuntimeExprSolver {
+    DefVisitor& def_visitor;
     Context& context;
 
-    RuntimeExprSolver(Context& ctx, V& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
+    RuntimeExprSolver(Context& ctx, DefVisitor& def_visitor)
+        : def_visitor{def_visitor}, context{ctx} {}
 
     [[nodiscard]] Context& get_context() { return this->context; }
 
@@ -34,7 +35,7 @@ template <IsDefVisitor V> struct RuntimeExprSolver {
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid) { return {}; }
 };
 
-static_assert(IsExprSolver<RuntimeExprSolver<InsideBodyDefVisitor>>);
+static_assert(IsExprSolver<RuntimeExprSolver>);
 
 } // namespace hir
 
