@@ -87,13 +87,13 @@ Context::Context(const bearc_args_t& args, instances instances)
       intrinsic_files{intrinsic_files_set_arena, 0x20}, importer_to_importees{DEFAULT_FILE_VEC_CAP},
       importee_to_importers{DEFAULT_FILE_VEC_CAP}, file_to_diagnostics{EXPECTED_HIGH_NUM_IMPORTS},
       scope_arena{DEFAULT_SCOPE_ARENA_CAP}, scopes{DEFAULT_SCOPE_VEC_CAP},
-      move_maps(DEFAULT_SCOPE_VEC_CAP),
       temp_scope_arena{std::make_unique<DataArena>(DEFAULT_TEMP_SCOPE_ARENA_CAP)},
+      move_maps_arena{DEFAULT_ARENA_CAP}, move_maps(DEFAULT_SCOPE_VEC_CAP),
       symbol_storage_arena{DEFAULT_SYMBOL_ARENA_CAP}, symbol_map_arena{DEFAULT_SYMBOL_ARENA_CAP},
       str_to_symbol_id_map{symbol_map_arena}, symbol_ids{DEFAULT_SYMBOL_VEC_CAP},
       symbols{DEFAULT_SYMBOL_VEC_CAP}, exec_ids{DEFAULT_EXEC_VEC_CAP}, execs{DEFAULT_EXEC_VEC_CAP},
-      blocks{DEFAULT_BLOCK_CAP}, def_ids{DEFAULT_DEF_CAP}, defs{DEFAULT_DEF_CAP},
-      def_resol_states{DEFAULT_DEF_CAP}, def_ast_nodes(DEFAULT_DEF_CAP),
+      exec_slices{DEFAULT_EXEC_VEC_CAP}, blocks{DEFAULT_BLOCK_CAP}, def_ids{DEFAULT_DEF_CAP},
+      defs{DEFAULT_DEF_CAP}, def_resol_states{DEFAULT_DEF_CAP}, def_ast_nodes(DEFAULT_DEF_CAP),
       def_mention_states{DEFAULT_DEF_CAP}, def_to_scope{id_map_arena, DEFAULT_DEF_CAP},
       def_to_scope_for_funcs{id_map_arena, DEFAULT_DEF_CAP}, ordered_def_slices{DEFAULT_DEF_CAP},
       def_to_ordered_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT},
@@ -1431,6 +1431,14 @@ TypeId Context::emplace_type(const TypeValue& value, Span span, bool mut) {
 
 ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
 
+[[nodiscard]] IdSlice<ExecId> Context::exec_id_slice(ExecIdSliceId id) const {
+    return exec_slices.at(id);
+}
+
+[[nodiscard]] ExecIdSliceId Context::emplace_exec_id_slice(IdSlice<ExecId> slice) {
+    return exec_slices.emplace_and_get_id(slice);
+}
+
 [[nodiscard]] Layout Context::layout(LayoutId id) const { return layouts.at(id); }
 
 [[nodiscard]] LayoutId Context::layout_id(IdIdx<LayoutId> id) const { return layout_ids.at(id); }
@@ -1440,6 +1448,16 @@ ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
 }
 
 [[nodiscard]] const Scope& Context::scope(ScopeId sid) const { return scopes.at(sid); }
+
+[[nodiscard]] const MoveMap& Context::move_map(MoveMapId mid) const { return move_maps.at(mid); }
+
+[[nodiscard]] MoveResult Context::moved(MoveMapId mid, DefId did) const {
+    return move_map(mid).move_for(*this, did);
+}
+
+[[nodiscard]] MoveResult Context::already_moved(MoveMapId mid, DefId did) const {
+    return move_map(mid).previous_move_for(*this, did);
+}
 
 [[nodiscard]] const Def& Context::def(IdIdx<DefId> id) const { return defs.at(def_ids.at(id)); }
 

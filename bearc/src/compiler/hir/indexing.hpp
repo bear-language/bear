@@ -166,6 +166,7 @@ template <hir::IsId T> class OptId {
         assert(underlying.raw() != HIR_ID_NONE);
         return underlying;
     }
+    constexpr explicit operator bool() const { return has_value(); }
     [[nodiscard]] constexpr bool has_value() const noexcept {
         return underlying.raw() != HIR_ID_NONE;
     }
@@ -228,6 +229,8 @@ using OffsetSliceId = Id<IdSlice<Offset>>;
 using DeductionStepId = Id<DeductionStep>;
 
 using DeductionGuideId = Id<IdSlice<DeductionStepId>>;
+
+using ExecIdSliceId = Id<IdSlice<ExecId>>;
 
 } // namespace hir
 

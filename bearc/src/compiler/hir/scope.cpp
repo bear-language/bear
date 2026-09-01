@@ -16,6 +16,26 @@
 
 namespace hir {
 
+[[nodiscard]] MoveResult MoveMap::previous_move_for(const Context& ctx, DefId did) const {
+    // only check parent, not this map
+    if (parent.has_value()) {
+        return ctx.move_map(parent.as_id()).move_for(ctx, did);
+    }
+    return {};
+}
+
+[[nodiscard]] MoveResult MoveMap::move_for(const Context& ctx, DefId did) const {
+    const auto res = local_move_for(did);
+    if (res) {
+        return res;
+    }
+    // try parent
+    if (parent.has_value()) {
+        return ctx.move_map(parent.as_id()).move_for(ctx, did);
+    }
+    return {};
+}
+
 Scope::Scope(ScopeId parent, DataArena& arena) : Scope(OptId<ScopeId>{parent}, arena) {}
 
 Scope::Scope(OptId<ScopeId> parent, DataArena& arena)

@@ -971,9 +971,8 @@ bool Exec::is_equivalent(const Context& ctx, ExecId eid1, ExecId eid2) {
 }
 
 bool Exec::can_be_compt(const Context& ctx) {
-    auto get_d = [&](DefId did) { return ctx.def(did); };
-    auto get_e = [&](ExecId eid) { return ctx.exec(eid); };
-    auto eidx_to_e = [&](IdIdx<ExecId> eid) { return ctx.exec(eid); };
+    auto get_e = [&ctx](ExecId eid) { return ctx.exec(eid); };
+    auto eidx_to_e = [&ctx](IdIdx<ExecId> eid) { return ctx.exec(eid); };
     auto vs = Ovld{
         [&](const ExecBlock&) -> bool { return false; },
         [&](const ExecBreakStmt&) -> bool { return false; },

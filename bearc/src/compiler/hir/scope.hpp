@@ -12,32 +12,58 @@
 #include "compiler/hir/id_hash_map.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/span.hpp"
+#include "compiler/hir/variant_helpers.hpp"
 #include "utils/data_arena.hpp"
 #include <cstdint>
+#include <variant>
 
 namespace hir {
 
-// TODO
+class None {};
+
+using MoveResultValue = std::variant<ExecId, ExecIdSliceId, None>;
+
+struct MoveResult : NodeWithVariantValue<MoveResult> {
+    MoveResultValue value;
+    [[nodiscard]] constexpr MoveResult(ExecId eid) : value{eid} {}
+    [[nodiscard]] constexpr MoveResult(ExecIdSliceId esid) : value{esid} {}
+    [[nodiscard]] constexpr MoveResult(None none) : value{none} {}
+    [[nodiscard]] constexpr MoveResult() : value{None{}} {}
+    constexpr explicit operator bool() const { return !this->holds<None>(); }
+    [[nodiscard]] constexpr bool has_value() const { return !this->holds<None>(); }
+    [[nodiscard]] constexpr bool empty() const { return this->holds<None>(); }
+};
+
 class MoveMap {
     IdHashMap<DefId, ExecId> defs_to_execs;
+    IdHashMap<DefId, ExecIdSliceId> defs_to_exec_slices;
     OptId<MoveMapId> parent;
 
     static constexpr size_t DEFAULT_CAP = 0x10;
 
   public:
     using id_type = MoveMapId;
-    MoveMap(DataArena& arena, OptId<MoveMapId> parent)
-        : defs_to_execs{arena, DEFAULT_CAP}, parent{parent} {}
+    [[nodiscard]] MoveMap(DataArena& arena, OptId<MoveMapId> parent)
+        : defs_to_execs{arena, DEFAULT_CAP}, defs_to_exec_slices{arena, DEFAULT_CAP},
+          parent{parent} {}
     /// inserts a move for a given def to be moved at a given exec
     void insert(DefId did, ExecId eid) { defs_to_execs.insert(did, eid); }
-    [[nodiscard]] OptId<ExecId> local_move_for(DefId did) { return defs_to_execs.at(did); }
-    [[nodiscard]] OptId<ExecId> move_for(const Context& ctx, DefId did) {
+    /// check for a move in the current lexical scope for the given def
+    [[nodiscard]] MoveResult local_move_for(DefId did) const {
         const auto maybe_eid = defs_to_execs.at(did);
-        if (maybe_eid.has_value()) {
+        if (maybe_eid) {
             return maybe_eid.as_id();
         }
-        // TODO
+        const auto maybe_s = defs_to_exec_slices.at(did);
+        if (maybe_s) {
+            return maybe_s.as_id();
+        }
+        return {};
     }
+    /// check for a move in the current parents' lexical scope for the given def
+    [[nodiscard]] MoveResult previous_move_for(const Context& ctx, DefId did) const;
+    /// check for a move in the current lexical scope or its parents' for the given def
+    [[nodiscard]] MoveResult move_for(const Context& ctx, DefId did) const;
 };
 
 struct LexicalCtx {

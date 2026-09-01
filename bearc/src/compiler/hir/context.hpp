@@ -684,6 +684,10 @@ class Context {
 
     [[nodiscard]] ExecId exec_id(IdIdx<ExecId> id) const;
 
+    [[nodiscard]] IdSlice<ExecId> exec_id_slice(ExecIdSliceId id) const;
+
+    [[nodiscard]] ExecIdSliceId emplace_exec_id_slice(IdSlice<ExecId> slice);
+
     [[nodiscard]] Layout layout(LayoutId id) const;
 
     [[nodiscard]] LayoutId layout_id(IdIdx<LayoutId> id) const;
@@ -691,6 +695,14 @@ class Context {
     [[nodiscard]] LayoutId emplace_layout(Layout lay);
 
     [[nodiscard]] const Scope& scope(ScopeId sid) const;
+
+    [[nodiscard]] const MoveMap& move_map(MoveMapId mid) const;
+
+    /// checks for an exec that moves this def for the provided move map, or a parent of it
+    [[nodiscard]] MoveResult moved(MoveMapId mid, DefId did) const;
+
+    /// checks for an exec that moves this def for a parent of the provided move map
+    [[nodiscard]] MoveResult already_moved(MoveMapId mid, DefId did) const;
 
     [[nodiscard]] const ast_stmt_t* def_ast_node(DefId def_id) const;
 
@@ -979,8 +991,9 @@ class Context {
     // ~~~~~~~~~~~~~~~~~~~~~ scopes ~~~~~~~~~~~~~~~~~~~~~~~
     DataArena scope_arena;
     NodeVector<Scope> scopes;
-    NodeVector<MoveMap> move_maps;
     std::unique_ptr<DataArena> temp_scope_arena;
+    DataArena move_maps_arena;
+    NodeVector<MoveMap> move_maps;
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     /// const char* -> hir::SymbolId
     DataArena symbol_storage_arena;
@@ -991,6 +1004,7 @@ class Context {
 
     IdVector<ExecId> exec_ids;
     NodeVector<Exec> execs;
+    IdVecMap<ExecIdSliceId, IdSlice<ExecId>> exec_slices;
 
     NodeVector<Block> blocks;
 
