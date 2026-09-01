@@ -17,10 +17,27 @@
 
 namespace hir {
 
+// TODO
 class MoveMap {
-    // TODO
+    IdHashMap<DefId, ExecId> defs_to_execs;
+    OptId<MoveMapId> parent;
+
+    static constexpr size_t DEFAULT_CAP = 0x10;
+
   public:
     using id_type = MoveMapId;
+    MoveMap(DataArena& arena, OptId<MoveMapId> parent)
+        : defs_to_execs{arena, DEFAULT_CAP}, parent{parent} {}
+    /// inserts a move for a given def to be moved at a given exec
+    void insert(DefId did, ExecId eid) { defs_to_execs.insert(did, eid); }
+    [[nodiscard]] OptId<ExecId> local_move_for(DefId did) { return defs_to_execs.at(did); }
+    [[nodiscard]] OptId<ExecId> move_for(const Context& ctx, DefId did) {
+        const auto maybe_eid = defs_to_execs.at(did);
+        if (maybe_eid.has_value()) {
+            return maybe_eid.as_id();
+        }
+        // TODO
+    }
 };
 
 struct LexicalCtx {
@@ -52,7 +69,6 @@ concept Callable = std::is_class_v<C> && !requires(Tester<C> t) { &Tester<C>::op
  * models named blocks/namespaces, such as function bodies or ctrl flow blocks
  */
 class Scope {
-    OptId<ScopeId> parent_;
     DataArena& arena;
     /// module, struct, and variant names
     ScopeIdMap namespaces;
@@ -60,6 +76,7 @@ class Scope {
     ScopeIdMap variables;
     /// structs, variants, unions, deftypes
     ScopeIdMap types;
+    OptId<ScopeId> parent_;
     const bool top_level;
     void insert(SymbolId symbol, DefId def, scope_kind kind);
     static OptId<DefId> look_up_impl(const Context& context, ScopeId local_scope_id,

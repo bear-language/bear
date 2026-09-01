@@ -25,7 +25,6 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
     auto vs = Ovld{
         [](const ExecBlock& t) -> bool { return false; },
-        [](const ExecExprStmt& t) -> bool { return false; },
         [](const ExecBreakStmt& t) -> bool { return false; },
         [](const ExecContinueStmt& t) -> bool { return false; },
         [](const ExecIfStmt& t) -> bool { return false; },
@@ -210,7 +209,6 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
     auto vs = Ovld{
         [](const ExecBlock& t) -> bool { return false; },
-        [](const ExecExprStmt& t) -> bool { return false; },
         [](const ExecBreakStmt& t) -> bool { return false; },
         [](const ExecContinueStmt& t) -> bool { return false; },
         [](const ExecIfStmt& t) -> bool { return false; },
@@ -339,12 +337,11 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 size_t hash_exec(const Context& ctx, ExecId eid) {
     auto vs = Ovld{
         [](const ExecBlock& t) -> size_t { return mix(1uz); },
-        [](const ExecExprStmt& t) -> size_t { return mix(2uz); },
-        [](const ExecBreakStmt& t) -> size_t { return mix(3uz); },
-        [](const ExecContinueStmt& t) -> size_t { return mix(4uz); },
-        [](const ExecIfStmt& t) -> size_t { return mix(5uz); },
-        [](const ExecLoopStmt& t) -> size_t { return mix(6uz); },
-        [](const ExecReturnStmt& t) -> size_t { return mix(7uz); },
+        [](const ExecBreakStmt& t) -> size_t { return mix(2uz); },
+        [](const ExecContinueStmt& t) -> size_t { return mix(3uz); },
+        [](const ExecIfStmt& t) -> size_t { return mix(4uz); },
+        [](const ExecLoopStmt& t) -> size_t { return mix(5uz); },
+        [](const ExecReturnStmt& t) -> size_t { return mix(6uz); },
         [&ctx](const ExecRange& t) -> size_t {
             return transform(hash_exec(ctx, t.start), hash_exec(ctx, t.end));
         },

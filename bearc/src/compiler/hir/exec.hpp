@@ -34,11 +34,7 @@ struct Block {
 };
 
 struct ExecBlock {
-    BlockId block;
-};
-
-struct ExecExprStmt {
-    ExecId expr;
+    BlockId block_id;
 };
 
 struct ExecBreakStmt {};
@@ -548,8 +544,8 @@ struct ExecExprMatchBranch {
 /// main exec variant
 using ExecValue = std::variant<
     // blocks / statements
-    ExecBlock, ExecExprStmt, ExecBreakStmt, ExecContinueStmt, ExecIfStmt, ExecLoopStmt,
-    ExecReturnStmt, ExecYieldStmt,
+    ExecBlock, ExecBreakStmt, ExecContinueStmt, ExecIfStmt, ExecLoopStmt, ExecReturnStmt,
+    ExecYieldStmt,
 
     // expressions
     ExecUnionInit, ExecExprVariantInit, ExecExprStructInit, ExecExprStructMemberInit,

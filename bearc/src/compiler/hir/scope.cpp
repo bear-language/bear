@@ -19,23 +19,23 @@ namespace hir {
 Scope::Scope(ScopeId parent, DataArena& arena) : Scope(OptId<ScopeId>{parent}, arena) {}
 
 Scope::Scope(OptId<ScopeId> parent, DataArena& arena)
-    : parent_(parent), arena(arena), namespaces(arena, DEFAULT_CAP), variables(arena, DEFAULT_CAP),
-      types(arena, DEFAULT_CAP), top_level(false) {}
+    : arena(arena), namespaces(arena, DEFAULT_CAP), variables(arena, DEFAULT_CAP),
+      types(arena, DEFAULT_CAP), parent_(parent), top_level(false) {}
 
 Scope::Scope(DataArena& arena) : Scope{std::nullopt, arena} {}
 
 Scope::Scope(OptId<ScopeId> parent, size_t capacity, DataArena& arena)
-    : parent_(parent), arena(arena), namespaces(arena, capacity), variables(arena, capacity),
-      types(arena, capacity), top_level(false) {}
+    : arena(arena), namespaces(arena, capacity), variables(arena, capacity), types(arena, capacity),
+      parent_(parent), top_level(false) {}
 
 Scope::Scope(size_t capacity, DataArena& arena)
     : arena(arena), namespaces(arena, capacity), variables(arena, capacity), types(arena, capacity),
       top_level(true) {}
 
 Scope::Scope(ScopeId parent, size_t capacity, DataArena& arena, storage storage)
-    : parent_{parent}, arena(arena), namespaces(arena, 0),
+    : arena(arena), namespaces(arena, 0),
       variables(arena, storage == storage::variables ? capacity : 0),
-      types(arena, storage == storage::types ? capacity : 0), top_level(true) {
+      types(arena, storage == storage::types ? capacity : 0), parent_{parent}, top_level(true) {
     assert(storage == storage::variables);
 }
 

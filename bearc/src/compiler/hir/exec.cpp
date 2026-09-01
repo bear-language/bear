@@ -976,7 +976,6 @@ bool Exec::can_be_compt(const Context& ctx) {
     auto eidx_to_e = [&](IdIdx<ExecId> eid) { return ctx.exec(eid); };
     auto vs = Ovld{
         [&](const ExecBlock&) -> bool { return false; },
-        [&](const ExecExprStmt&) -> bool { return false; },
         [&](const ExecBreakStmt&) -> bool { return false; },
         [&](const ExecContinueStmt&) -> bool { return false; },
         [&](const ExecIfStmt&) -> bool { return false; },
@@ -984,7 +983,7 @@ bool Exec::can_be_compt(const Context& ctx) {
         [&](const ExecReturnStmt&) -> bool { return false; },
         [&](const ExecYieldStmt&) -> bool { return false; },
         // exprs
-        [&](const ExecAssignable& t) -> bool { return get_d(t.def_id).compt; },
+        [&](const ExecAssignable& t) -> bool { return false; },
         [&](const ExecConst&) -> bool { return true; },
         [&](const ExecListLiteral& t) -> bool {
             // just check each elem
@@ -2035,7 +2034,6 @@ std::optional<ExecConst> ExecConst::preunary_bit_not(ExecConst ec) {
 std::string exec_to_string(Context& ctx, ExecId eid) {
     auto vs = Ovld{
         [](const ExecBlock& t) -> std::string { return "{...}"; },
-        [](const ExecExprStmt& t) -> std::string { return "(...)"; },
         [](const ExecBreakStmt& t) -> std::string { return "break"; },
         [](const ExecContinueStmt& t) -> std::string { return "continue"; },
         [](const ExecIfStmt& t) -> std::string { return "if (...) {...} ..."; },
@@ -2212,7 +2210,7 @@ bool ExecHashMap::same_structure(ExecId eid1, ExecId eid2) const {
 }
 
 size_t ExecHashMap::index(size_t hash, size_t cap) { return hash % cap; }
-void ExecHashMap ::put_new_head_on_chain(Entry** chain, Entry* new_entry) {
+void ExecHashMap::put_new_head_on_chain(Entry** chain, Entry* new_entry) {
     assert(chain);
     new_entry->next = *chain;
     *chain = new_entry;
