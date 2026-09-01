@@ -31,7 +31,7 @@ cmake --build build
                                                          # if you want BearLang on your path:
 cd bearc
 pwd                                                      # and copy result
-echo "export PATH='result/from/pwd/:\$PATH'" >> ~/.zshrc # or .bashrc, etc.
+echo "export PATH='result/from/pwd/:$PATH'" >> ~/.zshrc  # or .bashrc, etc.
 source ~/.zshrc                                          # or .bashrc, etc.
 bearc -v                                                 # check to ensure it works
 ```
