@@ -12,7 +12,6 @@
 #include "cli/args.h"
 #include "compiler/ast/stmt.h"
 #include "compiler/hir/arena_str_hash_map.hpp"
-#include "compiler/hir/ast_visitor.hpp"
 #include "compiler/hir/deduction.hpp"
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/def_visitor.hpp"
@@ -787,47 +786,7 @@ class Context {
     [[nodiscard]] CanonicalGenericArgsId canonical_gen_args(GenericArgIdSliceId slice_id);
 
     [[nodiscard]] OptId<DefId> try_generic_instantiation(DefVisitor& def_visitor, DefId orig_def_id,
-                                                         GenericArgIdSliceId generic_args_id) {
-        if (!validate_gen_args_for_def(def_visitor, orig_def_id, generic_args_id)) {
-            return {};
-        }
-
-        const Def& def = this->def(def_visitor.visit_as_dependent(orig_def_id));
-        CanonicalGenericArgsIdMapId map_id{};
-        if (def.holds<DefGenericFunction>()) {
-            map_id = def.as<DefGenericFunction>().generics_args_to_concrete_defs_map;
-        } else if (def.holds<DefGenericStruct>()) {
-            map_id = def.as<DefGenericStruct>().generics_args_to_concrete_defs_map;
-        } else if (def.holds<DefGenericVariant>()) {
-            map_id = def.as<DefGenericVariant>().generics_args_to_concrete_defs_map;
-        } else if (def.holds<DefGenericContract>()) {
-            map_id = def.as<DefGenericContract>().generics_args_to_concrete_defs_map;
-        } else {
-            return {};
-        }
-        IdHashMap<CanonicalGenericArgsId, DefId>& map = this->generic_args_map(map_id);
-
-        const auto canonical_args = canonical_gen_args(generic_args_id);
-
-        const auto maybe_instance = map.at(canonical_args);
-
-        // attempt new instatiation if there's not an existing one
-        if (maybe_instance.empty()) {
-            if (resol_state_of(orig_def_id) == Def::resol_state::attempting_insantiation) {
-                def_visitor.visit_and_check_for_circular_instantiation(orig_def_id);
-                return {}; // cyclical
-            }
-            const auto new_instance = make_new_generic_instantiation(
-                def_visitor, orig_def_id, canonical_args, generic_args_id);
-
-            if (new_instance.empty()) {
-                return {};
-            }
-            map.insert(canonical_args, new_instance.as_id());
-            return new_instance.as_id();
-        }
-        return maybe_instance.as_id();
-    }
+                                                         GenericArgIdSliceId generic_args_id);
 
     [[nodiscard]] Span span_for_gen_args(GenericArgIdSliceId gen_arg_slice) const;
 
@@ -1146,36 +1105,7 @@ class Context {
     [[nodiscard]] OptId<DefId>
     make_new_generic_instantiation(DefVisitor& def_visitor, DefId did,
                                    CanonicalGenericArgsId canon_gen_args_id,
-                                   GenericArgIdSliceId gen_args_id) {
-        auto maybe_instance_did = FileAstVisitor{*this, def(did).span.file_id}.lower_generic_stmt(
-            containing_scope(did), def_ast_node(did), def(did).parent);
-        if (maybe_instance_did.empty()) {
-            return {};
-        }
-
-        // record the instance's generic args
-        register_gen_args_for_def(maybe_instance_did.as_id(), gen_args_id);
-        // set up for resolving the instantiated def
-        def(maybe_instance_did.as_id()).generic = false; // "concretifies" the instatiation
-        // make sure generic args are locable
-        ScopeId instance_scope = scope_for_top_level_def(maybe_instance_did.as_id());
-        insert_gen_args_into_scope(did, maybe_instance_did.as_id(), instance_scope, gen_args_id);
-
-        const auto og_resol = resol_state_of(did);
-
-        set_resol_state_of(did, Def::resol_state::attempting_insantiation);
-
-        // this resolves the def
-        def_visitor.visit_as_dependent(maybe_instance_did.as_id());
-
-        set_resol_state_of(did, og_resol);
-
-        if (maybe_instance_did.empty()) {
-            return {};
-        }
-
-        return maybe_instance_did;
-    }
+                                   GenericArgIdSliceId gen_args_id);
 
     // assumes generic args have already been validated
     void insert_gen_args_into_scope(DefId orginal_generic_did, DefId instance_did, ScopeId scope,
@@ -1183,158 +1113,7 @@ class Context {
 
     // true on valid, else false
     [[nodiscard]] bool validate_gen_args_for_def(DefVisitor& def_visitor, DefId did,
-                                                 GenericArgIdSliceId gen_args_id) {
-        if (!def(did).generic) {
-            const Def& d = def(did);
-            auto d0 = emplace_diagnostic(
-                span_for_gen_args(gen_args_id), diag_code::is_not_generic, diag_type::error,
-                DiagnosticSymbolBeforeMessage{.sid = d.name},
-                DiagnosticSubCode{.sub_code = diag_code::does_not_take_generic_arguments});
-            auto d1 = emplace_diagnostic_with_message_value(
-                d.span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = d.name});
-            link_diagnostic(d0, d1);
-            return false;
-        }
-
-        def_visitor.visit_as_dependent(did);
-        const auto maybe_gen_params = try_generic_params_for_def(did);
-        if (!maybe_gen_params.has_value()) {
-            return false; // this shouldn't happen, but we need to return false here to protect
-                          // invariance
-        }
-        const auto param_slice = maybe_gen_params.value();
-
-        const IdSlice<GenericArgId> arg_slice = gen_arg_id_slice(gen_args_id);
-
-        if (param_slice.len() != arg_slice.len()) {
-            Span span = span_for_gen_args(gen_args_id);
-            const auto d0 = emplace_diagnostic_with_message_value(
-                span, diag_code::only_message_value_is_meaningful, diag_type::error,
-                DiagnosticGenArgsExpectedButGotNumArgs{
-                    .name = def(did).name,
-                    .expected_sid = symbol_id(std::to_string(param_slice.len())),
-                    .got_sid = symbol_id(std::to_string(arg_slice.len()))});
-            const auto d1 = emplace_diagnostic_with_message_value(
-                def(did).span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = def(did).name});
-            link_diagnostic(d0, d1);
-            return {};
-        }
-
-        DiagLinker dl{*this};
-        auto validate_arg
-            = [this, &dl, &def_visitor](GenericArgId aid, GenericParamId pid) -> bool {
-            Ovld vs{
-                [this, pid, &dl, &def_visitor](TypeId tid) -> bool {
-                    GenericParam param = gen_param(pid);
-                    if (param.holds<GenericParamVariable>()) {
-                        dl.link(emplace_diagnostic(
-                            type(tid).span,
-                            diag_code::gen_arg_expected_a_value_expression_not_a_type,
-                            diag_type::error));
-                        dl.link(emplace_diagnostic_with_message_value(
-                            type(tid).span, diag_code::should_a_compt_value_of_type,
-                            diag_type::note,
-                            DiagnosticTypeAfterMessage{.tid
-                                                       = param.as<GenericParamVariable>().type}));
-                        dl.link(emplace_diagnostic_with_message_value(
-                            param.span, diag_code::declared_here, diag_type::note,
-                            DiagnosticSymbolBeforeMessage{.sid = param.name}));
-                        return false;
-                    }
-                    if (param.holds<GenericParamType>()) {
-                        const auto contracts = param.as<GenericParamType>().contracts;
-                        bool cooked = false;
-                        for (auto didx = contracts.begin(); didx != contracts.end(); ++didx) {
-                            DefId contract_did = def_id(didx);
-                            if (!type_has_contract(tid,
-                                                   def_visitor.visit_as_dependent(contract_did))) {
-                                dl.link(emplace_diagnostic_with_message_value(
-                                    type(tid).span, diag_code::does_not_have_contract,
-                                    diag_type::error,
-                                    DiagnosticTypeBeforeMessageAndSymbolWithMaybeGenArgsAfter{
-                                        .tid = tid,
-                                        .sid = def(contract_did).name,
-                                        .maybe_gen_args
-                                        = def(contract_did).as<DefContract>().maybe_generic_args}));
-                                cooked = true;
-                            }
-                        }
-                        if (cooked) {
-                            dl.link(emplace_diagnostic_with_message_value(
-                                param.span,
-                                diag_code::declared_here_as_constrained_generic_parameter,
-                                diag_type::note, DiagnosticSymbolBeforeMessage{.sid = param.name}));
-                            if (const auto maybe_did = try_def_id_for_type_id(tid);
-                                maybe_did.has_value()) {
-                                const Def& d = def(maybe_did.as_id());
-                                dl.link(emplace_diagnostic_with_message_value(
-                                    d.span, diag_code::declared_here_without_necessary_contracts,
-                                    diag_type::note, DiagnosticSymbolBeforeMessage{.sid = d.name}));
-                            }
-                        }
-                        return !cooked;
-                    }
-                    return false; // fallback (unreachable)
-                },
-                [this, pid, &def_visitor, &dl](ExecId eid) -> bool {
-                    GenericParam param = gen_param(pid);
-                    if (param.holds<GenericParamVariable>()) {
-                        OptId<TypeId> maybe_tid = infer_type_from_exec(def_visitor, eid);
-
-                        const auto expected_tid = param.as<GenericParamVariable>().type;
-
-                        if (maybe_tid.empty()) {
-                            dl.link(emplace_diagnostic_with_message_value(
-                                exec(eid).span, diag_code::generic_argument_expected_value_of_type,
-                                diag_type::error, DiagnosticTypeAfterMessage{.tid = expected_tid}));
-                            dl.link(emplace_diagnostic_with_message_value(
-                                param.span, diag_code::declared_here, diag_type::note,
-                                DiagnosticSymbolBeforeMessage{.sid = param.name}));
-                            return false;
-                        }
-                        if (!type_inferable_as(maybe_tid.as_id(), expected_tid)) {
-                            dl.link(emplace_diagnostic_with_message_value(
-                                exec(eid).span, diag_code::generic_argument_expected_value_of_type,
-                                diag_type::error,
-                                DiagnosticTyButGot{.expected_tid = expected_tid,
-                                                   .got_tid = maybe_tid.as_id()}));
-                            dl.link(emplace_diagnostic_with_message_value(
-                                param.span, diag_code::declared_here, diag_type::note,
-                                DiagnosticSymbolBeforeMessage{.sid = param.name}));
-
-                            return false;
-                        }
-                        return true;
-                    }
-                    if (param.holds<GenericParamType>()) {
-                        dl.link(emplace_diagnostic(
-                            exec(eid).span,
-                            diag_code::gen_arg_expected_a_type_not_a_value_expression,
-                            diag_type::error));
-                        dl.link(emplace_diagnostic_with_message_value(
-                            param.span, diag_code::declared_here, diag_type::note,
-                            DiagnosticSymbolBeforeMessage{.sid = param.name}));
-
-                        return false;
-                    }
-                    return false; // fallback (unreachable)
-                }};
-            return gen_arg(aid).visit(vs);
-        };
-
-        bool cooked = false;
-        for (HirSize i = 0; i < arg_slice.len(); ++i) {
-            cooked |= !validate_arg(gen_arg_id(arg_slice.get(i)), gen_param_id(param_slice.get(i)));
-        }
-        if (cooked) {
-            dl.link(emplace_diagnostic_with_message_value(
-                def(did).span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = def(did).name}));
-        }
-        return true;
-    }
+                                                 GenericArgIdSliceId gen_args_id);
 
     [[nodiscard]] std::optional<IdSlice<GenericParamId>>
     try_generic_params_for_def(DefId did) const;
@@ -1349,48 +1128,8 @@ class Context {
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(DefVisitor& def_visitor, ExecId eid);
 
     [[nodiscard]] OptId<DefId> try_instantiate_def_on_scoped_lookup_if_needed(
-        DefVisitor& def_visitor, TickableGenArgSlice& targs, DefId orig_did, bool last) {
-        const Def& orig_def = def(def_visitor.visit_as_dependent(orig_did));
-        const IdSlice<GenericArgId> remaining_args = targs.remaining();
-        if (!orig_def.generic) {
-            const Def& d = def(orig_did);
-            if (last && remaining_args.len() > 0) {
-                auto d0 = emplace_diagnostic_with_message_value(
-                    span_for_gen_args(emplace_generic_arg_id_slice(remaining_args)),
-                    diag_code::does_not_take_generic_arguments, diag_type::error,
-                    DiagnosticSymbolBeforeMessage{.sid = d.name});
-                auto d1 = emplace_diagnostic_with_message_value(
-                    d.span, diag_code::declared_here, diag_type::note,
-                    DiagnosticSymbolBeforeMessage{.sid = d.name});
-                link_diagnostic(d0, d1);
-            }
-            return orig_did;
-        }
+        DefVisitor& def_visitor, TickableGenArgSlice& targs, DefId orig_did, bool last);
 
-        const HirSize num_params = try_num_generic_params_for_def(orig_did);
-        if (!num_params) {
-            return {};
-        }
-        const std::optional<IdSlice<GenericArgId>> maybe_gen_args = targs.tick(num_params);
-        if (!maybe_gen_args.has_value() || maybe_gen_args.value().is_empty()) {
-            GenericArg arg = gen_arg(targs.curr_arg());
-            const Def& d = def(orig_did);
-            Span span
-                = arg.holds<ExecId>() ? exec(arg.as<ExecId>()).span : type(arg.as<TypeId>()).span;
-            auto d0 = emplace_diagnostic_with_message_value(
-                span, diag_code::no_generic_args_provided_for, diag_type::error,
-                DiagnosticSymbolAfterMessage{.sid = d.name});
-            auto d1 = emplace_diagnostic_with_message_value(
-                d.span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = d.name});
-            link_diagnostic(d0, d1);
-            return {};
-        }
-        // if last, consume remaining args, else used the ticked args
-        return try_generic_instantiation(
-            def_visitor, orig_did,
-            emplace_generic_arg_id_slice(last ? remaining_args : (maybe_gen_args.value())));
-    }
     void register_import_files_parallel(const char* const* file_paths, uint32_t count);
     void register_intrinsic_files();
 
