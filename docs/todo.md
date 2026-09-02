@@ -3,21 +3,21 @@
 #### misc/priority 
 
 #### function body resolution / runtime eval:
-- [ ] move checker structures
-    - [ ] Scopes in runtime functions should be composed of a `ScopeId` and `MoveMapId`
+- [ ] see `TODO`s
+    - [ ] move checker structures / scopes in runtime functions should be composed of a `ScopeId` and `MoveMapId`
         - [x] `ScopeId`: same as current impl, for symbol look-up
         - [ ] `MoveMapId`: same idea as a scope, but:
             - [x] tracks DefId -> ExecId and DefId -> ExecIdSliceId tracking where defs were moved (for good diagnostics)
             - [ ] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
-- [ ] make a system to etch ExecId into a structured linear form within blocks to be naturally connected in a CFG 
+    - [ ] make a system to etch ExecId into a structured linear form within blocks to be naturally connected in a CFG 
     - [ ] this should be directly conducive to 3AC for all `hir::Exec`s
     - [ ] See `ExecBlock`
-- [ ] build up runtime statements into structured blocks
-- [ ] impl `RunTimeExprSolver`
-    - [ ] use deduction guides for functions/(variants/structs?)
-- [ ] make sure assignment type checking is properly rigid around mutable types (especially references).
-    - [ ] this is already impl'd: see `Context::assignable_from_type_to_type`, but a version of this basic on inferable types (with `var` inference) is needed for variable decls
-    - note: (impl. detail) the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
+    - [ ] impl `RunTimeExprSolver`
+        - [ ] use deduction guides for functions/(variants/structs?)
+    - [ ] make sure assignment type checking is properly rigid around mutable types (especially references).
+        - [ ] this is already impl'd: see `Context::assignable_from_type_to_type`, but a version of this basic on inferable types (with `var` inference) is needed for variable decls
+    
+- [ ] note: (impl. detail) the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
     - [ ] ensure these work:
         - [ ] T       -> mut T
         - [ ] mut T   -> T

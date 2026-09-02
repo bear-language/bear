@@ -68,6 +68,7 @@ set(SRC
     src/compiler/hir/exec.cpp
     src/compiler/hir/def_visitor.cpp
     src/compiler/hir/compt_expr_solver.cpp
+    src/compiler/hir/run_time_solver.cpp
     src/compiler/hir/exec_proving.cpp
     src/compiler/hir/matching.cpp
     src/compiler/hir/generic.cpp

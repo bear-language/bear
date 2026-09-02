@@ -12,7 +12,7 @@
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
-#include "compiler/hir/run_time_expr_solver.hpp"
+#include "compiler/hir/run_time_solver.hpp"
 
 namespace hir {
 
@@ -107,9 +107,7 @@ try_generic_args_from_deduction_guide(IsExprSolver auto& solver,
 
 template OptId<GenericArgIdSliceId> try_generic_args_from_deduction_guide<ComptExprSolver>(
     ComptExprSolver& solver, const llvm::SmallVectorImpl<ExecId>& eids, DeductionGuideId guide_id);
-template OptId<GenericArgIdSliceId>
-try_generic_args_from_deduction_guide<RuntimeExprSolver>(RuntimeExprSolver& solver,
-                                                         const llvm::SmallVectorImpl<ExecId>& eids,
-                                                         DeductionGuideId guide_id);
+template OptId<GenericArgIdSliceId> try_generic_args_from_deduction_guide<RuntimeSolver>(
+    RuntimeSolver& solver, const llvm::SmallVectorImpl<ExecId>& eids, DeductionGuideId guide_id);
 
 } // namespace hir

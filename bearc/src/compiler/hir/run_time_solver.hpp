@@ -16,26 +16,22 @@
 namespace hir {
 
 // TODO
-struct RuntimeExprSolver {
+struct RuntimeSolver {
     DefVisitor& def_visitor;
     Context& context;
 
-    RuntimeExprSolver(Context& ctx, DefVisitor& def_visitor)
-        : def_visitor{def_visitor}, context{ctx} {}
+    RuntimeSolver(Context& ctx, DefVisitor& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
 
     [[nodiscard]] Context& get_context() { return this->context; }
 
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr,
-                                           TypeId into_tid) {
-        return {};
-    }
-    [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr) {
-        return {};
-    }
-    [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid) { return {}; }
+                                           TypeId into_tid);
+
+    [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr);
+    [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
 };
 
-static_assert(IsExprSolver<RuntimeExprSolver>);
+static_assert(IsExprSolver<RuntimeSolver>);
 
 } // namespace hir
 

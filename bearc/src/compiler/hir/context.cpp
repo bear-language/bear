@@ -1411,8 +1411,6 @@ TypeId Context::emplace_type(const TypeValue& value, Span span, bool mut) {
 }
 [[nodiscard]] const Exec& Context::exec(ExecId id) const { return execs.at(id); }
 
-[[nodiscard]] const Def& Context::def(DefId id) const { return defs.at(id); }
-
 [[nodiscard]] const Exec& Context::exec(IdIdx<ExecId> id) const {
     return execs.at(exec_ids.at(id));
 }
@@ -1492,8 +1490,6 @@ ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
 [[nodiscard]] MoveResult Context::already_moved(MoveMapId mid, DefId did) const {
     return move_map(mid).previous_move_for(*this, did);
 }
-
-[[nodiscard]] const Def& Context::def(IdIdx<DefId> id) const { return defs.at(def_ids.at(id)); }
 
 [[nodiscard]] OptId<DefId> Context::ensure_struct_def(DefId did) const {
     const Def& d = def(did);

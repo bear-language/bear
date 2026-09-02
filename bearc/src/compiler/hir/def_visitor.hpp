@@ -58,6 +58,12 @@ class DefVisitor {
     resolve_params(FileId fid, ScopeId scope, DefId func_def, ast_slice_of_params_t params,
                    OptId<TypeId> self_type = std::nullopt);
 
+    void resolve_fn_body(FileId fid, ScopeId scope, DefId func_def);
+
+    void resolve_fn_body_expr(FileId fid, ScopeId scope, DefId func_def);
+
+    void resolve_fn_body_block(FileId fid, ScopeId scope, DefId func_def);
+
   public:
     DefVisitor(Context& context) : context{context}, began_resolution{false} {}
     DefId visit_and_resolve_if_needed(DefId def);

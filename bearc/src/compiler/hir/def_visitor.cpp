@@ -457,11 +457,10 @@ DefId DefVisitor::resolve_def(DefId did) {
     }
     case AST_STMT_FN_DECL: {
         const ast_stmt_fn_decl fn_decl = *stmt->stmt.fn_decl;
-        Def& def = context.def(did);
-        const auto fid = def.span.file_id;
+        const auto fid = context.def(did).span.file_id;
         const HirSize prior_diag_count = context.diagnostic_count();
 
-        if (def.compt && fn_decl.is_mut) {
+        if (context.def(did).compt && fn_decl.is_mut) {
             Span span = Span::find_between_tokens(context, fid, fn_decl.kw, fn_decl.name.start[0]);
             auto d0 = context.emplace_diagnostic(
                 span, diag_code::compt_mut_methods_are_not_permitted, diag_type::error);
@@ -474,7 +473,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             context.link_diagnostic(d0, d1);
             context.link_diagnostic(d1, d2);
         }
-        if (def.compt && !fn_decl.only_expr) {
+        if (context.def(did).compt && !fn_decl.only_expr) {
             Span span{context, fid, fn_decl.block->first};
             auto d0 = context.emplace_diagnostic(
                 span, diag_code::compt_function_does_not_yield_a_pure_expr, diag_type::error);
@@ -515,7 +514,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             goto cleanup;
         }
 
-        OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl, def);
+        OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl, context.def(did));
 
         bool takes_self = maybe_self_type.has_value();
 
@@ -528,7 +527,7 @@ DefId DefVisitor::resolve_def(DefId did) {
 
         llvm::SmallVector<TypeId> type_vec{};
 
-        const bool func_is_runtime = !def.compt;
+        const bool func_is_runtime = !context.def(did).compt;
 
         for (auto didx = params.begin(); didx != params.end(); didx++) {
             const Def& param_def = context.def(didx);
@@ -536,7 +535,7 @@ DefId DefVisitor::resolve_def(DefId did) {
 
             if (didx == params.begin() && !takes_self && parent_is_struct(context.def(did))
                 && context.type_matches_struct_def(param_def.as<DefVariable>().type_id,
-                                                   def.parent.as_id())) {
+                                                   context.def(did).parent.as_id())) {
                 takes_self = true;
             }
 
@@ -578,14 +577,14 @@ DefId DefVisitor::resolve_def(DefId did) {
                 diag_code::in_generic_instantiated_here, diag_type::note));
         }
 
-        def.set_value(DefFunction{.params = params,
-                                  .param_types = param_types,
-                                  .return_type = return_tid,
-                                  .body = std::nullopt,
-                                  .maybe_generic_args = maybe_generic_args,
-                                  .discardable = fn_decl.discardable,
-                                  .takes_self = takes_self,
-                                  .posioned = params_res.poisoned});
+        context.def(did).set_value(DefFunction{.params = params,
+                                               .param_types = param_types,
+                                               .return_type = return_tid,
+                                               .body = std::nullopt,
+                                               .maybe_generic_args = maybe_generic_args,
+                                               .discardable = fn_decl.discardable,
+                                               .takes_self = takes_self,
+                                               .posioned = params_res.poisoned});
         break;
     }
     case AST_STMT_CONTRACT_DEF: {
@@ -849,6 +848,23 @@ DefVisitor::resolve_params(FileId fid, ScopeId scope, DefId func_def,
     }
 
     return freeze_params(false); // not poisoned
+}
+
+void DefVisitor::resolve_fn_body(FileId fid, ScopeId scope, DefId func_def) {
+    const ast_stmt_t* fn_stmt = context.def_ast_node(func_def);
+    assert(fn_stmt->type == AST_STMT_FN_DECL);
+    if (fn_stmt->stmt.fn_decl->only_expr) {
+        resolve_fn_body_expr(fid, scope, func_def);
+    }
+    resolve_fn_body_block(fid, scope, func_def);
+}
+
+void DefVisitor::resolve_fn_body_expr(FileId fid, ScopeId scope, DefId func_def) {
+    // TODO
+}
+
+void DefVisitor::resolve_fn_body_block(FileId fid, ScopeId scope, DefId func_def) {
+    // TODO
 }
 
 bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {

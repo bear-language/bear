@@ -640,9 +640,9 @@ class Context {
     // returns true on an invalid return type
     bool report_invalid_return_type(TypeId return_tid, bool is_compt);
 
-    [[nodiscard]] const Def& def(DefId id) const;
+    [[nodiscard]] const Def& def(DefId id) const { return defs.at(id); }
 
-    [[nodiscard]] const Def& def(IdIdx<DefId> id) const;
+    [[nodiscard]] const Def& def(IdIdx<DefId> id) const { return defs.at(def_ids.at(id)); }
     /// try to get a struct DefId, bypassing deftypes
     [[nodiscard]] OptId<DefId> ensure_struct_def(DefId did) const;
 
