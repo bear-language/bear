@@ -39,7 +39,7 @@ class MoveMap {
     IdHashMap<DefId, ExecIdSliceId> defs_to_exec_slices;
     OptId<MoveMapId> parent;
 
-    static constexpr size_t DEFAULT_CAP = 0x10;
+    static constexpr size_t DEFAULT_CAP = 0x4;
 
   public:
     using id_type = MoveMapId;

@@ -556,7 +556,8 @@ class Context {
     template <typename... Args> [[nodiscard]] ExecId register_exec(Args&&... args) {
         return execs.emplace_and_get_id(std::forward<Args>(args)...);
     }
-    [[nodiscard]] ExecId emplace_exec(const ExecValue& value, Span span, bool should_be_compt);
+    [[nodiscard]] ExecId emplace_exec(const ExecValue& value, Span span,
+                                      bool should_be_compt = false);
 
     [[nodiscard]] ExecId emplace_compt_exec(const ExecValue& value, Span span);
 
@@ -695,6 +696,8 @@ class Context {
     [[nodiscard]] const Scope& scope(ScopeId sid) const;
 
     [[nodiscard]] const MoveMap& move_map(MoveMapId mid) const;
+
+    [[nodiscard]] MoveMapId make_move_map(OptId<MoveMapId> parent);
 
     /// checks for an exec that moves this def for the provided move map, or a parent of it
     [[nodiscard]] MoveResult moved(MoveMapId mid, DefId did) const;
@@ -873,6 +876,14 @@ class Context {
         } else {
             static_assert(false, "tried to freeze a vector of an unconsidered hir::Id type");
         }
+    }
+
+    template <IsId I>
+    [[nodiscard]] IdSlice<I> freeze_id_vec(std::initializer_list<I> list)
+        requires is_any_of_v<I, TypeId, ExecId, DefId, GenericArgId, FileId, SymbolId,
+                             GenericParamId, LayoutId, Offset, DeductionStepId>
+    {
+        return freeze_id_vec(llvm::SmallVector<I>{list});
     }
 
     [[nodiscard]] OffsetSliceId emplace_offset_vec(const llvm::SmallVectorImpl<Offset>& vec) {

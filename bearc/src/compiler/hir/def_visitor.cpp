@@ -13,7 +13,10 @@
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
+#include "compiler/hir/exec.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "compiler/hir/run_time_solver.hpp"
+#include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/type_resolver.hpp"
 #include "utils/data_arena.hpp"
@@ -585,6 +588,9 @@ DefId DefVisitor::resolve_def(DefId did) {
                                                .discardable = fn_decl.discardable,
                                                .takes_self = takes_self,
                                                .posioned = params_res.poisoned});
+
+        resolve_fn_body(fid, scope, did);
+
         break;
     }
     case AST_STMT_CONTRACT_DEF: {
@@ -860,7 +866,32 @@ void DefVisitor::resolve_fn_body(FileId fid, ScopeId scope, DefId func_def) {
 }
 
 void DefVisitor::resolve_fn_body_expr(FileId fid, ScopeId scope, DefId func_def) {
-    // TODO
+    const ast_stmt_t* fn_stmt = context.def_ast_node(func_def);
+    assert(fn_stmt->type == AST_STMT_FN_DECL);
+    assert(fn_stmt->stmt.fn_decl->only_expr);
+
+    ast_expr_t* expr = fn_stmt->stmt.fn_decl->expr;
+
+    Span span{context, fid, expr};
+
+    LexicalCtx lctx{.scope = context.make_scope(scope, span), .map = context.make_move_map({})};
+
+    const auto maybe_returnee_eid = RuntimeSolver{context, *this}.solve_expr(
+        fid, lctx, expr, context.def(func_def).as<DefFunction>().return_type);
+
+    if (!maybe_returnee_eid) {
+        return;
+    }
+
+    const ExecId returner_eid
+        = context.emplace_exec(ExecReturnStmt{.return_value = maybe_returnee_eid}, span);
+
+    BlockId blid = context.emplace_block(
+        Block{.execs = context.freeze_id_vec({returner_eid}), .defs = {}, .lctx = lctx});
+
+    /// set the function body to this manufactured return
+    context.def(func_def).as<DefFunction>().body
+        = context.emplace_exec(ExecBlock{.block_id = blid}, span);
 }
 
 void DefVisitor::resolve_fn_body_block(FileId fid, ScopeId scope, DefId func_def) {

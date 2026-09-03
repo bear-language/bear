@@ -365,6 +365,9 @@ typename F::value_type TypeTransformer<F>::invoke_as_mentioned(TypeId tid1, Type
 template class TypeTransformer<TypeHasher<DoConsiderMut>>;
 template class TypeTransformer<TypeHasher<DoNotConsiderMut>>;
 
+template class TypeComparator<DoConsiderMut>;
+template class TypeComparator<DoNotConsiderMut>;
+
 template class TypeTransformer<TypeComparator<DoConsiderMut>>;
 template class TypeTransformer<TypeComparator<DoNotConsiderMut>>;
 

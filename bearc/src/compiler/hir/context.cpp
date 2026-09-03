@@ -1483,6 +1483,10 @@ ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
 
 [[nodiscard]] const MoveMap& Context::move_map(MoveMapId mid) const { return move_maps.at(mid); }
 
+[[nodiscard]] MoveMapId Context::make_move_map(OptId<MoveMapId> parent) {
+    return move_maps.emplace_and_get_id(move_maps_arena, parent);
+}
+
 [[nodiscard]] MoveResult Context::moved(MoveMapId mid, DefId did) const {
     return move_map(mid).move_for(*this, did);
 }

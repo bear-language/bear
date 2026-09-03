@@ -12,14 +12,16 @@
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/expr_solver.hpp"
+#include "compiler/hir/scope.hpp"
 
 namespace hir {
 
 // TODO
-struct RuntimeSolver {
+class RuntimeSolver {
     DefVisitor& def_visitor;
     Context& context;
 
+  public:
     RuntimeSolver(Context& ctx, DefVisitor& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
 
     [[nodiscard]] Context& get_context() { return this->context; }
@@ -27,8 +29,21 @@ struct RuntimeSolver {
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr,
                                            TypeId into_tid);
 
+    [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+
+    [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                           TypeId into_tid);
+
+    [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                           OptId<TypeId> into_tid);
+
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr);
+
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
+
+  private:
+    [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
+                                                      const ast_expr_t* expr);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);
