@@ -13,7 +13,6 @@
 #include "compiler/ast/params.h"
 #include "compiler/ast/type.h"
 #include "compiler/hir/context.hpp"
-#include "compiler/hir/def.hpp"
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
