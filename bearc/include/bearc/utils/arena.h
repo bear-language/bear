@@ -39,6 +39,7 @@ arena_t arena_create(size_t chunk_cap_bytes);
 void arena_destroy(arena_t* arena);
 
 /// get an allocation from the arena of a specified size
+/// - internally defaults to an alignment of 8 bytes
 void* arena_alloc(arena_t* arena, size_t req_size_bytes);
 
 /// for testing purposes

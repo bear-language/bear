@@ -50,9 +50,9 @@ void arena_destroy(arena_t* arena) { arena_destroy_chunk_chain(arena->head); }
 void* arena_alloc(arena_t* arena, size_t req_size_bytes) {
     arena_chunk_t* curr = arena->head;
 
-    // compute aligned start offset for this chunk (using this funky formula), use this instead of
-    // curr->used since ptrs need to be 8-byte aligned
-    size_t aligned = (curr->used + 7) & ~7;
+#define ARENA_ALLOC_ALIGN (8 - 1)
+
+    size_t aligned = (curr->used + ARENA_ALLOC_ALIGN) & ~ARENA_ALLOC_ALIGN;
 
     // detect overflow or alignment past capacity
     bool invalid_chunk_state = aligned < curr->used || aligned > curr->cap;
