@@ -303,8 +303,7 @@ class ComptExprSolver {
     [[nodiscard]] OptId<ExecId> solve_statics_of(FileId fid, ScopeId scope,
                                                  const ast_expr_t* mems_of_expr);
 
-    [[nodiscard]] OptId<ExecId> try_compt_constant_from_did(FileId fid, ScopeId scope, DefId did,
-                                                            SymbolId sid, Span span);
+    [[nodiscard]] OptId<ExecId> try_compt_constant_from_did(DefId did, SymbolId sid, Span span);
 
     [[nodiscard]] OptId<ExecId> solve_reflected_id(FileId fid, ScopeId scope,
                                                    const ast_expr_t* expr);

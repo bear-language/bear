@@ -13,6 +13,9 @@
     - [ ] this should be directly conducive to 3AC for all `hir::Exec`s
     - [ ] See `ExecBlock`
     - [ ] impl `RunTimeExprSolver`
+        - [ ] maximally desugar things to get rid of unneeded Exec types 
+            - [ ] preunary, postunary, etc.
+            - [ ] improve how blocks work (desugar loops/if branches/matches)
         - [ ] use deduction guides for functions/(variants/structs?)
     - [ ] make sure assignment type checking is properly rigid around mutable types (especially references).
         - [ ] this is already impl'd: see `Context::assignable_from_type_to_type`, but a version of this basic on inferable types (with `var` inference) is needed for variable decls

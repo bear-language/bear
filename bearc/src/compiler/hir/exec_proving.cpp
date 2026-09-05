@@ -24,13 +24,13 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
     const Exec& other = ctx.exec(eid2);
 
     auto vs = Ovld{
-        [](const ExecBlock& t) -> bool { return false; },
-        [](const ExecBreakStmt& t) -> bool { return false; },
-        [](const ExecContinueStmt& t) -> bool { return false; },
-        [](const ExecIfStmt& t) -> bool { return false; },
-        [](const ExecLoopStmt& t) -> bool { return false; },
-        [](const ExecReturnStmt& t) -> bool { return false; },
-        [](const ExecYieldStmt& t) -> bool { return false; },
+        [](const ExecBlock&) -> bool { return false; },
+        [](const ExecBreakStmt&) -> bool { return false; },
+        [](const ExecContinueStmt&) -> bool { return false; },
+        [](const ExecIfStmt&) -> bool { return false; },
+        [](const ExecLoopStmt&) -> bool { return false; },
+        [](const ExecReturnStmt&) -> bool { return false; },
+        [](const ExecYieldStmt&) -> bool { return false; },
         [&other, &ctx](const ExecRange t) -> bool {
             if (!other.holds<ExecRange>()) {
                 return false;
@@ -108,7 +108,7 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
             return equivalent_exec(ctx, t.value, o.value);
         },
-        [](const ExecAssignable& t) -> bool { return false; },
+        [](const ExecAssignable&) -> bool { return false; },
         [&other](const ExecComptConstant& t) -> bool {
             if (!other.holds<ExecComptConstant>()) {
                 return false;
@@ -183,21 +183,21 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             return ctx.equivalent_type(t.fn_ptr_tid.as_id(),
                                        other.as<ExecFnPtr>().fn_ptr_tid.as_id());
         },
-        [](const ExecAssignment& t) -> bool { return false; },
-        [](const ExecIs& t) -> bool { return false; },
-        [](const ExecMemberAccess& t) -> bool { return false; },
-        [](const ExecBinary& t) -> bool { return false; },
-        [](const ExecCast& t) -> bool { return false; },
-        [](const ExecPreUnary& t) -> bool { return false; },
-        [](const ExecPostUnary& t) -> bool { return false; },
-        [](const ExecSubscript& t) -> bool { return false; },
-        [](const ExecFnCall& t) -> bool { return false; },
-        [](const ExecBorrow& t) -> bool { return false; },
-        [](const ExecDeref& t) -> bool { return false; },
-        [](const ExecExprClosure& t) -> bool { return false; },
-        [](const ExecExprVariantDecomp& t) -> bool { return false; },
-        [](const ExecExprMatch& t) -> bool { return false; },
-        [](const ExecExprMatchBranch& t) -> bool { return false; },
+        [](const ExecAssignment&) -> bool { return false; },
+        [](const ExecIs&) -> bool { return false; },
+        [](const ExecMemberAccess&) -> bool { return false; },
+        [](const ExecBinary&) -> bool { return false; },
+        [](const ExecCast&) -> bool { return false; },
+        [](const ExecPreUnary&) -> bool { return false; },
+        [](const ExecPostUnary&) -> bool { return false; },
+        [](const ExecSubscript&) -> bool { return false; },
+        [](const ExecFnCall&) -> bool { return false; },
+        [](const ExecBorrow&) -> bool { return false; },
+        [](const ExecDeref&) -> bool { return false; },
+        [](const ExecExprClosure&) -> bool { return false; },
+        [](const ExecExprVariantDecomp&) -> bool { return false; },
+        [](const ExecExprMatch&) -> bool { return false; },
+        [](const ExecExprMatchBranch&) -> bool { return false; },
     };
 
     return ctx.exec(eid1).visit(vs);
@@ -208,13 +208,13 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
     const Exec& e2 = ctx.exec(eid2);
 
     auto vs = Ovld{
-        [](const ExecBlock& t) -> bool { return false; },
-        [](const ExecBreakStmt& t) -> bool { return false; },
-        [](const ExecContinueStmt& t) -> bool { return false; },
-        [](const ExecIfStmt& t) -> bool { return false; },
-        [](const ExecLoopStmt& t) -> bool { return false; },
-        [](const ExecReturnStmt& t) -> bool { return false; },
-        [](const ExecYieldStmt& t) -> bool { return false; },
+        [](const ExecBlock&) -> bool { return false; },
+        [](const ExecBreakStmt&) -> bool { return false; },
+        [](const ExecContinueStmt&) -> bool { return false; },
+        [](const ExecIfStmt&) -> bool { return false; },
+        [](const ExecLoopStmt&) -> bool { return false; },
+        [](const ExecReturnStmt&) -> bool { return false; },
+        [](const ExecYieldStmt&) -> bool { return false; },
         [&e2, &ctx, eid2](const ExecRange t) -> bool {
             if (e2.holds<ExecConst>()) {
                 return possibly_equivalent_exec(ctx, t.start, eid2);
@@ -272,7 +272,7 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
             return (t.field_def == o.field_def);
         },
-        [](const ExecAssignable& t) -> bool { return false; },
+        [](const ExecAssignable&) -> bool { return false; },
         [&e2, &ctx, eid1](const ExecComptConstant& t) -> bool {
             if (e2.holds<ExecRange>()) {
                 return possibly_equivalent_exec(ctx, eid1, e2.as<ExecRange>().start);
@@ -313,22 +313,22 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
             return t.variant_field_def_id == o.variant_field_def_id;
         },
-        [](const ExecAssignment& t) -> bool { return false; },
-        [](const ExecIs& t) -> bool { return false; },
-        [](const ExecMemberAccess& t) -> bool { return false; },
-        [](const ExecBinary& t) -> bool { return false; },
-        [](const ExecCast& t) -> bool { return false; },
-        [](const ExecPreUnary& t) -> bool { return false; },
-        [](const ExecPostUnary& t) -> bool { return false; },
-        [](const ExecSubscript& t) -> bool { return false; },
-        [](const ExecFnCall& t) -> bool { return false; },
-        [](const ExecBorrow& t) -> bool { return false; },
-        [](const ExecDeref& t) -> bool { return false; },
-        [](const ExecExprClosure& t) -> bool { return false; },
-        [](const ExecExprVariantDecomp& t) -> bool { return false; },
-        [](const ExecExprMatch& t) -> bool { return false; },
-        [](const ExecExprMatchBranch& t) -> bool { return false; },
-        [](const ExecFnPtr& t) -> bool { return false; },
+        [](const ExecAssignment&) -> bool { return false; },
+        [](const ExecIs&) -> bool { return false; },
+        [](const ExecMemberAccess&) -> bool { return false; },
+        [](const ExecBinary&) -> bool { return false; },
+        [](const ExecCast&) -> bool { return false; },
+        [](const ExecPreUnary&) -> bool { return false; },
+        [](const ExecPostUnary&) -> bool { return false; },
+        [](const ExecSubscript&) -> bool { return false; },
+        [](const ExecFnCall&) -> bool { return false; },
+        [](const ExecBorrow&) -> bool { return false; },
+        [](const ExecDeref&) -> bool { return false; },
+        [](const ExecExprClosure&) -> bool { return false; },
+        [](const ExecExprVariantDecomp&) -> bool { return false; },
+        [](const ExecExprMatch&) -> bool { return false; },
+        [](const ExecExprMatchBranch&) -> bool { return false; },
+        [](const ExecFnPtr&) -> bool { return false; },
     };
 
     return e1.visit(vs);
@@ -336,12 +336,12 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
 size_t hash_exec(const Context& ctx, ExecId eid) {
     auto vs = Ovld{
-        [](const ExecBlock& t) -> size_t { return mix(1uz); },
-        [](const ExecBreakStmt& t) -> size_t { return mix(2uz); },
-        [](const ExecContinueStmt& t) -> size_t { return mix(3uz); },
-        [](const ExecIfStmt& t) -> size_t { return mix(4uz); },
-        [](const ExecLoopStmt& t) -> size_t { return mix(5uz); },
-        [](const ExecReturnStmt& t) -> size_t { return mix(6uz); },
+        [](const ExecBlock&) -> size_t { return mix(1uz); },
+        [](const ExecBreakStmt&) -> size_t { return mix(2uz); },
+        [](const ExecContinueStmt&) -> size_t { return mix(3uz); },
+        [](const ExecIfStmt&) -> size_t { return mix(4uz); },
+        [](const ExecLoopStmt&) -> size_t { return mix(5uz); },
+        [](const ExecReturnStmt&) -> size_t { return mix(6uz); },
         [&ctx](const ExecRange& t) -> size_t {
             return transform(hash_exec(ctx, t.start), hash_exec(ctx, t.end));
         },
@@ -379,24 +379,24 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
             }
             return h;
         },
-        [](const ExecAssignment& t) -> size_t { return {}; },
-        [](const ExecIs& t) -> size_t { return {}; },
-        [](const ExecMemberAccess& t) -> size_t { return {}; },
-        [](const ExecBinary& t) -> size_t { return {}; },
-        [](const ExecCast& t) -> size_t { return {}; },
-        [](const ExecPreUnary& t) -> size_t { return {}; },
-        [](const ExecPostUnary& t) -> size_t { return {}; },
-        [](const ExecSubscript& t) -> size_t { return {}; },
-        [](const ExecFnCall& t) -> size_t { return {}; },
-        [](const ExecBorrow& t) -> size_t { return {}; },
-        [](const ExecDeref& t) -> size_t { return {}; },
-        [](const ExecExprClosure& t) -> size_t {
+        [](const ExecAssignment&) -> size_t { return {}; },
+        [](const ExecIs&) -> size_t { return {}; },
+        [](const ExecMemberAccess&) -> size_t { return {}; },
+        [](const ExecBinary&) -> size_t { return {}; },
+        [](const ExecCast&) -> size_t { return {}; },
+        [](const ExecPreUnary&) -> size_t { return {}; },
+        [](const ExecPostUnary&) -> size_t { return {}; },
+        [](const ExecSubscript&) -> size_t { return {}; },
+        [](const ExecFnCall&) -> size_t { return {}; },
+        [](const ExecBorrow&) -> size_t { return {}; },
+        [](const ExecDeref&) -> size_t { return {}; },
+        [](const ExecExprClosure&) -> size_t {
             // todo, add when impl'd
             return {};
         },
-        [](const ExecExprVariantDecomp& t) -> size_t { return {}; },
-        [](const ExecExprMatch& t) -> size_t { return {}; },
-        [](const ExecExprMatchBranch& t) -> size_t { return {}; },
+        [](const ExecExprVariantDecomp&) -> size_t { return {}; },
+        [](const ExecExprMatch&) -> size_t { return {}; },
+        [](const ExecExprMatchBranch&) -> size_t { return {}; },
         [](const ExecFnPtr& t) -> size_t { return mix(t.func_def_id.raw()); },
         [&ctx](const ExecVariantFieldInit& t) -> size_t {
             size_t h = t.variant_field_def_id.raw();

@@ -823,7 +823,6 @@ OptId<FileId> Context::try_file_from_import_statement(FileId importer_id,
 
 [[nodiscard]] OptId<DefId>
 Context::make_new_generic_instantiation(DefVisitor& def_visitor, DefId did,
-                                        CanonicalGenericArgsId canon_gen_args_id,
                                         GenericArgIdSliceId gen_args_id) {
     auto maybe_instance_did = FileAstVisitor{*this, def(did).span.file_id}.lower_generic_stmt(
         containing_scope(did), def_ast_node(did), def(did).parent);
@@ -870,7 +869,7 @@ DefId Context::register_top_level_def(SymbolId name, bool pub, bool compt, bool 
                                       bool generic, Span span, const ast_stmt_t* stmt,
                                       OptId<DefId> parent, uint8_t align_pref, abi_lang abi) {
     DefId def = defs.emplace_and_get_id(DefUnevaluated{}, name, pub, compt, statik, generic, span,
-                                        parent, align_pref, Def::UNORDERED, abi_lang::bear);
+                                        parent, align_pref, Def::UNORDERED, abi);
     def_resol_states.bump(Def::resol_state::top_level_visited);
     def_ast_nodes.bump(stmt);
     def_mention_states.bump(Def::mention_state::unused);
@@ -2351,8 +2350,7 @@ DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_
     return dlinker.range();
 }
 
-OptId<TypeId> Context::self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t* fn_decl,
-                                        Def& def) {
+OptId<TypeId> Context::self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t* fn_decl) {
     OptId<TypeId> maybe_self_type{};
     if (token_is_mt_or_dt(fn_decl->kw->type)) {
         auto maybe_did = look_up_type(scope, symbol_id<"Self">());
@@ -2655,7 +2653,7 @@ void Context::put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_
 }
 
 [[nodiscard]] OptId<DeductionGuideId>
-Context::try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl_t* stmt,
+Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
                                           IdSlice<GenericParamId> gen_params) {
 
     const ast_slice_of_params_t params = stmt->params;
@@ -2833,7 +2831,7 @@ static const ast_type_t* try_next_type(const ast_slice_of_stmts_t stmts, Deducti
 }
 
 [[nodiscard]] OptId<DeductionGuideId>
-Context::try_deduction_guide_for_struct(DefId struct_did, const ast_stmt_struct_decl_t* stmt,
+Context::try_deduction_guide_for_struct(const ast_stmt_struct_decl_t* stmt,
                                         IdSlice<GenericParamId> gen_params) {
     const ast_slice_of_stmts_t stmts = stmt->fields;
 
@@ -3020,8 +3018,8 @@ CanonicalGenericArgsId Context::canonical_gen_args(GenericArgIdSliceId slice_id)
             def_visitor.visit_and_check_for_circular_instantiation(orig_def_id);
             return {}; // cyclical
         }
-        const auto new_instance = make_new_generic_instantiation(def_visitor, orig_def_id,
-                                                                 canonical_args, generic_args_id);
+        const auto new_instance
+            = make_new_generic_instantiation(def_visitor, orig_def_id, generic_args_id);
 
         if (new_instance.empty()) {
             return {};
@@ -3196,7 +3194,7 @@ void Context::insert_gen_args_into_scope(DefId orginal_generic_did, DefId instan
     const auto args_slice = gen_arg_id_slice(gen_args_id);
 
     auto emplace = [this, scope, instance_did](const GenericParam& param, GenericArg arg) {
-        Ovld vs{[this, scope, &param, arg, instance_did](GenericParamType t) {
+        Ovld vs{[this, scope, &param, arg, instance_did](GenericParamType) {
                     if (arg.holds<TypeId>()) {
                         register_generated_deftype(scope, param.name, arg.as<TypeId>(),
                                                    instance_did, type(arg.as<TypeId>()).span);

@@ -4008,8 +4008,7 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
     return context.emplace_compt_exec(ExecListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);
 }
 
-[[nodiscard]] OptId<ExecId> ComptExprSolver::try_compt_constant_from_did(FileId fid, ScopeId scope,
-                                                                         DefId did, SymbolId sid,
+[[nodiscard]] OptId<ExecId> ComptExprSolver::try_compt_constant_from_did(DefId did, SymbolId sid,
                                                                          Span span) {
     const Def& def = context.def(did);
     if (def.holds<DefVariable>() && def.as<DefVariable>().compt_value.has_value()) {
@@ -4054,7 +4053,7 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
             DiagnosticSymbolAfterMessage{.sid = sid});
         return {};
     }
-    return try_compt_constant_from_did(fid, scope, maybe_existing_did.as_id(), sid,
+    return try_compt_constant_from_did(maybe_existing_did.as_id(), sid,
                                        Span{context, fid, expr->expr.reflected_id.inner});
 }
 

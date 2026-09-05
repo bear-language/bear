@@ -982,7 +982,7 @@ bool Exec::can_be_compt(const Context& ctx) {
         [&](const ExecReturnStmt&) -> bool { return false; },
         [&](const ExecYieldStmt&) -> bool { return false; },
         // exprs
-        [&](const ExecAssignable& t) -> bool { return false; },
+        [&](const ExecAssignable&) -> bool { return false; },
         [&](const ExecConst&) -> bool { return true; },
         [&](const ExecListLiteral& t) -> bool {
             // just check each elem
@@ -2032,13 +2032,13 @@ std::optional<ExecConst> ExecConst::preunary_bit_not(ExecConst ec) {
 
 std::string exec_to_string(Context& ctx, ExecId eid) {
     auto vs = Ovld{
-        [](const ExecBlock& t) -> std::string { return "{...}"; },
-        [](const ExecBreakStmt& t) -> std::string { return "break"; },
-        [](const ExecContinueStmt& t) -> std::string { return "continue"; },
-        [](const ExecIfStmt& t) -> std::string { return "if (...) {...} ..."; },
-        [](const ExecLoopStmt& t) -> std::string { return "loop {...}"; },
-        [](const ExecReturnStmt& t) -> std::string { return "return"; },
-        [](const ExecYieldStmt& t) -> std::string { return "yield"; },
+        [](const ExecBlock&) -> std::string { return "{...}"; },
+        [](const ExecBreakStmt&) -> std::string { return "break"; },
+        [](const ExecContinueStmt&) -> std::string { return "continue"; },
+        [](const ExecIfStmt&) -> std::string { return "if (...) {...} ..."; },
+        [](const ExecLoopStmt&) -> std::string { return "loop {...}"; },
+        [](const ExecReturnStmt&) -> std::string { return "return"; },
+        [](const ExecYieldStmt&) -> std::string { return "yield"; },
         [&ctx](const ExecUnionInit& t) -> std::string {
             return std::string(ctx.symbol_id_to_cstr(ctx.def(t.union_def_id).name)) + "{...}";
         },
@@ -2101,63 +2101,63 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 
             return str;
         },
-        [](const ExecAssignment& t) -> std::string {
+        [](const ExecAssignment&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecIs& t) -> std::string {
+        [](const ExecIs&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecMemberAccess& t) -> std::string {
+        [](const ExecMemberAccess&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecBinary& t) -> std::string {
+        [](const ExecBinary&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecCast& t) -> std::string {
+        [](const ExecCast&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecPreUnary& t) -> std::string {
+        [](const ExecPreUnary&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecPostUnary& t) -> std::string {
+        [](const ExecPostUnary&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecSubscript& t) -> std::string {
+        [](const ExecSubscript&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecFnCall& t) -> std::string {
+        [](const ExecFnCall&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecBorrow& t) -> std::string {
+        [](const ExecBorrow&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecDeref& t) -> std::string {
+        [](const ExecDeref&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprClosure& t) -> std::string {
+        [](const ExecExprClosure&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprVariantDecomp& t) -> std::string {
+        [](const ExecExprVariantDecomp&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprMatch& t) -> std::string {
+        [](const ExecExprMatch&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprMatchBranch& t) -> std::string {
+        [](const ExecExprMatchBranch&) -> std::string {
             // todo
             return {};
         },

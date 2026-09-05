@@ -264,7 +264,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             // TODO: struct deduction guides
             /*
             const auto maybe_deduction_guide = context.try_deduction_guide_for_struct(
-                did, &stmt->stmt.struct_decl, maybe_generic_params.value());
+                &stmt->stmt.struct_decl, maybe_generic_params.value());
             if (maybe_deduction_guide.has_value()) {
                 context.register_deduction_guide_for_def(did, maybe_deduction_guide.as_id());
             }
@@ -402,7 +402,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         const ast_stmt_fn_decl fn_decl = *stmt->stmt.fn_prototype;
         const auto fid = context.def(did).span.file_id;
 
-        OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl, context.def(did));
+        OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl);
         DefFunction::ParamResolResult params_res
             = resolve_params(fid, scope, did, fn_decl.params, maybe_self_type);
 
@@ -506,7 +506,7 @@ DefId DefVisitor::resolve_def(DefId did) {
 
             // try to make a deduction guide (consider lazy init later on)
             const auto maybe_deduction_guide = context.try_deduction_guide_for_function(
-                did, stmt->stmt.fn_decl, maybe_generic_params.value());
+                stmt->stmt.fn_decl, maybe_generic_params.value());
             if (maybe_deduction_guide.has_value()) {
                 // std::cout << "made deduction guide\n";
                 context.register_deduction_guide_for_def(did, maybe_deduction_guide.as_id());
@@ -517,7 +517,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             goto cleanup;
         }
 
-        OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl, context.def(did));
+        OptId<TypeId> maybe_self_type = context.self_type_for_fn(scope, &fn_decl);
 
         bool takes_self = maybe_self_type.has_value();
 
@@ -809,11 +809,10 @@ OptId<DefId> DefVisitor::resolve_param(FileId fid, ScopeId scope, DefId func_def
 
     SymbolId name = context.symbol_id(param->name);
 
-    return resolve_param(fid, scope, func_def, tid, name, span);
+    return resolve_param(func_def, tid, name, span);
 }
 
-OptId<DefId> DefVisitor::resolve_param(FileId fid, ScopeId scope, DefId func_def, TypeId tid,
-                                       SymbolId name, Span span) {
+OptId<DefId> DefVisitor::resolve_param(DefId func_def, TypeId tid, SymbolId name, Span span) {
     auto param_did = context.register_compt_def(name, span, func_def);
 
     context.def(param_did).set_value(DefVariable{.type_id = tid, .compt_value = std::nullopt});
@@ -836,7 +835,7 @@ DefVisitor::resolve_params(FileId fid, ScopeId scope, DefId func_def,
         const auto* fn_node = context.def_ast_node(func_def);
         assert(fn_node->type == AST_STMT_FN_DECL || fn_node->type == AST_STMT_FN_PROTOTYPE);
         auto hopefully_self_param
-            = resolve_param(fid, scope, func_def, self_type.as_id(), context.symbol_id<"self">(),
+            = resolve_param(func_def, self_type.as_id(), context.symbol_id<"self">(),
                             Span{context, fid, fn_node->stmt.fn_decl->kw});
         if (hopefully_self_param.empty()) {
             return freeze_params(true); // poisoned

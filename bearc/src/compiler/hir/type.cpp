@@ -870,12 +870,12 @@ template <ConsiderMut C> bool TypeInferer<C>::operator()(const Type& t1, const T
     TypeComparator<C> comparator{context};
 
     auto vs = Ovld{
-        [&](const TypeBuiltin& t) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeStruct& t) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeVariant& t) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeUnion& t) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeBuiltin&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeStruct&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeVariant&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeUnion&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
         [&](const TypeDeftype&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeArr& t) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
+        [&](const TypeArr&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
         [&](const TypeSlice&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
         [&](const TypeRef&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
         [&](const TypePtr&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },

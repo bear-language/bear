@@ -51,8 +51,7 @@ class DefVisitor {
 
     [[nodiscard]] OptId<DefId> resolve_param(FileId fid, ScopeId scope, DefId func_def,
                                              const ast_param_t* param);
-    [[nodiscard]] OptId<DefId> resolve_param(FileId fid, ScopeId scope, DefId func_def, TypeId tid,
-                                             SymbolId name, Span span);
+    [[nodiscard]] OptId<DefId> resolve_param(DefId func_def, TypeId tid, SymbolId name, Span span);
 
     [[nodiscard]] DefFunction::ParamResolResult
     resolve_params(FileId fid, ScopeId scope, DefId func_def, ast_slice_of_params_t params,

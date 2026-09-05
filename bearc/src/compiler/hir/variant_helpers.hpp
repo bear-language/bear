@@ -19,7 +19,7 @@ template <class... Ts> Ovld(Ts...) -> Ovld<Ts...>;
 
 namespace priv_impl_variant_helper {
 template <typename Variant, std::size_t... Is>
-bool variant_equal_impl(const Variant& a, const Variant& b, std::index_sequence<Is...> seq) {
+bool variant_equal_impl(const Variant& a, const Variant& b, std::index_sequence<Is...>) {
     using Fn = bool (*)(const Variant&, const Variant&);
 
     static constexpr Fn table[] = {+[](const Variant& x, const Variant& y) -> bool {

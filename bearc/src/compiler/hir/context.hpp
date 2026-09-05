@@ -825,8 +825,7 @@ class Context {
 
     [[nodiscard]] IdSet<DefId>& contract_set_for_struct_did(DefId struct_did);
 
-    [[nodiscard]] OptId<TypeId> self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t* fn_decl,
-                                                 Def& def);
+    [[nodiscard]] OptId<TypeId> self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t* fn_decl);
 
     // linearly scans that a name to see if it is contained in a slice of defs
     // - return an empty optional on miss
@@ -839,12 +838,12 @@ class Context {
 
     /// trys to build a deduction guide for a function
     [[nodiscard]] OptId<DeductionGuideId>
-    try_deduction_guide_for_function(DefId func_did, const ast_stmt_fn_decl_t* stmt,
+    try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
                                      IdSlice<GenericParamId> gen_params);
 
     /// trys to build a deduction guide for a struct
     [[nodiscard]] OptId<DeductionGuideId>
-    try_deduction_guide_for_struct(DefId struct_did, const ast_stmt_struct_decl_t* stmt,
+    try_deduction_guide_for_struct(const ast_stmt_struct_decl_t* stmt,
                                    IdSlice<GenericParamId> gen_params);
 
     // freeze a vector (llvm::SmallVector) into an IdSlice for leaner storage
@@ -1113,10 +1112,8 @@ class Context {
     void report_cycle(llvm::SmallVectorImpl<FileId>& import_stack, const token_t* import_path_tkn);
     [[nodiscard]] OptId<FileId> try_file_from_import_statement(FileId importer_id,
                                                                const ast_stmt_t* import_statement);
-    [[nodiscard]] OptId<DefId>
-    make_new_generic_instantiation(DefVisitor& def_visitor, DefId did,
-                                   CanonicalGenericArgsId canon_gen_args_id,
-                                   GenericArgIdSliceId gen_args_id);
+    [[nodiscard]] OptId<DefId> make_new_generic_instantiation(DefVisitor& def_visitor, DefId did,
+                                                              GenericArgIdSliceId gen_args_id);
 
     // assumes generic args have already been validated
     void insert_gen_args_into_scope(DefId orginal_generic_did, DefId instance_did, ScopeId scope,

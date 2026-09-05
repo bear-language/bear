@@ -1,5 +1,4 @@
-Checks: "clang-diagnostic-*,bugprone-*,clang-analyzer-*,performance-*,readability-*,portability-*,-readability-magic-numbers,-readability-function-cognitive-complexity,-readability-identifier-length,-bugprone-easily-swappable-parameters,-bugprone-assignment-in-if-condition,-bugprone-too-small-loop-variable,-readability-implicit-bool-conversion,-readability-uppercase-literal-suffix,-readability-redundant-member-init"
+Checks: "clang-diagnostic-*,bugprone-*,clang-analyzer-*,performance-*,readability-*,portability-*,-readability-magic-numbers,-readability-function-cognitive-complexity,-readability-identifier-length,-bugprone-easily-swappable-parameters,-bugprone-assignment-in-if-condition,-bugprone-too-small-loop-variable,-readability-implicit-bool-conversion,-readability-uppercase-literal-suffix,-readability-redundant-member-init,-readability-named-parameter"
 WarningsAsErrors: ""
 HeaderFilterRegex: ".*"
 FormatStyle: none
-
