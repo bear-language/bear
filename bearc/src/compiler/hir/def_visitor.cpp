@@ -873,7 +873,8 @@ void DefVisitor::resolve_fn_body_expr(FileId fid, ScopeId scope, DefId func_def)
 
     Span span{context, fid, expr};
 
-    LexicalCtx lctx{.scope = context.make_scope(scope, span), .map = context.make_move_map({})};
+    LexicalCtx lctx{.scope = context.make_scope(scope, span),
+                    .map = context.make_persistent_move_map({})};
 
     const auto maybe_returnee_eid = RuntimeSolver{context, *this}.solve_expr(
         fid, lctx, expr, context.def(func_def).as<DefFunction>().return_type);

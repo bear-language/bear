@@ -16,13 +16,14 @@ namespace hir {
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, ScopeId scope,
                                                       const ast_expr_t* expr, TypeId into_tid) {
-    return solve_expr(fid, LexicalCtx{.scope = scope, .map = context.make_move_map({})}, expr,
-                      into_tid);
+    return solve_expr(fid, LexicalCtx{.scope = scope, .map = context.make_persistent_move_map({})},
+                      expr, into_tid);
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, ScopeId scope,
                                                       const ast_expr_t* expr) {
-    return solve_expr(fid, LexicalCtx{.scope = scope, .map = context.make_move_map({})}, expr);
+    return solve_expr(fid, LexicalCtx{.scope = scope, .map = context.make_persistent_move_map({})},
+                      expr);
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, LexicalCtx lctx,

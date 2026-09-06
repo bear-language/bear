@@ -1482,8 +1482,12 @@ ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
 
 [[nodiscard]] const MoveMap& Context::move_map(MoveMapId mid) const { return move_maps.at(mid); }
 
-[[nodiscard]] MoveMapId Context::make_move_map(OptId<MoveMapId> parent) {
-    return move_maps.emplace_and_get_id(move_maps_arena, parent);
+[[nodiscard]] MoveMapId Context::make_move_map(OptId<MoveMapId> parent, DataArena& arena) {
+    return move_maps.emplace_and_get_id(arena, parent);
+}
+
+[[nodiscard]] MoveMapId Context::make_persistent_move_map(OptId<MoveMapId> parent) {
+    return make_move_map(parent, move_maps_arena);
 }
 
 [[nodiscard]] MoveResult Context::moved(MoveMapId mid, DefId did) const {

@@ -697,7 +697,14 @@ class Context {
 
     [[nodiscard]] const MoveMap& move_map(MoveMapId mid) const;
 
-    [[nodiscard]] MoveMapId make_move_map(OptId<MoveMapId> parent);
+    /// makes a move map from a specified arena
+    /// - note: make sure that the returned MoveMapId does not escape the liftime of the arena
+    /// passed in here, since the move map will become junk once the arena is destructed
+    [[nodiscard]] MoveMapId make_move_map(OptId<MoveMapId> parent, DataArena& arena);
+
+    /// makes a move map that persists by using arena storage from inside of context
+    /// - use this for the top-level move_map within functions
+    [[nodiscard]] MoveMapId make_persistent_move_map(OptId<MoveMapId> parent);
 
     /// checks for an exec that moves this def for the provided move map, or a parent of it
     [[nodiscard]] MoveResult moved(MoveMapId mid, DefId did) const;
