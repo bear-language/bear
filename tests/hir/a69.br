@@ -1,0 +1,32 @@
+// tests/hir/a69.br
+
+mod hir_a69;
+
+union Foo {
+    u8 a;
+    i64 b;
+}
+
+compt Foo a = Foo{.a = 12};
+
+compt Foo b = Foo{.b = -12};
+
+
+struct Bar<Foo F> {
+    fn get() -> Foo => (F)
+}
+
+compt var _0 = @static_assert Bar..get::<a>() == Foo{.a = 12};
+
+compt var _1 = @static_assert Bar..get::<b>() == Foo{.b = -12}; 
+
+compt var _2 = @static_assert Bar..get::<a>() == Foo{.b = 12}; // oops
+
+deftype A = Bar<a>;
+deftype B = Bar<b>;
+
+compt var _3 = @static_assert A..get() == Foo{.a = 12};
+
+compt var _4 = @static_assert B..get() == Foo{.b = -12}; 
+
+compt var _5 = @static_assert B..get() == A..get(); // oops 

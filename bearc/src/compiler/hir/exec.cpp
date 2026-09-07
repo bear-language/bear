@@ -2036,7 +2036,12 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         [](const ExecReturnStmt&) -> std::string { return "return"; },
         [](const ExecYieldStmt&) -> std::string { return "yield"; },
         [&ctx](const ExecUnionInit& t) -> std::string {
-            return std::string(ctx.symbol_id_to_cstr(ctx.def(t.union_def_id).name)) + "{...}";
+            return std::string(ctx.symbol_id_to_cstr(ctx.def(t.union_def_id).name)) + "{."
+                   + ctx.symbol_id_to_cstr(ctx.def(ctx.def(t.union_def_id)
+                                                       .as<DefUnion>()
+                                                       .ordered_members.get(t.active_member_idx))
+                                               .name)
+                   + exec_to_string(ctx, t.member_init) + "}";
         },
         [&ctx](const ExecExprVariantInit& t) -> std::string {
             std::string str{};

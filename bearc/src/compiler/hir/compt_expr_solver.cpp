@@ -1441,7 +1441,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
 
     if (bin_op_is_eq_neq(op)
         && (lhs_exec.holds_same<ExecExprVariantInit>(rhs_exec)
-            || lhs_exec.holds_same<ExecRange>(rhs_exec))) {
+            || lhs_exec.holds_same<ExecRange>(rhs_exec)
+            || lhs_exec.holds_same<ExecUnionInit>(rhs_exec))) {
         return solve_any_eq(lhs_eid, rhs_eid, op);
     }
 
