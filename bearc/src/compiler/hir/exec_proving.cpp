@@ -25,10 +25,8 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
     auto vs = Ovld{
         [](const ExecBlock&) -> bool { return false; },
-        [](const ExecBreakStmt&) -> bool { return false; },
-        [](const ExecContinueStmt&) -> bool { return false; },
         [](const ExecIfStmt&) -> bool { return false; },
-        [](const ExecLoopStmt&) -> bool { return false; },
+        [](const ExecJump&) -> bool { return false; },
         [](const ExecReturnStmt&) -> bool { return false; },
         [](const ExecYieldStmt&) -> bool { return false; },
         [&other, &ctx](const ExecRange t) -> bool {
@@ -204,15 +202,18 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 }
 
 bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
+
+    if (eid1 == eid2) {
+        return true;
+    }
+
     const Exec& e1 = ctx.exec(eid1);
     const Exec& e2 = ctx.exec(eid2);
 
     auto vs = Ovld{
         [](const ExecBlock&) -> bool { return false; },
-        [](const ExecBreakStmt&) -> bool { return false; },
-        [](const ExecContinueStmt&) -> bool { return false; },
+        [](const ExecJump&) -> bool { return false; },
         [](const ExecIfStmt&) -> bool { return false; },
-        [](const ExecLoopStmt&) -> bool { return false; },
         [](const ExecReturnStmt&) -> bool { return false; },
         [](const ExecYieldStmt&) -> bool { return false; },
         [&e2, &ctx, eid2](const ExecRange t) -> bool {
@@ -337,11 +338,9 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 size_t hash_exec(const Context& ctx, ExecId eid) {
     auto vs = Ovld{
         [](const ExecBlock&) -> size_t { return mix(1uz); },
-        [](const ExecBreakStmt&) -> size_t { return mix(2uz); },
-        [](const ExecContinueStmt&) -> size_t { return mix(3uz); },
-        [](const ExecIfStmt&) -> size_t { return mix(4uz); },
-        [](const ExecLoopStmt&) -> size_t { return mix(5uz); },
-        [](const ExecReturnStmt&) -> size_t { return mix(6uz); },
+        [](const ExecJump&) -> size_t { return mix(3uz); },
+        [](const ExecIfStmt&) -> size_t { return mix(5uz); },
+        [](const ExecReturnStmt&) -> size_t { return mix(7uz); },
         [&ctx](const ExecRange& t) -> size_t {
             return transform(hash_exec(ctx, t.start), hash_exec(ctx, t.end));
         },

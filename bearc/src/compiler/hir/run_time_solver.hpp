@@ -20,6 +20,8 @@ namespace hir {
 class RuntimeSolver {
     DefVisitor& def_visitor;
     Context& context;
+    bool inside_loop;
+    bool inside_match_branch;
 
   public:
     RuntimeSolver(Context& ctx, DefVisitor& def_visitor) : def_visitor{def_visitor}, context{ctx} {}

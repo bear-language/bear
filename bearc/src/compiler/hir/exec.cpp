@@ -975,10 +975,8 @@ bool Exec::can_be_compt(const Context& ctx) {
     auto eidx_to_e = [&ctx](IdIdx<ExecId> eid) { return ctx.exec(eid); };
     auto vs = Ovld{
         [&](const ExecBlock&) -> bool { return false; },
-        [&](const ExecBreakStmt&) -> bool { return false; },
-        [&](const ExecContinueStmt&) -> bool { return false; },
+        [&](const ExecJump&) -> bool { return false; },
         [&](const ExecIfStmt&) -> bool { return false; },
-        [&](const ExecLoopStmt&) -> bool { return false; },
         [&](const ExecReturnStmt&) -> bool { return false; },
         [&](const ExecYieldStmt&) -> bool { return false; },
         // exprs
@@ -2033,10 +2031,8 @@ std::optional<ExecConst> ExecConst::preunary_bit_not(ExecConst ec) {
 std::string exec_to_string(Context& ctx, ExecId eid) {
     auto vs = Ovld{
         [](const ExecBlock&) -> std::string { return "{...}"; },
-        [](const ExecBreakStmt&) -> std::string { return "break"; },
-        [](const ExecContinueStmt&) -> std::string { return "continue"; },
+        [](const ExecJump&) -> std::string { return "jump ..."; },
         [](const ExecIfStmt&) -> std::string { return "if (...) {...} ..."; },
-        [](const ExecLoopStmt&) -> std::string { return "loop {...}"; },
         [](const ExecReturnStmt&) -> std::string { return "return"; },
         [](const ExecYieldStmt&) -> std::string { return "yield"; },
         [&ctx](const ExecUnionInit& t) -> std::string {

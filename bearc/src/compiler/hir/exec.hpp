@@ -37,18 +37,14 @@ struct ExecBlock {
     BlockId block_id;
 };
 
-struct ExecBreakStmt {};
-
-struct ExecContinueStmt {};
+struct ExecJump {
+    ExecId block;
+};
 
 struct ExecIfStmt {
     ExecId condition;
     ExecId block;
     OptId<ExecId> else_stmt;
-};
-
-struct ExecLoopStmt {
-    ExecId block;
 };
 
 struct ExecReturnStmt {
@@ -59,6 +55,7 @@ struct ExecYieldStmt {
     OptId<ExecId> yield_value;
 };
 
+/// models an l-value
 struct ExecAssignable {
     DefId def_id;
     TypeId type_id;
@@ -544,8 +541,7 @@ struct ExecExprMatchBranch {
 /// main exec variant
 using ExecValue = std::variant<
     // blocks / statements
-    ExecBlock, ExecBreakStmt, ExecContinueStmt, ExecIfStmt, ExecLoopStmt, ExecReturnStmt,
-    ExecYieldStmt,
+    ExecBlock, ExecIfStmt, ExecReturnStmt, ExecYieldStmt, ExecJump,
 
     // expressions
     ExecUnionInit, ExecExprVariantInit, ExecExprStructInit, ExecExprStructMemberInit,
