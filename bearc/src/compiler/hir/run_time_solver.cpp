@@ -1,3 +1,4 @@
+//
 //     /                              /
 //    /                              /
 //   /_____  _____  _____  _____    /  _____   _  _  _____
@@ -33,9 +34,9 @@ namespace hir {
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr,
-                                                      OptId<TypeId> into_tid) {
-    if (into_tid) {
-        return solve_expr(fid, lctx, expr, into_tid.as_id());
+                                                      OptId<TypeId> maybe_into_tid) {
+    if (maybe_into_tid) {
+        return solve_expr(fid, lctx, expr, maybe_into_tid.as_id());
     }
     return solve_expr(fid, lctx, expr);
 }
@@ -93,6 +94,12 @@ namespace hir {
         break;
     }
     return {};
+}
+
+[[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block(FileId fid, LexicalCtx lctx,
+                                                       ast_slice_of_stmts_t stmts,
+                                                       OptId<TypeId> maybe_return_tid) {
+    // TODO
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::handle_any_typed_expr(FileId fid, LexicalCtx lctx,

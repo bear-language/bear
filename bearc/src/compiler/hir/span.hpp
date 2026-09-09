@@ -10,6 +10,7 @@
 #define COMPILER_SPAN_HPP
 
 #include "compiler/ast/expr.h"
+#include "compiler/ast/stmt_slice.h"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/token.h"
 #include <stdbool.h>
@@ -37,6 +38,7 @@ class Span {
     Span(const Context& ctx, FileId file_id, token_ptr_slice_t token_slice);
     Span(const Context& ctx, FileId file_id, const token_t* first, const token_t* last);
     Span(const Context& ctx, FileId file_id, const ast_expr_t* expr);
+    Span(const Context& ctx, FileId file_id, const ast_stmt_t* stmt);
     Span(const Context& ctx, FileId file_id, const token_t* tkn);
     [[nodiscard]] static std::string_view retrieve_from_buffer(const char* data, Span span);
     [[nodiscard]] std::string_view as_sv(const Context& context) const;

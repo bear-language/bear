@@ -860,8 +860,9 @@ void DefVisitor::resolve_fn_body(FileId fid, ScopeId scope, DefId func_def) {
     assert(fn_stmt->type == AST_STMT_FN_DECL);
     if (fn_stmt->stmt.fn_decl->only_expr) {
         resolve_fn_body_expr(fid, scope, func_def);
+    } else {
+        resolve_fn_body_block(fid, scope, func_def);
     }
-    resolve_fn_body_block(fid, scope, func_def);
 }
 
 void DefVisitor::resolve_fn_body_expr(FileId fid, ScopeId scope, DefId func_def) {
@@ -895,7 +896,15 @@ void DefVisitor::resolve_fn_body_expr(FileId fid, ScopeId scope, DefId func_def)
 }
 
 void DefVisitor::resolve_fn_body_block(FileId fid, ScopeId scope, DefId func_def) {
-    // TODO
+    const ast_stmt_t* fn_stmt = context.def_ast_node(func_def);
+    assert(fn_stmt->type == AST_STMT_FN_DECL);
+    assert(!fn_stmt->stmt.fn_decl->only_expr); // this has a block body (so it's not only expr)
+    DefFunction& func = context.def(func_def).as<DefFunction>();
+    func.body = RuntimeSolver{context, *this}.solve_block(
+        fid,
+        LexicalCtx{.scope = context.make_scope(scope, Span{context, fid, fn_stmt}),
+                   .map = context.make_persistent_move_map()},
+        fn_stmt->stmt.fn_decl->block->stmt.block.stmts, func.return_type);
 }
 
 bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {

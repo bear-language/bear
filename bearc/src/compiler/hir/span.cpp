@@ -36,6 +36,9 @@ Span::Span(const Context& ctx, FileId file_id, const token_t* first, const token
 Span::Span(const Context& ctx, FileId file_id, const ast_expr_t* expr)
     : Span(ctx, file_id, expr->first, expr->last) {}
 
+Span::Span(const Context& ctx, FileId file_id, const ast_stmt_t* stmt)
+    : Span(ctx, file_id, stmt->first, stmt->last) {}
+
 Span::Span(const Context& ctx, FileId file_id, const token_t* tkn)
     : start(tkn->start - ctx.ast(file_id).buffer()), len(tkn->len), file_id(file_id),
       line(tkn->loc.line), col(tkn->loc.col) {}

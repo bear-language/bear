@@ -9,6 +9,7 @@
 #ifndef BEARC_COMPILER_HIR_RUN_TIME_EXPR_SOLVER_HPP
 #define BEARC_COMPILER_HIR_RUN_TIME_EXPR_SOLVER_HPP
 
+#include "compiler/ast/stmt_slice.h"
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/expr_solver.hpp"
@@ -37,11 +38,14 @@ class RuntimeSolver {
                                            TypeId into_tid);
 
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
-                                           OptId<TypeId> into_tid);
+                                           OptId<TypeId> maybe_into_tid);
 
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr);
 
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
+
+    [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, ast_slice_of_stmts_t stmts,
+                                            OptId<TypeId> maybe_return_tid);
 
   private:
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,

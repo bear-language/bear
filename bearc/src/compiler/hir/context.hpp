@@ -353,7 +353,7 @@ class Context {
                                bool member);
 
     /// finds the scope containing a definition
-    /// TODO needs to handle non-top level stmts too
+    /// TODO: make this work for non-top-level defs
     [[nodiscard]] ScopeId containing_scope(DefId did) const;
 
     void register_func_to_scope(DefId did, ScopeId scope_id);
@@ -618,7 +618,7 @@ class Context {
 
     /// makes a move map that persists by using arena storage from inside of context
     /// - use this for the top-level move_map within functions
-    [[nodiscard]] MoveMapId make_persistent_move_map(OptId<MoveMapId> parent);
+    [[nodiscard]] MoveMapId make_persistent_move_map(OptId<MoveMapId> parent = {});
 
     /// checks for an exec that moves this def for the provided move map, or a parent of it
     [[nodiscard]] MoveResult moved(MoveMapId mid, DefId did) const;
