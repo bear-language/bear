@@ -1754,6 +1754,103 @@ OptId<DefId> Context::look_up_member_var_guarding_hid(const Def& struct_def, Sym
     return maybe_def;
 }
 
+[[nodiscard]] OptId<DefId> Context::look_up_member_function_guarding_hid(DefVisitor& def_visitor,
+                                                                         const Def& struct_def,
+                                                                         SymbolId symbol_id,
+                                                                         Span id_span,
+                                                                         ScopeId local_scope) {
+    auto maybe_did = look_up_variable(struct_def.as<DefStruct>().scope, symbol_id);
+    bool looked_up_on_local = false;
+    if (maybe_did.empty()) {
+        looked_up_on_local = true;
+        maybe_did = look_up_variable(local_scope, symbol_id); // try local scope if not found
+    }
+    if (maybe_did.has_value()) {
+        maybe_did = try_func_did(maybe_did.as_id());
+    }
+    if (maybe_did.empty()) {
+        auto d0 = emplace_diagnostic_with_message_value(
+            id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
+            DiagnosticSymbolAfterMessage{.sid = struct_def.name});
+        auto d1 = emplace_diagnostic_with_message_value(
+            struct_def.span, diag_code::declared_here, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = struct_def.name});
+        link_diagnostic(d0, d1);
+        return std::nullopt;
+    }
+    const Def& def = this->try_func_def(def_visitor.visit_as_dependent(maybe_did.as_id()));
+    if (!def.holds<DefFunction>() && !def.holds<DefGenericFunction>()) {
+        auto d0 = emplace_diagnostic_with_message_value(
+            id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
+            DiagnosticSymbolAfterMessage{.sid = struct_def.name});
+        auto d1 = emplace_diagnostic_with_message_value(
+            def.span, diag_code::declared_here, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = def.name});
+        link_diagnostic(d0, d1);
+        return std::nullopt;
+    }
+    if (!looked_up_on_local && !def.pub
+        && !scope_has_parent(local_scope, struct_def.as<DefStruct>().scope)) {
+        auto d0 = emplace_diagnostic_with_message_value(
+            id_span, diag_code::is_declared_hid, diag_type::error,
+            DiagnosticSymbolBeforeMessage{.sid = symbol_id});
+        auto d1 = emplace_diagnostic_with_message_value(
+            def.span, diag_code::declared_here, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = symbol_id});
+        link_diagnostic(d0, d1);
+    }
+    return maybe_did;
+}
+
+[[nodiscard]] OptId<DefId> Context::look_up_generic_member_function_guarding_hid(
+    DefVisitor& def_visitor, const Def& struct_def, SymbolId symbol_id, Span id_span,
+    ScopeId local_scope, GenericArgIdSliceId gen_args) {
+    auto maybe_did = look_up_variable(struct_def.as<DefStruct>().scope, symbol_id);
+    bool looked_up_on_local = false;
+    if (maybe_did.empty()) {
+        looked_up_on_local = true;
+        maybe_did = look_up_variable(local_scope, symbol_id);
+    }
+    if (maybe_did.has_value()) {
+        maybe_did = try_generic_instantiation(def_visitor, maybe_did.as_id(), gen_args);
+        if (maybe_did.has_value()) {
+            maybe_did = try_func_did(maybe_did.as_id());
+        }
+    }
+    if (maybe_did.empty()) {
+        auto d0 = emplace_diagnostic_with_message_value(
+            id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
+            DiagnosticSymbolAfterMessage{.sid = struct_def.name});
+        auto d1 = emplace_diagnostic_with_message_value(
+            struct_def.span, diag_code::declared_here, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = struct_def.name});
+        link_diagnostic(d0, d1);
+        return std::nullopt;
+    }
+    const Def& def = this->try_func_def(maybe_did.as_id());
+    if (!def.holds<DefFunction>()) {
+        auto d0 = emplace_diagnostic_with_message_value(
+            id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
+            DiagnosticSymbolAfterMessage{.sid = struct_def.name});
+        auto d1 = emplace_diagnostic_with_message_value(
+            def.span, diag_code::declared_here, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = def.name});
+        link_diagnostic(d0, d1);
+        return std::nullopt;
+    }
+    if (!looked_up_on_local && !def.pub
+        && !scope_has_parent(local_scope, struct_def.as<DefStruct>().scope)) {
+        auto d0 = emplace_diagnostic_with_message_value(
+            id_span, diag_code::is_declared_hid, diag_type::error,
+            DiagnosticSymbolBeforeMessage{.sid = symbol_id});
+        auto d1 = emplace_diagnostic_with_message_value(
+            def.span, diag_code::declared_here, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = symbol_id});
+        link_diagnostic(d0, d1);
+    }
+    return maybe_did;
+}
+
 OptId<DefId> Context::look_up_member_function_no_diag_except_hid(const Def& struct_def,
                                                                  SymbolId symbol_id, Span id_span,
                                                                  ScopeId local_scope) {
