@@ -13,6 +13,7 @@
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/expr_solver.hpp"
+#include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
 
 namespace hir {
@@ -23,6 +24,11 @@ class RuntimeSolver {
     Context& context;
     bool inside_loop;
     bool inside_match_branch;
+
+    struct InProgressBlock {
+        llvm::SmallVector<DefId> defs;
+        llvm::SmallVector<ExecId> execs;
+    };
 
   public:
     RuntimeSolver(Context& ctx, DefVisitor& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
@@ -46,6 +52,8 @@ class RuntimeSolver {
 
     [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, ast_slice_of_stmts_t stmts,
                                             OptId<TypeId> maybe_return_tid);
+
+    void handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block, const ast_stmt_t* stmt);
 
   private:
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,

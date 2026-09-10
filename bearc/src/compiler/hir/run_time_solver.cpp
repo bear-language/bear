@@ -12,6 +12,8 @@
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
+#include "utils/data_arena.hpp"
+#include <optional>
 
 namespace hir {
 
@@ -96,10 +98,68 @@ namespace hir {
     return {};
 }
 
-[[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block(FileId fid, LexicalCtx lctx,
+[[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block(FileId fid, LexicalCtx parent_lctx,
                                                        ast_slice_of_stmts_t stmts,
                                                        OptId<TypeId> maybe_return_tid) {
+
+    Span block_span{context, fid, stmts};
+    InProgressBlock block{};
+    DataArena move_arena{0x100}; // decently sized
+
+    // move map stays the same as parent, but lexical scope nests
+    LexicalCtx curr_lctx{.scope = context.make_small_scope(parent_lctx.scope, block_span),
+                         .map = parent_lctx.map};
+
+    for (auto i = 0uz; i < stmts.len; ++i) {
+        handle_stmt(fid, curr_lctx, block, stmts.start[i]);
+        // TODO ensure return if maybe_return_tid.has_value() and ensure no unreachables
+    }
+
+    return context.emplace_exec(
+        ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(block.execs),
+                                              .defs = context.freeze_id_vec(block.defs),
+                                              .lctx = curr_lctx})},
+        block_span);
+}
+
+void RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                const ast_stmt_t* stmt) {
     // TODO
+    switch (stmt->type) {
+    case AST_STMT_FILE:
+    case AST_STMT_EXTERN_BLOCK:
+    case AST_STMT_VAR_DECL:
+    case AST_STMT_VAR_INIT_DECL:
+    case AST_STMT_MODULE:
+    case AST_STMT_VISIBILITY_MODIFIER:
+    case AST_STMT_COMPT_MODIFIER:
+    case AST_STMT_STATIC_MODIFIER:
+    case AST_STMT_ALIGNAS_MODIFIER:
+    case AST_STMT_STRUCT_DEF:
+    case AST_STMT_CONTRACT_DEF:
+    case AST_STMT_UNION_DEF:
+    case AST_STMT_VARIANT_DEF:
+    case AST_STMT_VARIANT_FIELD_DECL:
+    case AST_STMT_FN_DECL:
+    case AST_STMT_FN_PROTOTYPE:
+    case AST_STMT_DEFTYPE:
+    case AST_STMT_IMPORT:
+    case AST_STMT_USE:
+    case AST_STMT_BLOCK:
+    case AST_STMT_EXPR:
+    case AST_STMT_EMPTY:
+    case AST_STMT_BREAK:
+    case AST_STMT_IF:
+    case AST_STMT_ELSE:
+    case AST_STMT_WHILE:
+    case AST_STMT_FOR:
+    case AST_STMT_FOR_IN:
+    case AST_STMT_RETURN:
+    case AST_STMT_YIELD:
+    case AST_STMT_CONTINUE:
+    case AST_STMT_INVALID:
+        break;
+    }
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::handle_any_typed_expr(FileId fid, LexicalCtx lctx,
