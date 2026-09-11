@@ -31,9 +31,14 @@ class RuntimeSolver {
     };
 
   public:
-    RuntimeSolver(Context& ctx, DefVisitor& def_visitor) : def_visitor{def_visitor}, context{ctx} {}
+    [[nodiscard]] RuntimeSolver(Context& ctx, DefVisitor& def_visitor)
+        : def_visitor{def_visitor}, context{ctx} {}
 
     [[nodiscard]] Context& get_context() { return this->context; }
+
+    void set_return_type(OptId<TypeId> maybe_tid) { this->current_return_tid = maybe_tid; }
+
+    void reset_return_type() { this->current_return_tid = {}; }
 
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr,
                                            TypeId into_tid);
@@ -50,8 +55,8 @@ class RuntimeSolver {
 
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
 
-    [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, ast_slice_of_stmts_t stmts,
-                                            OptId<TypeId> maybe_return_tid);
+    [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx,
+                                            ast_slice_of_stmts_t stmts);
 
   private:
     /// internally handles all ast_stmt_t statement types
@@ -67,8 +72,7 @@ class RuntimeSolver {
     /// return or yield statement)
     OptId<ExecId> handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                               const ast_stmt_t* stmt);
-    OptId<ExecId> handle_return(FileId fid, LexicalCtx lctx, InProgressBlock& block,
-                                const ast_stmt_t* stmt);
+    OptId<ExecId> handle_return(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
 };

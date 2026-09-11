@@ -11,3 +11,11 @@ fn foo() -> i32 {
     var _0 = compt 1 + 1;
     var _1 = compt 1 + 1; // oops, no return
 }
+
+fn bar() -> i32 {
+    return; // oops
+}
+
+fn baz() -> i32 {
+    return compt 1 + 32; 
+}

@@ -102,8 +102,7 @@ namespace hir {
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block(FileId fid, LexicalCtx parent_lctx,
-                                                       ast_slice_of_stmts_t stmts,
-                                                       OptId<TypeId> maybe_return_tid) {
+                                                       ast_slice_of_stmts_t stmts) {
 
     Span block_span{context, fid, stmts};
     InProgressBlock in_prog_block{};
@@ -113,8 +112,6 @@ namespace hir {
     LexicalCtx curr_lctx{.scope = context.make_small_scope(parent_lctx.scope, block_span),
                          .map = parent_lctx.map};
 
-    this->current_return_tid = maybe_return_tid;
-
     bool hit_return{false};
 
     for (auto i = 0uz; i < stmts.len; ++i) {
@@ -122,7 +119,7 @@ namespace hir {
 
         // if this is the last statement (and we didn't already see a (premature) return) and we're
         // expecting a return type
-        if (!hit_return && i == stmts.len - 1 && maybe_return_tid.has_value()
+        if (!hit_return && i == stmts.len - 1 && this->current_return_tid.has_value()
             && (maybe_eid.empty()
                 || maybe_eid.has_value() && !context.exec(maybe_eid.as_id()).holds<ExecReturn>())) {
 
@@ -133,8 +130,9 @@ namespace hir {
                 span, diag_code::function_may_not_return_a_value_in_all_control_flow_paths,
                 diag_type::error));
             dl.link(context.emplace_diagnostic_with_message_value(
-                context.type(maybe_return_tid.as_id()).span, diag_code::function_has_return_type,
-                diag_type::note, DiagnosticTypeAfterMessage{.tid = maybe_return_tid.as_id()}));
+                context.type(this->current_return_tid.as_id()).span,
+                diag_code::function_has_return_type, diag_type::note,
+                DiagnosticTypeAfterMessage{.tid = this->current_return_tid.as_id()}));
             dl.link(context.emplace_diagnostic(
                 span, diag_code::end_function_body_with_a_return_statement, diag_type::help));
         }
@@ -166,8 +164,6 @@ namespace hir {
         }
     }
 
-    this->current_return_tid = {}; // this might be unnecessary, but just in case
-
     return context.emplace_exec(
         ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(in_prog_block.execs),
                                               .defs = context.freeze_id_vec(in_prog_block.defs),
@@ -175,26 +171,42 @@ namespace hir {
         block_span);
 }
 
-OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, InProgressBlock& block,
-                                           const ast_stmt_t* stmt) {
+OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt) {
     assert(stmt->type == AST_STMT_RETURN);
 
-    return context.emplace_exec(ExecReturn{.return_value = {}} // TODO
-                                ,
-                                Span{context, fid, stmt});
+    if (this->current_return_tid.has_value()) {
+        if (!stmt->stmt.return_stmt.expr) {
+            DiagLinker dl{context};
+
+            dl.link(context.emplace_diagnostic(Span{context, fid, stmt},
+                                               diag_code::function_expected_return_value,
+                                               diag_type::error));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                context.type(this->current_return_tid.as_id()).span,
+                diag_code::function_has_return_type, diag_type::note,
+                DiagnosticTypeAfterMessage{.tid = this->current_return_tid.as_id()}));
+        } else {
+            return context.emplace_exec(
+                ExecReturn{.return_value = solve_expr(fid, lctx, stmt->stmt.return_stmt.expr)},
+                Span{context, fid, stmt});
+        }
+    }
+
+    return context.emplace_exec(ExecReturn{.return_value = {}}, Span{context, fid, stmt});
 }
 
 OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                          const ast_stmt_t* stmt) {
-    // TODO
     switch (stmt->type) {
     case AST_STMT_USE: {
         def_visitor.resolve_use_stmt(fid, lctx.scope, stmt);
         return {};
     }
     case AST_STMT_RETURN: {
-        return handle_return(fid, lctx, block, stmt);
+        return handle_return(fid, lctx, stmt);
     }
+
+    // TODO:
     case AST_STMT_VAR_DECL:
     case AST_STMT_VAR_INIT_DECL:
     case AST_STMT_VISIBILITY_MODIFIER:

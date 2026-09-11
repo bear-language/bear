@@ -835,8 +835,13 @@ void DefVisitor::resolve_fn_body_expr(FileId fid, DefId func_did) {
         context.insert_variable(func_scope, context.def(did).name, did);
     }
 
-    const auto maybe_returnee_eid = RuntimeSolver{context, *this}.solve_expr(
-        fid, lctx, expr, context.def(func_did).as<DefFunction>().return_type);
+    RuntimeSolver solver{context, *this};
+
+    const auto return_tid = context.def(func_did).as<DefFunction>().return_type;
+
+    solver.set_return_type(return_tid);
+
+    const auto maybe_returnee_eid = solver.solve_expr(fid, lctx, expr, return_tid);
 
     if (!maybe_returnee_eid) {
         return;
@@ -866,11 +871,15 @@ void DefVisitor::resolve_fn_body_block(FileId fid, DefId func_did) {
         context.insert_variable(func_scope, context.def(did).name, did);
     }
 
+    RuntimeSolver solver{context, *this};
+
+    solver.set_return_type(func.return_type);
+
     // this body will now be a deeper scope, so params live in a parent scope to the all remaining
     // defs inside the function body
-    func.body = RuntimeSolver{context, *this}.solve_block(
+    func.body = solver.solve_block(
         fid, LexicalCtx{.scope = func_scope, .map = context.make_persistent_move_map()},
-        fn_stmt->stmt.fn_decl->block->stmt.block.stmts, func.return_type);
+        fn_stmt->stmt.fn_decl->block->stmt.block.stmts);
 }
 
 bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {

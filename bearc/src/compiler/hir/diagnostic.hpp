@@ -218,6 +218,7 @@ enum class diag_code : uint8_t {
     function_has_return_type,
     code_is_unreachable_following_a_return,
     return_statement_here,
+    function_expected_return_value,
 
     count, // this must be last,
 

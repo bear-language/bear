@@ -435,6 +435,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "code is unreachable following a return statement";
     case diag_code::return_statement_here:
         return "return statement here";
+    case diag_code::function_expected_return_value:
+        return "function expected return value";
     }
 
     std::unreachable();
