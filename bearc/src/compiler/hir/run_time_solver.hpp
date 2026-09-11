@@ -18,7 +18,6 @@
 
 namespace hir {
 
-// TODO
 class RuntimeSolver {
     DefVisitor& def_visitor;
     Context& context;

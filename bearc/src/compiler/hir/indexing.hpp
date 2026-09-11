@@ -140,6 +140,7 @@ template <hir::IsId T> class IdIdx {
     constexpr self_type operator--() { return IdIdx{--value}; }
     constexpr self_type operator++(int) { return IdIdx{value++}; }
     constexpr self_type operator--(int) { return IdIdx{value--}; }
+    constexpr self_type operator*() { return *this; }
     constexpr self_type at(HirSize offset) { return IdIdx{value + offset}; }
     friend constexpr bool operator==(IdIdx<T> a, IdIdx<T> b) { return a.value == b.value; }
 };

@@ -977,7 +977,7 @@ bool Exec::can_be_compt(const Context& ctx) {
         [&](const ExecBlock&) -> bool { return false; },
         [&](const ExecJump&) -> bool { return false; },
         [&](const ExecIfStmt&) -> bool { return false; },
-        [&](const ExecReturnStmt&) -> bool { return false; },
+        [&](const ExecReturn&) -> bool { return false; },
         [&](const ExecYieldStmt&) -> bool { return false; },
         // exprs
         [&](const ExecAssignable&) -> bool { return false; },
@@ -2033,7 +2033,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         [](const ExecBlock&) -> std::string { return "{...}"; },
         [](const ExecJump&) -> std::string { return "jump ..."; },
         [](const ExecIfStmt&) -> std::string { return "if (...) {...} ..."; },
-        [](const ExecReturnStmt&) -> std::string { return "return"; },
+        [](const ExecReturn&) -> std::string { return "return"; },
         [](const ExecYieldStmt&) -> std::string { return "yield"; },
         [&ctx](const ExecUnionInit& t) -> std::string {
             return std::string(ctx.symbol_id_to_cstr(ctx.def(t.union_def_id).name)) + "{."

@@ -94,6 +94,14 @@ DefId DefVisitor::visit_as_mutator(DefId def) {
     return def;
 }
 
+static auto parent_is_struct(const Context& context, const Def& def) {
+    return (def.parent.has_value()) ? context.is_struct_def(def.parent.as_id()) : false;
+};
+
+static auto parent_is_union(const Context& context, const Def& def) {
+    return (def.parent.has_value()) ? context.is_union_def(def.parent.as_id()) : false;
+};
+
 DefId DefVisitor::resolve_def(DefId did) {
 
     auto check_to_err_when_compt_is_mut = [&](TypeId tid, const Def& def) {
@@ -108,19 +116,11 @@ DefId DefVisitor::resolve_def(DefId did) {
     ScopeId scope = context.containing_scope(did);
     Span span = context.def(did).span;
 
-    auto parent_is_struct = [this](const Def& def) {
-        return (def.parent.has_value()) ? context.is_struct_def(def.parent.as_id()) : false;
-    };
-
-    auto parent_is_union = [this](const Def& def) {
-        return (def.parent.has_value()) ? context.is_union_def(def.parent.as_id()) : false;
-    };
-
     switch (stmt->type) {
     case AST_STMT_VAR_DECL: {
         Def& def = context.def(did);
         OptId<TypeId> maybe_tid = TypeResolver{context, *this}.resolve_type(
-            span.file_id, scope, stmt->stmt.var_decl.type, parent_is_struct(def));
+            span.file_id, scope, stmt->stmt.var_decl.type, parent_is_struct(context, def));
         if (!maybe_tid.has_value()) {
             goto cleanup;
         }
@@ -134,7 +134,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         // error when struct member does not have an explicit type
 
         const bool type_contains_var = TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id());
-        if (!def.statik && parent_is_struct(def) && type_contains_var) {
+        if (!def.statik && parent_is_struct(context, def) && type_contains_var) {
             const Type& type = context.type(maybe_tid.as_id());
             context.emplace_diagnostic_with_message_value(
                 type.span, diag_code::should_have_explicit_type, diag_type::error,
@@ -144,9 +144,10 @@ DefId DefVisitor::resolve_def(DefId did) {
             .type_id = maybe_tid.as_id(),
             // this function emits diagnostics if there's a problem and
             // returns an optional, which is what we need here
-            .compt_value = (!def.statik && (parent_is_struct(def) || parent_is_union(def)))
-                               ? std::nullopt
-                               : context.try_default_value_for_type(maybe_tid.as_id(), def.span)
+            .compt_value
+            = (!def.statik && (parent_is_struct(context, def) || parent_is_union(context, def)))
+                  ? std::nullopt
+                  : context.try_default_value_for_type(maybe_tid.as_id(), def.span)
 
         });
         break;
@@ -155,7 +156,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         const auto var_init_decl = stmt->stmt.var_init_decl;
         OptId<TypeId> maybe_tid = TypeResolver{context, *this}.resolve_type(
             span.file_id, scope, var_init_decl.type,
-            parent_is_struct(context.def(did))); // needs layout info if parent is struct
+            parent_is_struct(context, context.def(did))); // needs layout info if parent is struct
         if (!maybe_tid.has_value()) {
             goto cleanup; // maybe set a special value to indicate error differently
         }
@@ -197,7 +198,8 @@ DefId DefVisitor::resolve_def(DefId did) {
         }
 
         // error when struct member does not have an explicit type
-        if (!context.def(did).statik && parent_is_struct(context.def(did)) && type_contains_var) {
+        if (!context.def(did).statik && parent_is_struct(context, context.def(did))
+            && type_contains_var) {
             const Type& type = context.type(maybe_tid.as_id());
             auto d0 = context.emplace_diagnostic_with_message_value(
                 type.span, diag_code::should_have_explicit_type, diag_type::error,
@@ -330,58 +332,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         break;
     }
     case AST_STMT_USE: {
-        auto use = stmt->stmt.use;
-        auto sid_slice = context.symbol_slice(use.id);
-        // to be used as the name
-        const token_t* last_symbol = use.id.start[use.id.len - 1];
-        Span id_span{span.file_id, context.ast(span.file_id).buffer(), use.id.start[0],
-                     last_symbol};
-
-        // by default, look up a mod (a namespace). If `use mod` was NOT explicitly specified, then
-        // look for a type only if a mod was NOT found. This statys in line with the "favor modules"
-        // philosophy
-        const bool only_look_for_mod = use.mod;
-        bool used_mod = true;
-        OptId<DefId> used_did = context.look_up_scoped_namespace(scope, sid_slice, id_span);
-        if (!only_look_for_mod && used_did.empty()) {
-            used_did = context.look_up_scoped_type(scope, sid_slice, id_span);
-            used_mod = false;
-        }
-
-        if (used_did.empty()) {
-            auto code = only_look_for_mod ? diag_code::use_of_undeclared_mod
-                                          : diag_code::use_of_undeclared_identifier;
-
-            context.emplace_diagnostic_with_message_value(
-                id_span, code, diag_type::error,
-                DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice});
-
-            break; // don't insert!
-        }
-
-        if (context.def_has_unspecialed_generic_parent(used_did.as_id())) {
-            auto d0 = context.emplace_diagnostic(
-                id_span, diag_code::cannot_use_definition_with_a_generic_parent, diag_type::error);
-            auto d1 = context.emplace_diagnostic(
-                id_span,
-                diag_code::
-                    use_a_deftype_to_create_a_simpler_type_alias_for_a_specialized_generic_type,
-                diag_type::help);
-            auto d2 = context.emplace_diagnostic(id_span, diag_code::deftypes_take_the_form_of,
-                                                 diag_type::note, DiagnosticInfoNoPreview{});
-            context.link_diagnostic(d0, d1);
-            context.link_diagnostic(d1, d2);
-            break;
-        }
-        ScopeId scope_into_which_to_insert = context.containing_scope(did);
-        // insert base name into containing scope
-        if (used_mod) {
-            context.scope(scope_into_which_to_insert)
-                .insert_namespace(context.symbol_id(last_symbol), used_did.as_id());
-        } else {
-            context.scope(scope_into_which_to_insert)
-                .insert_type(context.symbol_id(last_symbol), used_did.as_id());
-        }
+        resolve_use_stmt(context.def(did).span.file_id, scope, stmt);
         break;
     }
     case AST_STMT_DEFTYPE: {
@@ -536,7 +487,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             const Def& param_def = context.def(didx);
             assert(param_def.holds<DefVariable>());
 
-            if (didx == params.begin() && !takes_self && parent_is_struct(context.def(did))
+            if (didx == params.begin() && !takes_self && parent_is_struct(context, context.def(did))
                 && context.type_matches_struct_def(param_def.as<DefVariable>().type_id,
                                                    context.def(did).parent.as_id())) {
                 takes_self = true;
@@ -589,7 +540,7 @@ DefId DefVisitor::resolve_def(DefId did) {
                                                .takes_self = takes_self,
                                                .posioned = params_res.poisoned});
 
-        resolve_fn_body(fid, scope, did);
+        resolve_fn_body(fid, did);
 
         break;
     }
@@ -855,18 +806,18 @@ DefVisitor::resolve_params(FileId fid, ScopeId scope, DefId func_def,
     return freeze_params(false); // not poisoned
 }
 
-void DefVisitor::resolve_fn_body(FileId fid, ScopeId scope, DefId func_def) {
-    const ast_stmt_t* fn_stmt = context.def_ast_node(func_def);
+void DefVisitor::resolve_fn_body(FileId fid, DefId func_did) {
+    const ast_stmt_t* fn_stmt = context.def_ast_node(func_did);
     assert(fn_stmt->type == AST_STMT_FN_DECL);
     if (fn_stmt->stmt.fn_decl->only_expr) {
-        resolve_fn_body_expr(fid, scope, func_def);
+        resolve_fn_body_expr(fid, func_did);
     } else {
-        resolve_fn_body_block(fid, scope, func_def);
+        resolve_fn_body_block(fid, func_did);
     }
 }
 
-void DefVisitor::resolve_fn_body_expr(FileId fid, ScopeId scope, DefId func_def) {
-    const ast_stmt_t* fn_stmt = context.def_ast_node(func_def);
+void DefVisitor::resolve_fn_body_expr(FileId fid, DefId func_did) {
+    const ast_stmt_t* fn_stmt = context.def_ast_node(func_did);
     assert(fn_stmt->type == AST_STMT_FN_DECL);
     assert(fn_stmt->stmt.fn_decl->only_expr);
 
@@ -874,36 +825,51 @@ void DefVisitor::resolve_fn_body_expr(FileId fid, ScopeId scope, DefId func_def)
 
     Span span{context, fid, expr};
 
-    LexicalCtx lctx{.scope = context.make_scope(scope, span),
-                    .map = context.make_persistent_move_map({})};
+    ScopeId func_scope = context.scope_for_top_level_def(func_did);
+
+    LexicalCtx lctx{.scope = func_scope, .map = context.make_persistent_move_map({})};
+
+    // puts the params inside the function's uppermost scope
+    for (const auto param_didx : context.def(func_did).as<DefFunction>().params) {
+        const DefId did = context.def_id(param_didx);
+        context.insert_variable(func_scope, context.def(did).name, did);
+    }
 
     const auto maybe_returnee_eid = RuntimeSolver{context, *this}.solve_expr(
-        fid, lctx, expr, context.def(func_def).as<DefFunction>().return_type);
+        fid, lctx, expr, context.def(func_did).as<DefFunction>().return_type);
 
     if (!maybe_returnee_eid) {
         return;
     }
 
     const ExecId returner_eid
-        = context.emplace_exec(ExecReturnStmt{.return_value = maybe_returnee_eid}, span);
+        = context.emplace_exec(ExecReturn{.return_value = maybe_returnee_eid}, span);
 
     BlockId blid = context.emplace_block(
         Block{.execs = context.freeze_id_vec({returner_eid}), .defs = {}, .lctx = lctx});
 
     /// set the function body to this manufactured return
-    context.def(func_def).as<DefFunction>().body
+    context.def(func_did).as<DefFunction>().body
         = context.emplace_exec(ExecBlock{.block_id = blid}, span);
 }
 
-void DefVisitor::resolve_fn_body_block(FileId fid, ScopeId scope, DefId func_def) {
-    const ast_stmt_t* fn_stmt = context.def_ast_node(func_def);
+void DefVisitor::resolve_fn_body_block(FileId fid, DefId func_did) {
+    const ast_stmt_t* fn_stmt = context.def_ast_node(func_did);
     assert(fn_stmt->type == AST_STMT_FN_DECL);
     assert(!fn_stmt->stmt.fn_decl->only_expr); // this has a block body (so it's not only expr)
-    DefFunction& func = context.def(func_def).as<DefFunction>();
+    DefFunction& func = context.def(func_did).as<DefFunction>();
+    const ScopeId func_scope = context.scope_for_top_level_def(func_did);
+
+    // puts the params inside the function's uppermost scope
+    for (const auto param_didx : func.params) {
+        const DefId did = context.def_id(param_didx);
+        context.insert_variable(func_scope, context.def(did).name, did);
+    }
+
+    // this body will now be a deeper scope, so params live in a parent scope to the all remaining
+    // defs inside the function body
     func.body = RuntimeSolver{context, *this}.solve_block(
-        fid,
-        LexicalCtx{.scope = context.make_scope(scope, Span{context, fid, fn_stmt}),
-                   .map = context.make_persistent_move_map()},
+        fid, LexicalCtx{.scope = func_scope, .map = context.make_persistent_move_map()},
         fn_stmt->stmt.fn_decl->block->stmt.block.stmts, func.return_type);
 }
 
@@ -1246,6 +1212,58 @@ DefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId 
     }
 
     return context.freeze_id_vec(contract_dids);
+}
+
+void DefVisitor::resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_USE);
+    Span span{context, fid, stmt};
+    auto use = stmt->stmt.use;
+    auto sid_slice = context.symbol_slice(use.id);
+    // to be used as the name
+    const token_t* last_symbol = use.id.start[use.id.len - 1];
+    Span id_span{span.file_id, context.ast(span.file_id).buffer(), use.id.start[0], last_symbol};
+
+    // by default, look up a mod (a namespace). If `use mod` was NOT explicitly specified, then
+    // look for a type only if a mod was NOT found. This statys in line with the "favor modules"
+    // philosophy
+    const bool only_look_for_mod = use.mod;
+    bool used_mod = true;
+    OptId<DefId> used_did = context.look_up_scoped_namespace(scope, sid_slice, id_span);
+    if (!only_look_for_mod && used_did.empty()) {
+        used_did = context.look_up_scoped_type(scope, sid_slice, id_span);
+        used_mod = false;
+    }
+
+    if (used_did.empty()) {
+        auto code = only_look_for_mod ? diag_code::use_of_undeclared_mod
+                                      : diag_code::use_of_undeclared_identifier;
+
+        context.emplace_diagnostic_with_message_value(
+            id_span, code, diag_type::error,
+            DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice});
+
+        return; // don't insert!
+    }
+
+    if (context.def_has_unspecialed_generic_parent(used_did.as_id())) {
+        auto d0 = context.emplace_diagnostic(
+            id_span, diag_code::cannot_use_definition_with_a_generic_parent, diag_type::error);
+        auto d1 = context.emplace_diagnostic(
+            id_span,
+            diag_code::use_a_deftype_to_create_a_simpler_type_alias_for_a_specialized_generic_type,
+            diag_type::help);
+        auto d2 = context.emplace_diagnostic(id_span, diag_code::deftypes_take_the_form_of,
+                                             diag_type::note, DiagnosticInfoNoPreview{});
+        context.link_diagnostic(d0, d1);
+        context.link_diagnostic(d1, d2);
+        return;
+    }
+    // insert base name into containing scope
+    if (used_mod) {
+        context.scope(scope).insert_namespace(context.symbol_id(last_symbol), used_did.as_id());
+    } else {
+        context.scope(scope).insert_type(context.symbol_id(last_symbol), used_did.as_id());
+    }
 }
 
 } // namespace hir

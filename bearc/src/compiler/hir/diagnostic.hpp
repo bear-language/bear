@@ -213,6 +213,10 @@ enum class diag_code : uint8_t {
     takes_no_arguments,
     does_not_have_contract_default_so_an_initial_value_is_needed,
     reference_does_not_have_an_explicit_initializer,
+    function_may_not_return_a_value_in_all_control_flow_paths,
+    end_function_body_with_a_return_statement,
+    function_has_return_type,
+    code_is_unreachable_following_a_return,
 
     count, // this must be last,
 

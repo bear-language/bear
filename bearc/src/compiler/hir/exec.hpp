@@ -47,7 +47,7 @@ struct ExecIfStmt {
     OptId<ExecId> else_stmt;
 };
 
-struct ExecReturnStmt {
+struct ExecReturn {
     OptId<ExecId> return_value;
 };
 
@@ -541,7 +541,7 @@ struct ExecExprMatchBranch {
 /// main exec variant
 using ExecValue = std::variant<
     // blocks / statements
-    ExecBlock, ExecIfStmt, ExecReturnStmt, ExecYieldStmt, ExecJump,
+    ExecBlock, ExecIfStmt, ExecReturn, ExecYieldStmt, ExecJump,
 
     // expressions
     ExecUnionInit, ExecExprVariantInit, ExecExprStructInit, ExecExprStructMemberInit,

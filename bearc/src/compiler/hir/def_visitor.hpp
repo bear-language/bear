@@ -57,11 +57,11 @@ class DefVisitor {
     resolve_params(FileId fid, ScopeId scope, DefId func_def, ast_slice_of_params_t params,
                    OptId<TypeId> self_type = std::nullopt);
 
-    void resolve_fn_body(FileId fid, ScopeId scope, DefId func_def);
+    void resolve_fn_body(FileId fid, DefId func_did);
 
-    void resolve_fn_body_expr(FileId fid, ScopeId scope, DefId func_def);
+    void resolve_fn_body_expr(FileId fid, DefId func_did);
 
-    void resolve_fn_body_block(FileId fid, ScopeId scope, DefId func_def);
+    void resolve_fn_body_block(FileId fid, DefId func_did);
 
   public:
     DefVisitor(Context& context) : context{context}, began_resolution{false} {}
@@ -78,6 +78,8 @@ class DefVisitor {
 
     /// visit when not all info is need (i.e. just validate existence for pointers/references)
     DefId visit_as_transparent(DefId def) noexcept;
+
+    void resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* stmt);
 };
 
 } // namespace hir

@@ -27,7 +27,7 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecBlock&) -> bool { return false; },
         [](const ExecIfStmt&) -> bool { return false; },
         [](const ExecJump&) -> bool { return false; },
-        [](const ExecReturnStmt&) -> bool { return false; },
+        [](const ExecReturn&) -> bool { return false; },
         [](const ExecYieldStmt&) -> bool { return false; },
         [&other, &ctx](const ExecRange t) -> bool {
             if (!other.holds<ExecRange>()) {
@@ -214,7 +214,7 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecBlock&) -> bool { return false; },
         [](const ExecJump&) -> bool { return false; },
         [](const ExecIfStmt&) -> bool { return false; },
-        [](const ExecReturnStmt&) -> bool { return false; },
+        [](const ExecReturn&) -> bool { return false; },
         [](const ExecYieldStmt&) -> bool { return false; },
         [&e2, &ctx, eid2](const ExecRange t) -> bool {
             if (e2.holds<ExecConst>()) {
@@ -340,7 +340,7 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
         [](const ExecBlock&) -> size_t { return mix(1uz); },
         [](const ExecJump&) -> size_t { return mix(3uz); },
         [](const ExecIfStmt&) -> size_t { return mix(5uz); },
-        [](const ExecReturnStmt&) -> size_t { return mix(7uz); },
+        [](const ExecReturn&) -> size_t { return mix(7uz); },
         [&ctx](const ExecRange& t) -> size_t {
             return transform(hash_exec(ctx, t.start), hash_exec(ctx, t.end));
         },

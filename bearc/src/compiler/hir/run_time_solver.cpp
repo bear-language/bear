@@ -9,6 +9,8 @@
 
 #include "compiler/hir/run_time_solver.hpp"
 #include "compiler/hir/compt_expr_solver.hpp"
+#include "compiler/hir/diagnostic.hpp"
+#include "compiler/hir/exec.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
@@ -44,7 +46,8 @@ namespace hir {
 }
 
 [[nodiscard]] OptId<TypeId> RuntimeSolver::infer_type_from_exec(ExecId eid) {
-    return ComptExprSolver{context, def_visitor}.infer_type_from_exec(eid); // TODO
+    /// TODO use a smarter run-time aware inference here
+    return ComptExprSolver{context, def_visitor}.infer_type_from_exec(eid);
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, LexicalCtx lctx,
@@ -110,11 +113,54 @@ namespace hir {
     LexicalCtx curr_lctx{.scope = context.make_small_scope(parent_lctx.scope, block_span),
                          .map = parent_lctx.map};
 
+    this->current_return_tid = maybe_return_tid;
+
+    bool hit_return{};
+
     for (auto i = 0uz; i < stmts.len; ++i) {
         const auto maybe_eid = handle_stmt(fid, curr_lctx, in_prog_block, stmts.start[i]);
-        // TODO ensure last eid is a return if maybe_return_tid.has_value() and ensure no
-        // unreachables
+
+        // if this is the last statement (and we didn't already see a (premature) return) and we're
+        // expecting a return type
+        if (!hit_return && i == stmts.len - 1 && maybe_return_tid.has_value()
+            && maybe_eid.has_value() && !context.exec(maybe_eid.as_id()).holds<ExecReturn>()) {
+
+            Span span{context, fid, stmts.start[i]};
+
+            DiagLinker dl{context};
+            dl.link(context.emplace_diagnostic(
+                span, diag_code::function_may_not_return_a_value_in_all_control_flow_paths,
+                diag_type::error));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                context.type(maybe_return_tid.as_id()).span, diag_code::function_has_return_type,
+                diag_type::note, DiagnosticTypeAfterMessage{.tid = maybe_return_tid.as_id()}));
+            dl.link(context.emplace_diagnostic(
+                span, diag_code::end_function_body_with_a_return_statement, diag_type::help));
+        }
+
+        if (maybe_eid.empty()) {
+            continue;
+        }
+
+        // update this so we don't get annoying repetitive diagnostics (we don't want to see a dead
+        // code warning AND that function_may_not_return_a_value_in_all_control_flow_paths
+        // diagnostic nor do we want to see this more than once after the first premature return)
+        if (!hit_return && maybe_eid.has_value()
+            && context.exec(maybe_eid.as_id()).holds<ExecReturn>()) {
+            hit_return = true;
+
+            if (i < stmts.len - 1) {
+                // span is all statements following the CURRENT return statement (that's why it's i
+                // + 1, and this is safe since we know i<len-1)
+                Span span{context, fid, stmts.start[i + 1]->first,
+                          stmts.start[stmts.len - 1]->last};
+                context.emplace_diagnostic(span, diag_code::code_is_unreachable_following_a_return,
+                                           diag_type::error);
+            }
+        }
     }
+
+    this->current_return_tid = {}; // this might be unnecessary, but just in case
 
     return context.emplace_exec(
         ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(in_prog_block.execs),
@@ -127,25 +173,17 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
                                          const ast_stmt_t* stmt) {
     // TODO
     switch (stmt->type) {
-    case AST_STMT_FILE:
-    case AST_STMT_EXTERN_BLOCK:
     case AST_STMT_VAR_DECL:
     case AST_STMT_VAR_INIT_DECL:
-    case AST_STMT_MODULE:
     case AST_STMT_VISIBILITY_MODIFIER:
     case AST_STMT_COMPT_MODIFIER:
     case AST_STMT_STATIC_MODIFIER:
     case AST_STMT_ALIGNAS_MODIFIER:
-    case AST_STMT_STRUCT_DEF:
-    case AST_STMT_CONTRACT_DEF:
-    case AST_STMT_UNION_DEF:
-    case AST_STMT_VARIANT_DEF:
-    case AST_STMT_VARIANT_FIELD_DECL:
-    case AST_STMT_FN_DECL:
-    case AST_STMT_FN_PROTOTYPE:
     case AST_STMT_DEFTYPE:
-    case AST_STMT_IMPORT:
-    case AST_STMT_USE:
+    case AST_STMT_USE: {
+        def_visitor.resolve_use_stmt(fid, lctx.scope, stmt);
+        break;
+    }
     case AST_STMT_BLOCK:
     case AST_STMT_EXPR:
     case AST_STMT_EMPTY:
@@ -158,6 +196,19 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_RETURN:
     case AST_STMT_YIELD:
     case AST_STMT_CONTINUE:
+
+        // poisoned/malformed:
+    case AST_STMT_STRUCT_DEF:
+    case AST_STMT_CONTRACT_DEF:
+    case AST_STMT_UNION_DEF:
+    case AST_STMT_VARIANT_DEF:
+    case AST_STMT_VARIANT_FIELD_DECL:
+    case AST_STMT_FN_DECL:
+    case AST_STMT_EXTERN_BLOCK:
+    case AST_STMT_FILE:
+    case AST_STMT_MODULE:
+    case AST_STMT_FN_PROTOTYPE:
+    case AST_STMT_IMPORT:
     case AST_STMT_INVALID:
         break;
     }
