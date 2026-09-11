@@ -67,6 +67,8 @@ class RuntimeSolver {
     /// return or yield statement)
     OptId<ExecId> handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                               const ast_stmt_t* stmt);
+    OptId<ExecId> handle_return(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                const ast_stmt_t* stmt);
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
 };

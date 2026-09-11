@@ -1,0 +1,13 @@
+// tests/hir/a70.br
+
+fn main() {
+    return;
+    var _ = 1 + 1; // oops
+    return; // ^
+    return; // ^
+}
+
+fn foo() -> i32 {
+    var _0 = compt 1 + 1;
+    var _1 = compt 1 + 1; // oops, no return
+}

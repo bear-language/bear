@@ -425,13 +425,16 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::reference_does_not_have_an_explicit_initializer:
         return "reference does not have an explicit initializer";
     case diag_code::function_may_not_return_a_value_in_all_control_flow_paths:
-        return "function may not return a value in all control flow paths";
+        return "function reaches end of execution without a return statement, so it may not return "
+               "a value in all control flow paths";
     case diag_code::end_function_body_with_a_return_statement:
         return "end function with a return statement";
     case diag_code::function_has_return_type:
         return "function has return type";
     case diag_code::code_is_unreachable_following_a_return:
         return "code is unreachable following a return statement";
+    case diag_code::return_statement_here:
+        return "return statement here";
     }
 
     std::unreachable();

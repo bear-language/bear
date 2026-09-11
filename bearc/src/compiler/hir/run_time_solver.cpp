@@ -8,6 +8,7 @@
 // Licensed under the GNU GPL v3. See LICENSE for details.
 
 #include "compiler/hir/run_time_solver.hpp"
+#include "compiler/ast/stmt.h"
 #include "compiler/hir/compt_expr_solver.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
@@ -15,7 +16,6 @@
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
 #include "utils/data_arena.hpp"
-#include <optional>
 
 namespace hir {
 
@@ -115,7 +115,7 @@ namespace hir {
 
     this->current_return_tid = maybe_return_tid;
 
-    bool hit_return{};
+    bool hit_return{false};
 
     for (auto i = 0uz; i < stmts.len; ++i) {
         const auto maybe_eid = handle_stmt(fid, curr_lctx, in_prog_block, stmts.start[i]);
@@ -123,7 +123,8 @@ namespace hir {
         // if this is the last statement (and we didn't already see a (premature) return) and we're
         // expecting a return type
         if (!hit_return && i == stmts.len - 1 && maybe_return_tid.has_value()
-            && maybe_eid.has_value() && !context.exec(maybe_eid.as_id()).holds<ExecReturn>()) {
+            && (maybe_eid.empty()
+                || maybe_eid.has_value() && !context.exec(maybe_eid.as_id()).holds<ExecReturn>())) {
 
             Span span{context, fid, stmts.start[i]};
 
@@ -154,8 +155,13 @@ namespace hir {
                 // + 1, and this is safe since we know i<len-1)
                 Span span{context, fid, stmts.start[i + 1]->first,
                           stmts.start[stmts.len - 1]->last};
-                context.emplace_diagnostic(span, diag_code::code_is_unreachable_following_a_return,
-                                           diag_type::error);
+
+                DiagLinker dl{context};
+                dl.link(context.emplace_diagnostic(
+                    span, diag_code::code_is_unreachable_following_a_return, diag_type::error));
+                dl.link(context.emplace_diagnostic(Span{context, fid, stmts.start[i]},
+                                                   diag_code::return_statement_here,
+                                                   diag_type::note));
             }
         }
     }
@@ -169,10 +175,26 @@ namespace hir {
         block_span);
 }
 
+OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                           const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_RETURN);
+
+    return context.emplace_exec(ExecReturn{.return_value = {}} // TODO
+                                ,
+                                Span{context, fid, stmt});
+}
+
 OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                          const ast_stmt_t* stmt) {
     // TODO
     switch (stmt->type) {
+    case AST_STMT_USE: {
+        def_visitor.resolve_use_stmt(fid, lctx.scope, stmt);
+        return {};
+    }
+    case AST_STMT_RETURN: {
+        return handle_return(fid, lctx, block, stmt);
+    }
     case AST_STMT_VAR_DECL:
     case AST_STMT_VAR_INIT_DECL:
     case AST_STMT_VISIBILITY_MODIFIER:
@@ -180,10 +202,6 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_STATIC_MODIFIER:
     case AST_STMT_ALIGNAS_MODIFIER:
     case AST_STMT_DEFTYPE:
-    case AST_STMT_USE: {
-        def_visitor.resolve_use_stmt(fid, lctx.scope, stmt);
-        break;
-    }
     case AST_STMT_BLOCK:
     case AST_STMT_EXPR:
     case AST_STMT_EMPTY:
@@ -193,7 +211,6 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_WHILE:
     case AST_STMT_FOR:
     case AST_STMT_FOR_IN:
-    case AST_STMT_RETURN:
     case AST_STMT_YIELD:
     case AST_STMT_CONTINUE:
 
@@ -219,6 +236,9 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
                                                                  const ast_expr_t* expr) {
     // TODO
     switch (expr->type) {
+    case AST_EXPR_COMPT: {
+        return ComptExprSolver{context, def_visitor}.solve_expr(fid, lctx.scope, expr);
+    }
     case AST_EXPR_ID:
     case AST_EXPR_GENERIC_ID:
     case AST_EXPR_LITERAL:
@@ -230,7 +250,6 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_EXPR_SUBSCRIPT:
     case AST_EXPR_FN_CALL:
     case AST_EXPR_TYPE:
-    case AST_EXPR_COMPT:
     case AST_EXPR_BORROW:
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_SAME_TYPE:
