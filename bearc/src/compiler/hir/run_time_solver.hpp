@@ -22,8 +22,9 @@ namespace hir {
 class RuntimeSolver {
     DefVisitor& def_visitor;
     Context& context;
-    bool inside_loop;
-    bool inside_match_branch;
+    OptId<TypeId> current_return_tid{};
+    bool inside_loop{};
+    bool inside_match_branch{};
 
     struct InProgressBlock {
         llvm::SmallVector<DefId> defs;
@@ -53,9 +54,20 @@ class RuntimeSolver {
     [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, ast_slice_of_stmts_t stmts,
                                             OptId<TypeId> maybe_return_tid);
 
-    void handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block, const ast_stmt_t* stmt);
-
   private:
+    /// internally handles all ast_stmt_t statement types
+    ///
+    /// - fid   - current file id
+    /// - lctx  - current lexical context
+    /// - block - an InProgressBlock& which is modified by reference where any newly introduced defs
+    /// and/or execs will be emplaced.
+    ///
+    /// returns the ExecId corresponding to the statement (if one
+    /// exists for the given statement; if more than one exec is produced, the final emitted exec
+    /// will be returned; this is most helpful for determining issues where blocks should end with a
+    /// return or yield statement)
+    OptId<ExecId> handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                              const ast_stmt_t* stmt);
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
 };

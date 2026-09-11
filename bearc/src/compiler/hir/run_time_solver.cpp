@@ -103,7 +103,7 @@ namespace hir {
                                                        OptId<TypeId> maybe_return_tid) {
 
     Span block_span{context, fid, stmts};
-    InProgressBlock block{};
+    InProgressBlock in_prog_block{};
     DataArena move_arena{0x100}; // decently sized
 
     // move map stays the same as parent, but lexical scope nests
@@ -111,19 +111,20 @@ namespace hir {
                          .map = parent_lctx.map};
 
     for (auto i = 0uz; i < stmts.len; ++i) {
-        handle_stmt(fid, curr_lctx, block, stmts.start[i]);
-        // TODO ensure return if maybe_return_tid.has_value() and ensure no unreachables
+        const auto maybe_eid = handle_stmt(fid, curr_lctx, in_prog_block, stmts.start[i]);
+        // TODO ensure last eid is a return if maybe_return_tid.has_value() and ensure no
+        // unreachables
     }
 
     return context.emplace_exec(
-        ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(block.execs),
-                                              .defs = context.freeze_id_vec(block.defs),
+        ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(in_prog_block.execs),
+                                              .defs = context.freeze_id_vec(in_prog_block.defs),
                                               .lctx = curr_lctx})},
         block_span);
 }
 
-void RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
-                                const ast_stmt_t* stmt) {
+OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                         const ast_stmt_t* stmt) {
     // TODO
     switch (stmt->type) {
     case AST_STMT_FILE:
@@ -160,6 +161,7 @@ void RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& bl
     case AST_STMT_INVALID:
         break;
     }
+    return {};
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::handle_any_typed_expr(FileId fid, LexicalCtx lctx,
