@@ -64,13 +64,16 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
         if (stmt->type == AST_STMT_COMPT_MODIFIER) {
             if (compt) {
                 const token_t* prefix_tkn = stmt->first;
-                Span span = Span(file, context.ast(file).buffer(), prefix_tkn);
-                auto did0 = context.emplace_diagnostic(span, diag_code::redundant_compt_qualifier,
-                                                       diag_type::error);
-                auto did1 = context.emplace_diagnostic(
+                Span span = Span(context, file, prefix_tkn);
+
+                DiagLinker dl{context};
+
+                dl.link(context.emplace_diagnostic(span, diag_code::redundant_compt_qualifier,
+                                                   diag_type::warning));
+                dl.link(context.emplace_diagnostic(
                     span, diag_code::remove, diag_type::help,
-                    DiagnosticSymbolAfterMessage{context.symbol_id(span)}, DiagnosticNoOtherInfo{});
-                context.link_diagnostic(did0, did1);
+                    DiagnosticSymbolAfterMessage{context.symbol_id(span)},
+                    DiagnosticNoOtherInfo{}));
             }
             compt = true;
             // take inner
@@ -80,13 +83,23 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
         if (stmt->type == AST_STMT_STATIC_MODIFIER) {
             if (statik) {
                 const token_t* prefix_tkn = stmt->first;
-                Span span = Span(file, context.ast(file).buffer(), prefix_tkn);
-                auto did0 = context.emplace_diagnostic(span, diag_code::redundant_static_qualifier,
-                                                       diag_type::error);
-                auto did1 = context.emplace_diagnostic(
+                Span span = Span(context, file, prefix_tkn);
+
+                DiagLinker dl{context};
+
+                dl.link(context.emplace_diagnostic(span, diag_code::redundant_static_qualifier,
+                                                   diag_type::warning));
+
+                if (compt) {
+                    dl.link(context.emplace_diagnostic(span,
+                                                       diag_code::compt_vars_are_implicitly_static,
+                                                       diag_type::note, DiagnosticInfoNoPreview{}));
+                }
+
+                dl.link(context.emplace_diagnostic(
                     span, diag_code::remove, diag_type::help,
-                    DiagnosticSymbolAfterMessage{context.symbol_id(span)}, DiagnosticNoOtherInfo{});
-                context.link_diagnostic(did0, did1);
+                    DiagnosticSymbolAfterMessage{context.symbol_id(span)},
+                    DiagnosticNoOtherInfo{}));
             }
             statik = true;
             // take inner

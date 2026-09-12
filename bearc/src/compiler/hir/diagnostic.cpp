@@ -437,6 +437,12 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "return statement here";
     case diag_code::function_expected_return_value:
         return "function expected return value";
+    case diag_code::compt_vars_are_implicitly_static:
+        return "`compt` variables are implicitly `static`";
+    case diag_code::aligning_a_compt_variable_does_nothing:
+        return "aligning a compt variable does nothing";
+    case diag_code::alignas_value_should_be_a_power_of_2:
+        return "`alignas` value should be a power of 2";
     }
 
     std::unreachable();

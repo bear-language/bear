@@ -219,6 +219,9 @@ enum class diag_code : uint8_t {
     code_is_unreachable_following_a_return,
     return_statement_here,
     function_expected_return_value,
+    compt_vars_are_implicitly_static,
+    aligning_a_compt_variable_does_nothing,
+    alignas_value_should_be_a_power_of_2,
 
     count, // this must be last,
 

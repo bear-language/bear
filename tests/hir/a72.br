@@ -1,0 +1,10 @@
+//tests/hir/a72.br
+
+fn main() {
+    compt alignas(16) i32 _0 = 1;
+    static alignas(16) i32 _1 = 1;
+    alignas(16) alignas(8) i32 _2 = 1;
+    alignas(1024) i32 _3 = 1;
+    static alignas(67) i32 _3 = 1;
+    compt static alignas(67) i32 _3 = 1;
+}

@@ -91,11 +91,13 @@ class RuntimeSolver {
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
     OptId<ExecId> handle_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
-                               const ast_stmt_t* stmt, storage = storage::non_static,
-                               compt compt = compt::non_compt, uint8_t align = 0);
+                               const ast_stmt_t* stmt, uint8_t align = 0);
     OptId<ExecId> handle_static(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                 const ast_stmt_t* stmt, storage storage = storage::non_static,
                                 compt compt = compt::non_compt, uint8_t align = 0);
+    OptId<ExecId> handle_alignas(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                 const ast_stmt_t* stmt, storage storage, compt compt,
+                                 uint8_t align);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);

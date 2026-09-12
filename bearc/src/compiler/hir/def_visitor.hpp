@@ -64,7 +64,8 @@ class DefVisitor {
     void resolve_fn_body_block(FileId fid, DefId func_did);
 
   public:
-    DefVisitor(Context& context) : context{context}, began_resolution{false} {}
+    [[nodiscard]] DefVisitor(Context& context) : context{context}, began_resolution{false} {}
+    [[nodiscard]] Context& get_context() { return context; }
     DefId visit_and_resolve_if_needed(DefId def);
     void resolve_top_level_definitions();
     /// visit a DefId where the def being visited is depended on by the visitor

@@ -16,6 +16,7 @@
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
 #include "utils/data_arena.hpp"
+#include <bit>
 
 namespace hir {
 
@@ -209,17 +210,19 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     }
 
     case AST_STMT_COMPT_MODIFIER: {
-        return handle_compt(fid, lctx, block, stmt, storage, compt, align);
+        return handle_compt(fid, lctx, block, stmt, align);
     }
     case AST_STMT_STATIC_MODIFIER: {
         return handle_static(fid, lctx, block, stmt, storage, compt, align);
     }
 
+    case AST_STMT_ALIGNAS_MODIFIER: {
+        return handle_alignas(fid, lctx, block, stmt, storage, compt, align);
+    }
+
         // TODO:
-    case AST_STMT_ALIGNAS_MODIFIER:
     case AST_STMT_VAR_DECL:
     case AST_STMT_VAR_INIT_DECL:
-    case AST_STMT_VISIBILITY_MODIFIER:
 
     case AST_STMT_DEFTYPE:
     case AST_STMT_BLOCK:
@@ -235,6 +238,7 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_CONTINUE:
 
         // poisoned/malformed:
+    case AST_STMT_VISIBILITY_MODIFIER:
     case AST_STMT_STRUCT_DEF:
     case AST_STMT_CONTRACT_DEF:
     case AST_STMT_UNION_DEF:
@@ -253,13 +257,9 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
 }
 
 OptId<ExecId> RuntimeSolver::handle_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
-                                          const ast_stmt_t* stmt, storage storage, compt compt,
-                                          uint8_t align) {
+                                          const ast_stmt_t* stmt, uint8_t align) {
     assert(stmt->type == AST_STMT_COMPT_MODIFIER);
     // just check for this since duplicate compt is already handled
-    if (storage == storage::statik) {
-        // TODO diagnostic here
-    }
     return handle_stmt(fid, lctx, block, stmt->stmt.compt_modifier.stmt, storage::statik,
                        compt::compt, align);
 }
@@ -269,10 +269,73 @@ OptId<ExecId> RuntimeSolver::handle_static(FileId fid, LexicalCtx lctx, InProgre
                                            uint8_t align) {
     assert(stmt->type == AST_STMT_STATIC_MODIFIER);
     if (storage == storage::statik) {
-        // TODO diagnostic here
+        Span span{context, fid, stmt->first};
+
+        DiagLinker dl{context};
+
+        dl.link(context.emplace_diagnostic(span, diag_code::redundant_static_qualifier,
+                                           diag_type::warning));
+
+        if (compt == compt::compt) {
+            dl.link(context.emplace_diagnostic(span, diag_code::compt_vars_are_implicitly_static,
+                                               diag_type::note, DiagnosticInfoNoPreview{}));
+        }
+
+        dl.link(context.emplace_diagnostic_with_message_value(
+            span, diag_code::remove, diag_type::help,
+            DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"static">()}));
     }
     return handle_stmt(fid, lctx, block, stmt->stmt.compt_modifier.stmt, storage::statik, compt,
                        align);
+}
+
+OptId<ExecId> RuntimeSolver::handle_alignas(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                            const ast_stmt_t* stmt, storage storage, compt compt,
+                                            uint8_t align) {
+    assert(stmt->type == AST_STMT_ALIGNAS_MODIFIER);
+
+    DiagLinker dl{context};
+
+    Span span{context, fid, stmt->first};
+
+    if (compt == compt::compt) {
+        dl.link(context.emplace_diagnostic(span, diag_code::aligning_a_compt_variable_does_nothing,
+                                           diag_type::warning));
+    }
+    if (align) {
+        dl.link(context.emplace_diagnostic(span, diag_code::multiple_alignas_on_one_def,
+                                           diag_type::error));
+    }
+
+    OptId<ExecId> maybe_align_eid = ComptExprSolver{def_visitor}.solve_builtin_compt_expr(
+        fid, lctx.scope, stmt->stmt.alignaz.align_expr, builtin_type::u8);
+
+    // just do this without aligning in order to minimize cascading errors
+    const auto fail_align
+        = [this, fid, lctx, &block, stmt, storage, compt, align] [[nodiscard]] () {
+              return handle_stmt(fid, lctx, block, stmt->stmt.alignaz.inner, storage, compt, align);
+          };
+
+    if (maybe_align_eid.empty()) {
+        return fail_align();
+    }
+
+    const Exec& exec = context.exec(maybe_align_eid.as_id());
+
+    if (!exec.holds<ExecConst>()) {
+        return fail_align();
+    }
+
+    if (exec.as<ExecConst>().holds<u8>()) {
+        const auto val = exec.as<ExecConst>().as<u8>();
+        if (!std::has_single_bit(val)) {
+            dl.link(context.emplace_diagnostic(
+                exec.span, diag_code::alignas_value_should_be_a_power_of_2, diag_type::error));
+            return fail_align();
+        }
+        return handle_stmt(fid, lctx, block, stmt->stmt.alignaz.inner, storage, compt, val);
+    }
+    return fail_align();
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::handle_any_typed_expr(FileId fid, LexicalCtx lctx,

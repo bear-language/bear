@@ -40,6 +40,9 @@ class ComptExprSolver {
     ComptExprSolver(Context& ctx, DefVisitor& def_visitor)
         : context{ctx}, def_visitor{def_visitor} {}
 
+    ComptExprSolver(DefVisitor& def_visitor)
+        : context{def_visitor.get_context()}, def_visitor{def_visitor} {}
+
     [[nodiscard]] Context& get_context() { return this->context; }
 
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr) {

@@ -177,6 +177,10 @@ ast_stmt_t* parse_stmt(parser_t* p) {
         return parse_stmt_static_modifier(p, &parse_var_decl);
     }
 
+    if (next_type == TOK_ALIGNAS) {
+        return parse_stmt_alignas_modifier(p, &parse_var_decl);
+    }
+
     if (next_type == TOK_USE) {
         return parse_stmt_use(p);
     }
