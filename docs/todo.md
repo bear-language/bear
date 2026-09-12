@@ -2,6 +2,7 @@
 
 #### misc/priority 
 - [ ] scrap `compt_temp_scope`s to allow for compt closures
+- [ ] require `foo(var a)->var` for compt funcs returning values instead of allowing ommited return values
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
