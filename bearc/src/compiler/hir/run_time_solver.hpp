@@ -15,6 +15,7 @@
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
+#include <cstdint>
 
 namespace hir {
 
@@ -59,22 +60,42 @@ class RuntimeSolver {
                                             ast_slice_of_stmts_t stmts);
 
   private:
+    enum class storage : uint8_t {
+        non_static = 0,
+        statik,
+    };
+
+    enum class compt : uint8_t {
+        non_compt = 0,
+        compt,
+    };
+
     /// internally handles all ast_stmt_t statement types
     ///
     /// - fid   - current file id
     /// - lctx  - current lexical context
     /// - block - an InProgressBlock& which is modified by reference where any newly introduced defs
     /// and/or execs will be emplaced.
+    /// - storage - indicates static vs non_static
+    /// - compt - indicates compt vs non_compt
+    /// - align - indicates desired alignment (0 is default alignment)
     ///
     /// returns the ExecId corresponding to the statement (if one
     /// exists for the given statement; if more than one exec is produced, the final emitted exec
     /// will be returned; this is most helpful for determining issues where blocks should end with a
     /// return or yield statement)
     OptId<ExecId> handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
-                              const ast_stmt_t* stmt);
+                              const ast_stmt_t* stmt, storage storage = storage::non_static,
+                              compt compt = compt::non_compt, uint8_t align = 0);
     OptId<ExecId> handle_return(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
+    OptId<ExecId> handle_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                               const ast_stmt_t* stmt, storage = storage::non_static,
+                               compt compt = compt::non_compt, uint8_t align = 0);
+    OptId<ExecId> handle_static(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                const ast_stmt_t* stmt, storage storage = storage::non_static,
+                                compt compt = compt::non_compt, uint8_t align = 0);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);

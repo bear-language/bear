@@ -121,7 +121,8 @@ namespace hir {
         // expecting a return type
         if (!hit_return && i == stmts.len - 1 && this->current_return_tid.has_value()
             && (maybe_eid.empty()
-                || maybe_eid.has_value() && !context.exec(maybe_eid.as_id()).holds<ExecReturn>())) {
+                || (maybe_eid.has_value()
+                    && !context.exec(maybe_eid.as_id()).holds<ExecReturn>()))) {
 
             Span span{context, fid, stmts.start[i]};
 
@@ -196,7 +197,8 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, const as
 }
 
 OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
-                                         const ast_stmt_t* stmt) {
+                                         const ast_stmt_t* stmt, storage storage, compt compt,
+                                         uint8_t align) {
     switch (stmt->type) {
     case AST_STMT_USE: {
         def_visitor.resolve_use_stmt(fid, lctx.scope, stmt);
@@ -206,13 +208,19 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
         return handle_return(fid, lctx, stmt);
     }
 
-    // TODO:
+    case AST_STMT_COMPT_MODIFIER: {
+        return handle_compt(fid, lctx, block, stmt, storage, compt, align);
+    }
+    case AST_STMT_STATIC_MODIFIER: {
+        return handle_static(fid, lctx, block, stmt, storage, compt, align);
+    }
+
+        // TODO:
+    case AST_STMT_ALIGNAS_MODIFIER:
     case AST_STMT_VAR_DECL:
     case AST_STMT_VAR_INIT_DECL:
     case AST_STMT_VISIBILITY_MODIFIER:
-    case AST_STMT_COMPT_MODIFIER:
-    case AST_STMT_STATIC_MODIFIER:
-    case AST_STMT_ALIGNAS_MODIFIER:
+
     case AST_STMT_DEFTYPE:
     case AST_STMT_BLOCK:
     case AST_STMT_EXPR:
@@ -242,6 +250,29 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
         break;
     }
     return {};
+}
+
+OptId<ExecId> RuntimeSolver::handle_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                          const ast_stmt_t* stmt, storage storage, compt compt,
+                                          uint8_t align) {
+    assert(stmt->type == AST_STMT_COMPT_MODIFIER);
+    // just check for this since duplicate compt is already handled
+    if (storage == storage::statik) {
+        // TODO diagnostic here
+    }
+    return handle_stmt(fid, lctx, block, stmt->stmt.compt_modifier.stmt, storage::statik,
+                       compt::compt, align);
+}
+
+OptId<ExecId> RuntimeSolver::handle_static(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                           const ast_stmt_t* stmt, storage storage, compt compt,
+                                           uint8_t align) {
+    assert(stmt->type == AST_STMT_STATIC_MODIFIER);
+    if (storage == storage::statik) {
+        // TODO diagnostic here
+    }
+    return handle_stmt(fid, lctx, block, stmt->stmt.compt_modifier.stmt, storage::statik, compt,
+                       align);
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::handle_any_typed_expr(FileId fid, LexicalCtx lctx,
