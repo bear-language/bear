@@ -222,6 +222,7 @@ enum class diag_code : uint8_t {
     compt_vars_are_implicitly_static,
     aligning_a_compt_variable_does_nothing,
     alignas_value_should_be_a_power_of_2,
+    function_does_not_return_a_value,
 
     count, // this must be last,
 

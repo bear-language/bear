@@ -1,0 +1,32 @@
+// tests/hir/a73.br
+
+struct Foo {
+    *i32 a;
+}
+
+fn main() -> i32 {
+    var _0;
+    *var _1;
+    Foo _2;
+    i32 _3;
+    *i32 _4;
+    str _5;
+    &Foo _6;
+    &i32 _7;
+    &u8 _8;
+    compt i32 a;
+    compt i32 b;
+    return compt 0 if @static_assert (a == 0 && a != b) else -1; // oops
+}
+
+fn foo() -> i32 {
+    compt i32 a;
+    compt i32 b;
+    return compt 0 if @static_assert (a == 0 && a == b) else -1;
+}
+
+fn bar() {
+    compt i32 a;
+    compt i32 b;
+    return compt 0 if @static_assert (a == 0 && a == b) else -1; // oops
+}

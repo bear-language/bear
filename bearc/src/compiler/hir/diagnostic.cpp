@@ -443,6 +443,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "aligning a compt variable does nothing";
     case diag_code::alignas_value_should_be_a_power_of_2:
         return "`alignas` value should be a power of 2";
+    case diag_code::function_does_not_return_a_value:
+        return "function does not return a value";
     }
 
     std::unreachable();

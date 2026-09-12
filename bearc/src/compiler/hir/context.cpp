@@ -876,6 +876,17 @@ DefId Context::register_top_level_def(SymbolId name, bool pub, bool compt, bool 
     return def;
 }
 
+DefId Context::register_def(SymbolId name, bool compt, bool statik, uint8_t align_pref, Span span,
+                            const ast_stmt_t* stmt, DefValue value, OptId<DefId> parent) {
+    DefId def = defs.emplace_and_get_id(value, name, /*pub*/ false, compt, statik,
+                                        /*generic*/ false, span, parent, align_pref, Def::UNORDERED,
+                                        abi_lang::bear);
+    def_resol_states.bump(Def::resol_state::resolved);
+    def_ast_nodes.bump(stmt);
+    def_mention_states.bump(Def::mention_state::unused);
+    return def;
+}
+
 DefId Context::register_compt_def(SymbolId name, Span span, OptId<DefId> parent, DefValue value) {
     DefId def = defs.emplace_and_get_id(value, name, true, true, true, false, span, parent);
     def_resol_states.bump(Def::resol_state::resolved);
@@ -884,7 +895,7 @@ DefId Context::register_compt_def(SymbolId name, Span span, OptId<DefId> parent,
     return def;
 }
 
-DefId Context::register_def(SymbolId name, Span span, DefId parent, const ast_stmt_t* stmt,
+DefId Context::register_def(SymbolId name, Span span, OptId<DefId> parent, const ast_stmt_t* stmt,
                             DefValue value) {
     DefId def = defs.emplace_and_get_id(value, name, true, false, false, false, span, parent);
     def_resol_states.bump(Def::resol_state::resolved);

@@ -458,8 +458,12 @@ class Context {
     DefId register_compt_def(SymbolId name, Span span, OptId<DefId> parent,
                              DefValue value = DefUnevaluated{});
 
-    DefId register_def(SymbolId name, Span span, DefId parent, const ast_stmt_t* stmt,
+    DefId register_def(SymbolId name, Span span, OptId<DefId> parent, const ast_stmt_t* stmt,
                        DefValue value = DefUnevaluated{});
+
+    DefId register_def(SymbolId name, bool compt, bool statik, uint8_t align_pref, Span span,
+                       const ast_stmt_t* stmt, DefValue value,
+                       OptId<DefId> parent = OptId<DefId>{});
 
     void insert_variable(ScopeId scope_id, SymbolId sid, DefId did);
     void insert_type(ScopeId scope_id, SymbolId sid, DefId did);

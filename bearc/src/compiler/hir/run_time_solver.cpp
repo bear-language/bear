@@ -10,11 +10,13 @@
 #include "compiler/hir/run_time_solver.hpp"
 #include "compiler/ast/stmt.h"
 #include "compiler/hir/compt_expr_solver.hpp"
+#include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
+#include "compiler/hir/type_resolver.hpp"
 #include "utils/data_arena.hpp"
 #include <bit>
 
@@ -192,6 +194,12 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, const as
                 ExecReturn{.return_value = solve_expr(fid, lctx, stmt->stmt.return_stmt.expr)},
                 Span{context, fid, stmt});
         }
+    } else {
+        if (stmt->stmt.return_stmt.expr) {
+            context.emplace_diagnostic(Span{context, fid, stmt->stmt.return_stmt.expr},
+                                       diag_code::function_does_not_return_a_value,
+                                       diag_type::error);
+        }
     }
 
     return context.emplace_exec(ExecReturn{.return_value = {}}, Span{context, fid, stmt});
@@ -220,8 +228,11 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
         return handle_alignas(fid, lctx, block, stmt, storage, compt, align);
     }
 
+    case AST_STMT_VAR_DECL: {
+        return handle_var_decl(fid, lctx, block, stmt, storage, compt, align);
+    }
+
         // TODO:
-    case AST_STMT_VAR_DECL:
     case AST_STMT_VAR_INIT_DECL:
 
     case AST_STMT_DEFTYPE:
@@ -336,6 +347,57 @@ OptId<ExecId> RuntimeSolver::handle_alignas(FileId fid, LexicalCtx lctx, InProgr
         return handle_stmt(fid, lctx, block, stmt->stmt.alignaz.inner, storage, compt, val);
     }
     return fail_align();
+}
+
+OptId<ExecId> RuntimeSolver::handle_var_decl(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                             const ast_stmt_t* stmt, storage storage, compt compt,
+                                             uint8_t align) {
+    assert(stmt->type == AST_STMT_VAR_DECL);
+    const SymbolId name = context.symbol_id(stmt->stmt.var_decl.name);
+    const Span span{context, fid, stmt};
+
+    OptId<TypeId> maybe_tid = TypeResolver{context, def_visitor}.resolve_type(
+        fid, lctx.scope, stmt->stmt.var_decl.type);
+
+    if (maybe_tid.empty()) {
+        return {};
+    }
+
+    if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())) {
+        context.emplace_diagnostic_with_message_value(
+            context.type(maybe_tid.as_id()).span, diag_code::should_have_explicit_type,
+            diag_type::error, DiagnosticSymbolBeforeMessage{.sid = name});
+    }
+
+    OptId<ExecId> maybe_compt_eid{};
+    OptId<ExecId> maybe_runtime_eid{};
+
+    if (compt == compt::compt) {
+        maybe_compt_eid
+            = context.try_default_value_for_type(maybe_tid.as_id(), span, /*compt=*/true);
+    } else {
+        maybe_runtime_eid
+            = context.try_default_value_for_type(maybe_tid.as_id(), span, /*compt=*/false);
+    }
+
+    const DefId did = context.register_def(
+        name, compt == compt::compt, storage == storage::statik, align, span, stmt,
+        DefVariable{.type_id = maybe_tid.as_id(), .compt_value = maybe_compt_eid, .moved = false},
+        {});
+
+    // record in scope
+    context.insert_variable(lctx.scope, name, did);
+
+    // always emplace the did
+    block.defs.push_back(did);
+
+    if (maybe_runtime_eid.has_value()) {
+        block.execs.push_back(maybe_runtime_eid.as_id());
+    }
+
+    // TODO: do something special for non-compt static variables using a guard variable
+
+    return maybe_runtime_eid;
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::handle_any_typed_expr(FileId fid, LexicalCtx lctx,
