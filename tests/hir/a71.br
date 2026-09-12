@@ -1,0 +1,8 @@
+// tests/hir/a71.br
+
+fn main() {
+    compt compt var _0 = 1;
+    compt static var _1 = 1;
+    static static var _2 = 1;
+    // TODO finish
+}
