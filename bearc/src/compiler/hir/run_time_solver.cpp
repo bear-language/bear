@@ -232,9 +232,11 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
         return handle_var_decl(fid, lctx, block, stmt, storage, compt, align);
     }
 
-        // TODO:
-    case AST_STMT_VAR_INIT_DECL:
+    case AST_STMT_VAR_INIT_DECL: {
+        return handle_var_init_decl(fid, lctx, block, stmt, storage, compt, align);
+    }
 
+        // TODO:
     case AST_STMT_DEFTYPE:
     case AST_STMT_BLOCK:
     case AST_STMT_EXPR:
@@ -398,6 +400,63 @@ OptId<ExecId> RuntimeSolver::handle_var_decl(FileId fid, LexicalCtx lctx, InProg
     // TODO: do something special for non-compt static variables using a guard variable
 
     return maybe_runtime_eid;
+}
+
+OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
+                                                  InProgressBlock& block, const ast_stmt_t* stmt,
+                                                  storage storage, compt compt, uint8_t align) {
+    assert(stmt->type == AST_STMT_VAR_INIT_DECL);
+
+    const SymbolId name = context.symbol_id(stmt->stmt.var_init_decl.name);
+    const Span span{context, fid, stmt};
+
+    OptId<TypeId> maybe_tid = TypeResolver{context, def_visitor}.resolve_type(
+        fid, lctx.scope, stmt->stmt.var_init_decl.type);
+
+    if (maybe_tid.empty()) {
+        return {};
+    }
+
+    TypeId fall_back_tid_which_may_contain_var = maybe_tid.as_id();
+
+    OptId<ExecId> maybe_compt_eid{};
+    OptId<ExecId> maybe_runtime_eid{};
+
+    if (compt == compt::compt) {
+        maybe_compt_eid = ComptExprSolver{def_visitor}.solve_expr(
+            fid, lctx.scope, stmt->stmt.var_init_decl.rhs, maybe_tid);
+        if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())
+            && maybe_compt_eid.has_value()) {
+            maybe_tid = infer_type_from_exec(maybe_compt_eid.as_id());
+        }
+    } else {
+        maybe_runtime_eid = solve_expr(fid, lctx, stmt->stmt.var_init_decl.rhs, maybe_tid);
+        if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())
+            && maybe_compt_eid.has_value()) {
+            maybe_tid = infer_type_from_exec(maybe_compt_eid.as_id());
+        }
+    }
+
+    const DefId did = context.register_def(
+        name, compt == compt::compt, storage == storage::statik, align, span, stmt,
+        DefVariable{.type_id = maybe_tid ? maybe_tid.as_id() : fall_back_tid_which_may_contain_var,
+                    .compt_value = maybe_compt_eid,
+                    .moved = false},
+        {});
+
+    // record in scope
+    context.insert_variable(lctx.scope, name, did);
+
+    // always emplace the did
+    block.defs.push_back(did);
+
+    if (maybe_runtime_eid.has_value()) {
+        block.execs.push_back(maybe_runtime_eid.as_id());
+    }
+
+    // TODO: do something special for non-compt static variables using a guard variable
+
+    return {};
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::handle_any_typed_expr(FileId fid, LexicalCtx lctx,
