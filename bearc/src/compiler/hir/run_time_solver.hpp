@@ -104,6 +104,7 @@ class RuntimeSolver {
     OptId<ExecId> handle_var_init_decl(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                        const ast_stmt_t* stmt, storage storage, compt compt,
                                        uint8_t align);
+    OptId<ExecId> handle_deftype(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);

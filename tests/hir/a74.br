@@ -1,0 +1,16 @@
+// tests/hir/a74.br
+
+struct Foo {}
+
+fn main() -> i32 {
+
+    deftype F = Foo;
+    deftype PF = *Foo;
+
+    var _0 = @static_assert @same_type(Foo, F);
+    var _1 = @static_assert @same_type(*Foo, PF);
+    var _2 = @static_assert @same_type(**Foo, PF); // oops
+    var _3 = @static_assert @inferable_as(PF, *var);
+    
+    return 0;
+}

@@ -236,8 +236,11 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
         return handle_var_init_decl(fid, lctx, block, stmt, storage, compt, align);
     }
 
+    case AST_STMT_DEFTYPE: {
+        return handle_deftype(fid, lctx, stmt);
+    }
+
         // TODO:
-    case AST_STMT_DEFTYPE:
     case AST_STMT_BLOCK:
     case AST_STMT_EXPR:
     case AST_STMT_EMPTY:
@@ -459,13 +462,47 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
     return {};
 }
 
+OptId<ExecId> RuntimeSolver::handle_deftype(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_DEFTYPE);
+    if (stmt->stmt.deftype.aliased_type_expr->type != AST_EXPR_TYPE) {
+        return {}; // posioned
+    }
+    OptId<TypeId> maybe_tid = TypeResolver{context, def_visitor}.resolve_type(
+        fid, lctx.scope, stmt->stmt.deftype.aliased_type_expr->expr.type_expr.type);
+    if (!maybe_tid.has_value()) {
+        return {}; // posioned
+    }
+
+    SymbolId name = context.symbol_id(stmt->stmt.deftype.alias_id);
+
+    const DefId did
+        = context.register_def(name, /*compt=*/false, /*statik=*/false, 0, Span{context, fid, stmt},
+                               stmt, DefDeftype{.type = maybe_tid.as_id()}, {});
+
+    context.insert_type(lctx.scope, name, did);
+
+    return {};
+}
+
 [[nodiscard]] OptId<ExecId> RuntimeSolver::handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                                  const ast_expr_t* expr) {
     // TODO
     switch (expr->type) {
-    case AST_EXPR_COMPT: {
-        return ComptExprSolver{context, def_visitor}.solve_expr(fid, lctx.scope, expr);
-    }
+        // ------------------ these are purely compt eval'd ------------------
+    case AST_EXPR_COMPT:
+    case AST_EXPR_STATIC_ASSERT:
+    case AST_EXPR_DEFINED:
+    case AST_EXPR_HAS_CONTRACT:
+    case AST_EXPR_INFERABLE_AS:
+    case AST_EXPR_DIAGNOSTIC:
+    case AST_EXPR_MEMBERS_OF:
+    case AST_EXPR_STATICS_OF:
+    case AST_EXPR_REFLECTED_ID:
+    case AST_EXPR_REFLECTED_SCOPED_ID:
+    case AST_EXPR_ALIGNOF:
+    case AST_EXPR_SIZEOF:
+        return ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, expr);
+        // ^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^
     case AST_EXPR_ID:
     case AST_EXPR_GENERIC_ID:
     case AST_EXPR_LITERAL:
@@ -481,17 +518,6 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_SAME_TYPE:
     case AST_EXPR_TYPE_TO_STR:
-    case AST_EXPR_STATIC_ASSERT:
-    case AST_EXPR_DEFINED:
-    case AST_EXPR_HAS_CONTRACT:
-    case AST_EXPR_INFERABLE_AS:
-    case AST_EXPR_DIAGNOSTIC:
-    case AST_EXPR_MEMBERS_OF:
-    case AST_EXPR_STATICS_OF:
-    case AST_EXPR_REFLECTED_ID:
-    case AST_EXPR_REFLECTED_SCOPED_ID:
-    case AST_EXPR_ALIGNOF:
-    case AST_EXPR_SIZEOF:
     case AST_EXPR_STRUCT_INIT:
     case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
