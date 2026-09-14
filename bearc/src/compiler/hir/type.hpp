@@ -58,10 +58,9 @@ struct TypeBuiltin {
 
 struct TypeStruct {
     DefId def_id;
-    // can be empty even if generic if this type was generated
+    // gen_args_slice.has_value() means this is a concrete instatiation of a generic struct
     OptId<GenericArgIdSliceId> gen_args_slice;
-    // use this to determine if generic
-    bool generic = false;
+    bool anonymous{false};
 };
 
 struct TypeUnion {

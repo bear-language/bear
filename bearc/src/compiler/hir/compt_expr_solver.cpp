@@ -42,10 +42,12 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
 
         const auto maybe_gen_args = struct_def.template as<DefStruct>().maybe_generic_args;
 
-        return context.emplace_type(TypeStruct{.def_id = struct_did,
-                                               .gen_args_slice = maybe_gen_args,
-                                               .generic = maybe_gen_args.has_value()},
-                                    Span::generated(), false);
+        return context.emplace_type(
+            TypeStruct{
+                .def_id = struct_did,
+                .gen_args_slice = maybe_gen_args,
+            },
+            Span::generated(), false);
     }
     if (exec.holds<ExecListLiteral>()) {
         auto list_exec = exec.as<ExecListLiteral>();
@@ -94,10 +96,12 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
             Span::generated(), gargs);
 
         if (range_def_id.has_value()) {
-            return context.emplace_type(TypeStruct{.def_id = range_def_id.as_id(),
-                                                   .gen_args_slice = gargs,
-                                                   .generic = true},
-                                        Span::generated(), false);
+            return context.emplace_type(
+                TypeStruct{
+                    .def_id = range_def_id.as_id(),
+                    .gen_args_slice = gargs,
+                },
+                Span::generated(), false);
         }
     }
     if (exec.holds<ExecUnionInit>()) {
@@ -822,7 +826,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         return {};
     }
 
-    const auto maybe_existing = context.try_scope_for_top_level_def(func_did);
+    const auto maybe_existing = context.try_scope_for_def(func_did);
 
     ScopeId temp_scope
         = maybe_existing.has_value()
@@ -1341,14 +1345,16 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     if (into_tid.has_value() && context.type(into_tid.as_id()).template holds<TypeStruct>()) {
         if (auto into_did = context.type(into_tid.as_id()).template as<TypeStruct>().def_id;
             struct_did != into_did) {
-            context.emplace_diagnostic(
-                Span{context, fid, expr}, diag_code::cannot_convert_value_of_type, diag_type::error,
-                DiagnosticTypeToType{
-                    .from = context.emplace_type(
-                        TypeStruct{.def_id = struct_did, .gen_args_slice = {}, .generic = false},
-                        Span{context, fid, expr}, false),
-                    .to = into_tid.as_id()},
-                DiagnosticNoOtherInfo{});
+            context.emplace_diagnostic(Span{context, fid, expr},
+                                       diag_code::cannot_convert_value_of_type, diag_type::error,
+                                       DiagnosticTypeToType{.from = context.emplace_type(
+                                                                TypeStruct{
+                                                                    .def_id = struct_did,
+                                                                    .gen_args_slice = {},
+                                                                },
+                                                                Span{context, fid, expr}, false),
+                                                            .to = into_tid.as_id()},
+                                       DiagnosticNoOtherInfo{});
             return {};
         }
     }
@@ -3375,16 +3381,20 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
 
         const auto gargs1
             = context.def(s1.struct_def_id).template as<DefStruct>().maybe_generic_args;
-        auto t1 = context.emplace_type(TypeStruct{.def_id = s1.struct_def_id,
-                                                  .gen_args_slice = gargs1,
-                                                  .generic = gargs1.has_value()},
-                                       Span::generated(), false);
+        auto t1 = context.emplace_type(
+            TypeStruct{
+                .def_id = s1.struct_def_id,
+                .gen_args_slice = gargs1,
+            },
+            Span::generated(), false);
         const auto gargs2
             = context.def(s2.struct_def_id).template as<DefStruct>().maybe_generic_args;
-        auto t2 = context.emplace_type(TypeStruct{.def_id = s2.struct_def_id,
-                                                  .gen_args_slice = gargs2,
-                                                  .generic = gargs2.has_value()},
-                                       Span::generated(), false);
+        auto t2 = context.emplace_type(
+            TypeStruct{
+                .def_id = s2.struct_def_id,
+                .gen_args_slice = gargs2,
+            },
+            Span::generated(), false);
         auto d0 = context.emplace_diagnostic(Span::combine(list1.span, list2.span),
                                              diag_code::invalid_operand_for_binary_expression,
                                              diag_type::error);

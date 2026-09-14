@@ -100,7 +100,6 @@ class TypeResolver {
                     TypeStruct{
                         .def_id = did,
                         .gen_args_slice = {},
-                        .generic = false,
                     },
                     span, mut); // not generic
             }
@@ -362,11 +361,12 @@ class TypeResolver {
                            : def_visitor.visit_as_transparent(maybe_instant.as_id());
 
         if (context.is_struct(maybe_instant.as_id())) {
-            return context.emplace_type(TypeStruct{.def_id = maybe_instant.as_id(),
-                                                   .gen_args_slice = maybe_gen_args.as_id(),
-                                                   .generic = true},
-                                        Span{context, fid, type_node->first, type_node->last},
-                                        type_node->type.generic.mut);
+            return context.emplace_type(
+                TypeStruct{
+                    .def_id = maybe_instant.as_id(),
+                    .gen_args_slice = maybe_gen_args.as_id(),
+                },
+                Span{context, fid, type_node->first, type_node->last}, type_node->type.generic.mut);
         }
         if (context.is_variant(maybe_instant.as_id())) {
             return context.emplace_type(TypeVariant{.def_id = maybe_instant.as_id(),

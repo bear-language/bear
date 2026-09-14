@@ -265,13 +265,15 @@ DefId DefVisitor::resolve_def(DefId did) {
         }
 
         const auto maybe_generic_args = context.search_for_gen_args_for_def(did);
-        ScopeId structs_scope = context.scope_for_top_level_def(did);
+        ScopeId structs_scope = context.scope_for_def(did);
         context.register_generated_deftype(
             structs_scope, context.symbol_id<"Self">(),
-            context.emplace_type(TypeStruct{.def_id = did,
-                                            .gen_args_slice = maybe_generic_args,
-                                            .generic = maybe_generic_args.has_value()},
-                                 Span::generated(), false),
+            context.emplace_type(
+                TypeStruct{
+                    .def_id = did,
+                    .gen_args_slice = maybe_generic_args,
+                },
+                Span::generated(), false),
             did, Span{context, context.def(did).span.file_id, strct.name});
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -461,7 +463,7 @@ DefId DefVisitor::resolve_def(DefId did) {
 
         bool takes_self = maybe_self_type.has_value();
 
-        scope = context.scope_for_top_level_def(did);
+        scope = context.scope_for_def(did);
 
         DefFunction::ParamResolResult params_res
             = resolve_params(fid, scope, did, fn_decl.params, maybe_self_type);
@@ -549,7 +551,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             goto cleanup;
         }
 
-        ScopeId contract_scope = context.scope_for_top_level_def(did);
+        ScopeId contract_scope = context.scope_for_def(did);
         context.register_generated_deftype(
             contract_scope, context.symbol_id<"Self">(),
             context.emplace_type(TypeVar{}, Span::generated(), false), did,
@@ -578,7 +580,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             visit_as_dependent(context.def_id(didx));
         }
         context.def(did).set_value(
-            DefUnion{.scope = context.scope_for_top_level_def(did), .ordered_members = members});
+            DefUnion{.scope = context.scope_for_def(did), .ordered_members = members});
 
         break;
     }
@@ -607,7 +609,7 @@ DefId DefVisitor::resolve_def(DefId did) {
 
         const auto maybe_generic_args = context.search_for_gen_args_for_def(did);
 
-        const auto variants_scope = context.scope_for_top_level_def(did);
+        const auto variants_scope = context.scope_for_def(did);
 
         // make the variant visible without generic args inside it's own scope (helpful for
         // matching)
@@ -662,7 +664,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         IdSlice<DefId> members = context.freeze_id_vec(param_vec);
 
         context.def(did).set_value(
-            DefVariantField{.scope = context.scope_for_top_level_def(did), .members = members});
+            DefVariantField{.scope = context.scope_for_def(did), .members = members});
         break;
     }
 
@@ -812,7 +814,7 @@ void DefVisitor::resolve_fn_body_expr(FileId fid, DefId func_did) {
 
     Span span{context, fid, expr};
 
-    ScopeId func_scope = context.scope_for_top_level_def(func_did);
+    ScopeId func_scope = context.scope_for_def(func_did);
 
     LexicalCtx lctx{.scope = func_scope, .map = context.make_persistent_move_map({})};
 
@@ -850,7 +852,7 @@ void DefVisitor::resolve_fn_body_block(FileId fid, DefId func_did) {
     assert(fn_stmt->type == AST_STMT_FN_DECL);
     assert(!fn_stmt->stmt.fn_decl->only_expr); // this has a block body (so it's not only expr)
     DefFunction& func = context.def(func_did).as<DefFunction>();
-    const ScopeId func_scope = context.scope_for_top_level_def(func_did);
+    const ScopeId func_scope = context.scope_for_def(func_did);
 
     // puts the params inside the function's uppermost scope
     for (const auto param_didx : func.params) {

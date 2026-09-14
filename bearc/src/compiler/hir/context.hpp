@@ -232,7 +232,7 @@ class Context {
                 if (maybe_instance_did.empty()) {
                     return {};
                 }
-                curr_scope = scope_for_top_level_def(maybe_instance_did.as_id());
+                curr_scope = scope_for_def(maybe_instance_did.as_id());
             } else {
                 return {}; // not found
             }
@@ -447,11 +447,12 @@ class Context {
     Span make_top_level_def_name_span(DefId def) const;
 
     bool is_top_level_def_with_associated_scope(DefId def_id) const;
-    /// gets the named scope for a top level def
+    /// gets the named scope for a top level def. fails if a scope cannot be found
     /// - note: NOT the containing scope for a given def.
-    [[nodiscard]] ScopeId scope_for_top_level_def(DefId def) const;
-    /// trys to look up the scope for a top level def
-    [[nodiscard]] OptId<ScopeId> try_scope_for_top_level_def(DefId def) const;
+    [[nodiscard]] ScopeId scope_for_def(DefId def) const;
+    /// trys to look up the scope for a top level def, like a struct's scope or a function's scope
+    /// - note: NOT the containing scope for a given def.
+    [[nodiscard]] OptId<ScopeId> try_scope_for_def(DefId def) const;
 
     /// for registering definitions at the top level before resolution
     DefId register_top_level_def(SymbolId name, bool pub, bool compt, bool statik, bool generic,

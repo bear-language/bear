@@ -214,11 +214,12 @@ Context::Context(const bearc_args_t& args, instances instances)
                 force_link_diagnostic(emplace_diagnostic(
                     d.span, diag_code::in_generic_instantiation_of_type, diag_type::note,
                     DiagnosticTypeAfterMessage{
-                        .tid = emplace_type(TypeStruct{.def_id = maybe_gen_parent.as_id(),
-                                                       .gen_args_slice = generic_args_for_def(
-                                                           maybe_gen_parent.as_id()),
-                                                       .generic = true},
-                                            Span::generated(), false)},
+                        .tid = emplace_type(
+                            TypeStruct{
+                                .def_id = maybe_gen_parent.as_id(),
+                                .gen_args_slice = generic_args_for_def(maybe_gen_parent.as_id()),
+                            },
+                            Span::generated(), false)},
                     DiagnosticInfoNoPreview{}));
                 force_link_diagnostic(emplace_diagnostic_with_message_value(
                     d.span, diag_code::declared_here_as_generic, diag_type::note,
@@ -838,7 +839,7 @@ Context::make_new_generic_instantiation(DefVisitor& def_visitor, DefId did,
     // set up for resolving the instantiated def
     def(maybe_instance_did.as_id()).generic = false; // "concretifies" the instatiation
     // make sure generic args are locable
-    ScopeId instance_scope = scope_for_top_level_def(maybe_instance_did.as_id());
+    ScopeId instance_scope = scope_for_def(maybe_instance_did.as_id());
     insert_gen_args_into_scope(did, maybe_instance_did.as_id(), instance_scope, gen_args_id);
 
     const auto og_resol = resol_state_of(did);
@@ -1299,8 +1300,8 @@ void Context::promote_mention_state_of(DefId def, Def::mention_state new_mention
     }
 }
 
-ScopeId Context::scope_for_top_level_def(DefId def_id) const {
-    auto hopefully_scope = try_scope_for_top_level_def(def_id);
+ScopeId Context::scope_for_def(DefId def_id) const {
+    auto hopefully_scope = try_scope_for_def(def_id);
     if (hopefully_scope.has_value()) {
         return hopefully_scope.as_id();
     }
@@ -1342,7 +1343,7 @@ void Context::insert_expr_for_def(DefId did, const ast_expr_t* expr) {
     return def_ast_nodes.at(def_id)->type == AST_STMT_UNION_DEF;
 }
 
-OptId<ScopeId> Context::try_scope_for_top_level_def(DefId def_id) const {
+OptId<ScopeId> Context::try_scope_for_def(DefId def_id) const {
     const auto& def = defs.at(def_id);
     // no parent means parent scope is root scope
     if (def.holds<DefModule>()) {
@@ -1648,7 +1649,7 @@ OptId<DefId> Context::look_up_scoped(auto on_first, auto on_last, ScopeId scope,
                                          ? look_up_type(curr_scope, sid)
                                          : look_up_local_type(curr_scope, sid);
                    maybe_type.has_value()) {
-            curr_scope = scope_for_top_level_def(guard_hid_type(
+            curr_scope = scope_for_def(guard_hid_type(
                 scope, maybe_type.as_id(),
                 IdSlice<SymbolId>{id_slice.begin(), sidx.raw() + 1 - id_slice.begin().raw()},
                 id_span));
@@ -1718,7 +1719,7 @@ OptId<DefId> Context::look_up_scoped_bypassing_visibility(auto on_first, auto on
                                          ? look_up_type(curr_scope, sid)
                                          : look_up_local_type(curr_scope, sid);
                    maybe_type.has_value()) {
-            curr_scope = scope_for_top_level_def(maybe_type.as_id());
+            curr_scope = scope_for_def(maybe_type.as_id());
         } else {
             return {}; // not found
         }
@@ -2097,7 +2098,7 @@ ScopeId Context::containing_scope(DefId did) const {
     if (par_def.holds<DefScopeWrapper>()) {
         return par_def.as<DefScopeWrapper>().scope;
     }
-    auto maybe_structure = try_scope_for_top_level_def(parent_id);
+    auto maybe_structure = try_scope_for_def(parent_id);
     if (maybe_structure.has_value()) {
         return maybe_structure.as_id();
     }
@@ -2721,7 +2722,7 @@ Context::default_value_for_type_using_default_contract(TypeId tid, Span span, co
 [[nodiscard]] OptId<ScopeId> Context::try_scope_for_type(TypeId tid) {
     const Type& ty = type(try_decay(tid));
     if (ty.holds<TypeStruct>()) {
-        return scope_for_top_level_def(ty.as<TypeStruct>().def_id);
+        return scope_for_def(ty.as<TypeStruct>().def_id);
     }
     return {};
 }
