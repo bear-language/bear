@@ -428,7 +428,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             context.link_diagnostic(d1, d2);
         }
         if (context.def(did).compt && !fn_decl.only_expr) {
-            Span span{context, fid, fn_decl.block->first};
+            Span span{context, fid, fn_decl.block_stmt->first};
             auto d0 = context.emplace_diagnostic(
                 span, diag_code::compt_function_does_not_yield_a_pure_expr, diag_type::error);
             auto d1 = context.emplace_diagnostic_with_message_value(
@@ -879,7 +879,7 @@ void DefVisitor::resolve_fn_body_block(FileId fid, DefId func_did) {
     // defs inside the function body
     func.body = solver.solve_block(
         fid, LexicalCtx{.scope = func_scope, .map = context.make_persistent_move_map()},
-        fn_stmt->stmt.fn_decl->block->stmt.block.stmts);
+        fn_stmt->stmt.fn_decl->block_stmt);
 }
 
 bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {

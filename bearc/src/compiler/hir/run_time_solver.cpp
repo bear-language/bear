@@ -104,10 +104,16 @@ namespace hir {
     return {};
 }
 
-[[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block(FileId fid, LexicalCtx parent_lctx,
-                                                       ast_slice_of_stmts_t stmts) {
+[[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block(FileId fid, LexicalCtx lctx,
+                                                       const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_BLOCK);
+    return solve_block(fid, lctx, stmt->stmt.block.stmts, Span{context, fid, stmt});
+}
 
-    Span block_span{context, fid, stmts};
+[[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block(FileId fid, LexicalCtx parent_lctx,
+                                                       ast_slice_of_stmts_t stmts,
+                                                       Span block_span) {
+
     InProgressBlock in_prog_block{};
     DataArena move_arena{0x100}; // decently sized
 
@@ -115,14 +121,14 @@ namespace hir {
     LexicalCtx curr_lctx{.scope = context.make_small_scope(parent_lctx.scope, block_span),
                          .map = parent_lctx.map};
 
-    bool hit_return{false};
+    bool hit_block_terminator{false};
 
     for (auto i = 0uz; i < stmts.len; ++i) {
         const auto maybe_eid = handle_stmt(fid, curr_lctx, in_prog_block, stmts.start[i]);
 
         // if this is the last statement (and we didn't already see a (premature) return) and we're
         // expecting a return type
-        if (!hit_return && i == stmts.len - 1 && this->current_return_tid.has_value()
+        if (!hit_block_terminator && i == stmts.len - 1 && this->current_return_tid.has_value()
             && (maybe_eid.empty()
                 || (maybe_eid.has_value()
                     && !context.exec(maybe_eid.as_id()).holds<ExecReturn>()))) {
@@ -148,9 +154,11 @@ namespace hir {
         // update this so we don't get annoying repetitive diagnostics (we don't want to see a dead
         // code warning AND that function_may_not_return_a_value_in_all_control_flow_paths
         // diagnostic nor do we want to see this more than once after the first premature return)
-        if (!hit_return && maybe_eid.has_value()
+        //
+        // TODO: do the same for continue, break, and yield statements
+        if (!hit_block_terminator && maybe_eid.has_value()
             && context.exec(maybe_eid.as_id()).holds<ExecReturn>()) {
-            hit_return = true;
+            hit_block_terminator = true;
 
             if (i < stmts.len - 1) {
                 // span is all statements following the CURRENT return statement (that's why it's i
@@ -173,6 +181,12 @@ namespace hir {
                                               .defs = context.freeze_id_vec(in_prog_block.defs),
                                               .lctx = curr_lctx})},
         block_span);
+}
+
+OptId<ExecId> RuntimeSolver::handle_use(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_USE);
+    def_visitor.resolve_use_stmt(fid, lctx.scope, stmt);
+    return {};
 }
 
 OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt) {
@@ -208,50 +222,41 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, const as
 OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                          const ast_stmt_t* stmt, storage storage, compt compt,
                                          uint8_t align) {
+
+    // TODO, finish:
     switch (stmt->type) {
-    case AST_STMT_USE: {
-        def_visitor.resolve_use_stmt(fid, lctx.scope, stmt);
-        return {};
-    }
-    case AST_STMT_RETURN: {
+    case AST_STMT_USE:
+        return handle_use(fid, lctx, stmt);
+    case AST_STMT_RETURN:
         return handle_return(fid, lctx, stmt);
-    }
-
-    case AST_STMT_COMPT_MODIFIER: {
+    case AST_STMT_COMPT_MODIFIER:
         return handle_compt(fid, lctx, block, stmt, align);
-    }
-    case AST_STMT_STATIC_MODIFIER: {
+    case AST_STMT_STATIC_MODIFIER:
         return handle_static(fid, lctx, block, stmt, storage, compt, align);
-    }
-
-    case AST_STMT_ALIGNAS_MODIFIER: {
+    case AST_STMT_ALIGNAS_MODIFIER:
         return handle_alignas(fid, lctx, block, stmt, storage, compt, align);
-    }
-
-    case AST_STMT_VAR_DECL: {
+    case AST_STMT_VAR_DECL:
         return handle_var_decl(fid, lctx, block, stmt, storage, compt, align);
-    }
-
-    case AST_STMT_VAR_INIT_DECL: {
+    case AST_STMT_VAR_INIT_DECL:
         return handle_var_init_decl(fid, lctx, block, stmt, storage, compt, align);
-    }
-
-    case AST_STMT_DEFTYPE: {
+    case AST_STMT_DEFTYPE:
         return handle_deftype(fid, lctx, stmt);
-    }
-
-        // TODO:
     case AST_STMT_BLOCK:
+        return handle_block(fid, lctx, block, stmt);
     case AST_STMT_EXPR:
+        return handle_expr_stmt(fid, lctx, block, stmt);
     case AST_STMT_EMPTY:
+        return {};
     case AST_STMT_BREAK:
+        return handle_break(fid, block, stmt);
+    case AST_STMT_CONTINUE:
+        return handle_continue(fid, block, stmt);
     case AST_STMT_IF:
     case AST_STMT_ELSE:
     case AST_STMT_WHILE:
     case AST_STMT_FOR:
     case AST_STMT_FOR_IN:
     case AST_STMT_YIELD:
-    case AST_STMT_CONTINUE:
 
         // poisoned/malformed:
     case AST_STMT_VISIBILITY_MODIFIER:
@@ -482,6 +487,63 @@ OptId<ExecId> RuntimeSolver::handle_deftype(FileId fid, LexicalCtx lctx, const a
     context.insert_type(lctx.scope, name, did);
 
     return {};
+}
+
+OptId<ExecId> RuntimeSolver::handle_block(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                          const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_BLOCK);
+    const auto maybe_eid = solve_block(fid, lctx, stmt);
+    if (maybe_eid.has_value()) {
+        block.execs.push_back(maybe_eid.as_id());
+    }
+    return maybe_eid;
+}
+
+OptId<ExecId> RuntimeSolver::handle_expr_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                              const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_EXPR);
+    const auto maybe_eid = solve_expr(fid, lctx, stmt->stmt.stmt_expr.expr);
+    if (maybe_eid.has_value()) {
+        /// TODO: walk the exec and check for unused value (execs behave like canonical expressions,
+        /// so basically look for function calls of discardable function, else give a diagnostic)
+        block.execs.push_back(maybe_eid.as_id());
+    }
+    return maybe_eid;
+}
+
+OptId<ExecId> RuntimeSolver::handle_break(FileId fid, InProgressBlock& block,
+                                          const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_BREAK);
+    if (current_loop_block_eid.empty()) {
+        context.emplace_diagnostic(Span{context, fid, stmt},
+                                   diag_code::break_statement_outside_of_loop, diag_type::error);
+        return {};
+    }
+    const auto eid = context.emplace_exec(
+        ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::end},
+        Span{context, fid, stmt});
+    block.execs.push_back(eid);
+    return eid;
+}
+
+OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
+                                             const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_CONTINUE);
+    if (current_loop_block_eid.empty()) {
+        context.emplace_diagnostic(Span{context, fid, stmt},
+                                   diag_code::continue_statement_outside_of_loop, diag_type::error);
+        return {};
+    }
+    const auto eid = context.emplace_exec(
+        // basically, if this is a for loop, we want to execute the update exec at the end of this
+        // iteration before continuing
+        current_loop_update_eid.has_value()
+            ? ExecJump{.block = current_loop_update_eid.as_id(), .spot = jump_spot::start}
+            : ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::start},
+        Span{context, fid, stmt});
+
+    block.execs.push_back(eid);
+    return eid;
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::handle_any_typed_expr(FileId fid, LexicalCtx lctx,

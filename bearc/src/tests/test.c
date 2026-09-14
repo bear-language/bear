@@ -85,7 +85,7 @@ br_test_result_t test_parser(void) {
     ASSERT_EQ_ERR("parser/21", 10);
     ASSERT_EQ_ERR("parser/22", 1);
     ASSERT_EQ_ERR("parser/23", 1);
-    ASSERT_EQ_ERR("parser/24", 1);
+    ASSERT_EQ_ERR("parser/24", 0);
     ASSERT_EQ_ERR("parser/25", 5);
     ASSERT_EQ_ERR("parser/26", 1);
     ASSERT_EQ_ERR("parser/27", 10);
@@ -110,7 +110,7 @@ br_test_result_t test_parser(void) {
     ASSERT_EQ_ERR("parser/46", 1);
     ASSERT_EQ_ERR("parser/47", 1);
     ASSERT_EQ_ERR("parser/48", 4);
-    ASSERT_EQ_ERR("parser/49", 1);
+    ASSERT_EQ_ERR("parser/49", 0);
     ASSERT_EQ_ERR("parser/50", 0);
     ASSERT_EQ_ERR("parser/51", 1);
     ASSERT_EQ_ERR("parser/52", 5);

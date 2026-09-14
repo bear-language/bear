@@ -841,7 +841,7 @@ void pretty_print_stmt(const ast_stmt_t* stmt) {
             print_closing_delim_from_type(TOK_RBRACE);
             printer_do_indent();
         } else {
-            pretty_print_stmt(fn.block);
+            pretty_print_stmt(fn.block_stmt);
         }
         printer_deindent();
         break;

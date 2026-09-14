@@ -8,6 +8,6 @@ fn main() -> i32 {
         }
         a += b;
     }
-    continue; // outside of loop, err
+    continue; 
     return a;
 }

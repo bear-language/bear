@@ -133,19 +133,10 @@ ast_stmt_t* parse_stmt(parser_t* p) {
     }
 
     if (next_type == TOK_BREAK) {
-        if (parser_mode(p) != PARSER_MODE_IN_LOOP) {
-            compiler_error_list_emplace(p->error_list, first_tkn, ERR_BREAK_STMT_OUTSIDE_OF_LOOP);
-            return parser_sync_stmt_until(p, TOK_SEMICOLON);
-        }
         return parse_stmt_break(p);
     }
 
     if (next_type == TOK_CONTINUE) {
-        if (parser_mode(p) != PARSER_MODE_IN_LOOP) {
-            compiler_error_list_emplace(p->error_list, first_tkn,
-                                        ERR_CONTINUE_STMT_OUTSIDE_OF_LOOP);
-            return parser_sync_stmt_until(p, TOK_SEMICOLON);
-        }
         return parse_stmt_continue(p);
     }
 
@@ -389,7 +380,7 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
 
     // handle fn foo() -> i32 => expr or {expr}
     if (only_expr) {
-        decl->stmt.fn_decl->block = NULL;
+        decl->stmt.fn_decl->block_stmt = NULL;
 
         token_t* lbrace = parser_match_token(p, TOK_LBRACE);
 
@@ -415,7 +406,7 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
         if (block->type == AST_STMT_INVALID) {
             cooked = true;
         }
-        decl->stmt.fn_decl->block = block;
+        decl->stmt.fn_decl->block_stmt = block;
         decl->stmt.fn_decl->expr = NULL;
     }
 
@@ -798,10 +789,7 @@ ast_stmt_t* parse_stmt_while(parser_t* p) {
         return parser_sync_stmt(p);
     }
     // push mode, parse block, restore ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    parser_mode_e saved = parser_mode(p);
-    parser_mode_set(p, PARSER_MODE_IN_LOOP);
     while_stmt->stmt.while_stmt.body_stmt = parse_stmt_block(p);
-    parser_mode_set(p, saved);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     while_stmt->first = while_tkn;
     while_stmt->last = while_stmt->stmt.while_stmt.body_stmt->last;
@@ -911,10 +899,7 @@ ast_stmt_t* parse_stmt_for_in(parser_t* p) {
         return parser_sync_stmt(p);
     }
     // push mode, parse block, restore ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    parser_mode_e saved = parser_mode(p);
-    parser_mode_set(p, PARSER_MODE_IN_LOOP);
     for_stmt->stmt.for_in_stmt.body_stmt = parse_stmt_block(p);
-    parser_mode_set(p, saved);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     for_stmt->first = for_tkn;
     for_stmt->last = for_stmt->stmt.for_in_stmt.body_stmt->last;
@@ -957,10 +942,7 @@ ast_stmt_t* parse_stmt_for(parser_t* p) {
         return parser_sync_stmt(p);
     }
     // push mode, parse block, restore ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    parser_mode_e saved = parser_mode(p);
-    parser_mode_set(p, PARSER_MODE_IN_LOOP);
     for_stmt->stmt.for_stmt.body_stmt = parse_stmt_block(p);
-    parser_mode_set(p, saved);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     for_stmt->first = for_tkn;
     for_stmt->last = for_stmt->stmt.for_stmt.body_stmt->last;

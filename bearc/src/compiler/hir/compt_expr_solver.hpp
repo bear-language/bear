@@ -74,9 +74,8 @@ class ComptExprSolver {
                                                          OptId<TypeId> into_tid = {});
 
     /// tries to make a function call at compile-time. internally, this memoizes all results inside
-    /// of context. the memozation simply maps argument values to return value.
-    ///
-    /// internally, the logic works just like generic instantiation, but for regular function calls:
+    /// of context. the memozation simply maps argument values to return value. the logic works just
+    /// like generic instantiation, but for regular function calls:
     ///
     /// args: {compt_exec1, compt_exec2, ...} -> canonicalize values inside context -> get a
     /// CanonicalArgsId back -> use that Id to key into a map (CanonicalArgsId -> ExecId) inside of
@@ -103,6 +102,20 @@ class ComptExprSolver {
     lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generic_args_t gen_args,
                        bool need_layout_info = false);
 
+    /// eid - must be a compt exec
+    [[nodiscard]] OptId<ExecId> solve_builtin_cast(ExecId eid, TypeId into_tid);
+
+    /// lhs_eid - must be a compt exec
+    /// op - the op to do
+    /// rhs_eid - must be a compt exec
+    [[nodiscard]] OptId<ExecId> solve_binary_compt_exec(ExecId lhs_eid, binary_op op,
+                                                        ExecId rhs_eid);
+
+    /// op - the unary_op todo
+    /// op_span - the span of the op (for diagnostic purposes)
+    /// eid - the inner exec being operated on, which must be a compt exec
+    [[nodiscard]] OptId<ExecId> solve_preunary_exec(unary_op op, Span op_span, ExecId eid);
+
   private:
     void enter_compt_fn() { ++call_depth; }
     void exit_compt_fn() { --call_depth; }
@@ -121,13 +134,9 @@ class ComptExprSolver {
     [[nodiscard]] OptId<ExecId> handle_struct_init(FileId fid, ScopeId scope, DefId struct_did,
                                                    const ast_expr_t* expr, OptId<TypeId> into_tid);
 
-    [[nodiscard]] OptId<ExecId> solve_compt_cast(FileId fid, ScopeId scope, ExecId eid,
-                                                 const ast_expr_t* into_expr);
+    [[nodiscard]] OptId<ExecId> handle_cast(FileId fid, ScopeId scope, ExecId eid,
+                                            const ast_expr_t* into_expr);
 
-    [[nodiscard]] OptId<ExecId> handle_cast(ExecId eid, TypeId into_tid);
-
-    [[nodiscard]] OptId<ExecId> solve_binary_compt_exec(ExecId lhs_eid, binary_op op,
-                                                        ExecId rhs_eid);
     [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, ScopeId scope, const ast_type_t* type);
 
     [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, ScopeId scope, const ast_type_t* type,
@@ -152,8 +161,6 @@ class ComptExprSolver {
 
     [[nodiscard]] OptId<ExecId> handle_binary_bool_conj_disj(const Exec& lhs, binary_op op,
                                                              const Exec& rhs);
-
-    [[nodiscard]] OptId<ExecId> solve_preunary_exec(unary_op op, Span op_span, ExecId eid);
 
     [[nodiscard]] OptId<ExecId> solve_ternary_if(FileId fid, ScopeId scope,
                                                  const ast_expr_t* tern_expr,

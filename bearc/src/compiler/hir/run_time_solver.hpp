@@ -23,7 +23,9 @@ class RuntimeSolver {
     DefVisitor& def_visitor;
     Context& context;
     OptId<TypeId> current_return_tid{};
-    bool inside_loop{};
+    OptId<ExecId> current_loop_block_eid{};
+    /// used for jumping to the update exec for a for loop
+    OptId<ExecId> current_loop_update_eid{};
     bool inside_match_branch{};
 
     struct InProgressBlock {
@@ -56,8 +58,10 @@ class RuntimeSolver {
 
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
 
-    [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx,
-                                            ast_slice_of_stmts_t stmts);
+    [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, ast_slice_of_stmts_t stmts,
+                                            Span span);
+
+    [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
 
   private:
     enum class storage : uint8_t {
@@ -88,6 +92,7 @@ class RuntimeSolver {
                               const ast_stmt_t* stmt, storage storage = storage::non_static,
                               compt compt = compt::non_compt, uint8_t align = 0);
     OptId<ExecId> handle_return(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
+    OptId<ExecId> handle_use(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
     OptId<ExecId> handle_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
@@ -105,6 +110,15 @@ class RuntimeSolver {
                                        const ast_stmt_t* stmt, storage storage, compt compt,
                                        uint8_t align);
     OptId<ExecId> handle_deftype(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
+    /// block statement handler that emplaces the block's ExecId (when valid) inside of a current
+    /// in-progress block
+    OptId<ExecId> handle_block(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                               const ast_stmt_t* stmt);
+
+    OptId<ExecId> handle_expr_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                   const ast_stmt_t* stmt);
+    OptId<ExecId> handle_break(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
+    OptId<ExecId> handle_continue(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);

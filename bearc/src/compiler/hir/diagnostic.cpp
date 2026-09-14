@@ -445,6 +445,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "`alignas` value should be a power of 2";
     case diag_code::function_does_not_return_a_value:
         return "function does not return a value";
+    case diag_code::break_statement_outside_of_loop:
+        return "break statement used outside of loop";
+    case diag_code::continue_statement_outside_of_loop:
+        return "continue statement used outside of loop";
     }
 
     std::unreachable();

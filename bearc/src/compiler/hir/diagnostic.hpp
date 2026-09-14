@@ -223,6 +223,8 @@ enum class diag_code : uint8_t {
     aligning_a_compt_variable_does_nothing,
     alignas_value_should_be_a_power_of_2,
     function_does_not_return_a_value,
+    break_statement_outside_of_loop,
+    continue_statement_outside_of_loop,
 
     count, // this must be last,
 

@@ -177,7 +177,7 @@ typedef struct ast_stmt_fn_decl {
     token_t* ret_arrow;
     /// NULLable if no return type
     ast_type_t* return_type;
-    ast_stmt_t* block;
+    ast_stmt_t* block_stmt;
     ast_expr_t* expr;
     bool only_expr;
     bool is_generic;

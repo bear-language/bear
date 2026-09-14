@@ -42,7 +42,6 @@ static const char* error_messages[ERR__COUNT] = {
     = "expected '{' since statements following condition must be wrapped in braces",
     [ERR_MISMATCHED_RPAREN] = "mismatched ')' without an opening '('",
     [ERR_MISSING_CLOSING_RPAREN] = "missing closing ')'",
-    [ERR_BREAK_STMT_OUTSIDE_OF_LOOP] = "break statement outside of loop",
     [ERR_REDUNDANT_COMPT_QUALIFIER] = "redundant 'compt' qualifier",
     [ERR_INVALID_GENERIC_PARAMETER] = "invalid generic parameter",
     [ERR_EXPECTED_FN_OR_MT] = "expected function declaration keyword 'fn' or 'mt'",
@@ -56,7 +55,6 @@ static const char* error_messages[ERR__COUNT] = {
     [NOTE_DID_YOU_MEAN_MT] = "did you mean to declare this as 'mt'?",
     [ERR_MULTILEVEL_REF]
     = "multi-level reference type is malformed; did you mean to declare a multi-level pointer?",
-    [ERR_CONTINUE_STMT_OUTSIDE_OF_LOOP] = "continue statement outside of loop",
     [HELP_REMOVE] = "remove",
     [HELP_REMOVE_SEMICOLON_TO_YIELD_EXPRESSION_VALUE] = "remove ';' to yield expression value",
     [ERR_NON_TOP_LEVEL_IMPORT_STATEMENT] = "import statement is not a top-level statement",

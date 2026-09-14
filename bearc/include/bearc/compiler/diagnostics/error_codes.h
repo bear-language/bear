@@ -10,7 +10,6 @@
 #define COMPILER_DIAGNOSTICS_ERROR_CODES_H
 
 #include "compiler/token.h"
-#include "stdbool.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -49,8 +48,6 @@ typedef enum error_code {
     ERR_BODY_MUST_BE_WRAPPED_IN_BRACES,
     ERR_MISMATCHED_RPAREN,
     ERR_MISSING_CLOSING_RPAREN,
-    ERR_BREAK_STMT_OUTSIDE_OF_LOOP,
-    ERR_CONTINUE_STMT_OUTSIDE_OF_LOOP,
     ERR_REDUNDANT_COMPT_QUALIFIER,
     ERR_INVALID_GENERIC_PARAMETER,
     ERR_EXPECTED_FN_OR_MT,

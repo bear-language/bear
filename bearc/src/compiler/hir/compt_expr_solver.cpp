@@ -1365,8 +1365,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         Span{context, fid, expr}, true);
 }
 
-[[nodiscard]] OptId<ExecId> ComptExprSolver::solve_compt_cast(FileId fid, ScopeId scope, ExecId eid,
-                                                              const ast_expr_t* into_expr) {
+[[nodiscard]] OptId<ExecId> ComptExprSolver::handle_cast(FileId fid, ScopeId scope, ExecId eid,
+                                                         const ast_expr_t* into_expr) {
     if (into_expr->type != AST_EXPR_TYPE) {
         auto span = Span{fid, context.ast(fid).buffer(), into_expr->first, into_expr->last};
         auto d0 = context.emplace_diagnostic(span, diag_code::invalid_cast, diag_type::error);
@@ -1383,10 +1383,10 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         return std::nullopt;
     }
     TypeId tid = maybe_tid.as_id();
-    return handle_cast(eid, tid);
+    return solve_builtin_cast(eid, tid);
 }
 
-[[nodiscard]] OptId<ExecId> ComptExprSolver::handle_cast(ExecId eid, TypeId into_tid) {
+[[nodiscard]] OptId<ExecId> ComptExprSolver::solve_builtin_cast(ExecId eid, TypeId into_tid) {
     const Exec& exec = context.exec(eid);
     const Type& type = context.type(into_tid);
     if (!exec.holds<ExecConst>() || !type.holds<TypeBuiltin>()) {
@@ -1419,6 +1419,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
                                                                      ExecId rhs_eid) {
     const Exec& lhs_exec = context.exec(lhs_eid);
     const Exec& rhs_exec = context.exec(rhs_eid);
+
+    assert(lhs_exec.compt && rhs_exec.compt);
 
     DiagLinker dl{context};
     auto handle_invalid_operand = [this, &dl](ExecId eid) {
@@ -1854,6 +1856,8 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
 [[nodiscard]] OptId<ExecId> ComptExprSolver::solve_preunary_exec(unary_op op, Span op_span,
                                                                  ExecId eid) {
     const Exec& inner_exec = context.exec(eid);
+
+    assert(inner_exec.compt);
 
     if (!inner_exec.template holds<ExecConst>()) {
         return std::nullopt;
@@ -2562,7 +2566,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
                 return solve_is(fid, scope, lhs.as_id(), expr->expr.binary.rhs);
             }
             assert(maybe_bin_op.as<is_as_op>() == is_as_op::as);
-            return solve_compt_cast(fid, scope, lhs.as_id(), expr->expr.binary.rhs);
+            return handle_cast(fid, scope, lhs.as_id(), expr->expr.binary.rhs);
         }
     } else if (maybe_bin_op.holds<access_op>()) {
         OptId<ExecId> maybe_lhs = solve_expr(fid, scope, expr->expr.binary.lhs, std::nullopt);

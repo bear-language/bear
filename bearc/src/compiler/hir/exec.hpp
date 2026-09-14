@@ -37,8 +37,15 @@ struct ExecBlock {
     BlockId block_id;
 };
 
+enum class jump_spot : uint8_t {
+    // jump to a given exec
+    start,
+    // jump to the end of a given exec (jump to the following exec)
+    end
+};
 struct ExecJump {
     ExecId block;
+    jump_spot spot;
 };
 
 struct ExecIfStmt {
