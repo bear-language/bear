@@ -3,6 +3,7 @@
 #### misc/priority 
 - [x] scrap `compt_temp_scope`s to allow for compt closures
 - [ ] anonymous structs/tuple inits 
+    - [ ] add parsing for `struct(i32,i32)` types
     - [ ] add parsing for tuple literals inside of the grouping parsing function (`(expr,)`)
     - [ ] update all `expr->type` switches 
     - [ ] test parser/printer before moving on 
