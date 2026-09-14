@@ -943,12 +943,10 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
 }
 
 Exec::Exec(Context& ctx, ExecValue value, Span span, bool should_be_compt)
-    : value{value}, span{span} {
-    bool truely_compt = can_be_compt(ctx);
-    if (should_be_compt && !truely_compt) {
+    : value{value}, span{span}, compt{should_be_compt} {
+    if (should_be_compt && !can_be_compt()) {
         ctx.emplace_diagnostic(span, diag_code::cannot_resolve_value_at_compt, diag_type::error);
     }
-    this->compt = truely_compt && should_be_compt;
 }
 
 bool Exec::is_equivalent(const Context& ctx, ExecId eid1, ExecId eid2) {
@@ -970,70 +968,37 @@ bool Exec::is_equivalent(const Context& ctx, ExecId eid1, ExecId eid2) {
     return false;
 }
 
-bool Exec::can_be_compt(const Context& ctx) {
-    auto get_e = [&ctx](ExecId eid) { return ctx.exec(eid); };
-    auto eidx_to_e = [&ctx](IdIdx<ExecId> eid) { return ctx.exec(eid); };
+bool Exec::can_be_compt() {
     auto vs = Ovld{
-        [&](const ExecBlock&) -> bool { return false; },
-        [&](const ExecJump&) -> bool { return false; },
-        [&](const ExecIfStmt&) -> bool { return false; },
-        [&](const ExecReturn&) -> bool { return false; },
-        [&](const ExecYieldStmt&) -> bool { return false; },
+        [](const ExecFnPtr&) -> bool { return true; },
+        [](const ExecUnionInit&) -> bool { return true; },
+        [](const ExecExprVariantInit&) -> bool { return true; },
+        [](const ExecRange&) -> bool { return true; },
+        [](const ExecVariantFieldInit&) -> bool { return true; },
+        [](const ExecListLiteral&) -> bool { return true; },
+        [](const ExecConst&) -> bool { return true; },
+        [](const ExecExprStructInit&) -> bool { return true; },
+        [](const ExecStructMemberInit&) -> bool { return true; },
+        [](const ExecBlock&) -> bool { return false; },
+        [](const ExecJump&) -> bool { return false; },
+        [](const ExecBranch&) -> bool { return false; },
+        [](const ExecReturn&) -> bool { return false; },
+        [](const ExecYieldStmt&) -> bool { return false; },
         // exprs
-        [&](const ExecAssignable&) -> bool { return false; },
-        [&](const ExecConst&) -> bool { return true; },
-        [&](const ExecListLiteral& t) -> bool {
-            // just check each elem
-            for (auto eidx = t.elems.begin(); eidx != t.elems.end(); eidx++) {
-                if (!eidx_to_e(eidx).compt) {
-                    return false;
-                }
-            }
-            return true;
-        },
-        [&](const ExecAssignment& t) -> bool { return get_e(t.lhs).compt && get_e(t.rhs).compt; },
-        [&](const ExecIs& t) -> bool {
-            return get_e(t.variant_instance).compt && get_e(t.variant_decomp).compt;
-        },
-        [&](const ExecMemberAccess& t) -> bool {
-            return get_e(t.owner).compt && get_e(t.member).compt;
-        },
-        [&](const ExecBinary& t) -> bool { return get_e(t.lhs).compt && get_e(t.rhs).compt; },
-        [&](const ExecCast& t) -> bool { return get_e(t.expr).compt; },
-        [&](const ExecPreUnary& t) -> bool { return get_e(t.expr).compt; },
-        [&](const ExecPostUnary& t) -> bool { return get_e(t.expr).compt; },
-        [&](const ExecSubscript& t) -> bool { return get_e(t.base).compt && get_e(t.index).compt; },
-        [&](const ExecFnCall& t) -> bool {
-            const bool callee = get_e(t.callee).compt;
-            // check all args, ret false if one isn't compt
-            for (auto eidx = t.args.begin(); eidx != t.args.end(); eidx++) {
-                if (!eidx_to_e(eidx).compt) {
-                    return false;
-                }
-            }
-            return callee;
-        },
-        [&](const ExecBorrow& t) -> bool { return get_e(t.borrowee).compt; },
-        [&](const ExecDeref& t) -> bool { return get_e(t.expr).compt; },
-        [&](const ExecExprStructInit& t) -> bool {
-            for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); eidx++) {
-                if (!eidx_to_e(eidx).compt) {
-                    return false;
-                }
-            }
-            return true;
-        },
-        [&](const ExecStructMemberInit& t) -> bool { return get_e(t.value).compt; },
-        // full compt ctrl no for now
-        [&](const ExecExprClosure&) -> bool { return false; },
-        [&](const ExecExprVariantDecomp&) -> bool { return false; },
-        [&](const ExecExprMatch&) -> bool { return false; },
-        [&](const ExecExprMatchBranch&) -> bool { return false; },
-        [&](const ExecFnPtr&) -> bool { return true; },
-        [&](const ExecUnionInit&) -> bool { return true; },
-        [&](const ExecExprVariantInit&) -> bool { return true; },
-        [&](const ExecVariantFieldInit&) -> bool { return true; },
-        [&](const ExecRange&) -> bool { return true; },
+        [](const ExecAssignable&) -> bool { return false; },
+        [](const ExecAssignment&) -> bool { return false; },
+        [](const ExecIs&) -> bool { return false; },
+        [](const ExecMemberAccess&) -> bool { return false; },
+        [](const ExecBinary&) -> bool { return false; },
+        [](const ExecCast&) -> bool { return false; },
+        [](const ExecSubscript&) -> bool { return false; },
+        [](const ExecFnCall&) -> bool { return false; },
+        [](const ExecBorrow&) -> bool { return false; },
+        [](const ExecDeref&) -> bool { return false; },
+        [](const ExecExprClosure&) -> bool { return false; },
+        [](const ExecExprVariantDecomp&) -> bool { return false; },
+        [](const ExecExprMatch&) -> bool { return false; },
+        [](const ExecExprMatchBranch&) -> bool { return false; },
     };
     return visit(vs);
 }
@@ -2032,7 +1997,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
     auto vs = Ovld{
         [](const ExecBlock&) -> std::string { return "{...}"; },
         [](const ExecJump&) -> std::string { return "jump ..."; },
-        [](const ExecIfStmt&) -> std::string { return "if (...) {...} ..."; },
+        [](const ExecBranch&) -> std::string { return "branch (...) ... ..."; },
         [](const ExecReturn&) -> std::string { return "return"; },
         [](const ExecYieldStmt&) -> std::string { return "yield"; },
         [&ctx](const ExecUnionInit& t) -> std::string {
@@ -2102,33 +2067,25 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 
             return str;
         },
-        [](const ExecAssignment&) -> std::string {
-            // todo
+        [&ctx](const ExecAssignment& e) -> std::string {
+            return exec_to_string(ctx, e.lhs) + " = " + exec_to_string(ctx, e.rhs);
+        },
+        [&ctx](const ExecIs& e) -> std::string {
+            return exec_to_string(ctx, e.variant_decomp) + " is "
+                   + exec_to_string(ctx, e.variant_instance);
             return {};
         },
-        [](const ExecIs&) -> std::string {
-            // todo
-            return {};
+        [&ctx](const ExecMemberAccess& e) -> std::string {
+            return exec_to_string(ctx, e.owner) + "."
+                   + ctx.symbol_id_to_cstr(ctx.def(e.member).name);
         },
-        [](const ExecMemberAccess&) -> std::string {
-            // todo
-            return {};
+        [&ctx](const ExecBinary& e) -> std::string {
+            return exec_to_string(ctx, e.lhs) + binary_op_to_cstr(e.op)
+                   + exec_to_string(ctx, e.rhs);
         },
-        [](const ExecBinary&) -> std::string {
-            // todo
-            return {};
-        },
-        [](const ExecCast&) -> std::string {
-            // todo
-            return {};
-        },
-        [](const ExecPreUnary&) -> std::string {
-            // todo
-            return {};
-        },
-        [](const ExecPostUnary&) -> std::string {
-            // todo
-            return {};
+        [&ctx](const ExecCast& e) -> std::string {
+            return exec_to_string(ctx, e.exec) + " as ("
+                   + type_to_string_with_akas(ctx, e.target_tid) + ")";
         },
         [](const ExecSubscript&) -> std::string {
             // todo

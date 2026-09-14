@@ -48,10 +48,10 @@ struct ExecJump {
     jump_spot spot;
 };
 
-struct ExecIfStmt {
+struct ExecBranch {
     ExecId condition;
-    ExecId block;
-    OptId<ExecId> else_stmt;
+    ExecId then_block;
+    ExecId else_block;
 };
 
 struct ExecReturn {
@@ -444,7 +444,7 @@ struct ExecIs {
 
 struct ExecMemberAccess {
     ExecId owner;
-    ExecId member;
+    DefId member;
 };
 
 struct ExecBinary {
@@ -454,18 +454,8 @@ struct ExecBinary {
 };
 
 struct ExecCast {
-    ExecId expr;
-    TypeId target;
-};
-
-struct ExecPreUnary {
-    ExecId expr;
-    unary_op op;
-};
-
-struct ExecPostUnary {
-    ExecId expr;
-    unary_op op;
+    ExecId exec;
+    TypeId target_tid;
 };
 
 struct ExecSubscript {
@@ -547,14 +537,14 @@ struct ExecExprMatchBranch {
 /// main exec variant
 using ExecValue = std::variant<
     // blocks / statements
-    ExecBlock, ExecIfStmt, ExecReturn, ExecYieldStmt, ExecJump,
+    ExecBlock, ExecBranch, ExecReturn, ExecYieldStmt, ExecJump,
 
     // expressions
     ExecUnionInit, ExecExprVariantInit, ExecExprStructInit, ExecStructMemberInit, ExecAssignable,
     ExecComptConstant, ExecListLiteral, ExecAssignment, ExecIs, ExecMemberAccess, ExecBinary,
-    ExecCast, ExecPreUnary, ExecPostUnary, ExecSubscript, ExecFnCall, ExecBorrow, ExecDeref,
-    ExecExprClosure, ExecExprVariantDecomp, ExecExprMatch, ExecExprMatchBranch, ExecFnPtr,
-    ExecVariantFieldInit, ExecRange>;
+    ExecCast, ExecSubscript, ExecFnCall, ExecBorrow, ExecDeref, ExecExprClosure,
+    ExecExprVariantDecomp, ExecExprMatch, ExecExprMatchBranch, ExecFnPtr, ExecVariantFieldInit,
+    ExecRange>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {
@@ -567,7 +557,7 @@ struct Exec : NodeWithVariantValue<Exec> {
     static bool is_equivalent(const Context& ctx, ExecId eid1, ExecId eid2);
 
   private:
-    bool can_be_compt(const Context& ctx);
+    bool can_be_compt();
 };
 
 std::string exec_to_string(Context& ctx, ExecId eid);
