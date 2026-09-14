@@ -154,8 +154,6 @@ namespace hir {
         // update this so we don't get annoying repetitive diagnostics (we don't want to see a dead
         // code warning AND that function_may_not_return_a_value_in_all_control_flow_paths
         // diagnostic nor do we want to see this more than once after the first premature return)
-        //
-        // TODO: do the same for continue, break, and yield statements
         if (!hit_block_terminator && maybe_eid.has_value()
             && context.exec(maybe_eid.as_id()).holds_any_of<ExecReturn, ExecJump>()) {
 
