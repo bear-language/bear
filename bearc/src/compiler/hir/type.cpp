@@ -24,11 +24,32 @@ template <ConsiderMut C> bool TypeComparator<C>::operator()(const Type& t1, cons
             }
             return t.type == t2.as<TypeBuiltin>().type;
         },
-        [&t2](const TypeStruct& t) -> bool {
+        [this, &t2](const TypeStruct& t) -> bool {
             if (!t2.holds<TypeStruct>()) {
                 return false;
             }
-            return t.def_id == t2.as<TypeStruct>().def_id;
+            const auto& o = t2.as<TypeStruct>();
+            if (t.anonymous != o.anonymous) {
+                return false;
+            }
+            if (!t.anonymous) {
+                return t.def_id == t2.as<TypeStruct>().def_id;
+            }
+            // since both are anonymous, just compare members one by one
+            const auto t_ord_mems = context.def(t.def_id).template as<DefStruct>().ordered_members;
+            const auto o_ord_mems = context.def(o.def_id).template as<DefStruct>().ordered_members;
+            for (auto i = 0u; i < t_ord_mems.len(); ++i) {
+                const auto& t_mem = context.def(t_ord_mems.get(i));
+                const auto& o_mem = context.def(o_ord_mems.get(i));
+                if (!t_mem.template holds_same<DefVariable>(o_mem)) {
+                    return false;
+                }
+                if (t_mem.template as<DefVariable>().type_id
+                    != o_mem.template as<DefVariable>().type_id) {
+                    return false;
+                }
+            }
+            return false;
         },
         [&t2](const TypeVariant& t) -> bool {
             if (!t2.holds<TypeVariant>()) {
@@ -83,7 +104,6 @@ template <ConsiderMut C> bool TypeComparator<C>::operator()(const Type& t1, cons
             return true;
         },
         [&t2](const TypeVar&) -> bool { return t2.holds<TypeVar>(); },
-
     };
     if constexpr (considers_mut()) {
         if (t1.mut != t2.mut) {

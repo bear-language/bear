@@ -607,6 +607,10 @@ ast_stmt_t* parse_stmt_decl(parser_t* p) {
         return parse_stmt_use(p);
     }
 
+    if (next_type == TOK_STRUCT && parser_peek_n(p, 1)->type == TOK_LPAREN) {
+        return parse_var_decl(p);
+    }
+
     if (next_type == TOK_STRUCT) {
         return parse_stmt_struct_decl(p);
     }

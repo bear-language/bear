@@ -1,8 +1,12 @@
 ### todos
 
 #### misc/priority 
-- [ ] scrap `compt_temp_scope`s to allow for compt closures
-- [ ] consider requiring `foo(var a)->var` for compt funcs returning values instead of allowing ommited return values
+- [x] scrap `compt_temp_scope`s to allow for compt closures
+- [ ] anonymous structs/tuple inits 
+    - [ ] add parsing for tuple literals inside of the grouping parsing function (`(expr,)`)
+    - [ ] update all `expr->type` switches 
+    - [ ] test parser/printer before moving on 
+    - [ ] compt tuples (coalesce to anonymous struct inits)
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s

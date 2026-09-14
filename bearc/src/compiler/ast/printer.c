@@ -739,6 +739,15 @@ void pretty_print_expr(const ast_expr_t* expression) {
         pretty_print_expr(expr.expr.addr_of.inner);
         print_closing_green_brace();
         break;
+    case AST_EXPR_TUPLE_INIT:
+        print_title("tuple init");
+        print_opening_delim_from_type(TOK_LPAREN);
+        for (size_t i = 0; i < expr.expr.tuple.exprs.len; ++i) {
+            pretty_print_expr(expr.expr.tuple.exprs.start[i]);
+        }
+        print_closing_delim_from_type(TOK_RPAREN);
+        print_closing_green_brace();
+        break;
     }
     puts(",");
     printer_deindent();

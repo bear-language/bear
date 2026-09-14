@@ -1,0 +1,5 @@
+// tests/hir/a76.br
+
+struct(i32, i32) a; 
+
+// TODO

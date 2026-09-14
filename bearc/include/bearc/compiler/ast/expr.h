@@ -25,7 +25,8 @@ typedef enum ast_expr_type {
     // binary
     AST_EXPR_BINARY, // binary arithmetic expression: +, -, *, /, %, bitwise, comparison, boolean
     // grouping
-    AST_EXPR_GROUPING, // (<some_expr>)
+    AST_EXPR_GROUPING,   // (expr)
+    AST_EXPR_TUPLE_INIT, // (expr, ...)
     // unary
     AST_EXPR_PRE_UNARY,  // unary expr: -, +, !, ~, ++, --
     AST_EXPR_POST_UNARY, // unary expr: ++, --
@@ -275,6 +276,10 @@ typedef struct ast_expr_reflected_scoped_id {
     ast_expr_t* reflected_id;
 } ast_expr_reflected_scoped_id_t;
 
+typedef struct ast_expr_tuple_init {
+    ast_slice_of_exprs_t exprs;
+} ast_expr_tuple_init_t;
+
 // ^^^^^^^^^^^^^^^^^^^^^^^^
 
 typedef union ast_expr_u {
@@ -312,6 +317,7 @@ typedef union ast_expr_u {
     ast_expr_reflected_scoped_id_t reflected_scoped_id;
     ast_expr_type_t size_of;
     ast_expr_type_t align_of;
+    ast_expr_tuple_init_t tuple;
 } ast_expr_u;
 
 /// underlying expr is 0-offset aligned so this struct can be safely downcasted
