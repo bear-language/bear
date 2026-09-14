@@ -4,8 +4,7 @@ myBool = transformBool(myBool);
 printBool(myBool);
 
 fn printBool(bool val) {
-    if (val) cout <<- "true";
-    else cout <<- "false";
+    print(val as str);
 }
 
 fn transformBool(bool val) -> bool {

@@ -12,7 +12,7 @@ fn more_demo() {
 
     box::i32 thing;
     Vec<i32> veccy_thing;
-    var other <- thing;
+    var other = thing;
     other
         .transform()
         .make_nicer();

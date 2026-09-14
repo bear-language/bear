@@ -220,18 +220,7 @@ DefId DefVisitor::resolve_def(DefId did) {
 
         context.def(did).set_value(
             DefVariable{.type_id = maybe_tid.as_id(), .compt_value = maybe_compt_eid});
-        // check poison /not init
-        if (context.def(did).compt && var_init_decl.assign_op->type == TOK_ASSIGN_MOVE) {
-            auto d0 = context.emplace_diagnostic(
-                Span{context, context.def(did).span.file_id, var_init_decl.assign_op},
-                diag_code::compt_vars_should_not_be_move_initialized, diag_type::error);
-            if (maybe_compt_eid.has_value()) {
-                auto d1 = context.emplace_diagnostic(
-                    context.exec(maybe_compt_eid.as_id()).span,
-                    diag_code::compile_time_constant_cannot_be_moved, diag_type::note);
-                context.link_diagnostic(d0, d1);
-            }
-        }
+
         // if something about the most recent diagnostics involved not being resovable at
         // compile-time
         if (!maybe_compt_eid.has_value()) {
@@ -702,7 +691,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         break;
     }
 cleanup:
-    context.relinquish_temp_scopes();
+    // context.relinquish_temp_scopes();
     return did;
 }
 

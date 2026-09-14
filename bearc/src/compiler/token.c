@@ -168,8 +168,6 @@ static void string_to_token_map_init(void) {
     strimap_emplace(&string_to_token_map, "=>", TOK_EQ_ARROW);
     strimap_emplace(&string_to_token_map, "..", TOK_SCOPE_RES);
     strimap_emplace(&string_to_token_map, "::", TOK_GENERIC_SEP);
-    strimap_emplace(&string_to_token_map, "<-", TOK_ASSIGN_MOVE);
-    strimap_emplace(&string_to_token_map, "<<-", TOK_STREAM);
     strimap_emplace(&string_to_token_map, "++", TOK_INC);
     strimap_emplace(&string_to_token_map, "--", TOK_DEC);
     strimap_emplace(&string_to_token_map, "<<", TOK_LSH);
@@ -363,8 +361,6 @@ static const char* token_to_string_map_impl[TOK__NUM] = {
     [TOK_IN] = "in",
 
     // operators
-    [TOK_ASSIGN_MOVE] = "<-",
-    [TOK_STREAM] = "<<-",
     [TOK_INC] = "++",
     [TOK_DEC] = "--",
     [TOK_LSH] = "<<",

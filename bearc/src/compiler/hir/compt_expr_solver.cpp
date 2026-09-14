@@ -101,8 +101,8 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
         return context.emplace_type(TypeUnion{.def_id = exec.as<ExecUnionInit>().union_def_id},
                                     Span::generated(), false);
     }
-    if (exec.holds<ExecExprStructMemberInit>()) {
-        return context.def(exec.as<ExecExprStructMemberInit>().field_def)
+    if (exec.holds<ExecStructMemberInit>()) {
+        return context.def(exec.as<ExecStructMemberInit>().field_def)
             .template as<DefVariable>()
             .type_id;
     }
@@ -1215,11 +1215,6 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     if (!context.def(def_visitor.visit_as_transparent(matched_did)).template holds<DefVariable>()) {
         return {}; // poisoned
     }
-    if (member_init->expr.struct_member_init.assign_op->type == TOK_ASSIGN_MOVE) {
-        context.emplace_diagnostic(
-            Span{context, fid, member_init->expr.struct_member_init.assign_op},
-            diag_code::compt_values_cannot_be_moved, diag_type::error);
-    }
     TypeId needed_tid = context.def(matched_did).template as<DefVariable>().type_id;
     OptId<ExecId> maybe_val
         = solve_expr(fid, scope, member_init->expr.struct_member_init.value, needed_tid);
@@ -1272,7 +1267,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         if (i >= init_slice.len) {
             // get default value for the member field
             if (default_val.has_value()) {
-                ExecExprStructMemberInit init{
+                ExecStructMemberInit init{
                     .field_def = member_did,
                     .value = default_val.as_id(),
                 };
@@ -1295,12 +1290,6 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
             return std::nullopt; // malformed, so was already reported by parser
         }
         const token_t* proposed_member_name_tkn = member_init_expr->expr.struct_member_init.id;
-        const token_t* assign_op = member_init_expr->expr.struct_member_init.assign_op;
-
-        if (assign_op->type == TOK_ASSIGN_MOVE) {
-            context.emplace_diagnostic(Span(fid, context.ast(fid).buffer(), assign_op),
-                                       diag_code::compt_values_cannot_be_moved, diag_type::error);
-        }
         const ast_expr_t* proposed_val = member_init_expr->expr.struct_member_init.value;
         const Span proposed_member_span
             = Span(fid, context.ast(fid).buffer(), member_init_expr->first, member_init_expr->last);
@@ -1322,7 +1311,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         }
         // emplace the init execs
         member_init_execs.emplace_back(context.emplace_exec(
-            ExecExprStructMemberInit{
+            ExecStructMemberInit{
                 .field_def = member_did,
                 .value = hopefully_exec.as_id(),
             },
@@ -2743,7 +2732,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             const Exec& mem_exec = context.exec(
                 lhs_exec.as<ExecExprStructInit>().member_inits.get(var_def.member_idx));
 
-            const Exec& mem_exec_val = context.exec(mem_exec.as<ExecExprStructMemberInit>().value);
+            const Exec& mem_exec_val = context.exec(mem_exec.as<ExecStructMemberInit>().value);
 
             if (!exec_is_compt_viable(mem_exec_val)) {
 
@@ -3404,9 +3393,9 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
     }
     for (HirSize i = 0; i < s1.member_inits.len(); i++) {
         const auto e1
-            = context.exec(s1.member_inits.get(i)).template as<ExecExprStructMemberInit>().value;
+            = context.exec(s1.member_inits.get(i)).template as<ExecStructMemberInit>().value;
         const auto e2
-            = context.exec(s2.member_inits.get(i)).template as<ExecExprStructMemberInit>().value;
+            = context.exec(s2.member_inits.get(i)).template as<ExecStructMemberInit>().value;
         const OptId<ExecId> eid = solve_binary_compt_exec(e1, binary_op::bool_equal, e2);
         if (eid.empty()) {
             return std::nullopt;

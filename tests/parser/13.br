@@ -1,6 +1,6 @@
 fn bar() {
     i32 a = 5;
-    var b <- a;
+    var b = a;
 }
 
 i32 a = 12;

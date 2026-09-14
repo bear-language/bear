@@ -510,10 +510,9 @@ struct ExecExprStructInit {
     DefId struct_def_id;
 };
 
-struct ExecExprStructMemberInit {
+struct ExecStructMemberInit {
     DefId field_def;
     ExecId value;
-    bool move{false};
 };
 
 struct ExecFnPtr {
@@ -551,11 +550,11 @@ using ExecValue = std::variant<
     ExecBlock, ExecIfStmt, ExecReturn, ExecYieldStmt, ExecJump,
 
     // expressions
-    ExecUnionInit, ExecExprVariantInit, ExecExprStructInit, ExecExprStructMemberInit,
-    ExecAssignable, ExecComptConstant, ExecListLiteral, ExecAssignment, ExecIs, ExecMemberAccess,
-    ExecBinary, ExecCast, ExecPreUnary, ExecPostUnary, ExecSubscript, ExecFnCall, ExecBorrow,
-    ExecDeref, ExecExprClosure, ExecExprVariantDecomp, ExecExprMatch, ExecExprMatchBranch,
-    ExecFnPtr, ExecVariantFieldInit, ExecRange>;
+    ExecUnionInit, ExecExprVariantInit, ExecExprStructInit, ExecStructMemberInit, ExecAssignable,
+    ExecComptConstant, ExecListLiteral, ExecAssignment, ExecIs, ExecMemberAccess, ExecBinary,
+    ExecCast, ExecPreUnary, ExecPostUnary, ExecSubscript, ExecFnCall, ExecBorrow, ExecDeref,
+    ExecExprClosure, ExecExprVariantDecomp, ExecExprMatch, ExecExprMatchBranch, ExecFnPtr,
+    ExecVariantFieldInit, ExecRange>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {

@@ -183,10 +183,6 @@ typedef enum token_type {
     // range
     TOK_ELLIPSE,
     TOK_ELLIPSE_EQ,
-    // assign
-    TOK_ASSIGN_MOVE, // <-
-    // stream
-    TOK_STREAM, // <<-
     // arith
     TOK_INC, // ++
     TOK_DEC, // --

@@ -431,10 +431,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "end function with a return statement";
     case diag_code::function_has_return_type:
         return "function has return type";
-    case diag_code::code_is_unreachable_following_a_return:
-        return "code is unreachable following a return statement";
-    case diag_code::return_statement_here:
-        return "return statement here";
+    case diag_code::code_is_unreachable_following_a_block_terminating_statement:
+        return "code is unreachable following a block-terminating statement";
+    case diag_code::block_terminating_statement_here:
+        return "block-terminating statement here";
     case diag_code::function_expected_return_value:
         return "function expected return value";
     case diag_code::compt_vars_are_implicitly_static:

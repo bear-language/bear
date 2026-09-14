@@ -157,7 +157,8 @@ namespace hir {
         //
         // TODO: do the same for continue, break, and yield statements
         if (!hit_block_terminator && maybe_eid.has_value()
-            && context.exec(maybe_eid.as_id()).holds<ExecReturn>()) {
+            && context.exec(maybe_eid.as_id()).holds_any_of<ExecReturn, ExecJump>()) {
+
             hit_block_terminator = true;
 
             if (i < stmts.len - 1) {
@@ -168,9 +169,10 @@ namespace hir {
 
                 DiagLinker dl{context};
                 dl.link(context.emplace_diagnostic(
-                    span, diag_code::code_is_unreachable_following_a_return, diag_type::error));
+                    span, diag_code::code_is_unreachable_following_a_block_terminating_statement,
+                    diag_type::error));
                 dl.link(context.emplace_diagnostic(Span{context, fid, stmts.start[i]},
-                                                   diag_code::return_statement_here,
+                                                   diag_code::block_terminating_statement_here,
                                                    diag_type::note));
             }
         }

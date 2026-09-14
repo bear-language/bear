@@ -232,12 +232,12 @@ goto lex_start;
         LEX_KNOWN_LEN_PUSH(1);
     }
     case ('<'): {
-        if (pos + 2 < end_of_buf && n1 == '<' && (pos[2] == '=' || pos[2] == '-')) {
-            // <<= or <<-
+        if (pos + 2 < end_of_buf && n1 == '<' && (pos[2] == '=')) {
+            // <<=
             LEX_KNOWN_LEN_PUSH(3);
         }
-        if (n1 == '<' || n1 == '=' || n1 == '-') {
-            // <<, <=, or <-
+        if (n1 == '<' || n1 == '=') {
+            // <<, <=
             LEX_KNOWN_LEN_PUSH(2);
         }
         // // <

@@ -1,4 +1,4 @@
 // tests/parser/02.br
 f32 myFloat = 1.5;
 Thing..fooFloat = 1.33;
-myFloat <- fooFloat;
+myFloat = fooFloat;

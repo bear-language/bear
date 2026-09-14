@@ -10,7 +10,7 @@ struct Foo {
     Rc::Vec<Foo> tally;
     fn default() {
         Rc::Vec<Foo> tally = Rc..from(Vec..new());
-        return Self{.tally <- tally};
+        return Self{.tally = tally};
     }
     dt self() {
         tally.remove(self);

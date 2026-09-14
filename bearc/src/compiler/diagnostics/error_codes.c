@@ -45,7 +45,7 @@ static const char* error_messages[ERR__COUNT] = {
     [ERR_REDUNDANT_COMPT_QUALIFIER] = "redundant 'compt' qualifier",
     [ERR_INVALID_GENERIC_PARAMETER] = "invalid generic parameter",
     [ERR_EXPECTED_FN_OR_MT] = "expected function declaration keyword 'fn' or 'mt'",
-    [ERR_EXPECTED_ASSIGNMENT] = "expected assignment operator '=' or '<-'",
+    [ERR_EXPECTED_ASSIGNMENT] = "expected assignment operator '='",
     [ERR_INVALID_PATTERN]
     = "invalid patern; expected identifier, literal, or variant decomposition",
     [ERR_MUT_QUALIFIER_ON_NON_MT] = "'mut' qualifier can only be used on 'mt' methods",

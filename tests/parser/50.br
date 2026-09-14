@@ -12,7 +12,7 @@ static compt i32 MY_CONSTANT = 16;
 struct Foo {
     pub alignas(64) i32 foo;
     mt do_work(i32 input) -> i32 {
-        var value <- input;
+        var value = input;
         return match(value) {
             0...64 => self.foo,
             65...=127 => self.foo * 2,

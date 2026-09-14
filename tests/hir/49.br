@@ -55,6 +55,6 @@ var _19 = @static_assert(foo..approx(foo..fact(10), almost_fact_10)); // oops
 
 
 
-compt i32 foo <- oops;
+compt i32 foo = oops;
 
-compt i32 foo1 <- 12345;
+compt i32 foo1 = 12345;

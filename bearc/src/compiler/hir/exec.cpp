@@ -1023,7 +1023,7 @@ bool Exec::can_be_compt(const Context& ctx) {
             }
             return true;
         },
-        [&](const ExecExprStructMemberInit& t) -> bool { return get_e(t.value).compt; },
+        [&](const ExecStructMemberInit& t) -> bool { return get_e(t.value).compt; },
         // full compt ctrl no for now
         [&](const ExecExprClosure&) -> bool { return false; },
         [&](const ExecExprVariantDecomp&) -> bool { return false; },
@@ -2076,9 +2076,9 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 
             return str;
         },
-        [&ctx](const ExecExprStructMemberInit& t) -> std::string {
-            return "." + std::string(ctx.symbol_id_to_cstr(ctx.def(t.field_def).name))
-                   + ((t.move) ? " <- " : " = ") + exec_to_string(ctx, t.value);
+        [&ctx](const ExecStructMemberInit& t) -> std::string {
+            return "." + std::string(ctx.symbol_id_to_cstr(ctx.def(t.field_def).name)) + " = "
+                   + exec_to_string(ctx, t.value);
         },
         [&ctx](const ExecAssignable& t) -> std::string {
             return ctx.symbol_id_to_cstr(ctx.def(t.def_id).name);

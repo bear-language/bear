@@ -47,7 +47,7 @@
     - | Borrow: `&` `mut`? Expression
     - | Dereference: `*` Expression
     - | StructInitialization: Identifier `{` StructFieldInitialization(s) `}`
-       - StructFieldInitialization: `.` Identifier `=` | `<-` Expression 
+       - StructFieldInitialization: `.` Identifier `=` Expression 
     - | Closure: `move`? `|` Parameter(s) `|` \[`->` Type]? \[`=>` Expression] | BlockExpression 
     - | VariantDecomposition: Identifier `(` Parameter(s) `)`
     - | Match: `match` `(` Expression `)` `{` MatchBranch(s) `}`
@@ -87,10 +87,10 @@
     - | *UnionDeclaration*: Visibility `union` Identifier `{` MemberVariableDeclaration(s) `}`
     - | *ExternBlock*: `extern` ExternalLanguage `{` -> FunctionDeclaration(s) `}`
     - | *DefTypeDeclaration*: Visibility `deftype` Identifier `=` Type `;`
-    - | *TopLevelVariableDeclaration*: Visibility \[Type | `var`] Identifier `;` | \[`=` | `<-`] Expression `;`
+    - | *TopLevelVariableDeclaration*: Visibility \[Type | `var`] Identifier `;` | `=` Expression `;`
 
 - *BodyStatement*: 
-    - | VariableDeclaration: `static`? `compt`? \[`alignas` `(` IntegerLiteral `)`]? Type | `var` Identifier `;` | \[`=` | `<-`] Expression `;` 
+    - | VariableDeclaration: `static`? `compt`? \[`alignas` `(` IntegerLiteral `)`]? Type | `var` Identifier `;` | `=` Expression `;` 
     - | *UseStatement*: `use` Identifier `;`
     - | BlockStatement: `{` BodyStatement(s) `}`
     - | IfStatement: `if` `compt`? Expression `{` BodyStatement(s) `}` \[`else` `{` BodyStatement(s) `}`]?

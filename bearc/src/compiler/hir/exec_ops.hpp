@@ -40,7 +40,7 @@ enum class binary_op : uint8_t {
 };
 enum class unary_op : uint8_t { inc, dec, plus, minus, bool_not, bit_not };
 
-enum class assign_op : uint8_t { assign_eq, assign_move };
+enum class assign_op : uint8_t { assign_eq };
 
 enum class is_as_op : uint8_t { is, as };
 
@@ -95,9 +95,6 @@ struct ComptBinaryOp : NodeWithVariantValue<ComptBinaryOp> {
         case TOK_ASSIGN_RSHL_EQ:
         case TOK_ASSIGN_RSHA_EQ:
             value = assign_op::assign_eq;
-            break;
-        case TOK_ASSIGN_MOVE:
-            value = assign_op::assign_move;
             break;
         default:
             value = InvalidOp{};
