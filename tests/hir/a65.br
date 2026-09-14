@@ -1,33 +1,9 @@
 // tests/hir/a65.br
 
 import "compt_str.br";
+import "compt_fn.br";
 
 mod hir_a64;
-
-compt fn filter<T>([&]T elems, *fn(T)->bool ok) -> [&]T => filter_helper(elems, ok, 0)
-
-hid compt fn filter_helper<T>([&]T elems, *fn(T)->bool ok, u32 i) -> [&]T =>
-    [] if (i >= elems.len) else
-        ([elems[i]] + filter_helper(elems, ok, i + 1)) if ok(elems[i]) else
-        (filter_helper(elems, ok, i + 1))
-
-compt fn is_pos(var val) -> bool => val > 0
-
-compt fn is_neg<T>(T val) -> bool => val < 0
-
-compt fn map<T, K>([&]T elems, *fn(T)->K mapper) -> [&]K => map_helper(elems, mapper, 0)
-
-hid compt fn map_helper<T, K>([&]T elems, *fn(T)->K mapper, u32 i) -> [&]K => 
-    [] if (i >= elems.len) else
-        [mapper(elems[i])] + map_helper(elems, mapper, i + 1)
-
-compt fn balloon<T>([&]T elems, u32 factor) -> [&]T => balloon_helper(elems, factor, 0)
-
-hid compt fn balloon_helper<T>([&]T elems, u32 factor, u32 i) -> [&]T => 
-    [] if i >= elems.len else (ballooner(elems[i], factor)) + balloon_helper(elems, factor, i + 1)
-
-compt fn ballooner<T>(T elem, u32 factor) -> [&]T => 
-    [] if factor == 0 else [elem] + ballooner(elem, factor - 1)
 
 compt [&]i32 a = filter([1, -1, 2, 3], is_pos);
 

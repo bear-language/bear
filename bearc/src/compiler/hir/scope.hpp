@@ -111,6 +111,7 @@ class Scope {
   public:
     // this may need to be tuned for a balance between cache locality and limited rehashing
     static constexpr size_t DEFAULT_CAP = 0x100;
+    static constexpr size_t DEFAULT_SMALL_CAP = 0x8;
     using id_type = ScopeId;
     bool is_top_level() const { return top_level; };
     // constructs a non-top-level scope with a parent

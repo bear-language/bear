@@ -53,10 +53,6 @@ class DefVisitor {
                                              const ast_param_t* param);
     [[nodiscard]] OptId<DefId> resolve_param(DefId func_def, TypeId tid, SymbolId name, Span span);
 
-    [[nodiscard]] DefFunction::ParamResolResult
-    resolve_params(FileId fid, ScopeId scope, DefId func_def, ast_slice_of_params_t params,
-                   OptId<TypeId> self_type = std::nullopt);
-
     void resolve_fn_body(FileId fid, DefId func_did);
 
     void resolve_fn_body_expr(FileId fid, DefId func_did);
@@ -79,6 +75,10 @@ class DefVisitor {
 
     /// visit when not all info is need (i.e. just validate existence for pointers/references)
     DefId visit_as_transparent(DefId def) noexcept;
+
+    [[nodiscard]] DefFunction::ParamResolResult
+    resolve_params(FileId fid, ScopeId scope, DefId func_def, ast_slice_of_params_t params,
+                   OptId<TypeId> self_type = std::nullopt);
 
     void resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* stmt);
 };

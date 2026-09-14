@@ -74,6 +74,7 @@ static constexpr size_t DEFAULT_CANONICAL_TT_CAP = 0x1000;
 static constexpr size_t DEFAULT_CANONICAL_GEN_ARGS_CAP = 0x1000;
 static constexpr size_t DEFAULT_CANONICAL_COMPT_ARGS_CAP = 0x4000;
 static constexpr size_t DEFAULT_BLOCK_CAP = 0x400;
+static constexpr size_t DEFAULT_EXPRS_CAP = 0x200;
 
 Context::Context(const bearc_args_t& args) : Context(args, instances::multiple) {}
 
@@ -94,7 +95,9 @@ Context::Context(const bearc_args_t& args, instances instances)
       symbols{DEFAULT_SYMBOL_VEC_CAP}, exec_ids{DEFAULT_EXEC_VEC_CAP}, execs{DEFAULT_EXEC_VEC_CAP},
       exec_slices{DEFAULT_EXEC_VEC_CAP}, blocks{DEFAULT_BLOCK_CAP}, def_ids{DEFAULT_DEF_CAP},
       defs{DEFAULT_DEF_CAP}, def_resol_states{DEFAULT_DEF_CAP}, def_ast_nodes(DEFAULT_DEF_CAP),
-      def_mention_states{DEFAULT_DEF_CAP}, def_to_scope{id_map_arena, DEFAULT_DEF_CAP},
+      exprs{DEFAULT_EXPRS_CAP}, def_to_exprs_arena(DEFAULT_ARENA_CAP),
+      def_to_exprs{def_to_exprs_arena, DEFAULT_EXPRS_CAP}, def_mention_states{DEFAULT_DEF_CAP},
+      def_to_scope{id_map_arena, DEFAULT_DEF_CAP},
       def_to_scope_for_funcs{id_map_arena, DEFAULT_DEF_CAP}, ordered_def_slices{DEFAULT_DEF_CAP},
       def_to_ordered_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT},
       def_to_static_def_slice_id{id_map_arena, DEFAULT_DEF_SLICE_COUNT},
@@ -887,10 +890,12 @@ DefId Context::register_def(SymbolId name, bool compt, bool statik, uint8_t alig
     return def;
 }
 
-DefId Context::register_compt_def(SymbolId name, Span span, OptId<DefId> parent, DefValue value) {
-    DefId def = defs.emplace_and_get_id(value, name, true, true, true, false, span, parent);
+DefId Context::register_compt_def(SymbolId name, Span span, OptId<DefId> parent, DefValue value,
+                                  const ast_stmt_t* stmt) {
+    DefId def
+        = defs.emplace_and_get_id(value, name, true, true, true, /*generic*/ false, span, parent);
     def_resol_states.bump(Def::resol_state::resolved);
-    def_ast_nodes.bump();
+    def_ast_nodes.bump(stmt);
     def_mention_states.bump(Def::mention_state::unused);
     return def;
 }
@@ -981,7 +986,7 @@ ScopeId Context::make_scope(OptId<ScopeId> parent_scope, HirSize capacity, Span 
     return scope;
 }
 
-ScopeId Context::make_compt_temp_scope(ScopeId parent_scope, HirSize capacity) {
+ScopeId Context::make_compt_scope(ScopeId parent_scope, HirSize capacity) {
     return scopes.emplace_and_get_id(parent_scope, capacity, *temp_scope_arena,
                                      Scope::storage::variables);
 }
@@ -1039,7 +1044,7 @@ DefId Context::register_generated_deftype(ScopeId scope, SymbolId name, TypeId t
     return did;
 }
 
-bool Context::relinquish_temp_scopes() {
+bool Context::relinquish_compt_scopes() {
 
     const size_t chunk_size = temp_scope_arena->first_chunk_size();
     const size_t chunk_cap = temp_scope_arena->chunk_cap();
@@ -1308,6 +1313,27 @@ ScopeId Context::scope_for_top_level_def(DefId def_id) const {
     return def_ast_nodes.at(def_id);
 }
 
+[[nodiscard]] const ast_expr_t* Context::try_expr_for_func(DefId def_id) const {
+    const ast_stmt_t* stmt = def_ast_node(def_id);
+
+    if (stmt && stmt->type == AST_STMT_FN_DECL && stmt->stmt.fn_decl->only_expr) {
+        return stmt->stmt.fn_decl->expr;
+    }
+
+    const OptId<ExprId> maybe_exid = def_to_exprs.at(def_id);
+
+    if (maybe_exid) {
+        return exprs.at(maybe_exid.as_id());
+    }
+
+    return nullptr;
+}
+
+void Context::insert_expr_for_def(DefId did, const ast_expr_t* expr) {
+    const ExprId exid = exprs.emplace_and_get_id(expr);
+    def_to_exprs.insert(did, exid);
+}
+
 [[nodiscard]] bool Context::is_struct_def(DefId def_id) const {
     return def_ast_nodes.at(def_id)->type == AST_STMT_STRUCT_DEF;
 }
@@ -1334,8 +1360,14 @@ OptId<ScopeId> Context::try_scope_for_top_level_def(DefId def_id) const {
             return def_to_scope.at(type.as<TypeUnion>().def_id);
         }
     }
-    // hopefully found
-    return def_to_scope.at(def_id);
+    OptId<ScopeId> maybe{};
+    if (def.holds<DefFunction>()) {
+        maybe = def_to_scope_for_funcs.at(def_id);
+    }
+    if (maybe.empty()) {
+        maybe = def_to_scope.at(def_id);
+    }
+    return maybe;
 }
 
 bool Context::is_top_level_def_with_associated_scope(DefId def_id) const {

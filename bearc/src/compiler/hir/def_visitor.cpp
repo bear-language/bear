@@ -691,7 +691,8 @@ DefId DefVisitor::resolve_def(DefId did) {
         break;
     }
 cleanup:
-    // context.relinquish_temp_scopes();
+    // context.relinquish_temp_scopes(); // don't do this since there's no way to know if it's safe
+    // currently
     return did;
 }
 
@@ -753,11 +754,8 @@ OptId<DefId> DefVisitor::resolve_param(FileId fid, ScopeId scope, DefId func_def
 }
 
 OptId<DefId> DefVisitor::resolve_param(DefId func_def, TypeId tid, SymbolId name, Span span) {
-    auto param_did = context.register_compt_def(name, span, func_def);
-
-    context.def(param_did).set_value(DefVariable{.type_id = tid, .compt_value = std::nullopt});
-
-    return param_did;
+    return context.register_compt_def(name, span, func_def,
+                                      DefVariable{.type_id = tid, .compt_value = std::nullopt});
 }
 
 [[nodiscard]] DefFunction::ParamResolResult

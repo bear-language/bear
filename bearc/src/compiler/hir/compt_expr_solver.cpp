@@ -7,6 +7,9 @@
 // Licensed under the GNU GPL v3. See LICENSE for details.
 
 #include "compiler/hir/compt_expr_solver.hpp"
+#include "compiler/ast/expr.h"
+#include "compiler/hir/def.hpp"
+#include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/matching.hpp"
 #include "compiler/hir/type_resolver.hpp"
 #include "compiler/parser/token_eaters.h"
@@ -374,7 +377,8 @@ novel_issue:
         return handle_same_type(fid, scope, expr);
     case AST_EXPR_GROUPING:
         return handle_any_typed_expr(fid, scope, expr);
-
+    case AST_EXPR_CLOSURE:
+        return solve_closure(fid, scope, expr);
         // try should all fall thru to builtin
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_ADDR_OF:
@@ -389,7 +393,7 @@ novel_issue:
     case AST_EXPR_INFERABLE_AS:
     case AST_EXPR_DIAGNOSTIC:
     case AST_EXPR_STRUCT_MEMBER_INIT:
-    case AST_EXPR_CLOSURE:
+
     case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
@@ -725,10 +729,11 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
         return solve_alignof(fid, scope, expr);
     case AST_EXPR_SIZEOF:
         return solve_sizeof(fid, scope, expr);
+    case AST_EXPR_CLOSURE:
+        return solve_closure(fid, scope, expr);
     case AST_EXPR_TYPE:
     case AST_EXPR_BORROW:
     case AST_EXPR_STRUCT_MEMBER_INIT:
-    case AST_EXPR_CLOSURE:
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_BLOCK:
@@ -821,8 +826,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
 
     ScopeId temp_scope
         = maybe_existing.has_value()
-              ? context.make_compt_temp_scope(maybe_existing.as_id(), params.len())
-              : context.make_compt_temp_scope(context.containing_scope(func_did), params.len());
+              ? context.make_compt_scope(maybe_existing.as_id(), params.len())
+              : context.make_compt_scope(context.containing_scope(func_did), params.len());
 
     for (HirSize i = 0; i < params.len(); i++) {
         const Def& param_def = context.def(params.get(i));
@@ -835,10 +840,9 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         context.insert_variable(temp_scope, context.def(params.get(i)).name, param);
     }
 
-    const ast_stmt_t* fn_stmt = context.def_ast_node(func_did);
-    assert(fn_stmt->type == AST_STMT_FN_DECL);
+    const ast_expr_t* maybe_expr = context.try_expr_for_func(func_did);
 
-    if (!fn_stmt->stmt.fn_decl->only_expr) {
+    if (!maybe_expr) {
         auto d0 = context.emplace_diagnostic(
             span, diag_code::cannot_evaluate_non_pure_expr_fn_at_compt, diag_type::error);
         auto d1 = context.emplace_diagnostic_with_message_value(
@@ -858,7 +862,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         return {};
     }
 
-    const ast_expr_t* body_expr = fn_stmt->stmt.fn_decl->expr;
+    const ast_expr_t* body_expr = maybe_expr;
 
     // make sure to use the file_id for the function's expression
     OptId<ExecId> maybe_eid
@@ -1115,6 +1119,9 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     case AST_EXPR_REFLECTED_SCOPED_ID:
         maybe_eid = solve_reflected_scoped_id(fid, scope, expr);
         break;
+    case AST_EXPR_CLOSURE:
+        maybe_eid = solve_closure(fid, scope, expr);
+        break;
     case AST_EXPR_SAME_TYPE:
     case AST_EXPR_HAS_CONTRACT:
     case AST_EXPR_DEFINED:
@@ -1127,7 +1134,6 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     case AST_EXPR_TYPE:
     case AST_EXPR_BORROW:
     case AST_EXPR_STRUCT_MEMBER_INIT:
-    case AST_EXPR_CLOSURE:
     case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
@@ -2070,6 +2076,8 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
         return guard_exec_type(solve_reflected_id(fid, scope, expr));
     case AST_EXPR_REFLECTED_SCOPED_ID:
         return guard_exec_type(solve_reflected_scoped_id(fid, scope, expr));
+    case AST_EXPR_CLOSURE:
+        return guard_exec_type(solve_closure(fid, scope, expr));
     case AST_EXPR_LITERAL:
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_GROUPING:
@@ -2079,7 +2087,6 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
     case AST_EXPR_TYPE:
     case AST_EXPR_STRUCT_INIT:
     case AST_EXPR_STRUCT_MEMBER_INIT:
-    case AST_EXPR_CLOSURE:
     case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
@@ -3644,8 +3651,7 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
             const ScopeId pattern_scope
                 = maybe_pattern_scope.has_value() ? maybe_pattern_scope.as_id() : scope;
             if (pattern_matches(fid, pattern_scope, pattern_expr, matched_eid)) {
-                const ScopeId branch_scope
-                    = context.make_compt_temp_scope(scope, 8); // decently sized
+                const ScopeId branch_scope = context.make_compt_scope(scope, 8); // decently sized
                 try_variant_decomp(fid, pattern_scope, branch_scope, pattern_expr, matched_eid);
                 return solve_expr(fid, branch_scope, val_expr);
             }
@@ -4141,6 +4147,61 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
 
     return context.emplace_compt_exec(
         ExecConst{static_cast<size_t>(lay.alignment)}, // ensure this is size
+        Span{context, fid, expr});
+}
+
+[[nodiscard]] OptId<ExecId> ComptExprSolver::solve_closure(FileId fid, ScopeId scope,
+                                                           const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_CLOSURE);
+
+    const auto fn_did = context.register_compt_def(context.symbol_id<"anonymous compt closure">(),
+                                                   Span{context, fid, expr}, {});
+
+    const auto params_resol
+        = def_visitor.resolve_params(fid, scope, fn_did, expr->expr.closure.params);
+
+    if (params_resol.poisoned) {
+        return {};
+    }
+
+    const auto params = params_resol.params;
+
+    llvm::SmallVector<TypeId> type_vec{};
+
+    for (auto didx = params.begin(); didx != params.end(); didx++) {
+        const Def& param_def = context.def(didx);
+        assert(param_def.holds<DefVariable>());
+        type_vec.push_back(param_def.as<DefVariable>().type_id);
+    }
+
+    OptId<TypeId> return_type{};
+
+    if (expr->expr.closure.has_explicit_return_type) {
+        return_type = resolve_type(fid, scope, expr->expr.closure.return_type);
+    }
+
+    const auto param_types = context.freeze_id_vec(type_vec);
+
+    context.def(fn_did).set_value(DefFunction{.params = params,
+                                              .param_types = param_types,
+                                              .return_type = return_type,
+                                              .body = {},
+                                              .maybe_generic_args = {},
+                                              .discardable = return_type.empty(),
+                                              .takes_self = false});
+    if (expr->expr.closure.is_move) {
+        context.emplace_diagnostic(Span{context, fid, expr->first},
+                                   diag_code::compt_values_cannot_be_moved, diag_type::error);
+    }
+    context.register_func_to_scope(fn_did, scope);
+    context.insert_expr_for_def(fn_did, expr->expr.closure.body);
+    context.record_function_def(fn_did);
+
+    return context.emplace_compt_exec(
+        ExecFnPtr{.func_def_id = fn_did,
+                  .fn_ptr_tid = context.emplace_type(
+                      TypeFnPtr{.param_types = param_types, .return_type = return_type},
+                      Span::generated(), false)},
         Span{context, fid, expr});
 }
 

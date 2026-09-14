@@ -10,6 +10,7 @@
 #define COMPILER_HIR_TABLES_HPP
 
 #include "cli/args.h"
+#include "compiler/ast/expr.h"
 #include "compiler/ast/stmt.h"
 #include "compiler/hir/arena_str_hash_map.hpp"
 #include "compiler/hir/deduction.hpp"
@@ -29,6 +30,7 @@
 #include "compiler/token.h"
 #include "utils/data_arena.hpp"
 #include "llvm/ADT/SmallVector.h"
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <shared_mutex>
@@ -154,7 +156,8 @@ class Context {
     /// \param span - span of this scope, which is recorded to map span -> scope, not the other way
     /// around
     [[nodiscard]] ScopeId make_scope(OptId<ScopeId> parent_scope, HirSize capacity, Span span);
-    [[nodiscard]] ScopeId make_compt_temp_scope(ScopeId parent_scope, HirSize capacity);
+    [[nodiscard]] ScopeId make_compt_scope(ScopeId parent_scope,
+                                           HirSize capacity = Scope::DEFAULT_SMALL_CAP);
 
     void register_span_to_scope(Span span, ScopeId scope);
     /// finds the scope within the specified span
@@ -167,7 +170,10 @@ class Context {
 
     /// allow the Context to clean up the memory footprint of temporary scopes
     /// only to be called when it is certain that there are no living ScopeIds to temporary scopes
-    bool relinquish_temp_scopes();
+    ///
+    /// TODO; currently this should not be called since there is no way of marking compt scopes as
+    /// needing to remain alive
+    bool relinquish_compt_scopes();
 
     [[nodiscard]] Scope& scope(ScopeId scope);
     [[nodiscard]] OptId<DefId> look_up_variable(ScopeId scope, SymbolId sid) const;
@@ -456,7 +462,7 @@ class Context {
                                  uint8_t align_pref, abi_lang abi = abi_lang::bear);
 
     DefId register_compt_def(SymbolId name, Span span, OptId<DefId> parent,
-                             DefValue value = DefUnevaluated{});
+                             DefValue value = DefUnevaluated{}, const ast_stmt_t* stmt = nullptr);
 
     DefId register_def(SymbolId name, Span span, OptId<DefId> parent, const ast_stmt_t* stmt,
                        DefValue value = DefUnevaluated{});
@@ -631,6 +637,14 @@ class Context {
     [[nodiscard]] MoveResult already_moved(MoveMapId mid, DefId did) const;
 
     [[nodiscard]] const ast_stmt_t* def_ast_node(DefId def_id) const;
+
+    /// tries to get an expr for a function (if it an expr-func)
+    ///
+    /// - returns nullptr if no such expr exists
+    [[nodiscard]] const ast_expr_t* try_expr_for_func(DefId def_id) const;
+
+    /// used primarily for register closure bodies to their anonymous def
+    void insert_expr_for_def(DefId did, const ast_expr_t* expr);
 
     [[nodiscard]] bool is_struct_def(DefId def_id) const;
 
@@ -904,6 +918,10 @@ class Context {
     /// cached dense mapping of DefIds to AST nodes for fast resolution, this mapping should
     /// never be serialized
     IdVecMap<DefId, const ast_stmt_t*> def_ast_nodes;
+    using ExprId = Id<const ast_expr_t*>;
+    IdVecMap<ExprId, const ast_expr_t*> exprs;
+    DataArena def_to_exprs_arena;
+    IdHashMap<DefId, ExprId> def_to_exprs;
     /// tracks whether a defintion is used/unused/modified (for tracking dead definitions)
     IdVecMap<DefId, Def::mention_state> def_mention_states;
 
