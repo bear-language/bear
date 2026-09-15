@@ -18,4 +18,12 @@ var _6 = @static_assert @same_type(struct(struct(i32), struct(i32)), struct(stru
 
 struct Foo{}
 
-var _7 = @static_assert @same_type(struct(struct(i32), struct(i32)), struct(struct(Int), struct(struct(struct(Foo)))));
+var _7 = @static_assert @same_type(struct(struct(i32), struct(i32)), struct(struct(Int), struct(struct(struct(Foo))))); // oops
+
+var _8 = (1,);
+
+var _9 = (1,1);
+
+var _10 = (,); // oops
+
+var _11 = (); // oops

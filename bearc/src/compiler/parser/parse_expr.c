@@ -56,6 +56,26 @@ ast_slice_of_exprs_t parse_slice_of_exprs_call(parser_t* p, token_type_e divider
     return parser_freeze_expr_spill_arr(p, &sarr);
 }
 
+ast_slice_of_exprs_t parse_slice_of_exprs_call_with_first_expr(ast_expr_t* first_expr, parser_t* p,
+                                                               token_type_e divider,
+                                                               token_type_e until_tkn,
+                                                               ast_expr_t* (*call)(parser_t*)) {
+    spill_arr_ptr_t sarr;
+    spill_arr_ptr_init(&sarr);
+
+    spill_arr_ptr_push(&sarr, first_expr);
+
+    while (!(parser_peek_match(p, until_tkn) || parser_eof(p)) // while !eof (edge-case handling)
+    ) {
+        spill_arr_ptr_push(&sarr, call(p));
+        if (!(parser_peek_match(p, until_tkn) || parser_eof(p))) {
+            parser_expect_token(p, divider);
+        }
+    }
+
+    return parser_freeze_expr_spill_arr(p, &sarr);
+}
+
 static ast_slice_of_exprs_t parse_slice_of_exprs_call_call(parser_t* p, token_type_e divider,
                                                            bool (*divider_call)(token_type_e),
                                                            ast_expr_t* (*call)(parser_t*)) {
@@ -727,6 +747,17 @@ ast_expr_t* parser_sync_expr(parser_t* p) {
     return dummy_expr;
 }
 
+static ast_expr_t* parse_tuple(parser_t* p, token_t* lparen, ast_expr_t* first_expr) {
+    ast_expr_t* tup = parser_alloc_expr(p);
+    tup->type = AST_EXPR_TUPLE_INIT;
+    tup->expr.tuple.exprs = parse_slice_of_exprs_call_with_first_expr(first_expr, p, TOK_COMMA,
+                                                                      TOK_RPAREN, &parse_expr);
+    tup->first = lparen;
+    parser_expect_token(p, TOK_RPAREN);
+    tup->last = parser_prev(p);
+    return tup;
+}
+
 ast_expr_t* parse_grouping(parser_t* p) {
     ast_expr_t* grouping = parser_alloc_expr(p);
     grouping->type = AST_EXPR_GROUPING;
@@ -735,6 +766,10 @@ ast_expr_t* parse_grouping(parser_t* p) {
     ast_expr_t* expr = parse_expr(p);
     if (expr->type == AST_EXPR_INVALID) {
         grouping->type = AST_EXPR_INVALID;
+        return grouping;
+    }
+    if (parser_match_token(p, TOK_COMMA)) {
+        return parse_tuple(p, lparen, expr);
     }
     grouping->expr.grouping.expr = expr;
     token_t* rparen = parser_expect_token(p, TOK_RPAREN);

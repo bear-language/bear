@@ -326,6 +326,8 @@ class ComptExprSolver {
     [[nodiscard]] OptId<ExecId> solve_alignof(FileId fid, ScopeId scope, const ast_expr_t* expr);
 
     [[nodiscard]] OptId<ExecId> solve_closure(FileId fid, ScopeId scope, const ast_expr_t* expr);
+
+    [[nodiscard]] OptId<ExecId> solve_tuple_init(FileId fid, ScopeId scope, const ast_expr_t* expr);
 };
 
 } // namespace hir

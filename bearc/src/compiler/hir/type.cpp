@@ -200,9 +200,26 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
             }
         },
         [&](const TypeStruct& t) {
-            str += context.symbol_id_to_cstr(context.def(t.def_id).name);
-            if (t.gen_args_slice.has_value()) {
-                str += gen_args_to_str(context, t.gen_args_slice.as_id());
+            if (t.anonymous) {
+                str += "struct(";
+
+                const auto dids = context.def(t.def_id).template as<DefStruct>().ordered_members;
+
+                for (const auto didx : dids) {
+                    str += TypeTransformer<TypeToString>{context}(
+                               context.def(didx).template as<DefVariable>().type_id)
+                               .str;
+                    if (didx != dids.last_elem()) {
+                        str += ',';
+                    }
+                }
+
+                str += ")";
+            } else {
+                str += context.symbol_id_to_cstr(context.def(t.def_id).name);
+                if (t.gen_args_slice.has_value()) {
+                    str += gen_args_to_str(context, t.gen_args_slice.as_id());
+                }
             }
             if constexpr (considers_mut()) {
                 if (t1.mut) {

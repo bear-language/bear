@@ -383,7 +383,9 @@ novel_issue:
         return handle_any_typed_expr(fid, scope, expr);
     case AST_EXPR_CLOSURE:
         return solve_closure(fid, scope, expr);
-        // try should all fall thru to builtin
+    case AST_EXPR_TUPLE_INIT:
+        return solve_tuple_init(fid, scope, expr);
+    // try should all fall thru to builtin
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_POST_UNARY:
@@ -745,6 +747,7 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
     case AST_EXPR_ELSE_MATCH_PATTERN:
     case AST_EXPR_MEMBERS_OF:
     case AST_EXPR_STATICS_OF:
+    case AST_EXPR_TUPLE_INIT:
     case AST_EXPR_INVALID:
         // not a valid compile-time expr
         context.emplace_diagnostic(Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
@@ -1125,6 +1128,9 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         break;
     case AST_EXPR_CLOSURE:
         maybe_eid = solve_closure(fid, scope, expr);
+        break;
+    case AST_EXPR_TUPLE_INIT:
+        maybe_eid = solve_tuple_init(fid, scope, expr);
         break;
     case AST_EXPR_SAME_TYPE:
     case AST_EXPR_HAS_CONTRACT:
@@ -2105,6 +2111,7 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
     case AST_EXPR_STATIC_ASSERT:
     case AST_EXPR_ALIGNOF:
     case AST_EXPR_SIZEOF:
+    case AST_EXPR_TUPLE_INIT:
     case AST_EXPR_INVALID:
         break;
     }
@@ -4215,6 +4222,45 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         Span{context, fid, expr});
 }
 
+[[nodiscard]] OptId<ExecId> ComptExprSolver::solve_tuple_init(FileId fid, ScopeId scope,
+                                                              const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_TUPLE_INIT);
+
+    const auto exprs = expr->expr.tuple.exprs;
+
+    llvm::SmallVector<ExecId> eid_vec{};
+
+    for (auto i = 0uz; i < exprs.len; ++i) {
+        const auto maybe_eid = solve_expr(fid, scope, exprs.start[i]);
+        if (maybe_eid.empty()) {
+            return {};
+        }
+        eid_vec.push_back(maybe_eid.as_id());
+    }
+
+    llvm::SmallVector<TypeId> tid_vec{};
+
+    for (const auto eid : eid_vec) {
+        const auto maybe_tid = infer_type_from_exec(eid);
+        if (maybe_tid.empty()) {
+            return {};
+        }
+        tid_vec.push_back(maybe_tid.as_id());
+    }
+
+    const auto maybe_anon_tid = TypeResolver{context, def_visitor}.make_anon_struct_type(tid_vec);
+
+    if (maybe_anon_tid.empty()) {
+        return {};
+    }
+
+    const auto& ty = context.type(maybe_anon_tid.as_id());
+
+    assert(ty.holds<TypeStruct>());
+
+    return {}; // TODO build up the struct init here, consider getting rid of the
+               // ExecStructMemberInit construct
+}
 [[nodiscard]] OptId<GenericArgIdSliceId>
 ComptExprSolver::lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generic_args_t gen_args,
                                     bool need_layout_info) {

@@ -17,7 +17,6 @@
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/token.h"
-#include <iostream>
 #include <optional>
 
 namespace hir {
@@ -337,31 +336,9 @@ class TypeResolver {
             }
             tid_vec.push_back(maybe_tid.as_id());
         }
-        const auto tid_slice = context.freeze_id_vec(tid_vec);
-
         Span span{context, fid, type->first, type->last};
 
-        llvm::SmallVector<DefId> mem_vec{};
-
-        size_t accum{};
-        for (const auto tidx : tid_slice) {
-            const auto sid = context.symbol_id(std::to_string(accum)); // fine cuz sso
-            mem_vec.push_back(context.register_compt_def(
-                sid, context.type(tidx).span, {}, DefVariable{.type_id = context.type_id(tidx)}));
-            ++accum;
-        }
-
-        DefId did = context.register_compt_def(
-            context.symbol_id<"anonymous struct">(), span, {},
-            DefStruct{.scope = context.root_scope(),
-                      .ordered_members = context.freeze_id_vec(mem_vec),
-                      .contracts = {},
-                      .orginal = {},
-                      .maybe_generic_args = {}});
-
-        return context.emplace_type(
-            TypeStruct{.def_id = did, .gen_args_slice = {}, .anonymous = true}, span,
-            type->type.anon_struct.mut);
+        return make_anon_struct_type(tid_vec, type->type.anon_struct.mut, span);
     }
 
     OptId<TypeId> type_generic(FileId fid, ScopeId scope, const ast_type_t* type_node,
@@ -476,6 +453,31 @@ class TypeResolver {
 
         // make new type as to update span and remove mut
         return context.emplace_type(type.value, span, false);
+    }
+
+    [[nodiscard]] OptId<TypeId> make_anon_struct_type(llvm::SmallVectorImpl<TypeId>& tid_vec,
+                                                      bool mut = false,
+                                                      Span span = Span::generated()) {
+        llvm::SmallVector<DefId> mem_vec{};
+
+        size_t accum{};
+        for (const auto tid : tid_vec) {
+            const auto sid = context.symbol_id(std::to_string(accum)); // fine cuz sso
+            mem_vec.push_back(context.register_compt_def(sid, context.type(tid).span, {},
+                                                         DefVariable{.type_id = tid}));
+            ++accum;
+        }
+
+        DefId did = context.register_compt_def(
+            context.symbol_id<"anonymous struct">(), span, {},
+            DefStruct{.scope = context.root_scope(),
+                      .ordered_members = context.freeze_id_vec(mem_vec),
+                      .contracts = {},
+                      .orginal = {},
+                      .maybe_generic_args = {}});
+
+        return context.emplace_type(
+            TypeStruct{.def_id = did, .gen_args_slice = {}, .anonymous = true}, span, mut);
     }
 };
 
