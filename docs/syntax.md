@@ -37,6 +37,7 @@
     - | ListLiteral: `[` Expression `,` Expression `,` ... `]`
     - | BinaryExpression: `Expression` BinaryOp `Expression`
         - BinaryOp: a full precedence chart is in the works, for now refer to the maps in the [parser rules file](bearc/src/compiler/parser/rules.c) 
+    - | MemberAccess: Expression `.` \[Identifer | Expression], note: the Expression must evaluate to a compile-time u32, and, inorder to disambiguate Identifer from an expression here, use parentheses around the Identifer
     - | Preunary: `--` | `++` 
     - | SizeOf: `@sizeof` `(` Type `)`
     - | AlignOf: `@alignof` `(` Type `)`
