@@ -35,21 +35,28 @@ template <ConsiderMut C> bool TypeComparator<C>::operator()(const Type& t1, cons
             if (!t.anonymous) {
                 return t.def_id == t2.as<TypeStruct>().def_id;
             }
-            // since both are anonymous, just compare members one by one
+
+            // since both are anonymous, do structural comparision, so just compare members one by
+            // one
             const auto t_ord_mems = context.def(t.def_id).template as<DefStruct>().ordered_members;
             const auto o_ord_mems = context.def(o.def_id).template as<DefStruct>().ordered_members;
+
+            if (t_ord_mems.len() != o_ord_mems.len()) {
+                return false;
+            }
+
             for (auto i = 0u; i < t_ord_mems.len(); ++i) {
                 const auto& t_mem = context.def(t_ord_mems.get(i));
                 const auto& o_mem = context.def(o_ord_mems.get(i));
                 if (!t_mem.template holds_same<DefVariable>(o_mem)) {
                     return false;
                 }
-                if (t_mem.template as<DefVariable>().type_id
-                    != o_mem.template as<DefVariable>().type_id) {
+                if (!context.equivalent_type(t_mem.template as<DefVariable>().type_id,
+                                             o_mem.template as<DefVariable>().type_id)) {
                     return false;
                 }
             }
-            return false;
+            return true;
         },
         [&t2](const TypeVariant& t) -> bool {
             if (!t2.holds<TypeVariant>()) {
@@ -117,6 +124,17 @@ template <ConsiderMut C> size_t TypeHasher<C>::operator()(const Type& t1) const 
     auto vs = Ovld{
         [&](const TypeBuiltin& t) -> size_t { return mix(0x01uz ^ static_cast<size_t>(t.type)); },
         [&](const TypeStruct& t) -> size_t {
+            // hash structurally for anonymous structs
+            if (t.anonymous) {
+                const auto& struct_def = context.def(t.def_id).template as<DefStruct>();
+                auto accum{0uz};
+                for (const auto didx : struct_def.ordered_members) {
+                    accum = transform(
+                        accum, context.type(context.def(didx).template as<DefVariable>().type_id)
+                                   .canonical.raw());
+                }
+                return accum;
+            }
             return mix(0x02uz ^ static_cast<size_t>(t.def_id.raw()));
         },
         [&](const TypeDeftype&) -> size_t {

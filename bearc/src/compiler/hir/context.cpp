@@ -2584,7 +2584,6 @@ bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) {
 
 [[nodiscard]] OptId<ExecId> Context::try_default_value_for_type(TypeId tid, Span span,
                                                                 const bool compt) {
-
     const Type ty = type(tid);
 
     if (ty.holds<TypeRef>()) {
@@ -2721,7 +2720,7 @@ Context::default_value_for_type_using_default_contract(TypeId tid, Span span, co
 
 [[nodiscard]] OptId<ScopeId> Context::try_scope_for_type(TypeId tid) {
     const Type& ty = type(try_decay(tid));
-    if (ty.holds<TypeStruct>()) {
+    if (ty.holds<TypeStruct>() && !ty.as<TypeStruct>().anonymous) {
         return scope_for_def(ty.as<TypeStruct>().def_id);
     }
     return {};
@@ -2800,7 +2799,6 @@ void Context::put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_
 [[nodiscard]] OptId<DeductionGuideId>
 Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
                                           IdSlice<GenericParamId> gen_params) {
-
     const ast_slice_of_params_t params = stmt->params;
 
     if (!params.len) {
@@ -2827,7 +2825,6 @@ Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
 [[nodiscard]] OptId<DeductionStepId> Context::recursive_deduction_step_helper_for_params(
     DeductionStep step, ast_slice_of_params_t params, const ast_type_t* curr_type, SymbolId sid,
     bool nested) {
-
     const auto nested_type = [this, &step, sid, &params] [[nodiscard]] (
                                  const ast_type_t* nested_type) -> OptId<DeductionStepId> {
         const OptId<DeductionStepId> maybe_nested = recursive_deduction_step_helper_for_params(
@@ -2927,7 +2924,9 @@ Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
         }
         break;
     }
-        // these should never be canonical bases
+
+    case AST_TYPE_ANON_STRUCT: // TODO
+                               // these should never be canonical bases
     case AST_TYPE_REF_PTR:
     case AST_TYPE_ARR:
     case AST_TYPE_SLICE:
@@ -3106,7 +3105,9 @@ Context::recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice
         }
         break;
     }
-        // these should never be canonical bases
+
+    case AST_TYPE_ANON_STRUCT: // TODO
+                               // these should never be canonical bases
     case AST_TYPE_REF_PTR:
     case AST_TYPE_ARR:
     case AST_TYPE_SLICE:
@@ -3256,7 +3257,6 @@ Context::compt_args_map(CanonicalComptArgsIdMapId map_id) {
 }
 
 Span Context::span_for_gen_args(GenericArgIdSliceId gen_arg_slice) const {
-
     auto span = [this](GenericArgId gid) {
         Ovld vs{
             [this](ExecId eid) { return exec(eid).span; },

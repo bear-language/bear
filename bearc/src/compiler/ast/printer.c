@@ -275,6 +275,19 @@ static void print_type(ast_type_t* type) {
         print_closing_delim_from_type(TOK_RPAREN);
         print_closing_green_brace();
         break;
+    case AST_TYPE_ANON_STRUCT:
+        print_title("anonymous struct");
+        print_delineator_from_type(TOK_STRUCT);
+        print_opening_delim_from_type(TOK_LPAREN);
+        for (size_t i = 0; i < type->type.anon_struct.types.len; ++i) {
+            print_type(type->type.anon_struct.types.start[i]);
+        }
+        print_closing_delim_from_type(TOK_RPAREN);
+        if (type->type.anon_struct.mut) {
+            print_mut();
+        }
+        print_closing_green_brace();
+        break;
     }
     puts(",");
     printer_deindent();

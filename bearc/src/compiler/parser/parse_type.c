@@ -172,6 +172,9 @@ static ast_type_t* parse_type_impl(parser_t* p, token_ptr_slice_t leading_id, bo
             compiler_error_list_emplace(p->error_list, first_tkn, ERR_MUT_CANNOT_BIND_TO_ARRAYS);
             return parser_sync_type(p);
         }
+        if (t1 == TOK_STRUCT) {
+            return parse_type_anon_struct(p);
+        }
         // try function ptr (effectively a special case)
         if (t1 == TOK_STAR && t2 == TOK_FN) {
             inner = parse_type_fn_ptr(p);
@@ -200,6 +203,10 @@ static ast_type_t* parse_type_impl(parser_t* p, token_ptr_slice_t leading_id, bo
 
     else if (parser_peek_match(p, TOK_DECAY)) {
         inner = parse_type_decay(p);
+    }
+
+    else if (parser_peek_match(p, TOK_STRUCT)) {
+        inner = parse_type_anon_struct(p);
     }
 
     else if (parser_peek_match(p, TOK_BOOL_AND)) {
@@ -536,4 +543,42 @@ ast_type_t* parse_type_fn_ptr(parser_t* p) {
     fnp->first = first;
     fnp->last = parser_prev(p);
     return fnp;
+}
+
+ast_type_t* parse_type_anon_struct(parser_t* p) {
+    ast_type_t* t = parser_alloc_type(p);
+    t->tag = AST_TYPE_ANON_STRUCT;
+    t->canonical_base = t;
+
+    bool mut = parser_match_token(p, TOK_MUT);
+
+    parser_expect_token(p, TOK_STRUCT);
+
+    t->first = parser_prev(p);
+
+    parser_expect_token(p, TOK_LPAREN);
+
+    if (parser_peek_match(p, TOK_RPAREN)) {
+        compiler_error_list_emplace(p->error_list, parser_eat(p), ERR_EXPECTED_TYPE);
+        t->tag = AST_TYPE_INVALID;
+        return t;
+    }
+
+    const ast_slice_of_types_t tys = parse_slice_of_types(p, TOK_COMMA, TOK_RPAREN);
+    t->type.anon_struct.types = tys;
+
+    parser_expect_token(p, TOK_RPAREN);
+
+    if (parser_match_token(p, TOK_MUT)) {
+        if (mut) {
+            compiler_error_list_emplace(p->error_list, parser_prev(p), ERR_REDUNDANT_MUT);
+        }
+        mut = true;
+    }
+
+    t->type.anon_struct.mut = mut;
+
+    t->last = parser_prev(p);
+
+    return t;
 }

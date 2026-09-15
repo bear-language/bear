@@ -1,5 +1,21 @@
 // tests/hir/a76.br
 
-struct(i32, i32) a; 
+struct(i32, i32) _0; 
 
-// TODO
+mut struct(i32, i32) _1; 
+
+mut struct(i32, i32) mut _2; 
+
+var _3 = @static_assert @same_type(struct(i32, i32), struct(i32, i32));
+
+var _4 = @static_assert @same_type(struct(i32, i16), struct(i32, i32));// oops
+
+var _5 = @note @type_to_str(struct(i32, i32));
+
+deftype Int = i32;
+
+var _6 = @static_assert @same_type(struct(struct(i32), struct(i32)), struct(struct(Int), struct(Int)));
+
+struct Foo{}
+
+var _7 = @static_assert @same_type(struct(struct(i32), struct(i32)), struct(struct(Int), struct(struct(struct(Foo)))));
