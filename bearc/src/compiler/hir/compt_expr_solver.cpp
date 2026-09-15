@@ -2724,10 +2724,15 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
                                            diag_type::error);
             }
 
-            auto maybe_mem_var = context.look_up_member_var_guarding_hid(
+            auto maybe_mem_var = context.look_up_member_var_no_diag_except_hid(
                 struct_def, context.symbol_id(id_slice.start[0]), rhs_span, scope);
 
+            // TODO try context.try_member_index()
+
             if (maybe_mem_var.empty()) {
+                context.emplace_diagnostic(Span{context, fid, expr},
+                                           diag_code::value_does_not_refer_to_a_named_mem,
+                                           diag_type::error);
                 return std::nullopt; // posioned
             }
 

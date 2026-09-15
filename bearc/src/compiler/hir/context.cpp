@@ -1750,6 +1750,10 @@ OptId<DefId> Context::look_up_scoped_namespace_bypassing_visibility(ScopeId scop
         id_slice);
 }
 
+[[nodiscard]] OptId<DefId> Context::try_member_index(DefId struct_did, ExecId ord_eid) {
+    return {}; // TODO
+}
+
 OptId<DefId> Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_id,
                                                       Span id_span, ScopeId local_scope) {
     assert(struct_def.holds<DefStruct>());

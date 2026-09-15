@@ -327,6 +327,8 @@ class Context {
                                                                SymbolId symbol_id, Span id_span,
                                                                ScopeId local_scope);
 
+    [[nodiscard]] OptId<DefId> try_member_index(DefId struct_did, ExecId ord_eid);
+
     /// returns some only when a DefFunction or DefGenericFunction is found
     [[nodiscard]] OptId<DefId>
     look_up_member_function_guarding_hid(DefVisitor& def_visitor, const Def& struct_def,
