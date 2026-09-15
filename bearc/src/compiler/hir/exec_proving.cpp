@@ -67,14 +67,18 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             return equivalent_exec(ctx, t.payload_init,
                                    other.as<ExecExprVariantInit>().payload_init);
         },
-        [&other, &ctx](const ExecExprStructInit& t) -> bool {
-            if (!other.holds<ExecExprStructInit>()) {
+        [&other, &ctx](const ExecStructInit& t) -> bool {
+            if (!other.holds<ExecStructInit>()) {
                 return false;
             }
 
-            const auto o = other.as<ExecExprStructInit>();
+            const auto o = other.as<ExecStructInit>();
 
-            if (t.struct_def_id != o.struct_def_id) {
+            if (t.anonymous != o.anonymous) {
+                return false;
+            }
+
+            if (!t.anonymous && t.struct_def_id != o.struct_def_id) {
                 return false;
             }
 
@@ -92,19 +96,6 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             }
 
             return true;
-        },
-        [&other, &ctx](const ExecStructMemberInit& t) -> bool {
-            if (!other.holds<ExecStructMemberInit>()) {
-                return false;
-            }
-
-            const auto o = other.as<ExecStructMemberInit>();
-
-            if (t.field_def != o.field_def) {
-                return false;
-            }
-
-            return equivalent_exec(ctx, t.value, o.value);
         },
         [](const ExecAssignable&) -> bool { return false; },
         [&other](const ExecComptConstant& t) -> bool {
@@ -253,23 +244,14 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
             return true;
         },
-        [&e2](const ExecExprStructInit& t) -> bool {
-            if (!e2.holds<ExecExprStructInit>()) {
+        [&e2](const ExecStructInit& t) -> bool {
+            if (!e2.holds<ExecStructInit>()) {
                 return false;
             }
 
-            const auto o = e2.as<ExecExprStructInit>();
+            const auto o = e2.as<ExecStructInit>();
 
             return t.struct_def_id == o.struct_def_id;
-        },
-        [&e2](const ExecStructMemberInit& t) -> bool {
-            if (!e2.holds<ExecStructMemberInit>()) {
-                return false;
-            }
-
-            const auto o = e2.as<ExecStructMemberInit>();
-
-            return (t.field_def == o.field_def);
         },
         [](const ExecAssignable&) -> bool { return false; },
         [&e2, &ctx, eid1](const ExecComptConstant& t) -> bool {
@@ -350,15 +332,12 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
             return mix(t.variant_def_id.raw() ^ hash_exec(ctx, t.payload_init)
                        ^ t.active_member_idx);
         },
-        [&ctx](const ExecExprStructInit& t) -> size_t {
-            size_t h = t.struct_def_id.raw();
+        [&ctx](const ExecStructInit& t) -> size_t {
+            size_t h = (t.anonymous) ? 0 : t.struct_def_id.raw();
             for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
                 h = transform(h, hash_exec(ctx, ctx.exec_id(eidx)));
             }
             return h;
-        },
-        [&ctx](const ExecStructMemberInit& t) -> size_t {
-            return transform(t.field_def.raw(), hash_exec(ctx, (t.value)));
         },
         [](const ExecAssignable& t) -> size_t {
             return transform(t.def_id.raw(), t.type_id.raw());

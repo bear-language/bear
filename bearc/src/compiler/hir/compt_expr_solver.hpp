@@ -206,7 +206,7 @@ class ComptExprSolver {
     [[nodiscard]] OptId<ExecId> handle_defined(FileId fid, ScopeId scope, const ast_expr_t* expr);
 
     static bool exec_is_compt_viable(const Exec& exec) {
-        return exec.holds_any_of<ExecConst, ExecExprStructInit, ExecListLiteral, ExecUnionInit,
+        return exec.holds_any_of<ExecConst, ExecStructInit, ExecListLiteral, ExecUnionInit,
                                  ExecExprVariantInit>();
     }
 
@@ -261,8 +261,7 @@ class ComptExprSolver {
     [[nodiscard]] OptId<ExecId> solve_list_eq(const Exec& list1, const Exec& list2,
                                               binary_op eq_neq);
 
-    [[nodiscard]] OptId<ExecId> solve_struct_eq(const Exec& list1, const Exec& list2,
-                                                binary_op eq_neq);
+    [[nodiscard]] OptId<ExecId> solve_struct_eq(ExecId eid1, ExecId eid2, binary_op eq_neq);
 
     [[nodiscard]] OptId<ExecId> solve_fn_ptr_eq(const Exec& fnp1, const Exec& fnp2,
                                                 binary_op eq_neq) {

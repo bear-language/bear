@@ -4,7 +4,7 @@ struct(i32, i32) _0;
 
 mut struct(i32, i32) _1; 
 
-mut struct(i32, i32) mut _2; 
+mut struct(i32, i32) mut _2; // oops
 
 var _3 = @static_assert @same_type(struct(i32, i32), struct(i32, i32));
 
@@ -16,9 +16,9 @@ deftype Int = i32;
 
 var _6 = @static_assert @same_type(struct(struct(i32), struct(i32)), struct(struct(Int), struct(Int)));
 
-struct Foo{}
+struct Fuzz{}
 
-var _7 = @static_assert @same_type(struct(struct(i32), struct(i32)), struct(struct(Int), struct(struct(struct(Foo))))); // oops
+var _7 = @static_assert @same_type(struct(struct(i32), struct(i32)), struct(struct(Int), struct(struct(struct(Fuzz))))); // oops
 
 var _8 = (1,);
 
@@ -27,3 +27,32 @@ var _9 = (1,1);
 var _10 = (,); // oops
 
 var _11 = (); // oops
+
+struct Foo<var V> {}
+
+struct Bar {
+    i32 a;
+    i32 b;
+}
+
+compt var bar = Bar{.a = 12, .b = 22};
+
+deftype F = Foo<bar>;
+
+deftype P = Foo<Bar{.a = 1000, .b = 2000}>;
+
+var _12 = @note @type_to_str decay F;
+
+var _13 = @note @type_to_str decay P;
+
+deftype A = Foo<(1,2,3,4)>;
+
+var _14 = @note @type_to_str decay A;
+
+var _15 = @static_assert((1,3,5,7,11) == (1,2,3)); // oops
+
+var _16 = @static_assert(((1,),2,3) == ((1,),2,3));
+
+var _17 = @static_assert @same_type(Foo::(Fuzz{}, 1), Foo::(Fuzz{}, 1));
+
+var _18 = @static_assert !@same_type(Foo::(Fuzz{}, Foo::<1>{}), Foo::(Fuzz{}, Foo::<1>{})); // oops

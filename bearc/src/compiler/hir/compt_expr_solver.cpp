@@ -31,8 +31,8 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
         auto bin_type = exec.as<ExecComptConstant>().type_builtin();
         return context.emplace_type(TypeBuiltin{.type = bin_type}, Span::generated(), false);
     }
-    if (exec.holds<ExecExprStructInit>()) {
-        auto struct_did = exec.as<ExecExprStructInit>().struct_def_id;
+    if (exec.holds<ExecStructInit>()) {
+        auto struct_did = exec.as<ExecStructInit>().struct_def_id;
 
         const auto struct_def = context.def(struct_did);
 
@@ -46,6 +46,7 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
             TypeStruct{
                 .def_id = struct_did,
                 .gen_args_slice = maybe_gen_args,
+                .anonymous = exec.as<ExecStructInit>().anonymous,
             },
             Span::generated(), false);
     }
@@ -107,11 +108,6 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
     if (exec.holds<ExecUnionInit>()) {
         return context.emplace_type(TypeUnion{.def_id = exec.as<ExecUnionInit>().union_def_id},
                                     Span::generated(), false);
-    }
-    if (exec.holds<ExecStructMemberInit>()) {
-        return context.def(exec.as<ExecStructMemberInit>().field_def)
-            .template as<DefVariable>()
-            .type_id;
     }
 
 novel_issue:
@@ -416,8 +412,7 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
                                           std::optional<builtin_type> into_builtin,
                                           OptId<TypeId> into_tid) {
     auto emplace_e = [this, fid, expr](ExecValue val) {
-        return context.register_exec(
-            context, val, Span(fid, context.ast(fid).buffer(), expr->first, expr->last), true);
+        return context.register_exec(context, val, Span(context, fid, expr), true);
     };
 
     if (into_tid.has_value() && !into_builtin.has_value()
@@ -1166,8 +1161,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
             return eid;
         }
         if (const Exec& exec = context.exec(eid);
-            exec.holds<ExecExprStructInit>() && into_type.holds<TypeStruct>()
-            && (exec.as<ExecExprStructInit>().struct_def_id == into_type.as<TypeStruct>().def_id)) {
+            exec.holds<ExecStructInit>() && into_type.holds<TypeStruct>()
+            && (exec.as<ExecStructInit>().struct_def_id == into_type.as<TypeStruct>().def_id)) {
             return eid;
         }
         OptId<TypeId> maybe_inferred_etid = infer_type_from_exec(eid);
@@ -1266,7 +1261,6 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     bool cooked = false;
     for (auto i = 0uz; i < member_dids.len(); i++) {
         auto didx = member_dids.get(i);
-        const auto member_did = context.def_id(didx);
         const Def& member = context.def(didx);
 
         if (member.holds<DefUnevaluated>()) {
@@ -1283,12 +1277,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         if (i >= init_slice.len) {
             // get default value for the member field
             if (default_val.has_value()) {
-                ExecStructMemberInit init{
-                    .field_def = member_did,
-                    .value = default_val.as_id(),
-                };
-                member_init_execs.emplace_back(
-                    context.register_exec(context, init, Span::generated(), true));
+                member_init_execs.emplace_back(default_val.as_id());
             } else {
                 cooked = true;
                 context.emplace_diagnostic(
@@ -1326,12 +1315,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
             continue;
         }
         // emplace the init execs
-        member_init_execs.emplace_back(context.emplace_exec(
-            ExecStructMemberInit{
-                .field_def = member_did,
-                .value = hopefully_exec.as_id(),
-            },
-            proposed_member_span, true));
+        member_init_execs.emplace_back(hopefully_exec.as_id());
     }
     if (rel_arity == relative_arity::too_many) {
         cooked = true;
@@ -1367,8 +1351,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
 
     // all good, set the exec
     return context.emplace_exec(
-        ExecExprStructInit{.member_inits = context.freeze_id_vec(member_init_execs),
-                           .struct_def_id = struct_did},
+        ExecStructInit{.member_inits = context.freeze_id_vec(member_init_execs),
+                       .struct_def_id = struct_did},
         Span{context, fid, expr}, true);
 }
 
@@ -1440,8 +1424,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         return solve_list_eq(lhs_exec, rhs_exec, op);
     }
 
-    if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecExprStructInit>(rhs_exec)) {
-        return solve_struct_eq(lhs_exec, rhs_exec, op);
+    if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecStructInit>(rhs_exec)) {
+        return solve_struct_eq(lhs_eid, rhs_eid, op);
     }
 
     if (bin_op_is_eq_neq(op) && lhs_exec.holds_same<ExecFnPtr>(rhs_exec)) {
@@ -2711,7 +2695,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             return solve_fn_call(fid, scope, rhs_expr, lhs_eid);
         }
 
-        if (!lhs_exec.holds<ExecExprStructInit>()) {
+        if (!lhs_exec.holds<ExecStructInit>()) {
             auto d0 = context.emplace_diagnostic(Span{context, fid, expr->expr.binary.op},
                                                  diag_code::cannot_access_a_member_value,
                                                  diag_type::error);
@@ -2730,7 +2714,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             }
             return std::nullopt;
         }
-        const Def& struct_def = context.def(lhs_exec.as<ExecExprStructInit>().struct_def_id);
+        const Def& struct_def = context.def(lhs_exec.as<ExecStructInit>().struct_def_id);
 
         if (rhs_expr->type == AST_EXPR_ID) {
             assert(struct_def.holds<DefStruct>());
@@ -2749,18 +2733,16 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
 
             const Def& var_def = context.def(maybe_mem_var.as_id());
 
-            const Exec& mem_exec = context.exec(
-                lhs_exec.as<ExecExprStructInit>().member_inits.get(var_def.member_idx));
+            const Exec& mem_exec
+                = context.exec(lhs_exec.as<ExecStructInit>().member_inits.get(var_def.member_idx));
 
-            const Exec& mem_exec_val = context.exec(mem_exec.as<ExecStructMemberInit>().value);
-
-            if (!exec_is_compt_viable(mem_exec_val)) {
+            if (!exec_is_compt_viable(mem_exec)) {
 
                 context.emplace_diagnostic(Span{context, fid, expr},
                                            diag_code::cannot_resolve_at_compt, diag_type::error);
                 return std::nullopt;
             }
-            return context.emplace_exec(mem_exec_val.value, Span{context, fid, expr}, true);
+            return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
         }
         context.emplace_diagnostic(Span{context, fid, expr},
                                    diag_code::value_does_not_refer_to_a_named_mem,
@@ -2846,19 +2828,19 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
 
             // structs have special look up rules cuz we need to look into their member
             // functions
-            if (exec.holds<ExecExprStructInit>()) {
+            if (exec.holds<ExecStructInit>()) {
                 if ((expr->expr.fn_call.is_generic)) {
                     if (const auto maybe_gen_arg_id
                         = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
                         maybe_gen_arg_id.has_value()) {
                         maybe_func_did = context.look_up_generic_member_function_guarding_hid(
-                            def_visitor, context.def(exec.as<ExecExprStructInit>().struct_def_id),
+                            def_visitor, context.def(exec.as<ExecStructInit>().struct_def_id),
                             func_name, Span{context, fid, expr->expr.fn_call.left_expr}, scope,
                             maybe_gen_arg_id.as_id());
                     }
                 } else {
                     maybe_func_did = context.look_up_member_function_guarding_hid(
-                        def_visitor, context.def(exec.as<ExecExprStructInit>().struct_def_id),
+                        def_visitor, context.def(exec.as<ExecStructInit>().struct_def_id),
                         func_name, fn_name_span, scope);
                 }
             } else {
@@ -3371,18 +3353,24 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
     return emplace_val_based_on_eq(true);
 }
 
-[[nodiscard]] OptId<ExecId> ComptExprSolver::solve_struct_eq(const Exec& list1, const Exec& list2,
+[[nodiscard]] OptId<ExecId> ComptExprSolver::solve_struct_eq(ExecId eid1, ExecId eid2,
                                                              binary_op eq_neq) {
-    assert(list1.holds_same<ExecExprStructInit>(list2));
+    const Exec& e1 = context.exec(eid1);
+    const Exec& e2 = context.exec(eid2);
+    assert(e1.holds_same<ExecStructInit>(e2));
     assert(bin_op_is_eq_neq(eq_neq));
-    ExecExprStructInit s1 = list1.as<ExecExprStructInit>();
-    ExecExprStructInit s2 = list2.as<ExecExprStructInit>();
+    ExecStructInit s1 = e1.as<ExecStructInit>();
+    ExecStructInit s2 = e2.as<ExecStructInit>();
 
     // decides true/false for == and != based on equality
-    auto emplace_val_based_on_eq = [this, eq_neq, &list1, &list2](const bool eq) {
+    auto emplace_val_based_on_eq = [this, eq_neq, &e1, &e2](const bool eq) {
         const bool cond = (eq_neq == binary_op::bool_equal) ? eq : !eq;
-        return context.emplace_compt_exec(ExecConst{cond}, Span::combine(list1.span, list2.span));
+        return context.emplace_compt_exec(ExecConst{cond}, Span::combine(e1.span, e2.span));
     };
+
+    if (s1.anonymous && s2.anonymous) {
+        return emplace_val_based_on_eq(equivalent_exec(context, eid1, eid2));
+    }
 
     if (s1.struct_def_id != s2.struct_def_id) {
 
@@ -3402,24 +3390,22 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
                 .gen_args_slice = gargs2,
             },
             Span::generated(), false);
-        auto d0 = context.emplace_diagnostic(Span::combine(list1.span, list2.span),
+        auto d0 = context.emplace_diagnostic(Span::combine(e1.span, e2.span),
                                              diag_code::invalid_operand_for_binary_expression,
                                              diag_type::error);
         auto d1 = context.emplace_diagnostic_with_message_value(
-            list1.span, diag_code::value_is_of_type, diag_type::note,
+            e1.span, diag_code::value_is_of_type, diag_type::note,
             DiagnosticTypeAfterMessage{.tid = t1});
         auto d2 = context.emplace_diagnostic_with_message_value(
-            list2.span, diag_code::value_is_of_type, diag_type::note,
+            e2.span, diag_code::value_is_of_type, diag_type::note,
             DiagnosticTypeAfterMessage{.tid = t2});
         context.link_diagnostic(d0, d1);
         context.link_diagnostic(d1, d2);
         return std::nullopt;
     }
     for (HirSize i = 0; i < s1.member_inits.len(); i++) {
-        const auto e1
-            = context.exec(s1.member_inits.get(i)).template as<ExecStructMemberInit>().value;
-        const auto e2
-            = context.exec(s2.member_inits.get(i)).template as<ExecStructMemberInit>().value;
+        const auto e1 = context.exec_id(s1.member_inits.get(i));
+        const auto e2 = context.exec_id(s2.member_inits.get(i));
         const OptId<ExecId> eid = solve_binary_compt_exec(e1, binary_op::bool_equal, e2);
         if (eid.empty()) {
             return std::nullopt;
@@ -4258,8 +4244,10 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
 
     assert(ty.holds<TypeStruct>());
 
-    return {}; // TODO build up the struct init here, consider getting rid of the
-               // ExecStructMemberInit construct
+    return context.emplace_compt_exec(ExecStructInit{.member_inits = context.freeze_id_vec(eid_vec),
+                                                     .struct_def_id = ty.as<TypeStruct>().def_id,
+                                                     .anonymous = true},
+                                      Span{context, fid, expr});
 }
 [[nodiscard]] OptId<GenericArgIdSliceId>
 ComptExprSolver::lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generic_args_t gen_args,

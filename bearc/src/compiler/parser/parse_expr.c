@@ -153,6 +153,11 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
     if (lhs && is_postunary_op(parser_peek(p)->type)) {
         return parse_postunary(p, lhs);
     }
+
+    if (parser_peek_match(p, TOK_LBRACE) && parser_mode(p) != PARSER_MODE_BAN_STRUCT_INIT
+        && lhs->type == AST_EXPR_ID) {
+        lhs = parse_expr_struct_init(p, lhs, NULL); // no generic args
+    }
     // try fn call or variant decomp too
     if (lhs && (next_type == TOK_LPAREN)) {
         return parse_fn_call(p, lhs, NULL); // no gen args

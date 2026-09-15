@@ -977,8 +977,7 @@ bool Exec::can_be_compt() {
         [](const ExecVariantFieldInit&) -> bool { return true; },
         [](const ExecListLiteral&) -> bool { return true; },
         [](const ExecConst&) -> bool { return true; },
-        [](const ExecExprStructInit&) -> bool { return true; },
-        [](const ExecStructMemberInit&) -> bool { return true; },
+        [](const ExecStructInit&) -> bool { return true; },
         [](const ExecBlock&) -> bool { return false; },
         [](const ExecJump&) -> bool { return false; },
         [](const ExecBranch&) -> bool { return false; },
@@ -2021,29 +2020,40 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 
             return str;
         },
-        [&ctx](const ExecExprStructInit& t) -> std::string {
+        [&ctx](const ExecStructInit& t) -> std::string {
             std::string str{};
 
             str.reserve(256); // decent amount
 
-            str += ctx.symbol_id_to_cstr(ctx.def(t.struct_def_id).name);
+            if (!t.anonymous) {
+                str += ctx.symbol_id_to_cstr(ctx.def(t.struct_def_id).name);
 
-            str += "{";
+                str += "{";
+            } else {
+                str += '(';
+            }
 
-            for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
+            for (auto i = 0u; i < t.member_inits.len(); ++i) {
+                const auto eidx = t.member_inits.get(i);
+                if (!t.anonymous) {
+                    str += ctx.symbol_id_to_cstr(
+                        ctx.def(ctx.def(t.struct_def_id).as<DefStruct>().ordered_members.get(i))
+                            .name);
+                    str += " = ";
+                }
                 str += exec_to_string(ctx, ctx.exec_id(eidx));
                 if (eidx != t.member_inits.last_elem()) {
                     str += ", ";
                 }
             }
 
-            str += "}";
+            if (!t.anonymous) {
+                str += "}";
+            } else {
+                str += ')';
+            }
 
             return str;
-        },
-        [&ctx](const ExecStructMemberInit& t) -> std::string {
-            return "." + std::string(ctx.symbol_id_to_cstr(ctx.def(t.field_def).name)) + " = "
-                   + exec_to_string(ctx, t.value);
         },
         [&ctx](const ExecAssignable& t) -> std::string {
             return ctx.symbol_id_to_cstr(ctx.def(t.def_id).name);

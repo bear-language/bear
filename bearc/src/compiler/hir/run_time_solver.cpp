@@ -98,6 +98,7 @@ namespace hir {
     case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_MATCH:
     case AST_EXPR_ELSE_MATCH_PATTERN:
+    case AST_EXPR_TUPLE_INIT:
     case AST_EXPR_INVALID:
         break;
     }
@@ -589,6 +590,7 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_MATCH:
     case AST_EXPR_ELSE_MATCH_PATTERN:
+    case AST_EXPR_TUPLE_INIT:
     case AST_EXPR_INVALID:
         break;
     }
