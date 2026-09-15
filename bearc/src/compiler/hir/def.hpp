@@ -59,6 +59,7 @@ struct DefGenericFunction {
     /// maps canonical lists of generics args to concrete instatiations
     CanonicalGenericArgsIdMapId generics_args_to_concrete_defs_map;
     IdSlice<GenericParamId> generic_params;
+    HirSize param_cnt{};
 };
 
 struct DefFunctionPrototype {

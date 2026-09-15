@@ -2952,8 +2952,18 @@ Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
         break;
     }
 
-    case AST_TYPE_ANON_STRUCT: // TODO
-                               // these should never be canonical bases
+    case AST_TYPE_ANON_STRUCT: {
+        for (size_t i = 0; i < canon_base_type->type.anon_struct.types.len; ++i) {
+            const ast_type_t* sub_type = canon_base_type->type.anon_struct.types.start[i];
+            const auto maybe_nested = nested_type(sub_type);
+            if (maybe_nested.has_value()) {
+                return maybe_nested;
+            }
+            ++step.sub_idx;
+        }
+        break;
+    }
+        // these should never be canonical bases
     case AST_TYPE_REF_PTR:
     case AST_TYPE_ARR:
     case AST_TYPE_SLICE:
@@ -3133,8 +3143,18 @@ Context::recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice
         break;
     }
 
-    case AST_TYPE_ANON_STRUCT: // TODO
-                               // these should never be canonical bases
+    case AST_TYPE_ANON_STRUCT: {
+        for (size_t i = 0; i < canon_base_type->type.anon_struct.types.len; ++i) {
+            const ast_type_t* sub_type = canon_base_type->type.anon_struct.types.start[i];
+            const auto maybe_nested = nested_type(sub_type);
+            if (maybe_nested.has_value()) {
+                return maybe_nested;
+            }
+            ++step.sub_idx;
+        }
+        break;
+    }
+        // these should never be canonical bases
     case AST_TYPE_REF_PTR:
     case AST_TYPE_ARR:
     case AST_TYPE_SLICE:

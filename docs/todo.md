@@ -1,15 +1,6 @@
 ### todos
 
 #### misc/priority 
-- [x] scrap `compt_temp_scope`s to allow for compt closures
-- [ ] anonymous structs/tuple inits 
-    - [x] add parsing for `struct(i32,i32)` types / type resolution
-    - [x] add parsing for tuple inits inside of the grouping parsing function (`(expr,)`)
-    - [x] update all `expr->type` switches 
-    - [x] test parser/printer before moving on 
-    - [x] compt tuples (coalesce to anonymous struct inits)
-    - [x] allow `foo.0` syntax for tuples (and all structs)
-    - [ ] tuple deduction guides
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s

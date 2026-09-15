@@ -10,6 +10,7 @@
 #include "compiler/ast/expr.h"
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
+#include "compiler/hir/indexing.hpp"
 #include "compiler/hir/matching.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/type_resolver.hpp"
@@ -1161,19 +1162,30 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         if (into_type.holds<TypeVar>()) {
             return eid;
         }
+        OptId<TypeId> maybe_inferred_tid{};
         if (const Exec& exec = context.exec(eid);
-            exec.holds<ExecStructInit>() && into_type.holds<TypeStruct>()
-            && (exec.as<ExecStructInit>().struct_def_id == into_type.as<TypeStruct>().def_id)) {
-            return eid;
+            exec.holds<ExecStructInit>() && into_type.holds<TypeStruct>()) {
+            if (exec.as<ExecStructInit>().struct_def_id == into_type.as<TypeStruct>().def_id) {
+                return eid;
+            }
+            if (into_type.as<TypeStruct>().anonymous) {
+                maybe_inferred_tid = infer_type_from_exec(eid);
+                if (maybe_inferred_tid.has_value()
+                    && context.equivalent_type(into_tid.as_id(), maybe_inferred_tid.as_id())) {
+                    return eid;
+                }
+            }
         }
-        OptId<TypeId> maybe_inferred_etid = infer_type_from_exec(eid);
-        if (maybe_inferred_etid.has_value()) {
-            auto inferred_tid = maybe_inferred_etid.as_id();
+        if (maybe_inferred_tid.empty()) {
+            maybe_inferred_tid = infer_type_from_exec(eid);
+        }
+        if (maybe_inferred_tid.has_value()) {
+            auto inferred_tid = maybe_inferred_tid.as_id();
             context.emplace_diagnostic_with_message_value(
                 expr_span, diag_code::cannot_convert_value_of_type, diag_type::error,
                 DiagnosticTypeToType{.from = inferred_tid, .to = into_tid.as_id()});
-            return {};
         }
+        return {};
     }
     return maybe_eid;
 }
@@ -3033,9 +3045,56 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
     const ast_slice_of_exprs_t exprs = expr->expr.fn_call.args;
     IdSlice<DefId> params{};
 
+    const auto check_too_many_args = [this](HirSize arg_cnt, HirSize param_cnt, DefId func_did,
+                                            OptId<ExecId> maybe_self_val, FileId fid,
+                                            const ast_expr_t* expr, ast_slice_of_exprs_t exprs) {
+        auto adjusted_param_len = param_cnt - (maybe_self_val.has_value() ? 1 : 0);
+
+        if (arg_cnt != adjusted_param_len) {
+
+            if (param_cnt != 0) {
+                auto params_len_sym_id = ExecConst{adjusted_param_len}.to_symbol_id(context);
+                auto args_len_sym_id = ExecConst{arg_cnt}.to_symbol_id(context);
+
+                Span span_of_interest
+                    = ((arg_cnt < adjusted_param_len) || exprs.len == 0)
+                          ? Span{context, fid, expr->last}
+                          : Span::combine(Span{context, fid, exprs.start[0]->first},
+                                          Span{context, fid, exprs.start[exprs.len - 1]->last});
+
+                context.emplace_diagnostic_with_message_value(
+                    span_of_interest, diag_code::expected, diag_type::error,
+                    DiagnosticSymButGotSym{.leading = context.def(func_did).name,
+                                           .sid1 = params_len_sym_id,
+                                           .sid2 = args_len_sym_id});
+            } else if (maybe_self_val.has_value()) {
+                context.emplace_diagnostic(
+                    Span{context, fid, expr},
+                    diag_code::free_function_taking_zero_arguments_called_as_method,
+                    diag_type::error);
+            } else {
+                context.emplace_diagnostic_with_message_value(
+                    Span{context, fid, expr}, diag_code::takes_no_arguments, diag_type::error,
+                    DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
+            }
+            return true;
+        }
+        return false;
+    };
+
     if (needs_generic_deduction) {
         const auto maybe_deduction_guide = context.deduction_guide_for_def(func_did);
         if (maybe_deduction_guide.empty()) {
+
+            // try to give the helpful possible diagnostics
+            if (const auto& gen_fn_def = context.def(func_did);
+                gen_fn_def.holds<DefGenericFunction>()
+                && check_too_many_args(exprs.len,
+                                       gen_fn_def.template as<DefGenericFunction>().param_cnt,
+                                       func_did, maybe_self_val, fid, expr, exprs)) {
+                return {};
+            }
+
             const auto d0 = context.emplace_diagnostic_with_message_value(
                 Span{context, fid, expr}, diag_code::cannot_deduce_generic_paramters_for_function,
                 diag_type::error, DiagnosticSymbolAfterMessage{.sid = context.def(func_did).name});
@@ -3059,6 +3118,16 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
         const auto maybe_gen_args
             = try_generic_args_from_deduction_guide(*this, out_args, maybe_deduction_guide.as_id());
         if (maybe_gen_args.empty()) {
+
+            // try to give the helpful possible diagnostics
+            if (const auto& gen_fn_def = context.def(func_did);
+                gen_fn_def.holds<DefGenericFunction>()
+                && check_too_many_args(exprs.len,
+                                       gen_fn_def.template as<DefGenericFunction>().param_cnt,
+                                       func_did, maybe_self_val, fid, expr, exprs)) {
+                return {};
+            }
+
             const auto d0 = context.emplace_diagnostic_with_message_value(
                 Span{context, fid, expr}, diag_code::cannot_deduce_generic_paramters_for_function,
                 diag_type::error, DiagnosticSymbolAfterMessage{.sid = context.def(func_did).name});
@@ -3101,38 +3170,8 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
         }
     }
 
-    auto adjusted_arg_len = total_arg_cnt;
-    auto adjusted_param_len = params.len() - (maybe_self_val.has_value() ? 1 : 0);
-
-    if (adjusted_arg_len != adjusted_param_len) {
-
-        if (params.len() != 0) {
-            auto params_len_sym_id = ExecConst{adjusted_param_len}.to_symbol_id(context);
-            auto args_len_sym_id = ExecConst{adjusted_arg_len}.to_symbol_id(context);
-
-            Span span_of_interest
-                = ((adjusted_arg_len < adjusted_param_len) || exprs.len == 0)
-                      ? Span{context, fid, expr->last}
-                      : Span::combine(Span{context, fid, exprs.start[0]->first},
-                                      Span{context, fid, exprs.start[exprs.len - 1]->last});
-
-            context.emplace_diagnostic_with_message_value(
-                span_of_interest, diag_code::expected, diag_type::error,
-                DiagnosticSymButGotSym{.leading = context.def(func_did).name,
-                                       .sid1 = params_len_sym_id,
-                                       .sid2 = args_len_sym_id});
-        } else if (maybe_self_val.has_value()) {
-            context.emplace_diagnostic(
-                Span{context, fid, expr},
-                diag_code::free_function_taking_zero_arguments_called_as_method, diag_type::error);
-        } else {
-            context.emplace_diagnostic_with_message_value(
-                Span{context, fid, expr}, diag_code::takes_no_arguments, diag_type::error,
-                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
-        }
-
-        issue = true;
-    }
+    issue |= check_too_many_args(total_arg_cnt, params.len(), func_did, maybe_self_val, fid, expr,
+                                 exprs);
 
     if (!context.def(func_did).template as<DefFunction>().poisoned() && issue) {
         if (context.diagnostic_count() > prior_diag_cnt) {

@@ -4,6 +4,8 @@ import "ansi_codes.br";
 
 mod note_printer_demo;
 
+// @COOL
+
 contract ToComptStr {
     compt mt to_compt_str() -> str;
 }

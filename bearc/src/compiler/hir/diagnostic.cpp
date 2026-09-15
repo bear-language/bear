@@ -453,6 +453,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "struct indexing requires a constant u32 value";
     case diag_code::requested_struct_member:
         return "requested struct member";
+    case diag_code::is_not_a_type:
+        return "is not a type";
     }
 
     std::unreachable();

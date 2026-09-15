@@ -131,6 +131,26 @@ class TypeResolver {
             }
         }
 
+        auto maybe = context.look_up_scoped_variable(scope, sid_slice, id_span);
+        if (maybe.empty()) {
+            maybe = context.look_up_scoped_namespace(scope, sid_slice, id_span);
+        }
+
+        if (maybe) {
+            const auto& def = context.def(maybe.as_id());
+            auto d0 = context.emplace_diagnostic_with_message_value(
+                id_span, diag_code::is_not_a_type, diag_type::error,
+                DiagnosticSymbolBeforeMessage{def.name});
+
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                def.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = def.name});
+
+            context.link_diagnostic(d0, d1);
+
+            return {};
+        }
+
         context.emplace_diagnostic(
             span, diag_code::use_of_undefined_type, diag_type::error,
             DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});

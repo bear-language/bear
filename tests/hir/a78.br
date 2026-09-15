@@ -1,0 +1,29 @@
+// tests/hir/a78.br
+
+mod hir_a78;
+
+// @COOL
+
+compt fn reverse<A,B>(struct(A,B) x) -> struct(B,A) => (x.1, x.0)
+
+compt var a = reverse((1,2));
+
+var _0 = @static_assert a == (2,1);
+
+var _1 = @static_assert a == (2,2); // oops
+
+var _2 = @static_assert reverse(("foo", 1)) == (1, "foo");
+
+var _3 = reverse("foo", ("bar", "1")); // oops
+
+compt var irev = reverse::<i32, i32>;
+
+compt var revrevs = reverse((irev,irev));
+
+var _4 = @static_assert revrevs == reverse((irev, irev));
+
+var _5 = @static_assert revrevs != revrevs; // oops
+
+var _6 = @note (@type_to_str typeof revrevs);
+
+var _7 = @note (@type_to_str revrevs); // oops

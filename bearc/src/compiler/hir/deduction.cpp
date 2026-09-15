@@ -13,6 +13,7 @@
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/run_time_solver.hpp"
+#include <iostream>
 
 namespace hir {
 
@@ -58,6 +59,20 @@ namespace hir {
     if (ty.template holds<TypeVariant>()
         && ty.template as<TypeVariant>().gen_args_slice.has_value()) {
         return try_nested_generic_tid(ty.template as<TypeVariant>().gen_args_slice.as_id());
+    }
+    if (ty.template holds<TypeStruct>() && ty.template as<TypeStruct>().anonymous) {
+        const auto t = ty.template as<TypeStruct>();
+        if (step.sub_idx >= context.def(t.def_id).template as<DefStruct>().ordered_members.len()) {
+            return {};
+        }
+        const auto sub_tid
+            = context
+                  .def(context.def(t.def_id).template as<DefStruct>().ordered_members.get(
+                      step.sub_idx))
+                  .as<DefVariable>()
+                  .type_id;
+
+        return deduction_step_helper(context, sub_tid, context.deduction_step(step.next.as_id()));
     }
     if (ty.template holds<TypeFnPtr>()) {
         TypeFnPtr tfnp = ty.as<TypeFnPtr>();
