@@ -167,12 +167,12 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "static assertion failed";
     case diag_code::value_not_a_struct:
         return "value does not correspond to a struct";
-    case diag_code::value_does_not_refer_to_a_named_mem:
-        return "value does not refer to a named member variable or method";
+    case diag_code::value_does_not_refer_to_a_member:
+        return "value does not refer to a member variable or method";
     case diag_code::id_does_not_name_a_member_variable_of:
         return "identifer does not name a member variable of";
-    case diag_code::id_names_a_static_mem_thru_dot_for:
-        return "identifer names a static member varirable through the `.` operator for";
+    case diag_code::id_names_a_non_mem_thru_dot_for:
+        return "identifer names a non-member varirable through the `.` operator for";
     case diag_code::scoped_identifer_not_allowed_here:
         return "scoped identifer not allowed here";
     case diag_code::condition_is_false:
@@ -449,6 +449,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "break statement used outside of loop";
     case diag_code::continue_statement_outside_of_loop:
         return "continue statement used outside of loop";
+    case diag_code::struct_indexing_requires_a_constant_u32_value:
+        return "struct indexing requires a constant u32 value";
+    case diag_code::requested_struct_member:
+        return "requested struct member";
     }
 
     std::unreachable();

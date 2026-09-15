@@ -25,7 +25,6 @@
 #include "compiler/hir/type.hpp"
 #include "compiler/token.h"
 #include <cassert>
-#include <cstddef>
 #include <optional>
 namespace hir {
 

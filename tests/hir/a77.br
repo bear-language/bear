@@ -1,0 +1,31 @@
+// tests/hir/a77.br
+
+compt var a = ("hi", 4, 5);
+
+compt var b = a.0;
+
+var _0 = @static_assert b == "hi";
+
+var _1 = @static_assert a.1 == 4;
+
+compt var IDX_OF_5 = 2;
+
+var _2 = a.IDX_OF_5; // oops (not a mem)
+
+var _3 = @static_assert a.(IDX_OF_5) == 5; // the parens let us know that we should consider this an abitrary expr that resolves to an index, not a named member id
+
+var _4 = @static_assert(((1,),(2,),(3,)).2 == (3,));
+
+var _5 = @static_assert(((1,),(2,),(3,)).123 == (3,)); // oops
+
+struct Foo {
+    i32 a = 0;
+    i32 b = 0;
+    i32 c = 0;
+}
+
+var _6 = @static_assert Foo{}.0 == 0;
+
+var _7 = @static_assert Foo{}.oops == 0; // oops
+
+var _8 = @static_assert Foo{}.(oops) == 0; // oops

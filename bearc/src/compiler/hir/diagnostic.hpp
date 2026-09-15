@@ -89,9 +89,9 @@ enum class diag_code : uint8_t {
     static_assertion_failed,
     static_assertion_failed_colon,
     value_not_a_struct,
-    value_does_not_refer_to_a_named_mem,
+    value_does_not_refer_to_a_member,
     id_does_not_name_a_member_variable_of,
-    id_names_a_static_mem_thru_dot_for,
+    id_names_a_non_mem_thru_dot_for,
     scoped_identifer_not_allowed_here,
     condition_is_false,
     compt_mut_methods_are_not_permitted,
@@ -225,6 +225,8 @@ enum class diag_code : uint8_t {
     function_does_not_return_a_value,
     break_statement_outside_of_loop,
     continue_statement_outside_of_loop,
+    struct_indexing_requires_a_constant_u32_value,
+    requested_struct_member, // fragment, not a diag on its own
 
     count, // this must be last,
 

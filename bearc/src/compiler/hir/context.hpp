@@ -327,7 +327,8 @@ class Context {
                                                                SymbolId symbol_id, Span id_span,
                                                                ScopeId local_scope);
 
-    [[nodiscard]] OptId<DefId> try_member_index(DefId struct_did, ExecId ord_eid);
+    /// tries to get a valid struct member index given a compt exec; emits diagnostics on failure
+    [[nodiscard]] std::optional<HirSize> try_member_index(DefId struct_did, ExecId ord_eid);
 
     /// returns some only when a DefFunction or DefGenericFunction is found
     [[nodiscard]] OptId<DefId>

@@ -8,7 +8,7 @@
     - [x] update all `expr->type` switches 
     - [x] test parser/printer before moving on 
     - [x] compt tuples (coalesce to anonymous struct inits)
-    - [ ] allow `foo.0` syntax for tuples (and all structs)
+    - [x] allow `foo.0` syntax for tuples (and all structs)
     - [ ] tuple deduction guides
 
 #### function body resolution / runtime eval:

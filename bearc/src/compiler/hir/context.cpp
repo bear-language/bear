@@ -1750,8 +1750,31 @@ OptId<DefId> Context::look_up_scoped_namespace_bypassing_visibility(ScopeId scop
         id_slice);
 }
 
-[[nodiscard]] OptId<DefId> Context::try_member_index(DefId struct_did, ExecId ord_eid) {
-    return {}; // TODO
+[[nodiscard]] std::optional<HirSize> Context::try_member_index(DefId struct_did, ExecId ord_eid) {
+    const auto& exec = this->exec(ord_eid);
+    if (!exec.holds<ExecConst>() || !exec.as<ExecConst>().holds<u32>()) {
+        emplace_diagnostic(exec.span, diag_code::struct_indexing_requires_a_constant_u32_value,
+                           diag_type::error);
+        return {};
+    }
+    const auto idx = exec.as<ExecConst>().as<u32>();
+    const Def& d = def(struct_did);
+    assert(d.holds<DefStruct>());
+    const auto ords = d.as<DefStruct>().ordered_members;
+    if (idx > ords.len()) {
+        auto d0 = emplace_diagnostic_with_message_value(
+            exec.span, diag_code::requested_struct_member, diag_type::error,
+            DiagnosticIdxOutOfBounds{.idx_sid = symbol_id(std::to_string(idx)),
+                                     .length_sid = symbol_id(std::to_string(ords.len()))});
+        if (!def(struct_did).as<DefStruct>().anonymous) {
+            auto d1 = emplace_diagnostic_with_message_value(
+                def(struct_did).span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = def(struct_did).name});
+            link_diagnostic(d0, d1);
+        }
+        return {};
+    }
+    return idx;
 }
 
 OptId<DefId> Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_id,
@@ -1782,7 +1805,7 @@ OptId<DefId> Context::look_up_member_var_guarding_hid(const Def& struct_def, Sym
     }
     if (!def.is_ordered()) {
         auto d0 = emplace_diagnostic_with_message_value(
-            id_span, diag_code::id_names_a_static_mem_thru_dot_for, diag_type::error,
+            id_span, diag_code::id_names_a_non_mem_thru_dot_for, diag_type::error,
             DiagnosticSymbolAfterMessage{.sid = struct_def.name});
         auto d1 = emplace_diagnostic_with_message_value(
             def.span, diag_code::declared_here, diag_type::note,

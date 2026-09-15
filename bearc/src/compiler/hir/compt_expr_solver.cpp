@@ -11,6 +11,7 @@
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/matching.hpp"
+#include "compiler/hir/type.hpp"
 #include "compiler/hir/type_resolver.hpp"
 #include "compiler/parser/token_eaters.h"
 
@@ -2724,15 +2725,10 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
                                            diag_type::error);
             }
 
-            auto maybe_mem_var = context.look_up_member_var_no_diag_except_hid(
+            auto maybe_mem_var = context.look_up_member_var_guarding_hid(
                 struct_def, context.symbol_id(id_slice.start[0]), rhs_span, scope);
 
-            // TODO try context.try_member_index()
-
             if (maybe_mem_var.empty()) {
-                context.emplace_diagnostic(Span{context, fid, expr},
-                                           diag_code::value_does_not_refer_to_a_named_mem,
-                                           diag_type::error);
                 return std::nullopt; // posioned
             }
 
@@ -2741,17 +2737,36 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             const Exec& mem_exec
                 = context.exec(lhs_exec.as<ExecStructInit>().member_inits.get(var_def.member_idx));
 
-            if (!exec_is_compt_viable(mem_exec)) {
-
-                context.emplace_diagnostic(Span{context, fid, expr},
-                                           diag_code::cannot_resolve_at_compt, diag_type::error);
-                return std::nullopt;
-            }
             return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
         }
-        context.emplace_diagnostic(Span{context, fid, expr},
-                                   diag_code::value_does_not_refer_to_a_named_mem,
-                                   diag_type::error);
+
+        const auto prior_diag_cnt = context.diagnostic_count();
+
+        // try a member index look-up: foo.0, foo.1, etc
+        const auto maybe_rhs = solve_builtin_compt_expr(fid, scope, rhs_expr, builtin_type::u32);
+
+        if (maybe_rhs.has_value()) {
+            const std::optional<HirSize> maybe_mem_idx = context.try_member_index(
+                lhs_exec.as<ExecStructInit>().struct_def_id, maybe_rhs.as_id());
+            if (maybe_mem_idx.has_value()) {
+                const Exec& mem_exec = context.exec(
+                    lhs_exec.as<ExecStructInit>().member_inits.get(maybe_mem_idx.value()));
+
+                return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
+            }
+        }
+
+        // force link this if diagnostics were just emitted
+        if (context.diagnostic_count() > prior_diag_cnt) {
+            context.force_link_diagnostic(context.emplace_diagnostic(
+                Span{context, fid, rhs_expr}, diag_code::value_does_not_refer_to_a_member,
+                diag_type::note));
+        } else {
+            context.emplace_diagnostic(Span{context, fid, rhs_expr},
+                                       diag_code::value_does_not_refer_to_a_member,
+                                       diag_type::error);
+        }
+
         return std::nullopt;
 
     } else if (!cooked && maybe_bin_op.holds<binary_op>()) {

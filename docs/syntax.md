@@ -25,13 +25,14 @@
     - | Variadic: Type `...`
     - | TypeOf: `typeof` Expression 
     - | Decay: `decay` Type
+    - | Anonymous Struct (aka Tuple): `struct` `(` Type(s) `)` 
 
 #### Expressions
 - Expression:
     - Identifier: \[contains `A`-`Z`, `a`-`z`, `0`-`9`, and `_`; cannot begin with `0`-`9`] 
     - | ScopableIdentier: Identifier \[`..` Identifier...]?
     - | IntegerLiteral: \[follows C conventions for decimal and hexidecimal literals, minus suffixes]
-    - | FloatingPointLiteral: \[follows C conventions for floating point literals, minus suffixes]
+    - | FloatingPointLiteral: \[follows C conventions for floating point literals, minus suffixes, and leading points are not allowed]
     - | StringLiteral: \[follows C conventions for string literals]
     - | ListLiteral: `[` Expression `,` Expression `,` ... `]`
     - | BinaryExpression: `Expression` BinaryOp `Expression`
@@ -42,6 +43,7 @@
     - | Postunary: Expression `++` | `--`
     - | Subscript: Expression `[` Expression `]`
     - | Grouping: `(` Expression `)`
+    - | Tuple: `(` Expression `,` ... `)` 
     - | FunctionCall: Expression `(` Argument(s) `)`
         - Arguments: Expression `,` Expression `,` ...
     - | Borrow: `&` `mut`? Expression

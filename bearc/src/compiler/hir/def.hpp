@@ -83,6 +83,7 @@ struct DefStruct {
     OptId<DefId> orginal;
     // generic args, if any
     OptId<GenericArgIdSliceId> maybe_generic_args;
+    bool anonymous{false};
 };
 
 struct DefGenericStruct {

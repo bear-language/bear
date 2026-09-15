@@ -474,7 +474,8 @@ class TypeResolver {
                       .ordered_members = context.freeze_id_vec(mem_vec),
                       .contracts = {},
                       .orginal = {},
-                      .maybe_generic_args = {}});
+                      .maybe_generic_args = {},
+                      .anonymous = true});
 
         return context.emplace_type(
             TypeStruct{.def_id = did, .gen_args_slice = {}, .anonymous = true}, span, mut);

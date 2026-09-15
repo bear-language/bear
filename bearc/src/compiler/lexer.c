@@ -131,8 +131,9 @@ lex_multichar_operator:
         if (n1 == '.') {
             LEX_KNOWN_LEN_PUSH(2);
         }
-        if ((n1) >= '0' && n1 <= '9') {
-            // just proceed, this is a float lit
+        if ((n1) >= '0' && n1 <= '9' && len > 0 && start[0] >= '0' && start[0] <= '9') {
+            // only continue as float if the token we're already
+            // accumulating started with a digit
             ++pos;
             ++len;
             ++col;
