@@ -455,6 +455,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "requested struct member";
     case diag_code::is_not_a_type:
         return "is not a type";
+    case diag_code::is_never_used:
+        return "is never used";
     }
 
     std::unreachable();

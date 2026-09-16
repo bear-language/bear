@@ -833,15 +833,17 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
               ? context.make_compt_scope(maybe_existing.as_id(), params.len())
               : context.make_compt_scope(context.containing_scope(func_did), params.len());
 
+    llvm::SmallVector<DefId> temp_params{};
     for (HirSize i = 0; i < params.len(); i++) {
         const Def& param_def = context.def(params.get(i));
         assert(param_def.holds<DefVariable>());
         const DefVariable& param_var = param_def.as<DefVariable>();
         ExecId eid = arg_vec[i];
-        const auto param = context.register_compt_def(
+        const auto param_did = context.register_compt_def(
             param_def.name, param_def.span, func_did,
             DefVariable{.type_id = param_var.type_id, .compt_value = eid});
-        context.insert_variable(temp_scope, context.def(params.get(i)).name, param);
+        temp_params.push_back(param_did);
+        context.insert_variable(temp_scope, context.def(params.get(i)).name, param_did);
     }
 
     const ast_expr_t* maybe_expr = context.try_expr_for_func(func_did);
@@ -895,6 +897,17 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
                         .tid
                         = context.def(func_did).template as<DefFunction>().return_type.as_id()});
             }
+        }
+    }
+
+    {
+        // try to promote the mention state of the persistent params based on those of the temp
+        // params
+        const auto orig_params = context.def(func_did).template as<DefFunction>().params;
+        assert(orig_params.len() == temp_params.size());
+        for (auto i = 0uz; i < orig_params.len(); ++i) {
+            context.promote_mention_state_of(context.def_id(orig_params.get(i)),
+                                             context.mention_state_of(temp_params[i]));
         }
     }
 

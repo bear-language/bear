@@ -47,7 +47,7 @@ class IdHashMap {
         }
         return OptId<V>{V{*value}};
     }
-    bool contains(K key) { return mapu32u32_at(&map, key.raw()) != 0; }
+    bool contains(K key) const { return mapu32u32_cat(&map, key.raw()) != 0; }
 
     class Entry {
         K key_;

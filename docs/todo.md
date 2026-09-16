@@ -9,9 +9,6 @@
         - [ ] `MoveMapId`: same idea as a scope, but:
             - [x] tracks DefId -> ExecId and DefId -> ExecIdSliceId tracking where defs were moved (for good diagnostics)
             - [ ] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
-    - [ ] make a system to etch ExecId into a structured linear form within blocks to be naturally connected in a CFG 
-        - [ ] this should be directly conducive to 3AC for all `hir::Exec`s
-        - [ ] See `ExecBlock`
     - [ ] impl `RunTimeExprSolver`
         - [ ] maximally desugar things to get rid of unneeded Exec types 
             - [ ] preunary, postunary

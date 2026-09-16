@@ -228,6 +228,7 @@ enum class diag_code : uint8_t {
     struct_indexing_requires_a_constant_u32_value,
     requested_struct_member, // fragment, not a diag on its own
     is_not_a_type,
+    is_never_used,
 
     count, // this must be last,
 

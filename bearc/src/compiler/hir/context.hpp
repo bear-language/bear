@@ -100,6 +100,13 @@ class Context {
     [[nodiscard]] SymbolId concat_symbols(SymbolId sid1, SymbolId sid2);
     /// get a symbol, trimming the "" quotes on the outside when interning
     [[nodiscard]] SymbolId symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid);
+
+    [[nodiscard]] bool should_warn_as_unused(DefId did) const;
+
+    [[nodiscard]] bool is_top_level(DefId did) const;
+
+    [[nodiscard]] bool starts_with_underscore(SymbolId sid) const;
+
     /// register (or retireve) from a path
     ///
     /// \param path - SymbolId of the interned path string
@@ -109,6 +116,10 @@ class Context {
     /// \param name - name, or path, that the intrinsic file
     /// \param string_literal_src - the src
     FileId file_intrinsic(SymbolId name, const char* string_literal_src);
+
+    bool file_is_intrinsic(FileId fid) const;
+
+    bool is_intrinsic(DefId did) const;
 
     /// registers a file in parallel
     FileId file_parallel(SymbolId path);
@@ -443,8 +454,8 @@ class Context {
     /// basically, if a value is a know compt variable pointing to some known function, we will get
     /// that function's defintion instead of the defintion of the compt variable (of a function
     /// pointer type)
-    const Def& try_func_def(DefId def_id) const;
-    DefId try_func_did(DefId def_id) const;
+    const Def& try_func_def(DefId def_id);
+    DefId try_func_did(DefId def_id);
     FileId def_to_file_id(DefId def) const;
     Span make_def_name_span(DefId def, const ast_stmt_t* stmt) const;
     Span make_top_level_def_name_span(DefId def) const;
@@ -468,8 +479,8 @@ class Context {
     DefId register_compt_def(SymbolId name, Span span, OptId<DefId> parent,
                              DefValue value = DefUnevaluated{}, const ast_stmt_t* stmt = nullptr);
 
-    DefId register_def(SymbolId name, Span span, OptId<DefId> parent, const ast_stmt_t* stmt,
-                       DefValue value = DefUnevaluated{});
+    DefId register_def(SymbolId name, Span span, OptId<DefId> parent,
+                       DefValue value = DefUnevaluated{}, const ast_stmt_t* stmt = nullptr);
 
     DefId register_def(SymbolId name, bool compt, bool statik, uint8_t align_pref, Span span,
                        const ast_stmt_t* stmt, DefValue value,
@@ -1048,6 +1059,7 @@ class Context {
     bool terse{false};
     bool strict_syntax{false};
     bool all_src_locs{false};
+    bool warn_unused{false}; // TODO: update this once all run-time expr/stmts analysis is done
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^
 

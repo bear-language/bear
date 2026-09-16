@@ -1,22 +1,19 @@
+#!/usr/bin/python3
+
 # use to more easily write variant visitors:
 
 types = """
-    ExecBlock, ExecExprStmt, ExecBreakStmt, ExecContinueStmt, ExecIfStmt, ExecLoopStmt,
-    ExecReturnStmt, ExecYieldStmt,
+    DefModule, DefFunction, DefGenericFunction, DefFunctionPrototype, DefVariable,
+                   DefStruct, DefGenericStruct, DefVariant, DefGenericVariant, DefVariantField,
+                   DefUnion, DefGenericContract, DefContract, DefDeftype, DefScopeWrapper,
+                   DefUnevaluated, DefMalformed"""
 
-    ExecExprUnionInit, ExecExprVariantInit, ExecExprStructInit, ExecExprStructMemberInit,
-    ExecExprVariable, ExecExprComptConstant, ExecExprListLiteral, ExecExprAssignMove,
-    ExecExprAssignEqual, ExecExprIs, ExecExprMemberAccess, ExecExprPointerMemberAccess,
-    ExecExprBinary, ExecExprCast, ExecExprPreUnary, ExecExprPostUnary, ExecExprSubscript,
-    ExecExprFnCall, ExecExprBorrow, ExecExprDeref, ExecExprClosure, ExecExprVariantDecomp,
-    ExecExprMatch, ExecExprMatchBranch, ExecFnPtr, ExecVariantFieldInit"""
-
-RETURN_TYPE = "std::string"
+RETURN_TYPE = "bool"
 
 names = [t.strip() for t in types.replace("\n", "").split(",") if t.strip()]
 
 template = """\
-[&ctx](const {name}& t) -> {ret} {{
+[](const {name}& d) -> {ret} {{
     // todo
     return {val};
 }},"""

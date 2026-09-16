@@ -28,7 +28,7 @@ template <IsId T> class IdSet {
         }
         return already_has;
     }
-    [[nodiscard]] bool contains(T elt) { return map.contains(elt); }
+    [[nodiscard]] bool contains(T elt) const { return map.contains(elt); }
     /// returns false if elt is not found
     bool remove(T elt) {
         const bool found = map.remove(elt);

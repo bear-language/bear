@@ -26,7 +26,7 @@ fn foo() -> i32 {
 }
 
 fn bar() {
-    compt i32 a;
-    compt i32 b;
-    return compt 0 if @static_assert (a == 0 && a == b) else -1; // oops
+    compt i32 _a;
+    compt i32 _b;
+    return compt 0 if @static_assert (_a == 0 && _a == _b) else -1; // oops
 }

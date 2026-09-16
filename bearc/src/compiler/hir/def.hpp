@@ -247,6 +247,8 @@ struct Def : NodeWithVariantValue<Def> {
     const uint8_t alignment_preference = 0;
     /// indicates ABI
     const abi_lang abi = abi_lang::bear;
+    /// indicates if this def is top level
+    bool top_level{false};
 
     Def(DefValue value, SymbolId name, bool pub, bool compt, bool statik, bool generic, Span span,
         OptId<DefId> parent, enum abi_lang abi = abi_lang::bear)
@@ -254,9 +256,16 @@ struct Def : NodeWithVariantValue<Def> {
           statik{statik}, generic{generic}, abi{abi} {}
 
     Def(DefValue value, SymbolId name, bool pub, bool compt, bool statik, bool generic, Span span,
-        OptId<DefId> parent, uint8_t alignment_preference, enum abi_lang abi = abi_lang::bear)
+        OptId<DefId> parent, bool top_level, enum abi_lang abi = abi_lang::bear)
         : value{value}, span{span}, name{name}, parent{parent}, pub{pub}, compt{compt},
-          statik{statik}, generic{generic}, alignment_preference{alignment_preference}, abi{abi} {}
+          statik{statik}, generic{generic}, abi{abi}, top_level{top_level} {}
+
+    Def(DefValue value, SymbolId name, bool pub, bool compt, bool statik, bool generic, Span span,
+        OptId<DefId> parent, uint8_t alignment_preference, bool top_level,
+        enum abi_lang abi = abi_lang::bear)
+        : value{value}, span{span}, name{name}, parent{parent}, pub{pub}, compt{compt},
+          statik{statik}, generic{generic}, alignment_preference{alignment_preference}, abi{abi},
+          top_level{top_level} {}
 
     Def(DefValue value, SymbolId name, bool pub, bool compt, bool statik, bool generic, Span span,
         OptId<DefId> parent, uint8_t alignment_preference, HirSize member_idx,

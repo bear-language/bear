@@ -497,6 +497,8 @@ class TypeResolver {
                       .maybe_generic_args = {},
                       .anonymous = true});
 
+        def_visitor.visit_as_transparent(did);
+
         return context.emplace_type(
             TypeStruct{.def_id = did, .gen_args_slice = {}, .anonymous = true}, span, mut);
     }

@@ -19,7 +19,7 @@ struct Foo has Bar {
     fn oops() -> var {} // not legal
 
     fn oopsie_daisy() -> [&][&][10]var {
-        [10][10][10]i32 thingies;
+        [10][10][10]i32 _thingies;
         return thingies[0...10][0...10];
     }
 

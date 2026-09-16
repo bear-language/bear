@@ -657,9 +657,11 @@ DefId DefVisitor::resolve_def(DefId did) {
                 continue;
             }
             const auto tid = maybe_tid.as_id();
-            param_vec.push_back(context.register_def(
+            const auto param_did = context.register_def(
                 context.symbol_id(param->name), Span{context, fid, param->first, param->last},
-                context.def(did).parent.as_id(), stmt, DefVariable{.type_id = tid}));
+                context.def(did).parent.as_id(), DefVariable{.type_id = tid}, stmt);
+            context.def(param_did).top_level = true; // ensure this is true
+            param_vec.push_back(param_did);
         }
 
         IdSlice<DefId> members = context.freeze_id_vec(param_vec);
@@ -757,8 +759,8 @@ OptId<DefId> DefVisitor::resolve_param(FileId fid, ScopeId scope, DefId func_def
 }
 
 OptId<DefId> DefVisitor::resolve_param(DefId func_def, TypeId tid, SymbolId name, Span span) {
-    return context.register_compt_def(name, span, func_def,
-                                      DefVariable{.type_id = tid, .compt_value = std::nullopt});
+    return context.register_def(name, span, func_def,
+                                DefVariable{.type_id = tid, .compt_value = std::nullopt});
 }
 
 [[nodiscard]] DefFunction::ParamResolResult

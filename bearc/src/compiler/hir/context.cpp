@@ -25,6 +25,7 @@
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/span.hpp"
 #include "compiler/hir/type.hpp"
+#include "compiler/hir/variant_helpers.hpp"
 #include "compiler/parser/token_eaters.h"
 #include "compiler/token.h"
 #include "utils/ansi_codes.h"
@@ -227,7 +228,27 @@ Context::Context(const bearc_args_t& args, instances instances)
             }
         }
     }
+
+    if (warn_unused) {
+        for (auto did = defs.begin_id(); did != defs.end_id(); ++did) {
+            if (mention_state_of(did) == Def::mention_state::unused) {
+                const Def& def = this->def(did);
+                if (should_warn_as_unused(did)) {
+                    emplace_diagnostic_with_message_value(
+                        def.span, diag_code::is_never_used, diag_type::warning,
+                        DiagnosticSymbolBeforeMessage{.sid = def.name});
+                }
+            }
+        }
+    }
 }
+
+bool Context::should_warn_as_unused(DefId did) const {
+    const Def& def = this->def(did);
+    return !starts_with_underscore(def.name) && !is_top_level(did) && !is_intrinsic(did);
+}
+
+bool Context::is_top_level(DefId did) const { return def(did).top_level; }
 
 int Context::diagnostic_count() const noexcept {
     return static_cast<int>(fatal_error_cnt + normal_error_cnt + note_cnt + warning_cnt + help_cnt);
@@ -376,6 +397,14 @@ static auto parse_hex(Context& ctx, FileId fid, std::string_view hex_str, const 
 
     return static_cast<char>(accum);
 };
+
+[[nodiscard]] bool Context::starts_with_underscore(SymbolId sid) const {
+    const std::string_view str = symbol(sid);
+    if (str.empty()) {
+        return false;
+    }
+    return str[0] == '_';
+}
 
 SymbolId Context::symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid) {
     assert(tkn->type == TOK_STR_LIT);
@@ -549,6 +578,18 @@ FileId Context::file_intrinsic(SymbolId name, const char* string_literal_src) {
     file_to_diagnostics.bump();
     file_to_spans_to_scopes.bump();
     return file_id;
+}
+
+bool Context::file_is_intrinsic(FileId fid) const {
+    return intrinsic_files.contains(files.at(fid).path);
+}
+
+bool Context::is_intrinsic(DefId did) const {
+    const auto& span = def(did).span;
+    if (span.is_generated()) {
+        return false;
+    }
+    return file_is_intrinsic(span.file_id);
 }
 
 void Context::register_intrinsic_files() {
@@ -828,6 +869,7 @@ OptId<FileId> Context::try_file_from_import_statement(FileId importer_id,
 [[nodiscard]] OptId<DefId>
 Context::make_new_generic_instantiation(DefVisitor& def_visitor, DefId did,
                                         GenericArgIdSliceId gen_args_id) {
+    def_visitor.visit_as_transparent(did);
     auto maybe_instance_did = FileAstVisitor{*this, def(did).span.file_id}.lower_generic_stmt(
         containing_scope(did), def_ast_node(did), def(did).parent);
     if (maybe_instance_did.empty()) {
@@ -862,7 +904,7 @@ DefId Context::register_top_level_def(SymbolId name, bool pub, bool compt, bool 
                                       bool generic, Span span, const ast_stmt_t* stmt,
                                       OptId<DefId> parent) {
     DefId def = defs.emplace_and_get_id(DefUnevaluated{}, name, pub, compt, statik, generic, span,
-                                        parent);
+                                        parent, /*is top level*/ true);
     def_resol_states.bump(Def::resol_state::top_level_visited);
     def_ast_nodes.bump(stmt);
     def_mention_states.bump(Def::mention_state::unused);
@@ -872,8 +914,8 @@ DefId Context::register_top_level_def(SymbolId name, bool pub, bool compt, bool 
 DefId Context::register_top_level_def(SymbolId name, bool pub, bool compt, bool statik,
                                       bool generic, Span span, const ast_stmt_t* stmt,
                                       OptId<DefId> parent, uint8_t align_pref, abi_lang abi) {
-    DefId def = defs.emplace_and_get_id(DefUnevaluated{}, name, pub, compt, statik, generic, span,
-                                        parent, align_pref, Def::UNORDERED, abi);
+    DefId def = defs.emplace_and_get_id(Def{DefUnevaluated{}, name, pub, compt, statik, generic,
+                                            span, parent, align_pref, /*top_level=*/true, abi});
     def_resol_states.bump(Def::resol_state::top_level_visited);
     def_ast_nodes.bump(stmt);
     def_mention_states.bump(Def::mention_state::unused);
@@ -897,12 +939,12 @@ DefId Context::register_compt_def(SymbolId name, Span span, OptId<DefId> parent,
         = defs.emplace_and_get_id(value, name, true, true, true, /*generic*/ false, span, parent);
     def_resol_states.bump(Def::resol_state::resolved);
     def_ast_nodes.bump(stmt);
-    def_mention_states.bump(Def::mention_state::unused);
+    def_mention_states.bump(Def::mention_state::used); // since this is generated
     return def;
 }
 
-DefId Context::register_def(SymbolId name, Span span, OptId<DefId> parent, const ast_stmt_t* stmt,
-                            DefValue value) {
+DefId Context::register_def(SymbolId name, Span span, OptId<DefId> parent, DefValue value,
+                            const ast_stmt_t* stmt) {
     DefId def = defs.emplace_and_get_id(value, name, true, false, false, false, span, parent);
     def_resol_states.bump(Def::resol_state::resolved);
     def_ast_nodes.bump(stmt);
@@ -1041,7 +1083,7 @@ DefId Context::register_generated_deftype(ScopeId scope, SymbolId name, TypeId t
     this->scope(scope).insert_type(name, did);
     def_resol_states.bump(Def::resol_state::resolved);
     def_ast_nodes.bump();
-    def_mention_states.bump(Def::mention_state::unused);
+    def_mention_states.bump(Def::mention_state::used); // used since the compiler is generating this
     return did;
 }
 
@@ -1228,10 +1270,10 @@ Def& Context::def(DefId def_id) { return defs.at(def_id); }
     return freeze_id_vec(names);
 }
 
-const Def& Context::try_func_def(DefId def_id) const { return def(try_func_did(def_id)); }
+const Def& Context::try_func_def(DefId def_id) { return def(try_func_did(def_id)); }
 
-DefId Context::try_func_did(DefId def_id) const {
-    const Def& def = this->def(def_id);
+DefId Context::try_func_did(DefId def_id) {
+    const Def& def = this->def(DefVisitor{*this}.visit_as_transparent(def_id));
     if (def.holds<DefVariable>()) {
         DefVariable var = def.as<DefVariable>();
         if (var.compt_value.has_value()) {
