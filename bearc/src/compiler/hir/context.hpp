@@ -861,8 +861,28 @@ class Context {
         return def_id_to_offset_slice.at(did);
     }
 
+    /// may only yield a value for TypeStruct and TypeVariant types
     [[nodiscard]] OptId<OffsetSliceId> offset_slice_for_type(TypeId tid) {
-        return def_id_to_offset_slice.at(did);
+        const auto& ty = type(tid);
+
+        OptId<OffsetSliceId> maybe{};
+
+        if (ty.holds<TypeStruct>()) {
+            maybe = def_id_to_offset_slice.at(ty.as<TypeStruct>().def_id);
+            if (maybe.empty()) {
+                // this calculate the layout (and sets offset)
+                const auto _ = layout_for_type(tid);
+                maybe = def_id_to_offset_slice.at(ty.as<TypeStruct>().def_id);
+            }
+        } else if (ty.holds<TypeVariant>()) {
+            maybe = def_id_to_offset_slice.at(ty.as<TypeVariant>().def_id);
+            // this calculate the layout (and sets offset)
+            if (maybe.empty()) {
+                const auto _ = layout_for_type(tid);
+                maybe = def_id_to_offset_slice.at(ty.as<TypeVariant>().def_id);
+            }
+        }
+        return maybe;
     }
 
     void register_deduction_guide_for_def(DefId did, DeductionGuideId guide_id) {
