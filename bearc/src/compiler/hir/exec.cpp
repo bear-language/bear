@@ -972,7 +972,7 @@ bool Exec::can_be_compt() {
     auto vs = Ovld{
         [](const ExecFnPtr&) -> bool { return true; },
         [](const ExecUnionInit&) -> bool { return true; },
-        [](const ExecExprVariantInit&) -> bool { return true; },
+        [](const ExecVariantInit&) -> bool { return true; },
         [](const ExecRange&) -> bool { return true; },
         [](const ExecVariantFieldInit&) -> bool { return true; },
         [](const ExecListLiteral&) -> bool { return true; },
@@ -994,10 +994,9 @@ bool Exec::can_be_compt() {
         [](const ExecFnCall&) -> bool { return false; },
         [](const ExecBorrow&) -> bool { return false; },
         [](const ExecDeref&) -> bool { return false; },
-        [](const ExecExprClosure&) -> bool { return false; },
-        [](const ExecExprVariantDecomp&) -> bool { return false; },
-        [](const ExecExprMatch&) -> bool { return false; },
-        [](const ExecExprMatchBranch&) -> bool { return false; },
+        [](const ExecVariantDecomp&) -> bool { return false; },
+        [](const ExecMatch&) -> bool { return false; },
+        [](const ExecMatchBranch&) -> bool { return false; },
     };
     return visit(vs);
 }
@@ -2007,7 +2006,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
                                                .name)
                    + exec_to_string(ctx, t.member_init) + "}";
         },
-        [&ctx](const ExecExprVariantInit& t) -> std::string {
+        [&ctx](const ExecVariantInit& t) -> std::string {
             std::string str{};
 
             str.reserve(128); // decent amount
@@ -2113,19 +2112,15 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             // todo
             return {};
         },
-        [](const ExecExprClosure&) -> std::string {
+        [](const ExecVariantDecomp&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprVariantDecomp&) -> std::string {
+        [](const ExecMatch&) -> std::string {
             // todo
             return {};
         },
-        [](const ExecExprMatch&) -> std::string {
-            // todo
-            return {};
-        },
-        [](const ExecExprMatchBranch&) -> std::string {
+        [](const ExecMatchBranch&) -> std::string {
             // todo
             return {};
         },

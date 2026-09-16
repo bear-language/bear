@@ -33,13 +33,17 @@
     - [ ] no lifetimes
     - [ ] strictly ban returning a reference to a local variable directly out of a function
 - [ ] remember: run-time values that are immutable references and have compile-time initializers can just reference static variables that store that compile-time value
-- [ ] LLVM lowering prep:
-    - [ ] tighten up mention/mutation tracking for better `unused variable: foo` diagnostics (and top level decls when not a lib build)
-    - [ ] either queue structure declarations (as is done for functions) for better LLVM lowering 
-    - [ ] just find main thru top-level scope; only require it in non-lib builds 
-    - [ ] add a flag for exec/lib build to track diagnostics slightly different (described above)
-    - [ ] finalize `extern {}` and `extern C {}` semantics for cross-TU and FFI compilation respectively
-        - [ ] hand out errors for C-incompatible functions when under a C abi extern, like no references, generics, etc.
+
+- [ ] tighten up mention/mutation tracking for better `unused variable: foo` diagnostics (and top level decls when not a lib build)
+- [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
+
+- [ ] consider queuing structure declarations (as is done for functions) for better LLVM lowering, or just do it lazily as needed
+
+- [ ] just find main thru top-level scope; only require it in non-lib builds 
+
+- [ ] finalize `extern {}` and `extern C {}` semantics for cross-TU and FFI compilation respectively
+    - [ ] hand out errors for C-incompatible functions when under a C abi extern, like no references, generics, etc.
+    - [ ] scrap the `import C "foo.h";` construct
 
 #### top-level resol / compt improvements:
 - [ ] deduction guides

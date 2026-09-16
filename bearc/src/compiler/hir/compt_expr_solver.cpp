@@ -71,8 +71,8 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
     if (exec.holds<ExecFnPtr>()) {
         return exec.as<ExecFnPtr>().fn_ptr_tid;
     }
-    if (exec.holds<ExecExprVariantInit>()) {
-        const auto did = exec.as<ExecExprVariantInit>().variant_def_id;
+    if (exec.holds<ExecVariantInit>()) {
+        const auto did = exec.as<ExecVariantInit>().variant_def_id;
         const auto variant_def = context.def(did);
 
         if (!variant_def.template holds<DefVariant>()) {
@@ -1459,7 +1459,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     }
 
     if (bin_op_is_eq_neq(op)
-        && (lhs_exec.holds_same<ExecExprVariantInit>(rhs_exec)
+        && (lhs_exec.holds_same<ExecVariantInit>(rhs_exec)
             || lhs_exec.holds_same<ExecRange>(rhs_exec)
             || lhs_exec.holds_same<ExecUnionInit>(rhs_exec))) {
         return solve_any_eq(lhs_eid, rhs_eid, op);
@@ -2353,9 +2353,9 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
         }
         ExecId payload = context.emplace_compt_exec(
             ExecVariantFieldInit{.member_inits = {}, .variant_field_def_id = did}, expr_span);
-        return context.emplace_compt_exec(ExecExprVariantInit{.payload_init = payload,
-                                                              .variant_def_id = def.parent.as_id(),
-                                                              .active_member_idx = def.member_idx},
+        return context.emplace_compt_exec(ExecVariantInit{.payload_init = payload,
+                                                          .variant_def_id = def.parent.as_id(),
+                                                          .active_member_idx = def.member_idx},
                                           expr_span);
     }
     auto d0 = context.emplace_diagnostic(
@@ -3601,9 +3601,9 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
         span);
 
     return context.emplace_compt_exec(
-        ExecExprVariantInit{.payload_init = field_init,
-                            .variant_def_id = context.def(variant_field_did).parent.as_id(),
-                            .active_member_idx = context.def(variant_field_did).member_idx},
+        ExecVariantInit{.payload_init = field_init,
+                        .variant_def_id = context.def(variant_field_did).parent.as_id(),
+                        .active_member_idx = context.def(variant_field_did).member_idx},
         span);
 }
 
@@ -3611,13 +3611,13 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
                                                       const ast_expr_t* pattern_expr) {
     DiagLinker dl{context};
     const Exec& exec = context.exec(eid);
-    if (!exec.holds<ExecExprVariantInit>()) {
+    if (!exec.holds<ExecVariantInit>()) {
         context.emplace_diagnostic(exec.span, diag_code::cannot_use_is_for_non_variant_values,
                                    diag_type::error,
                                    DiagnosticSubCode{.sub_code = diag_code::not_a_variant});
         return {};
     }
-    const ExecExprVariantInit var_init = exec.as<ExecExprVariantInit>();
+    const ExecVariantInit var_init = exec.as<ExecVariantInit>();
     const auto ordered_variant_fields
         = context.def(var_init.variant_def_id).template as<DefVariant>().ordered_members;
     if (pattern_expr->type != AST_EXPR_VARIANT_DECOMP) {
@@ -3749,10 +3749,10 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
                                                     ExecId matched_eid) {
     const Exec& matched_exec = context.exec(matched_eid);
 
-    if (matched_exec.holds<ExecExprVariantInit>()) {
-        const auto active_field_idx = matched_exec.as<ExecExprVariantInit>().active_member_idx;
+    if (matched_exec.holds<ExecVariantInit>()) {
+        const auto active_field_idx = matched_exec.as<ExecVariantInit>().active_member_idx;
         const auto variant_field_def_idx
-            = context.ordered_defs_for(matched_exec.as<ExecExprVariantInit>().variant_def_id)
+            = context.ordered_defs_for(matched_exec.as<ExecVariantInit>().variant_def_id)
                   .get(active_field_idx);
         const DefId variant_field_def_id = context.def_id(variant_field_def_idx);
 
@@ -3865,8 +3865,7 @@ bool ComptExprSolver::try_variant_decomp(FileId fid, ScopeId pattern_scope, Scop
         }
 
         const auto members
-            = context
-                  .exec(context.exec(variant_eid).template as<ExecExprVariantInit>().payload_init)
+            = context.exec(context.exec(variant_eid).template as<ExecVariantInit>().payload_init)
                   .template as<ExecVariantFieldInit>()
                   .member_inits;
         if (i < members.len()) {

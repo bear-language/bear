@@ -483,7 +483,7 @@ struct ExecUnionInit {
     bool move{false};
 };
 
-struct ExecExprVariantInit {
+struct ExecVariantInit {
     /// this should be a ExecVariantFieldInit
     ExecId payload_init;
     DefId variant_def_id;
@@ -506,24 +506,17 @@ struct ExecFnPtr {
     OptId<TypeId> fn_ptr_tid;
 };
 
-struct ExecExprClosure {
-    IdSlice<DefId> params;
-    IdSlice<DefId> captures;
-    TypeId return_type;
-    bool move;
-};
-
-struct ExecExprVariantDecomp {
+struct ExecVariantDecomp {
     IdSlice<DefId> fields;
     DefId def;
 };
 
-struct ExecExprMatch {
+struct ExecMatch {
     ExecId scrutinee;
     IdSlice<ExecId> branches;
 };
 
-struct ExecExprMatchBranch {
+struct ExecMatchBranch {
     IdSlice<ExecId> pattern;
     ExecId body;
 };
@@ -536,10 +529,10 @@ using ExecValue = std::variant<
     ExecBlock, ExecBranch, ExecReturn, ExecYieldStmt, ExecJump,
 
     // expressions
-    ExecUnionInit, ExecExprVariantInit, ExecStructInit, ExecAssignable, ExecComptConstant,
+    ExecUnionInit, ExecVariantInit, ExecStructInit, ExecAssignable, ExecComptConstant,
     ExecListLiteral, ExecAssignment, ExecIs, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
-    ExecFnCall, ExecBorrow, ExecDeref, ExecExprClosure, ExecExprVariantDecomp, ExecExprMatch,
-    ExecExprMatchBranch, ExecFnPtr, ExecVariantFieldInit, ExecRange>;
+    ExecFnCall, ExecBorrow, ExecDeref, ExecVariantDecomp, ExecMatch, ExecMatchBranch, ExecFnPtr,
+    ExecVariantFieldInit, ExecRange>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {

@@ -206,7 +206,7 @@ class ComptExprSolver {
 
     static bool exec_is_compt_viable(const Exec& exec) {
         return exec.holds_any_of<ExecConst, ExecStructInit, ExecListLiteral, ExecUnionInit,
-                                 ExecExprVariantInit>();
+                                 ExecVariantInit>();
     }
 
     struct FuncLookUp {

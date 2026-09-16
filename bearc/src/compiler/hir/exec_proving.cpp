@@ -52,20 +52,19 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
             return equivalent_exec(ctx, t.member_init, other.as<ExecUnionInit>().member_init);
         },
-        [&other, &ctx](const ExecExprVariantInit& t) -> bool {
-            if (!other.holds<ExecExprVariantInit>()) {
+        [&other, &ctx](const ExecVariantInit& t) -> bool {
+            if (!other.holds<ExecVariantInit>()) {
                 return false;
             }
-            if (t.variant_def_id != other.as<ExecExprVariantInit>().variant_def_id) {
-                return false;
-            }
-
-            if (t.active_member_idx != other.as<ExecExprVariantInit>().active_member_idx) {
+            if (t.variant_def_id != other.as<ExecVariantInit>().variant_def_id) {
                 return false;
             }
 
-            return equivalent_exec(ctx, t.payload_init,
-                                   other.as<ExecExprVariantInit>().payload_init);
+            if (t.active_member_idx != other.as<ExecVariantInit>().active_member_idx) {
+                return false;
+            }
+
+            return equivalent_exec(ctx, t.payload_init, other.as<ExecVariantInit>().payload_init);
         },
         [&other, &ctx](const ExecStructInit& t) -> bool {
             if (!other.holds<ExecStructInit>()) {
@@ -181,10 +180,9 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecFnCall&) -> bool { return false; },
         [](const ExecBorrow&) -> bool { return false; },
         [](const ExecDeref&) -> bool { return false; },
-        [](const ExecExprClosure&) -> bool { return false; },
-        [](const ExecExprVariantDecomp&) -> bool { return false; },
-        [](const ExecExprMatch&) -> bool { return false; },
-        [](const ExecExprMatchBranch&) -> bool { return false; },
+        [](const ExecVariantDecomp&) -> bool { return false; },
+        [](const ExecMatch&) -> bool { return false; },
+        [](const ExecMatchBranch&) -> bool { return false; },
     };
 
     return ctx.exec(eid1).visit(vs);
@@ -230,15 +228,15 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             }
             return false;
         },
-        [&e2](const ExecExprVariantInit& t) -> bool {
-            if (!e2.holds<ExecExprVariantInit>()) {
+        [&e2](const ExecVariantInit& t) -> bool {
+            if (!e2.holds<ExecVariantInit>()) {
                 return false;
             }
-            if (t.variant_def_id != e2.as<ExecExprVariantInit>().variant_def_id) {
+            if (t.variant_def_id != e2.as<ExecVariantInit>().variant_def_id) {
                 return false;
             }
 
-            if (t.active_member_idx != e2.as<ExecExprVariantInit>().active_member_idx) {
+            if (t.active_member_idx != e2.as<ExecVariantInit>().active_member_idx) {
                 return false;
             }
 
@@ -303,10 +301,9 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecFnCall&) -> bool { return false; },
         [](const ExecBorrow&) -> bool { return false; },
         [](const ExecDeref&) -> bool { return false; },
-        [](const ExecExprClosure&) -> bool { return false; },
-        [](const ExecExprVariantDecomp&) -> bool { return false; },
-        [](const ExecExprMatch&) -> bool { return false; },
-        [](const ExecExprMatchBranch&) -> bool { return false; },
+        [](const ExecVariantDecomp&) -> bool { return false; },
+        [](const ExecMatch&) -> bool { return false; },
+        [](const ExecMatchBranch&) -> bool { return false; },
         [](const ExecFnPtr&) -> bool { return false; },
     };
 
@@ -328,7 +325,7 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
         [&ctx](const ExecUnionInit& t) -> size_t {
             return mix(t.union_def_id.raw() ^ hash_exec(ctx, t.member_init) ^ t.active_member_idx);
         },
-        [&ctx](const ExecExprVariantInit& t) -> size_t {
+        [&ctx](const ExecVariantInit& t) -> size_t {
             return mix(t.variant_def_id.raw() ^ hash_exec(ctx, t.payload_init)
                        ^ t.active_member_idx);
         },
@@ -362,13 +359,9 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
         [](const ExecFnCall&) -> size_t { return {}; },
         [](const ExecBorrow&) -> size_t { return {}; },
         [](const ExecDeref&) -> size_t { return {}; },
-        [](const ExecExprClosure&) -> size_t {
-            // todo, add when impl'd
-            return {};
-        },
-        [](const ExecExprVariantDecomp&) -> size_t { return {}; },
-        [](const ExecExprMatch&) -> size_t { return {}; },
-        [](const ExecExprMatchBranch&) -> size_t { return {}; },
+        [](const ExecVariantDecomp&) -> size_t { return {}; },
+        [](const ExecMatch&) -> size_t { return {}; },
+        [](const ExecMatchBranch&) -> size_t { return {}; },
         [](const ExecFnPtr& t) -> size_t { return mix(t.func_def_id.raw()); },
         [&ctx](const ExecVariantFieldInit& t) -> size_t {
             size_t h = t.variant_field_def_id.raw();
