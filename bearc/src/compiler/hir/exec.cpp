@@ -2041,7 +2041,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
                     str += " = ";
                 }
                 str += exec_to_string(ctx, ctx.exec_id(eidx));
-                if (eidx != t.member_inits.last_elem()) {
+                if (eidx != t.member_inits.last_elem() || t.anonymous) {
                     str += ", ";
                 }
             }

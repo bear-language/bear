@@ -238,7 +238,7 @@ struct Def : NodeWithVariantValue<Def> {
     /// indicates pub (true) or hid (false) visibility
     const bool pub = false;
     /// indicates compt (compile-time)
-    const bool compt = false;
+    bool compt = false;
     /// indicates static (storage duration)
     const bool statik = false;
     /// indicates generic

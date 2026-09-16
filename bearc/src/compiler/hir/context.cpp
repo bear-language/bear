@@ -870,11 +870,15 @@ OptId<FileId> Context::try_file_from_import_statement(FileId importer_id,
 Context::make_new_generic_instantiation(DefVisitor& def_visitor, DefId did,
                                         GenericArgIdSliceId gen_args_id) {
     def_visitor.visit_as_transparent(did);
-    auto maybe_instance_did = FileAstVisitor{*this, def(did).span.file_id}.lower_generic_stmt(
-        containing_scope(did), def_ast_node(did), def(did).parent);
+    const OptId<DefId> maybe_instance_did
+        = FileAstVisitor{*this, def(did).span.file_id}.lower_generic_stmt(
+            containing_scope(did), def_ast_node(did), def(did).parent);
     if (maybe_instance_did.empty()) {
         return {};
     }
+
+    // match up compt status
+    def(maybe_instance_did.as_id()).compt = def(did).compt;
 
     // record the instance's generic args
     register_gen_args_for_def(maybe_instance_did.as_id(), gen_args_id);
