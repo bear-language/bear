@@ -67,7 +67,8 @@
         - `@inferable_as` `(` Type, Type `)`
         - `@err` | `@warn` | `@note` | `@help` `(` Expression \[`,` Expression]? `)`, parentheses may be elided
         - `@members_of` Type
-        - `@statics_of` Type
+        - `@statics_of` Type 
+        - `@type_id` Type 
         - `@id` Expression 
         - `@scoped_id` `(` Indentifier `,` Expression `)`
 

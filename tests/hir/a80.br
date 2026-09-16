@@ -1,0 +1,31 @@
+// tests/hir/a80.br
+
+var _0 = @static_assert match 1 {(((1))) => 1, else => 0} == 1;
+
+var _1 = @static_assert @type_id(i32) == @type_id(i32);
+
+deftype Foo = struct(i32);
+
+var _2 = @static_assert @type_id(struct(i32,Foo)) == @type_id(struct(i32, Foo));
+
+var _3 = @static_assert @type_id(struct(i32,Foo)) == @type_id(struct(Foo, Foo)); // oops
+
+struct A {}
+struct B {}
+struct C {}
+struct D {}
+struct E {}
+
+compt A a = {};
+compt var b = B{};
+
+var _4 = @static_assert 0 == match @type_id typeof a {
+    @type_id A => 0,
+    @type_id B => 1,
+    @type_id C => 2,
+    @type_id D => 3,
+    @type_id E => 4,
+    else => 5,
+}; 
+
+

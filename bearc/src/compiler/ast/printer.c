@@ -761,6 +761,11 @@ void pretty_print_expr(const ast_expr_t* expression) {
         print_closing_delim_from_type(TOK_RPAREN);
         print_closing_green_brace();
         break;
+    case AST_EXPR_TYPE_ID:
+        print_title("@type_id");
+        print_type(expr.expr.type_id.type);
+        print_closing_green_brace();
+        break;
     }
     puts(",");
     printer_deindent();

@@ -131,6 +131,7 @@ static void string_to_token_map_init(void) {
 
     strimap_emplace(&string_to_token_map, "@id", TOK_REFLECTED_ID);
     strimap_emplace(&string_to_token_map, "@scoped_id", TOK_REFLECTED_SCOPED_ID);
+    strimap_emplace(&string_to_token_map, "@type_id", TOK_TYPE_ID);
 
     strimap_emplace(&string_to_token_map, "decay", TOK_DECAY);
 
@@ -328,6 +329,7 @@ static const char* token_to_string_map_impl[TOK__NUM] = {
 
     [TOK_REFLECTED_ID] = "@id",
     [TOK_REFLECTED_SCOPED_ID] = "@scoped_id",
+    [TOK_TYPE_ID] = "@type_id",
 
     // structures
     [TOK_VARIANT] = "variant",

@@ -62,22 +62,8 @@ namespace hir {
 
     // TODO
     switch (expr->type) {
-    case AST_EXPR_ID:
-    case AST_EXPR_GENERIC_ID:
-    case AST_EXPR_LITERAL:
-    case AST_EXPR_LIST_LITERAL:
-    case AST_EXPR_BINARY:
-    case AST_EXPR_GROUPING:
-    case AST_EXPR_PRE_UNARY:
-    case AST_EXPR_POST_UNARY:
-    case AST_EXPR_SUBSCRIPT:
-    case AST_EXPR_FN_CALL:
-    case AST_EXPR_TYPE:
+        // ------------------ these are purely compt eval'd ------------------
     case AST_EXPR_COMPT:
-    case AST_EXPR_BORROW:
-    case AST_EXPR_ADDR_OF:
-    case AST_EXPR_SAME_TYPE:
-    case AST_EXPR_TYPE_TO_STR:
     case AST_EXPR_STATIC_ASSERT:
     case AST_EXPR_DEFINED:
     case AST_EXPR_HAS_CONTRACT:
@@ -89,6 +75,24 @@ namespace hir {
     case AST_EXPR_REFLECTED_SCOPED_ID:
     case AST_EXPR_ALIGNOF:
     case AST_EXPR_SIZEOF:
+    case AST_EXPR_TYPE_ID:
+        return ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, expr, into_tid);
+        // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    case AST_EXPR_ID:
+    case AST_EXPR_GENERIC_ID:
+    case AST_EXPR_LITERAL:
+    case AST_EXPR_LIST_LITERAL:
+    case AST_EXPR_BINARY:
+    case AST_EXPR_GROUPING:
+    case AST_EXPR_PRE_UNARY:
+    case AST_EXPR_POST_UNARY:
+    case AST_EXPR_SUBSCRIPT:
+    case AST_EXPR_FN_CALL:
+    case AST_EXPR_TYPE:
+    case AST_EXPR_BORROW:
+    case AST_EXPR_ADDR_OF:
+    case AST_EXPR_SAME_TYPE:
+    case AST_EXPR_TYPE_TO_STR:
     case AST_EXPR_STRUCT_INIT:
     case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
@@ -505,8 +509,8 @@ OptId<ExecId> RuntimeSolver::handle_expr_stmt(FileId fid, LexicalCtx lctx, InPro
     assert(stmt->type == AST_STMT_EXPR);
     const auto maybe_eid = solve_expr(fid, lctx, stmt->stmt.stmt_expr.expr);
     if (maybe_eid.has_value()) {
-        /// TODO: walk the exec and check for unused value (execs behave like canonical expressions,
-        /// so basically look for function calls of discardable function, else give a diagnostic)
+        /// TODO: warn unused based on the type of exec (fine for mutation / discardable functions,
+        /// bad for everything else)
         block.push_back_exec(maybe_eid.as_id());
     }
     return maybe_eid;
@@ -564,6 +568,7 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_REFLECTED_SCOPED_ID:
     case AST_EXPR_ALIGNOF:
     case AST_EXPR_SIZEOF:
+    case AST_EXPR_TYPE_ID:
         return ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, expr);
         // ^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^
     case AST_EXPR_ID:

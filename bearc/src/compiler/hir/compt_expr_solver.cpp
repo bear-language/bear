@@ -383,6 +383,8 @@ novel_issue:
         return solve_closure(fid, scope, expr);
     case AST_EXPR_TUPLE_INIT:
         return solve_tuple_init(fid, scope, expr);
+    case AST_EXPR_TYPE_ID:
+        return solve_type_id(fid, scope, expr);
     // try should all fall thru to builtin
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_ADDR_OF:
@@ -734,6 +736,8 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
         return solve_sizeof(fid, scope, expr);
     case AST_EXPR_CLOSURE:
         return solve_closure(fid, scope, expr);
+    case AST_EXPR_TYPE_ID:
+        return solve_type_id(fid, scope, expr);
     case AST_EXPR_TYPE:
     case AST_EXPR_BORROW:
     case AST_EXPR_STRUCT_MEMBER_INIT:
@@ -955,6 +959,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
 
     OptId<ExecId> maybe_eid{};
 
+    const auto prior_diag_cnt = context.diagnostic_count();
+
     auto validate_lookup
         = [this, into_tid, expr_span, visit_def](OptId<DefId> maybe_did,
                                                  token_ptr_slice_t id_slice) -> OptId<ExecId> {
@@ -1143,12 +1149,47 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         maybe_eid = solve_tuple_init(fid, scope, expr);
         break;
     case AST_EXPR_SAME_TYPE:
+        maybe_eid = handle_same_type(fid, scope, expr);
+        break;
     case AST_EXPR_HAS_CONTRACT:
+        maybe_eid = handle_has_contract(fid, scope, expr);
+        break;
     case AST_EXPR_DEFINED:
+        maybe_eid = handle_defined(fid, scope, expr);
+        break;
     case AST_EXPR_TYPE_TO_STR:
+        maybe_eid = handle_type_to_str(fid, scope, expr);
+        break;
     case AST_EXPR_STATIC_ASSERT:
+        maybe_eid = handle_static_assert(fid, scope, expr);
+        break;
     case AST_EXPR_LITERAL:
+        maybe_eid = solve_builtin_compt_expr(fid, scope, expr, {});
+        break;
     case AST_EXPR_LIST_LITERAL:
+        maybe_eid = solve_list(fid, scope, expr, {});
+        break;
+    case AST_EXPR_DIAGNOSTIC:
+        maybe_eid = handle_diag_expr(fid, scope, expr);
+        break;
+    case AST_EXPR_MEMBERS_OF:
+        maybe_eid = solve_members_of(fid, scope, expr);
+        break;
+    case AST_EXPR_STATICS_OF:
+        maybe_eid = solve_statics_of(fid, scope, expr);
+        break;
+    case AST_EXPR_ALIGNOF:
+        maybe_eid = solve_alignof(fid, scope, expr);
+        break;
+    case AST_EXPR_SIZEOF:
+        maybe_eid = solve_sizeof(fid, scope, expr);
+        break;
+    case AST_EXPR_INFERABLE_AS:
+        maybe_eid = handle_inferable_as(fid, scope, expr);
+        break;
+    case AST_EXPR_TYPE_ID:
+        maybe_eid = solve_type_id(fid, scope, expr);
+        break;
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_POST_UNARY:
     case AST_EXPR_TYPE:
@@ -1158,12 +1199,6 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_ELSE_MATCH_PATTERN:
-    case AST_EXPR_INFERABLE_AS:
-    case AST_EXPR_DIAGNOSTIC:
-    case AST_EXPR_MEMBERS_OF:
-    case AST_EXPR_STATICS_OF:
-    case AST_EXPR_ALIGNOF:
-    case AST_EXPR_SIZEOF:
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_INVALID:
         break;
@@ -1199,6 +1234,10 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
                 DiagnosticTypeToType{.from = inferred_tid, .to = into_tid.as_id()});
         }
         return {};
+    }
+    if (maybe_eid.empty() && context.diagnostic_count() == prior_diag_cnt) {
+        context.emplace_diagnostic(Span{context, fid, expr}, diag_code::cannot_resolve_at_compt,
+                                   diag_type::error);
     }
     return maybe_eid;
 }
@@ -2120,6 +2159,7 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
     case AST_EXPR_DIAGNOSTIC:
     case AST_EXPR_STATIC_ASSERT:
     case AST_EXPR_ALIGNOF:
+    case AST_EXPR_TYPE_ID:
     case AST_EXPR_SIZEOF:
     case AST_EXPR_TUPLE_INIT:
     case AST_EXPR_INVALID:
@@ -4318,6 +4358,19 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
     return context.emplace_compt_exec(ExecStructInit{.member_inits = context.freeze_id_vec(eid_vec),
                                                      .struct_def_id = ty.as<TypeStruct>().def_id,
                                                      .anonymous = true},
+                                      Span{context, fid, expr});
+}
+[[nodiscard]] OptId<ExecId> ComptExprSolver::solve_type_id(FileId fid, ScopeId scope,
+                                                           const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_TYPE_ID);
+
+    const auto maybe_tid = resolve_type(fid, scope, expr->expr.type_id.type);
+
+    if (maybe_tid.empty()) {
+        return {};
+    }
+
+    return context.emplace_compt_exec(ExecConst{context.type(maybe_tid.as_id()).canonical.raw()},
                                       Span{context, fid, expr});
 }
 [[nodiscard]] OptId<GenericArgIdSliceId>

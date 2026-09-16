@@ -64,6 +64,8 @@ typedef enum ast_expr_type {
     AST_EXPR_ALIGNOF,
     AST_EXPR_SIZEOF,
 
+    AST_EXPR_TYPE_ID,
+
     // structs
     AST_EXPR_STRUCT_INIT,
     AST_EXPR_STRUCT_MEMBER_INIT,
@@ -318,6 +320,7 @@ typedef union ast_expr_u {
     ast_expr_type_t size_of;
     ast_expr_type_t align_of;
     ast_expr_tuple_init_t tuple;
+    ast_expr_type_t type_id;
 } ast_expr_u;
 
 /// underlying expr is 0-offset aligned so this struct can be safely downcasted
