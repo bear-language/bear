@@ -16,14 +16,20 @@ namespace hir {
 /// checks whether two Execs are equivalent
 /// - fully checks compt values
 /// - returns true only if the two Execs are certainly equal (since their values are fully knowable
-/// at compile-time), else false
+/// at compile-time), or if run-time execs are structurally equivalent.
+///
+/// note :this is to say that the execs may not be equivalent at different times at run-time, but
+/// are equivalent as far as the compiler is concerned. keep this in mind when comparing execs that
+/// may refer to values that are mutable and mutation was possible between the order of the execs.
+/// for this reason, it would be best to either use this with 1) pure compile-time value or 2) execs
+/// on either side of an expression, like notably some boolean expression: `exec || exec`, etc.
 bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
-/// checks whether two Execs could be equivalent
-/// - note: this might be useless (in its current state)
-bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
+bool equivalent_exec_slice(const Context& ctx, IdSlice<ExecId> s1, IdSlice<ExecId> s2);
 
 size_t hash_exec(const Context& ctx, ExecId eid);
+
+bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
 } // namespace hir
 

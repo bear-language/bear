@@ -58,7 +58,7 @@ struct ExecReturn {
     OptId<ExecId> return_value;
 };
 
-struct ExecYieldStmt {
+struct ExecYield {
     OptId<ExecId> yield_value;
 };
 
@@ -437,11 +437,6 @@ struct ExecAssignment {
     ExecId rhs;
 };
 
-struct ExecIs {
-    ExecId variant_instance;
-    ExecId variant_decomp;
-};
-
 struct ExecMemberAccess {
     ExecId owner;
     DefId member;
@@ -469,11 +464,15 @@ struct ExecFnCall {
 };
 
 struct ExecBorrow {
-    ExecId borrowee;
+    DefId borrowee;
 };
 
 struct ExecDeref {
-    ExecId expr;
+    ExecId dereferenced;
+};
+
+struct ExecAddrOf {
+    DefId addressed;
 };
 
 struct ExecUnionInit {
@@ -506,18 +505,13 @@ struct ExecFnPtr {
     OptId<TypeId> fn_ptr_tid;
 };
 
-struct ExecVariantDecomp {
-    IdSlice<DefId> fields;
-    DefId def;
-};
-
 struct ExecMatch {
     ExecId scrutinee;
     IdSlice<ExecId> branches;
 };
 
 struct ExecMatchBranch {
-    IdSlice<ExecId> pattern;
+    IdSlice<ExecId> patterns;
     ExecId body;
 };
 
@@ -526,12 +520,12 @@ struct ExecMatchBranch {
 /// main exec variant
 using ExecValue = std::variant<
     // blocks / statements
-    ExecBlock, ExecBranch, ExecReturn, ExecYieldStmt, ExecJump,
+    ExecBlock, ExecBranch, ExecReturn, ExecYield, ExecJump,
 
     // expressions
     ExecUnionInit, ExecVariantInit, ExecStructInit, ExecAssignable, ExecComptConstant,
-    ExecListLiteral, ExecAssignment, ExecIs, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
-    ExecFnCall, ExecBorrow, ExecDeref, ExecVariantDecomp, ExecMatch, ExecMatchBranch, ExecFnPtr,
+    ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
+    ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecFnPtr,
     ExecVariantFieldInit, ExecRange>;
 
 /// main exec structure, corresponds to an hir::ExecId

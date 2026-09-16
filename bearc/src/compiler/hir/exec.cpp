@@ -982,11 +982,10 @@ bool Exec::can_be_compt() {
         [](const ExecJump&) -> bool { return false; },
         [](const ExecBranch&) -> bool { return false; },
         [](const ExecReturn&) -> bool { return false; },
-        [](const ExecYieldStmt&) -> bool { return false; },
+        [](const ExecYield&) -> bool { return false; },
         // exprs
         [](const ExecAssignable&) -> bool { return false; },
         [](const ExecAssignment&) -> bool { return false; },
-        [](const ExecIs&) -> bool { return false; },
         [](const ExecMemberAccess&) -> bool { return false; },
         [](const ExecBinary&) -> bool { return false; },
         [](const ExecCast&) -> bool { return false; },
@@ -994,7 +993,7 @@ bool Exec::can_be_compt() {
         [](const ExecFnCall&) -> bool { return false; },
         [](const ExecBorrow&) -> bool { return false; },
         [](const ExecDeref&) -> bool { return false; },
-        [](const ExecVariantDecomp&) -> bool { return false; },
+        [](const ExecAddrOf&) -> bool { return false; },
         [](const ExecMatch&) -> bool { return false; },
         [](const ExecMatchBranch&) -> bool { return false; },
     };
@@ -1997,7 +1996,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         [](const ExecJump&) -> std::string { return "jump ..."; },
         [](const ExecBranch&) -> std::string { return "branch (...) ... ..."; },
         [](const ExecReturn&) -> std::string { return "return"; },
-        [](const ExecYieldStmt&) -> std::string { return "yield"; },
+        [](const ExecYield&) -> std::string { return "yield"; },
         [&ctx](const ExecUnionInit& t) -> std::string {
             return std::string(ctx.symbol_id_to_cstr(ctx.def(t.union_def_id).name)) + "{."
                    + ctx.symbol_id_to_cstr(ctx.def(ctx.def(t.union_def_id)
@@ -2079,11 +2078,6 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         [&ctx](const ExecAssignment& e) -> std::string {
             return exec_to_string(ctx, e.lhs) + " = " + exec_to_string(ctx, e.rhs);
         },
-        [&ctx](const ExecIs& e) -> std::string {
-            return exec_to_string(ctx, e.variant_decomp) + " is "
-                   + exec_to_string(ctx, e.variant_instance);
-            return {};
-        },
         [&ctx](const ExecMemberAccess& e) -> std::string {
             return exec_to_string(ctx, e.owner) + "."
                    + ctx.symbol_id_to_cstr(ctx.def(e.member).name);
@@ -2112,10 +2106,6 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             // todo
             return {};
         },
-        [](const ExecVariantDecomp&) -> std::string {
-            // todo
-            return {};
-        },
         [](const ExecMatch&) -> std::string {
             // todo
             return {};
@@ -2124,8 +2114,11 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             // todo
             return {};
         },
-        [&ctx](const ExecFnPtr& t) -> std::string {
+        [](const ExecAddrOf&) -> std::string {
             // todo
+            return {};
+        },
+        [&ctx](const ExecFnPtr& t) -> std::string {
             return ctx.symbol_id_to_cstr(ctx.def(t.func_def_id).name);
         },
         [&ctx](const ExecVariantFieldInit& t) -> std::string {
