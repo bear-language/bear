@@ -403,7 +403,7 @@ OptId<ExecId> RuntimeSolver::handle_var_decl(FileId fid, LexicalCtx lctx, InProg
     block.defs.push_back(did);
 
     if (maybe_runtime_eid.has_value()) {
-        block.execs.push_back(maybe_runtime_eid.as_id());
+        block.push_back_exec(maybe_runtime_eid.as_id());
     }
 
     // TODO: do something special for non-compt static variables using a guard variable
@@ -460,7 +460,7 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
     block.defs.push_back(did);
 
     if (maybe_runtime_eid.has_value()) {
-        block.execs.push_back(maybe_runtime_eid.as_id());
+        block.push_back_exec(maybe_runtime_eid.as_id());
     }
 
     // TODO: do something special for non-compt static variables using a guard variable
@@ -495,7 +495,7 @@ OptId<ExecId> RuntimeSolver::handle_block(FileId fid, LexicalCtx lctx, InProgres
     assert(stmt->type == AST_STMT_BLOCK);
     const auto maybe_eid = solve_block(fid, lctx, stmt);
     if (maybe_eid.has_value()) {
-        block.execs.push_back(maybe_eid.as_id());
+        block.push_back_exec(maybe_eid.as_id());
     }
     return maybe_eid;
 }
@@ -507,7 +507,7 @@ OptId<ExecId> RuntimeSolver::handle_expr_stmt(FileId fid, LexicalCtx lctx, InPro
     if (maybe_eid.has_value()) {
         /// TODO: walk the exec and check for unused value (execs behave like canonical expressions,
         /// so basically look for function calls of discardable function, else give a diagnostic)
-        block.execs.push_back(maybe_eid.as_id());
+        block.push_back_exec(maybe_eid.as_id());
     }
     return maybe_eid;
 }
@@ -523,7 +523,7 @@ OptId<ExecId> RuntimeSolver::handle_break(FileId fid, InProgressBlock& block,
     const auto eid = context.emplace_exec(
         ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::end},
         Span{context, fid, stmt});
-    block.execs.push_back(eid);
+    block.push_back_exec(eid);
     return eid;
 }
 
@@ -543,7 +543,7 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
             : ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::start},
         Span{context, fid, stmt});
 
-    block.execs.push_back(eid);
+    block.push_back_exec(eid);
     return eid;
 }
 

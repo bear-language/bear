@@ -31,6 +31,7 @@ class RuntimeSolver {
     struct InProgressBlock {
         llvm::SmallVector<DefId> defs;
         llvm::SmallVector<ExecId> execs;
+        constexpr void push_back_exec(ExecId eid) { execs.push_back(eid); }
     };
 
   public:
