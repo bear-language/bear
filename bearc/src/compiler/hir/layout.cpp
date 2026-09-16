@@ -27,11 +27,11 @@ namespace hir {
     return (offset + align - 1) & ~(align - 1);
 };
 
-LayoutId layout_for_type(Context& context, TypeId tid) {
+LayoutId find_or_calculate_layout_for_type(Context& context, TypeId tid) {
     const Type& ty = context.type(tid);
 
     // check for memoized layout (which is recorded per-canonical-type)
-    const auto maybe_existing = context.layout_for_canon_type(ty.canonical);
+    const auto maybe_existing = context.try_layout_for_canon_type(ty.canonical);
     if (maybe_existing.has_value()) {
         return maybe_existing.as_id();
     }
@@ -81,7 +81,7 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
                 const auto& def = context.def(didx);
                 const auto tid = def.as<DefVariable>().type_id;
 
-                const LayoutId mem_lid = layout_for_type(context, tid);
+                const LayoutId mem_lid = find_or_calculate_layout_for_type(context, tid);
                 Layout mem_lay = context.layout(mem_lid);
                 mem_lay.alignment
                     = std::max(mem_lay.alignment, static_cast<HirSize>(def.alignment_preference));
@@ -128,7 +128,7 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
                     const auto& def = context.def(didx);
                     const auto tid = def.as<DefVariable>().type_id;
 
-                    const LayoutId mem_lid = layout_for_type(context, tid);
+                    const LayoutId mem_lid = find_or_calculate_layout_for_type(context, tid);
                     Layout mem_lay = context.layout(mem_lid);
                     mem_lay.alignment = std::max(mem_lay.alignment,
                                                  static_cast<HirSize>(def.alignment_preference));
@@ -189,8 +189,8 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
             IdSlice<DefId> mems = context.def(t.def_id).as<DefUnion>().ordered_members;
 
             for (auto didx = mems.begin(); didx != mems.end(); ++didx) {
-                layout_vec.push_back(
-                    layout_for_type(context, context.def(didx).as<DefVariable>().type_id));
+                layout_vec.push_back(find_or_calculate_layout_for_type(
+                    context, context.def(didx).as<DefVariable>().type_id));
             }
 
             HirSize max_width{1};
@@ -204,10 +204,11 @@ LayoutId layout_for_type(Context& context, TypeId tid) {
             return Layout{.width = align_up(max_width, max_align), .alignment = max_align};
         },
         [&context](const TypeDeftype& t) -> Layout {
-            return context.layout(layout_for_type(context, t.true_type));
+            return context.layout(find_or_calculate_layout_for_type(context, t.true_type));
         },
         [&context](const TypeArr& t) -> Layout {
-            const Layout inner_lay = context.layout(layout_for_type(context, t.inner));
+            const Layout inner_lay
+                = context.layout(find_or_calculate_layout_for_type(context, t.inner));
 
             return Layout{.width = static_cast<LayoutSize>(t.canonical_size * inner_lay.width),
                           .alignment = inner_lay.alignment};

@@ -28,7 +28,7 @@ struct Layout {
 
 class Context;
 
-LayoutId layout_for_type(Context& context, TypeId tid);
+LayoutId find_or_calculate_layout_for_type(Context& context, TypeId tid);
 
 } // namespace hir
 

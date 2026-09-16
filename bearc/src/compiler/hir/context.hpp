@@ -781,12 +781,18 @@ class Context {
 
     [[nodiscard]] OptId<TypeId> self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t* fn_decl);
 
-    // linearly scans that a name to see if it is contained in a slice of defs
-    // - return an empty optional on miss
+    /// linearly scans that a name to see if it is contained in a slice of defs
+    /// - return an empty optional on miss
     [[nodiscard]] OptId<DefId> linear_name_match_in_def_slice(IdSlice<DefId> defs,
                                                               SymbolId name) const;
 
-    [[nodiscard]] OptId<LayoutId> layout_for_canon_type(CanonicalTypeId canon_tid) const;
+    /// tries to find a layout for a canonical type, but does not calculate anything if it's missing
+    [[nodiscard]] OptId<LayoutId> try_layout_for_canon_type(CanonicalTypeId canon_tid) const;
+
+    /// finds (the cached LayoutId) or calculates the LayoutId for a given type
+    [[nodiscard]] LayoutId layout_id_for_type(TypeId tid);
+
+    [[nodiscard]] Layout layout_for_type(TypeId tid);
 
     void put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_id);
 
@@ -852,6 +858,10 @@ class Context {
     }
 
     [[nodiscard]] OptId<OffsetSliceId> offset_slice_for_def(DefId did) {
+        return def_id_to_offset_slice.at(did);
+    }
+
+    [[nodiscard]] OptId<OffsetSliceId> offset_slice_for_type(TypeId tid) {
         return def_id_to_offset_slice.at(did);
     }
 

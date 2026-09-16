@@ -2861,9 +2861,15 @@ OptId<DefId> Context::linear_name_match_in_def_slice(IdSlice<DefId> defs, Symbol
     return {};
 }
 
-OptId<LayoutId> Context::layout_for_canon_type(CanonicalTypeId canon_tid) const {
+OptId<LayoutId> Context::try_layout_for_canon_type(CanonicalTypeId canon_tid) const {
     return canon_type_ids_to_layout_ids.at(canon_tid);
 }
+
+LayoutId Context::layout_id_for_type(TypeId tid) {
+    return find_or_calculate_layout_for_type(*this, tid);
+}
+
+Layout Context::layout_for_type(TypeId tid) { return layouts.at(layout_id_for_type(tid)); }
 
 void Context::put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_id) {
     canon_type_ids_to_layout_ids.insert(canon_tid, lay_id);

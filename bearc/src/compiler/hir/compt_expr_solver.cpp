@@ -4199,7 +4199,7 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         return {}; // poisoned
     }
 
-    Layout lay = context.layout(layout_for_type(context, maybe_tid.as_id()));
+    Layout lay = context.layout(find_or_calculate_layout_for_type(context, maybe_tid.as_id()));
 
     return context.emplace_compt_exec(
         ExecConst{static_cast<size_t>(lay.width)}, // ensure this is size
@@ -4217,7 +4217,7 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         return {}; // poisoned
     }
 
-    Layout lay = context.layout(layout_for_type(context, maybe_tid.as_id()));
+    Layout lay = context.layout_for_type(maybe_tid.as_id());
 
     return context.emplace_compt_exec(
         ExecConst{static_cast<size_t>(lay.alignment)}, // ensure this is size
