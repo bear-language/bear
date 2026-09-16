@@ -66,6 +66,7 @@ set(SRC
     src/compiler/hir/diagnostic.cpp
     src/compiler/hir/type.cpp
     src/compiler/hir/exec.cpp
+    src/compiler/hir/def.cpp
     src/compiler/hir/def_visitor.cpp
     src/compiler/hir/compt_expr_solver.cpp
     src/compiler/hir/run_time_solver.cpp

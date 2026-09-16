@@ -1001,7 +1001,7 @@ bool Exec::can_be_compt() {
 }
 
 SymbolId ExecConst::to_symbol_id(Context& ctx) const {
-    std::string str;
+    std::string str{};
     str.reserve(64); // pretty beeg
     switch (value.index()) {
         // str
@@ -1990,13 +1990,85 @@ std::optional<ExecConst> ExecConst::preunary_bit_not(ExecConst ec) {
     return std::nullopt;
 }
 
+static std::string exec_id_str(ExecId eid) {
+    return std::string{"Exec#"} + std::to_string(eid.raw());
+}
+static std::string def_id_str(DefId did) { return std::string{"Def#"} + std::to_string(did.raw()); }
+
+static std::string slice_of_execs_to_str(Context& ctx, IdSlice<ExecId> elems) {
+    std::string str{};
+    for (auto eidx = elems.begin(); eidx != elems.end(); ++eidx) {
+        str += exec_to_string(ctx, ctx.exec_id(eidx));
+        if (eidx != elems.last_elem()) {
+            str += ", ";
+        }
+    }
+    return str;
+}
+
+static std::string slice_of_pattern_execs_to_str(Context& ctx, IdSlice<ExecId> elems) {
+    std::string str{};
+    for (auto eidx = elems.begin(); eidx != elems.end(); ++eidx) {
+        str += exec_to_string(ctx, ctx.exec_id(eidx));
+        if (eidx != elems.last_elem()) {
+            str += "| ";
+        }
+    }
+    return str;
+}
+
 std::string exec_to_string(Context& ctx, ExecId eid) {
+    static constexpr std::string TAB = "    ";
     auto vs = Ovld{
-        [](const ExecBlock&) -> std::string { return "{...}"; },
-        [](const ExecJump&) -> std::string { return "jump ..."; },
-        [](const ExecBranch&) -> std::string { return "branch (...) ... ..."; },
-        [](const ExecReturn&) -> std::string { return "return"; },
-        [](const ExecYield&) -> std::string { return "yield"; },
+        [&ctx](const ExecBlock& t) -> std::string {
+            std::string str{};
+            str += "{\n";
+
+            const Block& block = ctx.block(t.block_id);
+            for (const auto eidx : block.execs) {
+                str += TAB;
+                str += exec_to_string(ctx, ctx.exec_id(eidx));
+                str += '\n';
+            }
+
+            str += "}\n";
+            return str;
+        },
+        [](const ExecJump& t) -> std::string {
+            std::string str{};
+            str += "jump to ";
+            str += (t.spot == jump_spot::start) ? "start of " : "end of ";
+            str += exec_id_str(t.block);
+            return str;
+        },
+        [&ctx](const ExecBranch& t) -> std::string {
+            std::string str{};
+            str += "branch if ";
+            str += exec_to_string(ctx, t.condition);
+            str += " then ";
+            str += exec_to_string(ctx, t.then_block);
+            str += " else ";
+            str += exec_to_string(ctx, t.else_block);
+            return str;
+        },
+        [&ctx](const ExecReturn& t) -> std::string {
+            std::string str{};
+            str += "return";
+            if (t.return_value.has_value()) {
+                str += " ";
+                str += exec_to_string(ctx, t.return_value.as_id());
+            }
+            return str;
+        },
+        [&ctx](const ExecYield& t) -> std::string {
+            std::string str{};
+            str += "yield";
+            if (t.yield_value.has_value()) {
+                str += " ";
+                str += exec_to_string(ctx, t.yield_value.as_id());
+            }
+            return str;
+        },
         [&ctx](const ExecUnionInit& t) -> std::string {
             return std::string(ctx.symbol_id_to_cstr(ctx.def(t.union_def_id).name)) + "{."
                    + ctx.symbol_id_to_cstr(ctx.def(ctx.def(t.union_def_id)
@@ -2008,8 +2080,6 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         [&ctx](const ExecVariantInit& t) -> std::string {
             std::string str{};
 
-            str.reserve(128); // decent amount
-
             str += ctx.symbol_id_to_cstr(ctx.def(t.variant_def_id).name);
 
             str += "..";
@@ -2020,8 +2090,6 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         },
         [&ctx](const ExecStructInit& t) -> std::string {
             std::string str{};
-
-            str.reserve(256); // decent amount
 
             if (!t.anonymous) {
                 str += ctx.symbol_id_to_cstr(ctx.def(t.struct_def_id).name);
@@ -2059,20 +2127,9 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         [&ctx](const ExecComptConstant& t) -> std::string { return t.to_string(ctx); },
         [&ctx](const ExecListLiteral& t) -> std::string {
             std::string str{};
-
-            str.reserve(512); // decent amount
-
             str += "[";
-
-            for (auto eidx = t.elems.begin(); eidx != t.elems.end(); ++eidx) {
-                str += exec_to_string(ctx, ctx.exec_id(eidx));
-                if (eidx != t.elems.last_elem()) {
-                    str += ", ";
-                }
-            }
-
+            str += slice_of_execs_to_str(ctx, t.elems);
             str += "]";
-
             return str;
         },
         [&ctx](const ExecAssignment& e) -> std::string {
@@ -2090,41 +2147,62 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             return exec_to_string(ctx, e.exec) + " as ("
                    + type_to_string_with_akas(ctx, e.target_tid) + ")";
         },
-        [](const ExecSubscript&) -> std::string {
-            // todo
+        [&ctx](const ExecSubscript& t) -> std::string {
+            std::string str{};
+            str += exec_to_string(ctx, t.base);
+            str += '[';
+            str += exec_to_string(ctx, t.index);
+            str += ']';
+            return str;
             return {};
         },
-        [](const ExecFnCall&) -> std::string {
-            // todo
-            return {};
+        [&ctx](const ExecFnCall& t) -> std::string {
+            std::string str{};
+            str += exec_to_string(ctx, t.callee);
+            str += '(';
+            str += slice_of_execs_to_str(ctx, t.args);
+            str += ')';
+            return str;
         },
-        [](const ExecBorrow&) -> std::string {
-            // todo
-            return {};
+        [](const ExecBorrow& t) -> std::string {
+            std::string str{};
+            str += '&';
+            str += def_id_str(t.borrowee);
+            return str;
         },
-        [](const ExecDeref&) -> std::string {
-            // todo
-            return {};
+        [&ctx](const ExecDeref& t) -> std::string {
+            std::string str{};
+            str += '*';
+            str += exec_to_string(ctx, t.dereferenced);
+            return str;
         },
-        [](const ExecMatch&) -> std::string {
-            // todo
-            return {};
+        [&ctx](const ExecMatch& t) -> std::string {
+            std::string str{};
+            str += "match ";
+            str += exec_to_string(ctx, t.scrutinee);
+            str += " {";
+            str += slice_of_execs_to_str(ctx, t.branches);
+            str += '}';
+            return str;
         },
-        [](const ExecMatchBranch&) -> std::string {
-            // todo
-            return {};
+        [&ctx](const ExecMatchBranch& t) -> std::string {
+            std::string str{};
+            str += slice_of_pattern_execs_to_str(ctx, t.patterns);
+            str += " => ";
+            str += exec_to_string(ctx, t.body);
+            return str;
         },
-        [](const ExecAddrOf&) -> std::string {
-            // todo
-            return {};
+        [](const ExecAddrOf& t) -> std::string {
+            std::string str{};
+            str += '^';
+            str += def_id_str(t.addressed);
+            return str;
         },
         [&ctx](const ExecFnPtr& t) -> std::string {
             return ctx.symbol_id_to_cstr(ctx.def(t.func_def_id).name);
         },
         [&ctx](const ExecVariantFieldInit& t) -> std::string {
             std::string str{};
-
-            str.reserve(256); // decent amount
 
             str += ctx.symbol_id_to_cstr(ctx.def(t.variant_field_def_id).name);
 

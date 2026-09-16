@@ -284,6 +284,8 @@ struct Def : NodeWithVariantValue<Def> {
     bool is_ordered() const noexcept { return member_idx != UNORDERED; };
 };
 
+std::string def_to_string(Context& ctx, ExecId eid);
+
 } // namespace hir
 
 #endif
