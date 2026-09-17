@@ -3,7 +3,7 @@
 //  /     / /____  /____/ /____/   /  /____/  /\  / /  __
 // /_____/ /____  /    / /   \    /  /    /  /  \/ /____/
 // Copyright (C) 2025-2026 Zachary Mahan
-// Licensed under the GNU GPL v3. See LICENSE for details.
+// Licensed under the Apache License 2.0. See LICENSE for details.
 
 #include "compiler/parser/parse_token_slice.h"
 #include "compiler/diagnostics/error_codes.h"

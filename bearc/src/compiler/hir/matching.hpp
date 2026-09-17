@@ -4,7 +4,7 @@
 //  /     / /____  /____/ /____/   /  /____/  /\  / /  __
 // /_____/ /____  /    / /   \    /  /    /  /  \/ /____/
 // Copyright (C) 2025-2026 Zachary Mahan
-// Licensed under the GNU GPL v3. See LICENSE for details.
+// Licensed under the Apache License 2.0. See LICENSE for details.
 
 #ifndef BEARC_COMPILER_HIR_MATCHING_HPP
 #define BEARC_COMPILER_HIR_MATCHING_HPP
