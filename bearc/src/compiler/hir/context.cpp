@@ -123,6 +123,8 @@ Context::Context(const bearc_args_t& args, instances instances)
       generic_params(DEFAULT_CANONICAL_GEN_ARGS_CAP),
       def_to_gen_args_arena(DEFAULT_CANONICAL_GEN_ARGS_ARENA_CAP),
       def_to_gen_args(def_to_gen_args_arena, DEFAULT_CANONICAL_GEN_ARGS_CAP),
+      exec_to_type_id_arena{DEFAULT_ARENA_CAP},
+      exec_to_type_id{*this, exec_to_type_id_arena, DEFAULT_EXEC_VEC_CAP},
       layouts{DEFAULT_TYPE_CAP}, layout_ids{DEFAULT_TYPE_CAP},
       canon_type_ids_to_layout_ids_arena{DEFAULT_ARENA_CAP},
       canon_type_ids_to_layout_ids{canonical_generic_args_table_arena,
@@ -3684,9 +3686,29 @@ void Context::register_import_files_parallel(const char* const* file_paths, uint
 }
 
 OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {
-    static constexpr HirSize tomb = HIR_SIZE_MAX;
-    // TODO find maybe existing
+    // use a poison value to indicate the we did indeed check this but couldn't get a TypeId
+    // (very rare but possible), we must do this since the map function foo.at() already returns an
+    // optional id, so we need an extra value besides none to indicate this
+    static constexpr TypeId POISONED{HIR_SIZE_MAX};
+
+    const auto maybe_existing = exec_to_type_id.at(eid);
+
+    if (maybe_existing.has_value()) {
+        if (maybe_existing.as_id() == POISONED) {
+            return {};
+        }
+        return maybe_existing;
+    }
+
     const auto maybe_new = do_type_inference_from_exec(eid);
+
+    // memoize
+    if (maybe_new.has_value()) {
+        exec_to_type_id.insert(eid, maybe_new.as_id());
+    } else {
+        exec_to_type_id.insert(eid, POISONED);
+    }
+
     // TODO store new
     return maybe_new;
 }

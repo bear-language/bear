@@ -360,7 +360,7 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
     // decently sized
     DataArena arena{0x400};
 
-    ExecHashMap<ExecId> exec_map{context, arena, 0x200};
+    ExecHashMap<ExecId, equivalence::implicit> exec_map{context, arena, 0x200};
 
     // optional so we can lazy init
     std::optional<RangeList> ranges{};

@@ -15,19 +15,24 @@
 
 namespace hir {
 
-bool equivalent_exec_slice(const Context& ctx, IdSlice<ExecId> s1, IdSlice<ExecId> s2) {
+namespace {
+
+template <equivalence Kind> bool equivalent_exec_impl(const Context& ctx, ExecId eid1, ExecId eid2);
+
+template <equivalence Kind>
+bool equivalent_exec_slice_impl(const Context& ctx, IdSlice<ExecId> s1, IdSlice<ExecId> s2) {
     if (s1.len() != s2.len()) {
         return false;
     }
     for (auto i = 0u; i < s1.len(); ++i) {
-        if (!equivalent_exec(ctx, ctx.exec_id(s1.get(i)), ctx.exec_id(s2.get(i)))) {
+        if (!equivalent_exec_impl<Kind>(ctx, ctx.exec_id(s1.get(i)), ctx.exec_id(s2.get(i)))) {
             return false;
         }
     }
     return true;
 }
 
-bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
+template <equivalence E> bool equivalent_exec_impl(const Context& ctx, ExecId eid1, ExecId eid2) {
 
     if (eid1 == eid2) {
         return true;
@@ -42,23 +47,23 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             };
             const Block& this_block = ctx.block(t.block_id);
             const Block& other_block = ctx.block(other.as<ExecBlock>().block_id);
-            return equivalent_exec_slice(ctx, this_block.execs, other_block.execs);
+            return equivalent_exec_slice_impl<E>(ctx, this_block.execs, other_block.execs);
         },
         [&other, &ctx](const ExecBranch& t) -> bool {
             if (!other.holds<ExecBranch>()) {
                 return false;
             };
             const auto o = other.as<ExecBranch>();
-            return equivalent_exec(ctx, t.condition, o.condition)
-                   && equivalent_exec(ctx, t.then_block, o.then_block)
-                   && equivalent_exec(ctx, t.else_block, o.else_block);
+            return equivalent_exec_impl<E>(ctx, t.condition, o.condition)
+                   && equivalent_exec_impl<E>(ctx, t.then_block, o.then_block)
+                   && equivalent_exec_impl<E>(ctx, t.else_block, o.else_block);
         },
         [&other, &ctx](const ExecJump& t) -> bool {
             if (!other.holds<ExecJump>()) {
                 return false;
             };
             const auto o = other.as<ExecJump>();
-            return t.spot == o.spot && equivalent_exec(ctx, t.block, o.block);
+            return t.spot == o.spot && equivalent_exec_impl<E>(ctx, t.block, o.block);
         },
         [&other, &ctx](const ExecReturn& t) -> bool {
             if (!other.holds<ExecReturn>()) {
@@ -71,7 +76,7 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             if (!o.return_value && !t.return_value) {
                 return true;
             }
-            return equivalent_exec(ctx, t.return_value.as_id(), o.return_value.as_id());
+            return equivalent_exec_impl<E>(ctx, t.return_value.as_id(), o.return_value.as_id());
         },
         [&ctx, &other](const ExecYield& t) -> bool {
             if (!other.holds<ExecYield>()) {
@@ -84,15 +89,15 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             if (!o.yield_value && !t.yield_value) {
                 return true;
             }
-            return equivalent_exec(ctx, t.yield_value.as_id(), o.yield_value.as_id());
+            return equivalent_exec_impl<E>(ctx, t.yield_value.as_id(), o.yield_value.as_id());
         },
         [&other, &ctx](const ExecRange t) -> bool {
             if (!other.holds<ExecRange>()) {
                 return false;
             }
 
-            return equivalent_exec(ctx, t.start, other.as<ExecRange>().start)
-                   && equivalent_exec(ctx, t.end, other.as<ExecRange>().end);
+            return equivalent_exec_impl<E>(ctx, t.start, other.as<ExecRange>().start)
+                   && equivalent_exec_impl<E>(ctx, t.end, other.as<ExecRange>().end);
         },
         [&other, &ctx](const ExecUnionInit& t) -> bool {
             if (!other.holds<ExecUnionInit>()) {
@@ -107,7 +112,8 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
                 return false;
             }
 
-            return equivalent_exec(ctx, t.member_init, other.as<ExecUnionInit>().member_init);
+            return equivalent_exec_impl<E>(ctx, t.member_init,
+                                           other.as<ExecUnionInit>().member_init);
         },
         [&other, &ctx](const ExecVariantInit& t) -> bool {
             if (!other.holds<ExecVariantInit>()) {
@@ -121,7 +127,8 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
                 return false;
             }
 
-            return equivalent_exec(ctx, t.payload_init, other.as<ExecVariantInit>().payload_init);
+            return equivalent_exec_impl<E>(ctx, t.payload_init,
+                                           other.as<ExecVariantInit>().payload_init);
         },
         [&other, &ctx](const ExecStructInit& t) -> bool {
             if (!other.holds<ExecStructInit>()) {
@@ -145,8 +152,8 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
             // compare each member init sequentially and just ret false if a single one disagrees
             for (HirSize i = 0; i < o.member_inits.len(); ++i) {
-                if (!equivalent_exec(ctx, ctx.exec_id(o.member_inits.get(i)),
-                                     ctx.exec_id(t.member_inits.get(i)))) {
+                if (!equivalent_exec_impl<E>(ctx, ctx.exec_id(o.member_inits.get(i)),
+                                             ctx.exec_id(t.member_inits.get(i)))) {
                     return false;
                 }
             }
@@ -166,8 +173,14 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
                 return false;
             }
             const auto o = other.as<ExecComptConstant>();
-            if (o.hash_identity() != t.hash_identity()) {
-                return false;
+            if constexpr (E == equivalence::implicit) {
+                if (o.hash_identity() != t.hash_identity()) {
+                    return false;
+                }
+            } else {
+                if (o.value.index() != t.value.index()) {
+                    return false;
+                }
             }
             return t.to_size() == o.to_size();
         },
@@ -188,8 +201,8 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             }
 
             for (HirSize i = 0; i < o.len(); ++i) {
-                if (equivalent_exec(ctx, ctx.exec_id(o.elems.get(i)),
-                                    ctx.exec_id(t.elems.get(i)))) {
+                if (equivalent_exec_impl<E>(ctx, ctx.exec_id(o.elems.get(i)),
+                                            ctx.exec_id(t.elems.get(i)))) {
                     return false;
                 }
             }
@@ -213,8 +226,8 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
             // compare each member init sequentially and just ret false if a single one disagrees
             for (HirSize i = 0; i < o.member_inits.len(); ++i) {
-                if (!equivalent_exec(ctx, ctx.exec_id(o.member_inits.get(i)),
-                                     ctx.exec_id(t.member_inits.get(i)))) {
+                if (!equivalent_exec_impl<E>(ctx, ctx.exec_id(o.member_inits.get(i)),
+                                             ctx.exec_id(t.member_inits.get(i)))) {
                     return false;
                 }
             }
@@ -240,22 +253,23 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
                 return false;
             }
             const auto o = other.as<ExecAssignment>();
-            return equivalent_exec(ctx, t.lhs, o.lhs) && equivalent_exec(ctx, t.rhs, o.rhs);
+            return equivalent_exec_impl<E>(ctx, t.lhs, o.lhs)
+                   && equivalent_exec_impl<E>(ctx, t.rhs, o.rhs);
         },
         [&ctx, &other](const ExecMemberAccess& t) -> bool {
             if (!other.holds<ExecMemberAccess>()) {
                 return false;
             }
             const auto o = other.as<ExecMemberAccess>();
-            return o.member == t.member && equivalent_exec(ctx, t.owner, o.owner);
+            return o.member == t.member && equivalent_exec_impl<E>(ctx, t.owner, o.owner);
         },
         [&ctx, &other](const ExecBinary& t) -> bool {
             if (!other.holds<ExecBinary>()) {
                 return false;
             }
             const auto o = other.as<ExecBinary>();
-            return t.op == o.op && equivalent_exec(ctx, t.lhs, o.lhs)
-                   && equivalent_exec(ctx, o.rhs, t.rhs);
+            return t.op == o.op && equivalent_exec_impl<E>(ctx, t.lhs, o.lhs)
+                   && equivalent_exec_impl<E>(ctx, o.rhs, t.rhs);
         },
         [&ctx, &other](const ExecCast& t) -> bool {
             if (!other.holds<ExecCast>()) {
@@ -263,22 +277,23 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             }
             const auto o = other.as<ExecCast>();
             return ctx.equivalent_type(o.target_tid, t.target_tid)
-                   && equivalent_exec(ctx, o.exec, t.exec);
+                   && equivalent_exec_impl<E>(ctx, o.exec, t.exec);
         },
         [&ctx, &other](const ExecSubscript& t) -> bool {
             if (!other.holds<ExecSubscript>()) {
                 return false;
             }
             const auto o = other.as<ExecSubscript>();
-            return equivalent_exec(ctx, o.base, t.base) && equivalent_exec(ctx, t.base, o.base);
+            return equivalent_exec_impl<E>(ctx, o.base, t.base)
+                   && equivalent_exec_impl<E>(ctx, t.base, o.base);
         },
         [&ctx, &other](const ExecFnCall& t) -> bool {
             if (!other.holds<ExecFnCall>()) {
                 return false;
             }
             const auto o = other.as<ExecFnCall>();
-            return equivalent_exec(ctx, o.callee, t.callee)
-                   && equivalent_exec_slice(ctx, o.args, t.args);
+            return equivalent_exec_impl<E>(ctx, o.callee, t.callee)
+                   && equivalent_exec_slice_impl<E>(ctx, o.args, t.args);
         },
         [&other](const ExecBorrow& t) -> bool {
             if (!other.holds<ExecBorrow>()) {
@@ -292,37 +307,37 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
                 return false;
             }
             const auto o = other.as<ExecDeref>();
-            return equivalent_exec(ctx, o.dereferenced, t.dereferenced);
+            return equivalent_exec_impl<E>(ctx, o.dereferenced, t.dereferenced);
         },
         [&ctx, &other](const ExecAddrOf& t) -> bool {
             if (!other.holds<ExecAddrOf>()) {
                 return false;
             }
             const auto o = other.as<ExecAddrOf>();
-            return equivalent_exec(ctx, t.addressed, o.addressed);
+            return equivalent_exec_impl<E>(ctx, t.addressed, o.addressed);
         },
         [&ctx, &other](const ExecMatch& t) -> bool {
             if (!other.holds<ExecMatch>()) {
                 return false;
             }
             const auto o = other.as<ExecMatch>();
-            return equivalent_exec(ctx, t.scrutinee, o.scrutinee)
-                   && equivalent_exec_slice(ctx, t.branches, o.branches);
+            return equivalent_exec_impl<E>(ctx, t.scrutinee, o.scrutinee)
+                   && equivalent_exec_slice_impl<E>(ctx, t.branches, o.branches);
         },
         [&ctx, &other](const ExecMatchBranch& t) -> bool {
             if (!other.holds<ExecMatchBranch>()) {
                 return false;
             }
             const auto o = other.as<ExecMatchBranch>();
-            return equivalent_exec_slice(ctx, t.patterns, o.patterns)
-                   && equivalent_exec(ctx, t.body, o.body);
+            return equivalent_exec_slice_impl<E>(ctx, t.patterns, o.patterns)
+                   && equivalent_exec_impl<E>(ctx, t.body, o.body);
         },
     };
 
     return ctx.exec(eid1).visit(vs);
 }
 
-size_t hash_exec(const Context& ctx, ExecId eid) {
+template <equivalence E> size_t hash_exec_impl(const Context& ctx, ExecId eid) {
     // TODO make this good for run-time execs
     auto vs = Ovld{
         [](const ExecBlock&) -> size_t { return mix(1uz); },
@@ -330,22 +345,25 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
         [](const ExecBranch&) -> size_t { return mix(5uz); },
         [](const ExecReturn&) -> size_t { return mix(7uz); },
         [&ctx](const ExecRange& t) -> size_t {
-            return transform(hash_exec(ctx, t.start), hash_exec(ctx, t.end));
+            return transform(hash_exec_impl<E>(ctx, t.start), hash_exec_impl<E>(ctx, t.end));
         },
         [&ctx](const ExecYield& t) -> size_t {
-            return mix(8uz ^ t.yield_value.has_value() ? hash_exec(ctx, t.yield_value.as_id()) : 0);
+            return mix(8uz ^ t.yield_value.has_value()
+                           ? hash_exec_impl<E>(ctx, t.yield_value.as_id())
+                           : 0);
         },
         [&ctx](const ExecUnionInit& t) -> size_t {
-            return mix(t.union_def_id.raw() ^ hash_exec(ctx, t.member_init) ^ t.active_member_idx);
+            return mix(t.union_def_id.raw() ^ hash_exec_impl<E>(ctx, t.member_init)
+                       ^ t.active_member_idx);
         },
         [&ctx](const ExecVariantInit& t) -> size_t {
-            return mix(t.variant_def_id.raw() ^ hash_exec(ctx, t.payload_init)
+            return mix(t.variant_def_id.raw() ^ hash_exec_impl<E>(ctx, t.payload_init)
                        ^ t.active_member_idx);
         },
         [&ctx](const ExecStructInit& t) -> size_t {
             size_t h = (t.anonymous) ? 0 : t.struct_def_id.raw();
             for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
-                h = transform(h, hash_exec(ctx, ctx.exec_id(eidx)));
+                h = transform(h, hash_exec_impl<E>(ctx, ctx.exec_id(eidx)));
             }
             return h;
         },
@@ -353,13 +371,17 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
             return transform(t.def_id.raw(), t.type_id.raw());
         },
         [](const ExecComptConstant& t) -> size_t {
-            return transform(t.hash_identity(), t.to_size());
+            if constexpr (E == equivalence::implicit) {
+                return transform(t.hash_identity(), t.to_size());
+            } else {
+                return transform(t.value.index(), t.to_size());
+            }
         },
         [&ctx](const ExecListLiteral& t) -> size_t {
             size_t h = t.elem_type_id.raw();
             h = transform(h, t.len());
             for (auto eidx = t.elems.begin(); eidx != t.elems.end(); ++eidx) {
-                h = transform(h, hash_exec(ctx, ctx.exec_id(eidx)));
+                h = transform(h, hash_exec_impl<E>(ctx, ctx.exec_id(eidx)));
             }
             return h;
         },
@@ -378,13 +400,39 @@ size_t hash_exec(const Context& ctx, ExecId eid) {
         [&ctx](const ExecVariantFieldInit& t) -> size_t {
             size_t h = t.variant_field_def_id.raw();
             for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
-                h = transform(h, hash_exec(ctx, ctx.exec_id(eidx)));
+                h = transform(h, hash_exec_impl<E>(ctx, ctx.exec_id(eidx)));
             }
             return h;
         },
     };
 
     return ctx.exec(eid).visit(vs);
+}
+
+} // namespace
+
+bool implicit_equivalent_exec_slice(const Context& ctx, IdSlice<ExecId> s1, IdSlice<ExecId> s2) {
+    return equivalent_exec_slice_impl<equivalence::implicit>(ctx, s1, s2);
+}
+
+bool equivalent_exec_slice(const Context& ctx, IdSlice<ExecId> s1, IdSlice<ExecId> s2) {
+    return equivalent_exec_slice_impl<equivalence::exact>(ctx, s1, s2);
+}
+
+bool implicit_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
+    return equivalent_exec_impl<equivalence::implicit>(ctx, eid1, eid2);
+}
+
+bool explicitly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
+    return equivalent_exec_impl<equivalence::exact>(ctx, eid1, eid2);
+}
+
+size_t hash_exec_with_explicit_equivalence(const Context& ctx, ExecId eid) {
+    return hash_exec_impl<equivalence::exact>(ctx, eid);
+}
+
+size_t hash_exec_with_implicit_equivalence(const Context& ctx, ExecId eid) {
+    return hash_exec_impl<equivalence::implicit>(ctx, eid);
 }
 
 bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {

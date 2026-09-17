@@ -548,7 +548,16 @@ bool e_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
 bool e_hash_exec(const Context& ctx, ExecId eid);
 
-template <IsId T> class ExecHashMap {
+bool e_implicit_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
+
+bool e_implicit_hash_exec(const Context& ctx, ExecId eid);
+
+enum class equivalence : uint8_t {
+    implicit,
+    exact,
+};
+
+template <IsId T, equivalence equiv> class ExecHashMap {
     struct Entry {
         ExecId key_id;
         T val_id;
@@ -569,6 +578,11 @@ template <IsId T> class ExecHashMap {
     size_t count;
     size_t capacity;
 
+    static constexpr auto equivalence_func
+        = (equiv == equivalence::implicit) ? e_implicit_equivalent_exec : e_equivalent_exec;
+    static constexpr auto hash_func
+        = (equiv == equivalence::implicit) ? e_implicit_hash_exec : e_hash_exec;
+
     void rehash(size_t new_capacity) {
         Entry** new_buckets = arena.alloc_as<Entry**>(sizeof(Entry*) * new_capacity);
         memset(static_cast<void*>(new_buckets), 0, new_capacity * sizeof(Entry*));
@@ -586,9 +600,9 @@ template <IsId T> class ExecHashMap {
     }
 
     bool same_structure(ExecId eid1, ExecId eid2) const {
-        return e_equivalent_exec(context, eid1, eid2);
+        return equivalence_func(context, eid1, eid2);
     }
-    size_t hash(ExecId eid) const { return e_hash_exec(context, eid); }
+    size_t hash(ExecId eid) const { return hash_func(context, eid); }
 
     static size_t index(size_t hash, size_t cap) { return hash % cap; }
 
@@ -608,7 +622,7 @@ template <IsId T> class ExecHashMap {
         memset(static_cast<void*>(buckets), 0, this->capacity * sizeof(Entry*));
     }
     // returns an optional ExecId of the existing ExecId inside the map
-    OptId<ExecId> at(ExecId eid) const {
+    OptId<T> at(ExecId eid) const {
         size_t hash_val = hash(eid);
         Entry* curr = this->buckets[index(hash_val, this->capacity)];
         while (curr) {
@@ -620,7 +634,7 @@ template <IsId T> class ExecHashMap {
         return {};
     }
     // only use after at returns none to avoid duplicate inserts
-    void insert(ExecId eid, ExecId val_id) {
+    void insert(ExecId eid, T val_id) {
         size_t hash_val = hash(eid);
         Entry** chain = this->buckets + index(hash_val, this->capacity);
         Entry* new_entry = arena.alloc_type<Entry>();

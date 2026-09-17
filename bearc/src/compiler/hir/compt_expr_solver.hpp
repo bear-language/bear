@@ -275,7 +275,7 @@ class ComptExprSolver {
     }
 
     [[nodiscard]] OptId<ExecId> solve_any_eq(ExecId eid1, ExecId eid2, binary_op eq_neq) {
-        const bool equiv = equivalent_exec(context, eid1, eid2);
+        const bool equiv = implicit_equivalent_exec(context, eid1, eid2);
         return context.emplace_compt_exec(
             ExecConst{(eq_neq == binary_op::bool_equal) ? equiv : !equiv},
             Span::combine(context.exec(eid1).span, context.exec(eid2).span));

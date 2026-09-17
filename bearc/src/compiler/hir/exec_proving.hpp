@@ -17,17 +17,26 @@ namespace hir {
 /// - fully checks compt values
 /// - returns true only if the two Execs are certainly equal (since their values are fully knowable
 /// at compile-time), or if run-time execs are structurally equivalent.
+/// - implcitly considers compt values like u8 and u64 that has values representable in both forms
+/// as equivalent
 ///
-/// note :this is to say that the execs may not be equivalent at different times at run-time, but
+/// note: this is to say that the execs may not be equivalent at different times at run-time, but
 /// are equivalent as far as the compiler is concerned. keep this in mind when comparing execs that
 /// may refer to values that are mutable and mutation was possible between the order of the execs.
 /// for this reason, it would be best to either use this with 1) pure compile-time value or 2) execs
 /// on either side of an expression, like notably some boolean expression: `exec || exec`, etc.
-bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
+bool implicit_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
+
+bool implicit_equivalent_exec_slice(const Context& ctx, IdSlice<ExecId> s1, IdSlice<ExecId> s2);
+
+bool explicitly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
 bool equivalent_exec_slice(const Context& ctx, IdSlice<ExecId> s1, IdSlice<ExecId> s2);
 
-size_t hash_exec(const Context& ctx, ExecId eid);
+// considers things like u8 and u64 values that are representable as both as equivalent
+size_t hash_exec_with_implicit_equivalence(const Context& ctx, ExecId eid);
+
+size_t hash_exec_with_explicit_equivalence(const Context& ctx, ExecId eid);
 
 bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 

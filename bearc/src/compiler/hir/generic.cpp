@@ -19,7 +19,7 @@ namespace hir {
 size_t hash_gen_arg(const Context& ctx, GenericArgId gen_arg_id) {
     Ovld vs{
         [&ctx](TypeId tid) -> size_t { return mix(ctx.type(tid).canonical.raw()); },
-        [&ctx](ExecId eid) -> size_t { return hash_exec(ctx, eid); },
+        [&ctx](ExecId eid) -> size_t { return hash_exec_with_implicit_equivalence(ctx, eid); },
     };
     return ctx.gen_arg(gen_arg_id).visit(vs);
 }
@@ -37,7 +37,7 @@ bool equivalent_gen_arg(const Context& ctx, GenericArgId gid1, GenericArgId gid2
             if (!g2.holds<ExecId>()) {
                 return false;
             }
-            return equivalent_exec(ctx, eid, g2.as<ExecId>());
+            return implicit_equivalent_exec(ctx, eid, g2.as<ExecId>());
         },
     };
     return ctx.gen_arg(gid1).visit(vs);

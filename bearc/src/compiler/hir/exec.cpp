@@ -2228,9 +2228,19 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 }
 
 bool e_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
-    return equivalent_exec(ctx, eid1, eid2);
+    return explicitly_equivalent_exec(ctx, eid1, eid2);
 }
 
-bool e_hash_exec(const Context& ctx, ExecId eid) { return hash_exec(ctx, eid); }
+bool e_hash_exec(const Context& ctx, ExecId eid) {
+    return hash_exec_with_explicit_equivalence(ctx, eid);
+}
+
+bool e_implicit_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
+    return implicit_equivalent_exec(ctx, eid1, eid2);
+}
+
+bool e_implicit_hash_exec(const Context& ctx, ExecId eid) {
+    return hash_exec_with_implicit_equivalence(ctx, eid);
+}
 
 } // namespace hir

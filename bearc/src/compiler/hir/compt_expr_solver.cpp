@@ -3388,7 +3388,7 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
     };
 
     if (s1.anonymous && s2.anonymous) {
-        return emplace_val_based_on_eq(equivalent_exec(context, eid1, eid2));
+        return emplace_val_based_on_eq(implicit_equivalent_exec(context, eid1, eid2));
     }
 
     if (s1.struct_def_id != s2.struct_def_id) {
@@ -3735,7 +3735,7 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
         }
     }
 
-    return equivalent_exec(context, maybe_pattern_eid.as_id(), matched_eid);
+    return implicit_equivalent_exec(context, maybe_pattern_eid.as_id(), matched_eid);
 }
 
 bool ComptExprSolver::try_variant_decomp(FileId fid, ScopeId pattern_scope, ScopeId branch_scope,

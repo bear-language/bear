@@ -1018,6 +1018,9 @@ class Context {
     DataArena def_to_gen_args_arena;
     IdHashMap<DefId, GenericArgIdSliceId> def_to_gen_args;
 
+    DataArena exec_to_type_id_arena;
+    ExecHashMap<TypeId, equivalence::exact> exec_to_type_id;
+
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // layout related stuff

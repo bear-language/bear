@@ -432,7 +432,7 @@ br_test_result_t test_hir(void) {
     // this test is kinda dodgy and only exists because it accidently  found a spanning issue with
     // function call diagnostics (hir/a64):
     char* args_a64[] = {"bearc", "tests/hir/a64.br", "-I", "tests/lib"};
-    ASSERT_EQ_ERR_FROM_ARGS(args_a64, 24);
+    ASSERT_EQ_ERR_FROM_ARGS(args_a64, 23);
     char* args_a65[] = {"bearc", "tests/hir/a65.br", "-I", "tests/lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a65, 3);
     ASSERT_EQ_ERR("hir/a66", 12);
