@@ -14,5 +14,6 @@ namespace hir {
 static std::string def_id_str(DefId did) { return "Def#" + std::to_string(did.raw()); }
 std::string def_to_string(Context& ctx, ExecId eid) {
     // TODO
+    return {};
 }
 } // namespace hir

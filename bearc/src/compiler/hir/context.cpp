@@ -130,6 +130,8 @@ Context::Context(const bearc_args_t& args, instances instances)
       offsets{DEFAULT_DEF_CAP}, offset_slices{DEFAULT_DEF_CAP},
       def_id_to_offset_slice_arena{DEFAULT_ARENA_CAP},
       def_id_to_offset_slice{def_id_to_offset_slice_arena, DEFAULT_DEF_CAP},
+      canon_tid_to_offset_slice_arena{DEFAULT_ARENA_CAP},
+      canon_tid_to_offset_slice{canonical_generic_args_table_arena, DEFAULT_CANONICAL_TYPE_VEC_CAP},
       file_to_spans_to_scopes{DEFAULT_SCOPE_VEC_CAP}, deduction_steps{DEFAULT_TYPE_CAP},
       deduction_step_ids{DEFAULT_TYPE_CAP}, deduction_guides{DEFAULT_TYPE_CAP / 4},
       def_to_deduction_guides_arena{DEFAULT_ARENA_CAP / 4},
@@ -3683,6 +3685,43 @@ void Context::register_import_files_parallel(const char* const* file_paths, uint
 
 OptId<TypeId> Context::infer_type_from_exec(DefVisitor& def_visitor, ExecId eid) {
     return ComptExprSolver{*this, def_visitor}.infer_type_from_exec(eid);
+}
+
+[[nodiscard]] OptId<OffsetSliceId> Context::offset_slice_for_type(TypeId tid) {
+    const auto& ty = type(tid);
+
+    // we do this because every anonymous struct has it's own definition but similar ones share a
+    // canonical type
+    const auto maybe_existing = canon_tid_to_offset_slice.at(ty.canonical);
+
+    if (maybe_existing.has_value()) {
+        return maybe_existing;
+    }
+
+    OptId<OffsetSliceId> maybe_new{};
+
+    if (ty.holds<TypeStruct>()) {
+        maybe_new = def_id_to_offset_slice.at(ty.as<TypeStruct>().def_id);
+        if (maybe_new.empty()) {
+            // this calculate the layout (and sets offset)
+            const auto _ = layout_for_type(tid);
+            maybe_new = def_id_to_offset_slice.at(ty.as<TypeStruct>().def_id);
+        }
+    } else if (ty.holds<TypeVariant>()) {
+        maybe_new = def_id_to_offset_slice.at(ty.as<TypeVariant>().def_id);
+        // this calculate the layout (and sets offset)
+        if (maybe_new.empty()) {
+            const auto _ = layout_for_type(tid);
+            maybe_new = def_id_to_offset_slice.at(ty.as<TypeVariant>().def_id);
+        }
+    }
+
+    // cache for the canonical type
+    if (maybe_new.has_value()) {
+        canon_tid_to_offset_slice.insert(ty.canonical, maybe_new.as_id());
+    }
+
+    return maybe_new;
 }
 
 } // namespace hir
