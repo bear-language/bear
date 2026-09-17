@@ -3683,10 +3683,17 @@ void Context::register_import_files_parallel(const char* const* file_paths, uint
         emplace_generic_arg_id_slice(last ? remaining_args : (maybe_gen_args.value())));
 }
 
-OptId<TypeId> Context::infer_type_from_exec(ExecId eid) { return do_type_inference_from_exec(eid); }
+OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {
+    static constexpr HirSize tomb = HIR_SIZE_MAX;
+    // TODO find maybe existing
+    const auto maybe_new = do_type_inference_from_exec(eid);
+    // TODO store new
+    return maybe_new;
+}
 
 OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
     const Exec& exec = this->exec(eid);
+    // TODO turn this into a variant visitor
     if (exec.holds<ExecComptConstant>()) {
         auto bin_type = exec.as<ExecComptConstant>().type_builtin();
         return emplace_type(TypeBuiltin{.type = bin_type}, Span::generated(), false);
