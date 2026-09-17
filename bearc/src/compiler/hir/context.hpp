@@ -1124,10 +1124,13 @@ class Context {
                                               const ast_type_t* curr_type, SymbolId sid,
                                               bool nested = false);
 
-    // helper where both types are references (this has special rules due to how references are
-    // internally stored in context)
+    /// helper where both types are references (this has special rules due to how references are
+    /// internally stored in context)
     [[nodiscard]] bool assignable_from_type_to_refs(TypeId from, TypeId to);
 
+    /// private helper that calculates the type of some exec.
+    /// note: `infer_type_from_exec` is what should be used since that properly internally caches
+    /// types
     [[nodiscard]] OptId<TypeId> do_type_inference_from_exec(ExecId eid);
 };
 
