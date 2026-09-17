@@ -57,7 +57,9 @@ class RuntimeSolver {
 
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr);
 
-    [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
+    [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid) {
+        return context.infer_type_from_exec(eid);
+    }
 
     [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, ast_slice_of_stmts_t stmts,
                                             Span span);

@@ -360,7 +360,7 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
     // decently sized
     DataArena arena{0x400};
 
-    ExecHashMap exec_map{context, arena, 0x200};
+    ExecHashMap<ExecId> exec_map{context, arena, 0x200};
 
     // optional so we can lazy init
     std::optional<RangeList> ranges{};
@@ -480,7 +480,9 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
                                                    diag_type::note));
                 continue;
             }
-            exec_map.insert(pattern_eid);
+            exec_map.insert(
+                pattern_eid,
+                pattern_eid); // point the exec back to itself so we can find the existing later
         }
     }
 

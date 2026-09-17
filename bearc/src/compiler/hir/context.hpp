@@ -888,6 +888,8 @@ class Context {
         return deduction_steps.at(deduction_step_id(step_idx));
     }
 
+    [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
+
   private:
     // containers:
     // ~~~~~~~~~~~~~~~~~ file stuff ~~~~~~~~~~~~~~~~~~~
@@ -1103,8 +1105,6 @@ class Context {
     /// returns 0 on none, else returns the number of generic params
     [[nodiscard]] HirSize try_num_generic_params_for_def(DefId did) const;
 
-    [[nodiscard]] OptId<TypeId> infer_type_from_exec(DefVisitor& def_visitor, ExecId eid);
-
     [[nodiscard]] OptId<DefId> try_instantiate_def_on_scoped_lookup_if_needed(
         DefVisitor& def_visitor, TickableGenArgSlice& targs, DefId orig_did, bool last);
 
@@ -1123,6 +1123,8 @@ class Context {
     // helper where both types are references (this has special rules due to how references are
     // internally stored in context)
     [[nodiscard]] bool assignable_from_type_to_refs(TypeId from, TypeId to);
+
+    [[nodiscard]] OptId<TypeId> do_type_inference_from_exec(ExecId eid);
 };
 
 } // namespace hir

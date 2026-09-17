@@ -48,11 +48,6 @@ namespace hir {
     return solve_expr(fid, lctx, expr);
 }
 
-[[nodiscard]] OptId<TypeId> RuntimeSolver::infer_type_from_exec(ExecId eid) {
-    /// TODO use a smarter run-time aware inference here
-    return ComptExprSolver{context, def_visitor}.infer_type_from_exec(eid);
-}
-
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr, TypeId into_tid) {
     const Type& ty = context.type(into_tid);

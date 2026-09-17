@@ -59,7 +59,10 @@ class ComptExprSolver {
         return infer_type_from_exec(maybe_eid.as_id());
     }
 
-    [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
+    [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid) {
+        return context.infer_type_from_exec(eid);
+    }
+
     // solves a top level compt expr (this is primarily for array sizing & builtin types for top
     // level generic instantiation with compt parameterizations)
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr,

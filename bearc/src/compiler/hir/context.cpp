@@ -3553,10 +3553,10 @@ void Context::insert_gen_args_into_scope(DefId orginal_generic_did, DefId instan
                 }
                 return false; // fallback (unreachable)
             },
-            [this, pid, &def_visitor, &dl](ExecId eid) -> bool {
+            [this, pid, &dl](ExecId eid) -> bool {
                 GenericParam param = gen_param(pid);
                 if (param.holds<GenericParamVariable>()) {
-                    OptId<TypeId> maybe_tid = infer_type_from_exec(def_visitor, eid);
+                    OptId<TypeId> maybe_tid = infer_type_from_exec(eid);
 
                     const auto expected_tid = param.as<GenericParamVariable>().type;
 
@@ -3683,8 +3683,99 @@ void Context::register_import_files_parallel(const char* const* file_paths, uint
         emplace_generic_arg_id_slice(last ? remaining_args : (maybe_gen_args.value())));
 }
 
-OptId<TypeId> Context::infer_type_from_exec(DefVisitor& def_visitor, ExecId eid) {
-    return ComptExprSolver{*this, def_visitor}.infer_type_from_exec(eid);
+OptId<TypeId> Context::infer_type_from_exec(ExecId eid) { return do_type_inference_from_exec(eid); }
+
+OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
+    const Exec& exec = this->exec(eid);
+    if (exec.holds<ExecComptConstant>()) {
+        auto bin_type = exec.as<ExecComptConstant>().type_builtin();
+        return emplace_type(TypeBuiltin{.type = bin_type}, Span::generated(), false);
+    }
+    if (exec.holds<ExecStructInit>()) {
+        auto struct_did = exec.as<ExecStructInit>().struct_def_id;
+
+        const auto struct_def = def(struct_did);
+
+        if (!struct_def.template holds<DefStruct>()) {
+            return {};
+        }
+
+        const auto maybe_gen_args = struct_def.template as<DefStruct>().maybe_generic_args;
+
+        return emplace_type(
+            TypeStruct{
+                .def_id = struct_did,
+                .gen_args_slice = maybe_gen_args,
+                .anonymous = exec.as<ExecStructInit>().anonymous,
+            },
+            Span::generated(), false);
+    }
+    if (exec.holds<ExecListLiteral>()) {
+        auto list_exec = exec.as<ExecListLiteral>();
+        auto maybe_contained_type = list_exec.elem_type_id;
+        if (maybe_contained_type.empty()) {
+            goto novel_issue;
+        }
+        auto contained_type = maybe_contained_type.as_id();
+        auto len = list_exec.len();
+        return emplace_type(
+            TypeArr{
+                .inner = contained_type,
+                .compt_size_expr = std::nullopt,
+                .canonical_size = len,
+            },
+            Span::generated(), false);
+    }
+    if (exec.holds<ExecFnPtr>()) {
+        return exec.as<ExecFnPtr>().fn_ptr_tid;
+    }
+    if (exec.holds<ExecVariantInit>()) {
+        const auto did = exec.as<ExecVariantInit>().variant_def_id;
+        const auto variant_def = def(did);
+
+        if (!variant_def.template holds<DefVariant>()) {
+            return {};
+        }
+
+        const auto maybe_gen_args = variant_def.template as<DefVariant>().maybe_generic_args;
+
+        return emplace_type(TypeVariant{.def_id = did,
+                                        .gen_args_slice = maybe_gen_args,
+                                        .generic = maybe_gen_args.has_value()},
+
+                            Span::generated(), false);
+    }
+    if (exec.holds<ExecRange>()) {
+        DefVisitor def_visitor{*this};
+        const GenericArgIdSliceId gargs
+            = emplace_generic_arg_id_slice(freeze_id_vec(llvm::SmallVector<GenericArgId, 1>{
+                emplace_generic_arg(infer_type_from_exec(exec.as<ExecRange>().start).as_id())}));
+
+        const OptId<DefId> range_def_id = look_up_scoped_type_generic(
+            def_visitor, root_scope(),
+            freeze_id_vec(llvm::SmallVector<SymbolId, 2>{symbol_id<"std">(), symbol_id<"Range">()}),
+            Span::generated(), gargs);
+
+        if (range_def_id.has_value()) {
+            return emplace_type(
+                TypeStruct{
+                    .def_id = range_def_id.as_id(),
+                    .gen_args_slice = gargs,
+                },
+                Span::generated(), false);
+        }
+    }
+    if (exec.holds<ExecUnionInit>()) {
+        return emplace_type(TypeUnion{.def_id = exec.as<ExecUnionInit>().union_def_id},
+                            Span::generated(), false);
+    }
+
+novel_issue:
+    // report issue
+    emplace_diagnostic(exec.span, diag_code::cannot_infer_type_of_expression_at_compt,
+                       diag_type::error);
+
+    return std::nullopt;
 }
 
 [[nodiscard]] OptId<OffsetSliceId> Context::offset_slice_for_type(TypeId tid) {
