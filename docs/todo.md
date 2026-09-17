@@ -1,7 +1,6 @@
 ### todos
 
 #### misc/priority 
-- [ ] finish `do_type_inference_from_exec`
 - [ ] finish `def_to_str`
 
 #### function body resolution / runtime eval:

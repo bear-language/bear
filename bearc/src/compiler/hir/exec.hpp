@@ -465,6 +465,7 @@ struct ExecFnCall {
 
 struct ExecBorrow {
     DefId borrowee;
+    bool mut;
 };
 
 struct ExecDeref {

@@ -3720,8 +3720,6 @@ OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {
 OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
     const Exec& exec = this->exec(eid);
 
-    // TODO finish this
-
     auto vs = Ovld{
         [this](const ExecUnionInit& d) -> OptId<TypeId> {
             return emplace_type(TypeUnion{.def_id = d.union_def_id}, Span::generated(), false);
@@ -3806,11 +3804,21 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             }
             return {};
         },
-        [](const ExecAssignment&) -> OptId<TypeId> { return {}; },
-        [](const ExecMemberAccess&) -> OptId<TypeId> { return {}; },
-        [](const ExecBinary&) -> OptId<TypeId> { return {}; },
+        [this](const ExecAssignment& d) -> OptId<TypeId> { return infer_type_from_exec(d.lhs); },
+        [this](const ExecMemberAccess& d) -> OptId<TypeId> {
+            return def(d.member).as<DefVariable>().type_id;
+        },
+        [this](const ExecBinary& d) -> OptId<TypeId> { return infer_type_from_exec(d.lhs); },
         [](const ExecCast& d) -> OptId<TypeId> { return d.target_tid; },
-        [](const ExecSubscript&) -> OptId<TypeId> { return {}; },
+        [this](const ExecSubscript& d) -> OptId<TypeId> {
+            const auto maybe_tid = infer_type_from_exec(d.base);
+            if (maybe_tid.empty()) {
+                return {};
+            }
+            // since the ExecSubscript is already type checked, we know LHS must either be a ptr, an
+            // array, or a slice, for all of which this works (getting the inner type)
+            return type(maybe_tid.as_id()).try_inner();
+        },
         [this](const ExecFnCall& d) -> OptId<TypeId> {
             const auto maybe_tid = infer_type_from_exec(d.callee);
             if (maybe_tid.empty()) {
@@ -3822,9 +3830,27 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             }
             return {};
         },
-        [](const ExecBorrow&) -> OptId<TypeId> { return {}; },
-        [](const ExecAddrOf&) -> OptId<TypeId> { return {}; },
-        [](const ExecDeref&) -> OptId<TypeId> { return {}; },
+        [this](const ExecBorrow& d) -> OptId<TypeId> {
+            assert(def(d.borrowee).holds<DefVariable>());
+            const auto inner_tid = def(d.borrowee).as<DefVariable>().type_id;
+            return emplace_type(TypeRef{.inner = inner_tid}, Span::generated(), d.mut);
+        },
+        [this](const ExecAddrOf& d) -> OptId<TypeId> {
+            const auto maybe_inner = infer_type_from_exec(d.addressed);
+            if (maybe_inner.empty()) {
+                return {};
+            }
+            return emplace_type(TypePtr{.inner = maybe_inner.as_id()}, Span::generated(), false);
+        },
+        [this](const ExecDeref& d) -> OptId<TypeId> {
+            const auto maybe_tid = infer_type_from_exec(d.dereferenced);
+            if (maybe_tid.empty()) {
+                return {};
+            }
+            // fine since maybe_tid should be a ptr type which has an inner
+            return type(maybe_tid.as_id()).try_inner();
+        },
+        // these are ctrl and do not yield values
         [](const ExecMatch&) -> OptId<TypeId> { return {}; },
         [](const ExecMatchBranch&) -> OptId<TypeId> { return {}; },
         [](const ExecVariantFieldInit&) -> OptId<TypeId> { return {}; },
