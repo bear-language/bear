@@ -3,12 +3,13 @@
 # use to more easily write variant visitors:
 
 types = """
-    DefModule, DefFunction, DefGenericFunction, DefFunctionPrototype, DefVariable,
-                   DefStruct, DefGenericStruct, DefVariant, DefGenericVariant, DefVariantField,
-                   DefUnion, DefGenericContract, DefContract, DefDeftype, DefScopeWrapper,
-                   DefUnevaluated, DefMalformed"""
+    ExecBlock, ExecBranch, ExecReturn, ExecYield, ExecJump,
 
-RETURN_TYPE = "bool"
+    ExecUnionInit, ExecVariantInit, ExecStructInit, ExecAssignable, ExecComptConstant,
+    ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
+    ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecFnPtr,
+    ExecVariantFieldInit, ExecRange
+"""
 
 names = [t.strip() for t in types.replace("\n", "").split(",") if t.strip()]
 
@@ -17,6 +18,8 @@ template = """\
     // todo
     return {val};
 }},"""
+
+RETURN_TYPE = "OptId<TypeId>"
 
 print("auto vs = Ovld{")
 for n in names:
