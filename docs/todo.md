@@ -2,7 +2,6 @@
 
 #### misc/priority 
 - [ ] finish `def_to_str`
-- [ ] add `ExecAddress`
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
