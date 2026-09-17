@@ -142,7 +142,8 @@ Context::Context(const bearc_args_t& args, instances instances)
       only_one_context_instance((instances == instances::one) && one_instance_status),
       compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]), terse{args.flags[CLI_FLAG_TERSE]},
       strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]},
-      all_src_locs{args.flags[CLI_FLAG_ALL_SRC_LOCS]} {
+      all_src_locs{args.flags[CLI_FLAG_ALL_SRC_LOCS]},
+      warn_cyclic_imports{args.flags[CLI_FLAG_WARN_CYCLIC_IMPORT]} {
 
     one_instance_status = false; // we exist now
 
@@ -692,7 +693,11 @@ void Context::explore_imports(FileId importer_file_id, llvm::SmallVectorImpl<Fil
     // angry base case, guard circularity
     if (file.load_state == file_import_state::in_progress) {
         // safe to take id because a circularity is only possible if a prev id exists
-        report_cycle(import_stack, import_path_tkn);
+
+        if (warn_cyclic_imports) {
+            report_cycle(import_stack, import_path_tkn);
+        }
+
         return;
     }
     // happy base case

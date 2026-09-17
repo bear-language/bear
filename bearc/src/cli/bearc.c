@@ -143,6 +143,7 @@ void cli_help(void) {
           "        [--terse | -t]         only print error and warning diagnostics\n"
           "        [--strict-syntax | -s] stop compilation after parsing when syntax errors are "
           "found\n"
+          "        [--warn-cyclic-import] issue a warning when a file imports cyclically\n"
           "        [--all-src-locs | -a]  show all source code locations, even in chained "
           "diagnostics\n";
     const char* flags_w_args_title = "flags with arguments:\n";

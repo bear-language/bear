@@ -138,9 +138,10 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR_FROM_ARGS(args2, 2);
     char* args3[] = {"bearc", "tests/hir/04.br", "--compile", "--import-path", "."};
     ASSERT_EQ_ERR_FROM_ARGS(args3, 10);
-    char* args4[] = {"bearc", "tests/hir/00.br", "--compile", "--import-path", "."};
+    char* args4[]
+        = {"bearc", "tests/hir/00.br", "--compile", "--import-path", ".", "--warn-cyclic-import"};
     ASSERT_EQ_ERR_FROM_ARGS(args4, 2);
-    char* args5[] = {"bearc", "-I", "tests/projects/00", "-c", "00.br"};
+    char* args5[] = {"bearc", "-I", "tests/projects/00", "-c", "00.br", "--warn-cyclic-import"};
     ASSERT_EQ_ERR_FROM_ARGSN(args5, 3, 2);
     char* args6[] = {"bearc", "-I", "tests/projects/01", "-c", "00.br"};
     ASSERT_EQ_ERR_FROM_ARGSN(args6, 4, 2);
