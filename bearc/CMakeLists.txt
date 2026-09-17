@@ -1,7 +1,8 @@
-# BearLang
 cmake_minimum_required(VERSION 3.20)
 
-project(BearC)
+# bump compiler version here
+project(bearc VERSION 0.0.1)
+
 set(EXECUTABLE bearc)
 set(BEARC_LIB libbearc)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
@@ -90,17 +91,22 @@ set(TEST_SRC
 )
 
 
+set(BEARC_VERSION "${PROJECT_VERSION}")
+
 set(CMAKE_C_FLAGS_DEBUG
-    "-Wall -Wextra -Wpedantic -g -gdwarf-4 -O0"
+    "-Wall -Wextra -Wpedantic -g -gdwarf-4 -O0 -DBEARC_VERSION=\\\"${BEARC_VERSION}\\\""
     # "-fsanitize=address,undefined"
     CACHE STRING "" FORCE)
-set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG" CACHE STRING "" FORCE)
+set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -DBEARC_VERSION=\\\"${BEARC_VERSION}\\\"" CACHE
+    STRING "" FORCE)
 
 set(CMAKE_CXX_FLAGS_DEBUG
-    "-Wall -Wextra -Wpedantic -g -gdwarf-4 -O0"
+    "-Wall -Wextra -Wpedantic -g -gdwarf-4 -O0 -DBEARC_VERSION=\\\"${BEARC_VERSION}\\\""
     # "-fsanitize=address,undefined"
     CACHE STRING "" FORCE)
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -fno-exceptions" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_RELEASE
+    "-O3 -DNDEBUG -fno-exceptions -DBEARC_VERSION=\\\"${BEARC_VERSION}\\\"" CACHE
+    STRING "" FORCE)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_definitions(DEBUG_BUILD)

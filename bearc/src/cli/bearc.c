@@ -175,7 +175,7 @@ void cli_no_args(void) {
     printf("run '%sbearc%s --help%s' to see available operations.\n\n", ansi_bold_green(),
            ansi_bold_reset(), ansi_reset());
 
-    printf("Bear Compiler Copyright 2025-2026 Zachary Mahan\n\n"
+    printf("Bear Compiler Copyright (C) 2025-2026 Zachary Mahan\n\n"
            "Licensed under the Apache License, Version 2.0 (the \"License\");\n"
            "you may not use this file except in compliance with the License.\n"
            "You may obtain a copy of the License at\n\n"

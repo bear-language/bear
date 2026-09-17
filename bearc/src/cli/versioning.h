@@ -30,11 +30,11 @@
 #endif
 
 #if defined(__clang__)
-#define BEARCC "clang"
+#define BEARCC "" // clang includes "Clang" in __VERSION__ already
 #elif defined(__GNUC__) || defined(__GNUG__)
-#define BEARCC "gcc"
+#define BEARCC " gcc"
 #else
-#define BEARCC "unknown compiler"
+#define BEARCC " unknown compiler"
 #endif
 
 #ifdef NDEBUG
@@ -43,15 +43,13 @@
 #define BUILD_TYPE "(debug)"
 #endif
 
-#define BEARC_VERSION_FALLBACK "unversioned"
-
 #ifdef BEARC_VERSION
-#define BEARC_VERSION_STR                                                                          \
-    BEARC_VERSION " " BUILD_TYPE " " BEARC_ARCH " (" __DATE__ ", " __TIME__ ")"
+#define BEARC_VER BEARC_VERSION
 #else
+#define BEARC_VER "unversioned"
+#endif
 
 #define BEARC_VERSION_STR                                                                          \
-    BEARC_VERSION_FALLBACK " " BUILD_TYPE " " BEARC_ARCH " (" __DATE__ ", " __TIME__ ")"
+    BEARC_VER " " BUILD_TYPE " " BEARC_ARCH " (" __DATE__ ", " __TIME__ ")," BEARCC " " __VERSION__
 
-#endif
-#endif
+#endif // !CLI_VERSIONING_H
