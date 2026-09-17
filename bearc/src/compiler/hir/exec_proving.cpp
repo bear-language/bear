@@ -294,12 +294,12 @@ bool equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
             const auto o = other.as<ExecDeref>();
             return equivalent_exec(ctx, o.dereferenced, t.dereferenced);
         },
-        [&other](const ExecAddrOf& t) -> bool {
+        [&ctx, &other](const ExecAddrOf& t) -> bool {
             if (!other.holds<ExecAddrOf>()) {
                 return false;
             }
             const auto o = other.as<ExecAddrOf>();
-            return t.addressed == o.addressed;
+            return equivalent_exec(ctx, t.addressed, o.addressed);
         },
         [&ctx, &other](const ExecMatch& t) -> bool {
             if (!other.holds<ExecMatch>()) {

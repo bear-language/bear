@@ -63,7 +63,6 @@ struct ExecYield {
 };
 
 /// models an l-value
-/// TODO: also make an ExecAddr?
 struct ExecAssignable {
     DefId def_id;
     TypeId type_id;
@@ -473,7 +472,7 @@ struct ExecDeref {
 };
 
 struct ExecAddrOf {
-    DefId addressed;
+    ExecId addressed;
 };
 
 struct ExecUnionInit {
