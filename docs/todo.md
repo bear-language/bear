@@ -2,8 +2,6 @@
 
 #### misc/priority 
 - [ ] finish `def_to_str`
-- [ ] fix `!x.y()` parsing
-- [ ] fix `*x = foo;` parsing 
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s

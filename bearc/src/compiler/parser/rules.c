@@ -25,6 +25,13 @@ static uint8_t postunary_prec_map[TOK__NUM] = {
     [TOK_DEC] = 2,
 };
 
+static uint8_t postfix_prec_map[TOK__NUM] = {
+    [TOK_INC] = 2,
+    [TOK_DEC] = 2,
+    [TOK_LPAREN] = 2,
+    [TOK_LBRACK] = 2,
+};
+
 uint8_t prec_postunary(token_type_e type) { return postunary_prec_map[type]; }
 
 static uint8_t preunary_prec_map[TOK__NUM] = {
@@ -53,8 +60,6 @@ static uint8_t binary_prec_map[TOK__NUM] = {
     [TOK_AS] = 3,
     [TOK_IS] = 3,
 
-    [TOK_IF] = 4,
-
     [TOK_PLUS] = 6,
     [TOK_MINUS] = 6,
 
@@ -74,28 +79,31 @@ static uint8_t binary_prec_map[TOK__NUM] = {
     [TOK_RSHL] = 7,
     [TOK_RSHA] = 7,
 
-    [TOK_BOOL_OR] = 15,
-    [TOK_BOOL_AND] = 14,
+    [TOK_BOOL_OR] = 16,
+    [TOK_BOOL_AND] = 15,
 
     [TOK_GE] = 9,
     [TOK_LE] = 9,
-    [TOK_BOOL_EQ] = 10,
-    [TOK_NE] = 10,
+    [TOK_BOOL_EQ] = 14,
+    [TOK_NE] = 14,
 
-    [TOK_ASSIGN_EQ] = 16,
+    [TOK_IF] = 17,
 
-    [TOK_ASSIGN_PLUS_EQ] = 16,
-    [TOK_ASSIGN_MINUS_EQ] = 16,
-    [TOK_ASSIGN_MULT_EQ] = 16,
-    [TOK_ASSIGN_DIV_EQ] = 16,
-    [TOK_ASSIGN_MOD_EQ] = 16,
+    [TOK_ASSIGN_EQ] = 18,
 
-    [TOK_ASSIGN_AND_EQ] = 16,
-    [TOK_ASSIGN_OR_EQ] = 16,
-    [TOK_ASSIGN_XOR_EQ] = 16,
-    [TOK_ASSIGN_LSH_EQ] = 16,
-    [TOK_ASSIGN_RSHL_EQ] = 16,
-    [TOK_ASSIGN_RSHA_EQ] = 16,
+    [TOK_ASSIGN_PLUS_EQ] = 18,
+    [TOK_ASSIGN_MINUS_EQ] = 18,
+    [TOK_ASSIGN_MULT_EQ] = 18,
+    [TOK_ASSIGN_DIV_EQ] = 18,
+    [TOK_ASSIGN_MOD_EQ] = 18,
+
+    [TOK_ASSIGN_AND_EQ] = 18,
+    [TOK_ASSIGN_OR_EQ] = 18,
+    [TOK_ASSIGN_XOR_EQ] = 18,
+    [TOK_ASSIGN_LSH_EQ] = 18,
+    [TOK_ASSIGN_RSHL_EQ] = 18,
+    [TOK_ASSIGN_RSHA_EQ] = 18,
+
 };
 uint8_t prec_binary(token_type_e type) { return binary_prec_map[type]; }
 
@@ -105,3 +113,4 @@ bool is_angle_bracket_operator(token_type_e t) {
 }
 bool is_preunary_op(token_type_e type) { return preunary_prec_map[type]; }
 bool is_postunary_op(token_type_e type) { return postunary_prec_map[type]; }
+bool is_postfix_op(token_type_e type) { return postfix_prec_map[type]; }

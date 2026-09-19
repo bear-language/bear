@@ -148,23 +148,32 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
         }
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    token_type_e next_type = parser_peek(p)->type;
-    // if atom, try to parse postunary, since postunary prec > preunary prec
-    if (lhs && is_postunary_op(parser_peek(p)->type)) {
-        return parse_postunary(p, lhs);
-    }
 
     if (parser_peek_match(p, TOK_LBRACE) && parser_mode(p) != PARSER_MODE_BAN_STRUCT_INIT
         && lhs->type == AST_EXPR_ID) {
         lhs = parse_expr_struct_init(p, lhs, NULL); // no generic args
     }
-    // try fn call or variant decomp too
-    if (lhs && (next_type == TOK_LPAREN)) {
-        return parse_fn_call(p, lhs, NULL); // no gen args
-    }
-    // try subscript
-    while (parser_peek_match(p, TOK_LBRACK)) {
-        lhs = parse_subscript(p, lhs);
+
+    // postfix loop to parse thingsl ike foo[]()()[][]++
+    while (lhs && is_postfix_op(parser_peek(p)->type)) {
+        // if atom, try to parse postunary, since postunary prec > preunary prec
+        if (is_postunary_op(parser_peek(p)->type)) {
+            lhs = parse_postunary(p, lhs);
+        }
+
+        // try fn call or variant decomp too
+        if (parser_peek_match(p, TOK_LPAREN)) {
+            lhs = parse_fn_call(p, lhs, NULL); // no gen args
+        }
+        // try subscript
+        if (parser_peek_match(p, TOK_LBRACK)) {
+            lhs = parse_subscript(p, lhs);
+        }
+
+        else {
+            break; // just in case (shouldn't be possible, but best to avoid inf loop here if the
+                   // postfix things get changed)
+        }
     }
     // try ++x, etc.
     if (!lhs && is_preunary_op(first_type)) {
@@ -401,13 +410,13 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
     preunary_expr->first = op;
     preunary_expr->expr.unary.op = op;
     // get and set sub expression
-    ast_expr_t* sub_expr = NULL;
+    ast_expr_t* middle_expr = NULL;
     // things like @sizeof(...)
     if (token_is_preunary_op_expecting_type(op->type)) {
         // sizeof(
         //       ^
         token_t* lparen = parser_match_token(p, TOK_LPAREN);
-        sub_expr = parse_expr_type(p);
+        middle_expr = parse_expr_type(p);
         // sizeof(sub_expr)
         //                ^
         if (lparen) {
@@ -416,9 +425,13 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
     }
     // all others like ++x, --x
     else {
-        sub_expr = parse_primary_expr_impl(p, NULL);
+        middle_expr = parse_primary_expr_impl(p, NULL);
+
+        // if (is_binary_op(parser_peek(p)->type)) {
+        //     parse_binary(p, middle_expr, prec_preunary(op->type));
+        // }
     }
-    preunary_expr->expr.unary.expr = sub_expr;
+    preunary_expr->expr.unary.expr = middle_expr;
     preunary_expr->last = parser_prev(p);
     return preunary_expr;
 }
@@ -933,7 +946,7 @@ ast_expr_t* parse_expr_borrow(parser_t* p) {
         return parser_sync_expr(p);
     }
     s->expr.borrow.mut = parser_match_token(p, TOK_MUT);
-    s->expr.borrow.borrowed = parse_expr(p);
+    s->expr.borrow.borrowed = parse_expr_prec(p, parse_primary_expr(p), prec_preunary(TOK_AMPER));
     s->first = amper;
     s->last = parser_prev(p);
     return s;
@@ -947,7 +960,7 @@ ast_expr_t* parse_expr_addr_of(parser_t* p) {
         return parser_sync_expr(p);
     }
     s->expr.addr_of.mut = parser_match_token(p, TOK_MUT);
-    s->expr.addr_of.inner = parse_expr(p);
+    s->expr.addr_of.inner = parse_expr_prec(p, parse_primary_expr(p), prec_preunary(TOK_CARET));
     s->first = caret;
     s->last = parser_prev(p);
     return s;

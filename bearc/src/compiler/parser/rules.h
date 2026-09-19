@@ -19,6 +19,7 @@ bool is_right_assoc_from_prec(uint8_t precedence);
 bool is_binary_op(token_type_e type);
 bool is_preunary_op(token_type_e type);
 bool is_postunary_op(token_type_e type);
+bool is_postfix_op(token_type_e type);
 bool is_angle_bracket_operator(token_type_e t);
 
 // find the precendence if a postunary operator based on token type
