@@ -82,10 +82,10 @@ static ast_slice_of_exprs_t parse_slice_of_exprs_call_call(parser_t* p, token_ty
     spill_arr_ptr_t sarr;
     spill_arr_ptr_init(&sarr);
 
-    while (!divider_call(parser_peek(p)->type) || parser_eof(p)) // while !eof (edge-case handling)
+    while (!divider_call(parser_peek(p)->type) && !parser_eof(p)) // while !eof (edge-case handling)
     {
         spill_arr_ptr_push(&sarr, call(p));
-        if (!divider_call(parser_peek(p)->type) || parser_eof(p)) {
+        if (!divider_call(parser_peek(p)->type) && !parser_eof(p)) {
             parser_expect_token(p, divider);
         }
     }

@@ -547,11 +547,11 @@ std::string exec_to_string(Context& ctx, ExecId eid);
 
 bool e_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
-bool e_hash_exec(const Context& ctx, ExecId eid);
+size_t e_hash_exec(const Context& ctx, ExecId eid);
 
 bool e_implicit_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
-bool e_implicit_hash_exec(const Context& ctx, ExecId eid);
+size_t e_implicit_hash_exec(const Context& ctx, ExecId eid);
 
 enum class equivalence : uint8_t {
     implicit,
