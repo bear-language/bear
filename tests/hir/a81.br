@@ -1,0 +1,5 @@
+// tests/hir/a81.br
+
+struct W<T> { compt var v = W..v::<W::T>; }
+
+W<i32> _0 = {};
