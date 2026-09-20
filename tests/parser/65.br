@@ -1,0 +1,6 @@
+// tests/parser/65.br
+
+fn main() {
+    (&x == y);
+    (++x++); // not logically valid, but is syntactically fine
+}

@@ -2,11 +2,11 @@
 
 fn main () {
     !x.y.foo();
-    while (&x == y) {}
     while(&x.f.a) {}
     *x = y; // oops
     (*x) = y; // disambiguate
     foo()[0]()[0]++;
     1 + 1 if true else 3 + 3;
     m & 1 == 0;
+    !foo.bar;
 }

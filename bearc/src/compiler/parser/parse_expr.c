@@ -427,9 +427,11 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
     else {
         middle_expr = parse_primary_expr_impl(p, NULL);
 
-        // if (is_binary_op(parser_peek(p)->type)) {
-        //     parse_binary(p, middle_expr, prec_preunary(op->type));
-        // }
+        const uint8_t init_prec = prec_preunary(op->type);
+
+        if (is_binary_op(parser_peek(p)->type) && prec_binary(parser_peek(p)->type) < init_prec) {
+            middle_expr = parse_binary(p, middle_expr, prec_preunary(op->type));
+        }
     }
     preunary_expr->expr.unary.expr = middle_expr;
     preunary_expr->last = parser_prev(p);
@@ -946,7 +948,12 @@ ast_expr_t* parse_expr_borrow(parser_t* p) {
         return parser_sync_expr(p);
     }
     s->expr.borrow.mut = parser_match_token(p, TOK_MUT);
-    s->expr.borrow.borrowed = parse_expr_prec(p, parse_primary_expr(p), prec_preunary(TOK_AMPER));
+    ast_expr_t* middle_expr = parse_primary_expr_impl(p, NULL);
+    const uint8_t init_prec = prec_preunary(TOK_AMPER);
+    if (is_binary_op(parser_peek(p)->type) && prec_binary(parser_peek(p)->type) < init_prec) {
+        middle_expr = parse_binary(p, middle_expr, prec_preunary(TOK_AMPER));
+    }
+    s->expr.borrow.borrowed = middle_expr;
     s->first = amper;
     s->last = parser_prev(p);
     return s;
@@ -960,7 +967,12 @@ ast_expr_t* parse_expr_addr_of(parser_t* p) {
         return parser_sync_expr(p);
     }
     s->expr.addr_of.mut = parser_match_token(p, TOK_MUT);
-    s->expr.addr_of.inner = parse_expr_prec(p, parse_primary_expr(p), prec_preunary(TOK_CARET));
+    ast_expr_t* middle_expr = parse_primary_expr_impl(p, NULL);
+    const uint8_t init_prec = prec_preunary(TOK_CARET);
+    if (is_binary_op(parser_peek(p)->type) && prec_binary(parser_peek(p)->type) < init_prec) {
+        middle_expr = parse_binary(p, middle_expr, prec_preunary(TOK_CARET));
+    }
+    s->expr.addr_of.inner = middle_expr;
     s->first = caret;
     s->last = parser_prev(p);
     return s;
