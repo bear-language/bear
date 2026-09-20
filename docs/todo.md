@@ -98,18 +98,21 @@
 
 #### chores
 - [ ] fix highlighting of "\\\\" in bear.nvim
+- [ ] fix undefined arithmetic behavior in `ComptExprSolver` inherited from C++ (signed overflow, etc.)
 
 tools
 ----- 
-- [ ] highlighing for isize
 
 lexer & parser 
 --------------
 - [ ] improve numerical literal handling 
+    - [ ] fix implicit `NaN` / `inf` shenanigans
     - [ ] probably just replace strtoll and friends with hand-rolled impls 
     - [ ] add binary integer literals `0b1010101` (keeping dec, hex, and float that we currently already have)
     - [ ] set a tkn to TOK_OVERSIZED_INT_ERR if there's no decimal and it's greater than u64 max or less than i64 min
     - [ ] suffixes?
+- [ ] issue better diagnostics (in parse_expr) for unterminated string literals
+    - [ ] set a special ERR_UNTERM_STR as the token_type when lexing and then report during parsing
 
 hir & later 
 ----------- 
@@ -119,7 +122,6 @@ hir & later
 - [ ] arbitrary source code reconstruction from hir::Context
 
 #### diagnostics
-- [ ] fully allow cyclical imports, add a flag to enable warnings instead of always warning for it
 - [ ] using a scope iterator, use Levenshtein distance to make a `help: did you mean:` `...`
 
 #### debugging 
