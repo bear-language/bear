@@ -55,8 +55,6 @@ static uint8_t binary_prec_map[TOK__NUM] = {
     [TOK_DOT] = 2,
     [TOK_RARROW] = 2,
 
-    [TOK_ELLIPSE] = 3,
-    [TOK_ELLIPSE_EQ] = 3,
     [TOK_AS] = 3,
     [TOK_IS] = 3,
 
@@ -87,22 +85,25 @@ static uint8_t binary_prec_map[TOK__NUM] = {
     [TOK_BOOL_EQ] = 14,
     [TOK_NE] = 14,
 
-    [TOK_IF] = 17,
+    [TOK_ELLIPSE] = 17,
+    [TOK_ELLIPSE_EQ] = 17,
 
-    [TOK_ASSIGN_EQ] = 18,
+    [TOK_IF] = 18,
 
-    [TOK_ASSIGN_PLUS_EQ] = 18,
-    [TOK_ASSIGN_MINUS_EQ] = 18,
-    [TOK_ASSIGN_MULT_EQ] = 18,
-    [TOK_ASSIGN_DIV_EQ] = 18,
-    [TOK_ASSIGN_MOD_EQ] = 18,
+    [TOK_ASSIGN_EQ] = 19,
 
-    [TOK_ASSIGN_AND_EQ] = 18,
-    [TOK_ASSIGN_OR_EQ] = 18,
-    [TOK_ASSIGN_XOR_EQ] = 18,
-    [TOK_ASSIGN_LSH_EQ] = 18,
-    [TOK_ASSIGN_RSHL_EQ] = 18,
-    [TOK_ASSIGN_RSHA_EQ] = 18,
+    [TOK_ASSIGN_PLUS_EQ] = 19,
+    [TOK_ASSIGN_MINUS_EQ] = 19,
+    [TOK_ASSIGN_MULT_EQ] = 19,
+    [TOK_ASSIGN_DIV_EQ] = 19,
+    [TOK_ASSIGN_MOD_EQ] = 19,
+
+    [TOK_ASSIGN_AND_EQ] = 19,
+    [TOK_ASSIGN_OR_EQ] = 19,
+    [TOK_ASSIGN_XOR_EQ] = 19,
+    [TOK_ASSIGN_LSH_EQ] = 19,
+    [TOK_ASSIGN_RSHL_EQ] = 19,
+    [TOK_ASSIGN_RSHA_EQ] = 19,
 
 };
 uint8_t prec_binary(token_type_e type) { return binary_prec_map[type]; }
