@@ -52,7 +52,7 @@ vector_t lexer_tokenize_src_buffer(const src_buffer_t* buf) {
     } while (0)
 
 #define LEX_IN_LITERAL(D)                                                                          \
-    while (true) {                                                                                 \
+    while (pos < end_of_buf) {                                                                     \
         c = *(++pos);                                                                              \
         ++len;                                                                                     \
         ++col;                                                                                     \
