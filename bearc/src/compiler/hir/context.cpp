@@ -800,21 +800,16 @@ void Context::try_print_info() {
             // 1. print parse-time errors (ast-wise errors)
             curr_ast.print_all_errors(compact_diagnostics_enabled());
             // 2. print diagnostics (semantic/non-grammatical errors)
-            // OptId<DiagnosticId> prev_diag{};
             for (const auto d : file_to_diagnostics.at(fid)) {
-                /*
-                bool print_file = true;
-                // check if we should bother printing the file name again
-                if (prev_diag.has_value()) {
-                    auto curr = diagnostics.cat(d);
-                    auto prev = diagnostics.cat(prev_diag.as_id());
-                    print_file = curr.span.file_id != prev.span.file_id;
-                }
-                */
-                print_diagnostic(d /*, print_file*/);
-                // rotate
-                // prev_diag = d;
+                print_diagnostic(d);
             }
+        }
+
+        // print these again at the end.
+        // currently, this is only used for generic explosion, so it's nice to see this at the end
+        // instead of having to sift through the exploded diagnostics
+        for (auto d : critical_diagnostics) {
+            force_print_diagnostic(d);
         }
     }
     if (!has_flag(CLI_FLAG_SILENT)) {
@@ -879,9 +874,11 @@ OptId<FileId> Context::try_file_from_import_statement(FileId importer_id,
 Context::make_new_generic_instantiation(DefVisitor& def_visitor, DefId did,
                                         GenericArgIdSliceId gen_args_id) {
     def_visitor.visit_as_transparent(did);
+
     const OptId<DefId> maybe_instance_did
         = FileAstVisitor{*this, def(did).span.file_id}.lower_generic_stmt(
             containing_scope(did), def_ast_node(did), def(did).parent);
+
     if (maybe_instance_did.empty()) {
         return {};
     }
@@ -1184,9 +1181,9 @@ DiagnosticId Context::emplace_diagnostic_with_message_value(Span span, diag_code
     return id;
 }
 
-void Context::print_diagnostic(DiagnosticId diag_id, bool print_file) {
+void Context::print_diagnostic(DiagnosticId diag_id, bool print_file, bool force_print) {
     // as to not re-report
-    if (diagnostics_used.at(diag_id)) {
+    if (diagnostics_used.at(diag_id) && !force_print) {
         return;
     }
     const Diagnostic& diag = diagnostics.at(diag_id);

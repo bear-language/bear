@@ -212,9 +212,25 @@ class Context {
                 if (maybe_orig_did.empty()) {
                     return {};
                 }
+                // -- guard infinite instantiation (leads to stack overflow)
+                if (++this->generic_inst_depth > MAX_GENERIC_INST_DEPTH) {
+                    const auto d0 = emplace_diagnostic(span_for_gen_args(gen_args_id),
+                                                       diag_code::circular_generic_instantiation,
+                                                       diag_type::error);
+                    const auto d1 = emplace_diagnostic(
+                        span_for_gen_args(gen_args_id),
+                        diag_code::this_diag_has_been_reemitted_due_to_criticality, diag_type::note,
+                        DiagnosticInfoNoPreview{});
+                    link_diagnostic(d0, d1);
+                    critical_diagnostics.emplace_back(d0);
+                    critical_diagnostics.emplace_back(d1);
+                    --this->generic_inst_depth;
+                    return {};
+                }
                 const DefId orig_did = def_visitor.visit_as_dependent(
                     guard_hid(on_first, scope, maybe_orig_did.as_id(), id_slice, id_span));
-
+                // ^^^
+                --this->generic_inst_depth;
                 return try_instantiate_def_on_scoped_lookup_if_needed(def_visitor, targs, orig_did,
                                                                       true); // last
             }
@@ -423,7 +439,10 @@ class Context {
     void force_link_diagnostic(DiagnosticId diag);
     // try to chain custom diagnostics in a pretty way (link them only with each other)
     void try_link_custom_diagnostic(DiagnosticId diag);
-    void print_diagnostic(DiagnosticId diag, bool print_file = true);
+    void print_diagnostic(DiagnosticId diag, bool print_file = true, bool force_print = false);
+    void force_print_diagnostic(DiagnosticId diag, bool print_file = true) {
+        print_diagnostic(diag, print_file, true);
+    }
 
     // check if the most recent diagnostic chain contains a particular code
     [[nodiscard]] bool last_diagnostic_chain_contains(diag_code code);
@@ -1044,6 +1063,12 @@ class Context {
     IdVecMap<DeductionGuideId, IdSlice<DeductionStepId>> deduction_guides;
     DataArena def_to_deduction_guides_arena;
     IdHashMap<DefId, DeductionGuideId> def_to_deduction_guides;
+
+    // generic tracking
+    // checking generic instantiation depth
+    std::vector<DiagnosticId> critical_diagnostics{};
+    static constexpr HirSize MAX_GENERIC_INST_DEPTH = 200;
+    HirSize generic_inst_depth{};
 
     // for parallel ast building
     std::shared_mutex import_file_mutex;
