@@ -1,0 +1,21 @@
+// tests/hir/a82.br
+
+compt var PI = 3.14159;
+
+fn main() -> i32 {
+    compt var my_pi = PI;
+
+    f64 my_pi;
+    
+    compt var _0 = test..foo(42);
+    
+    compt var _1 = @static_assert test..add::<12>(12) == 12 * 2;
+
+    return my_pi as i32;
+}
+
+mod test;
+
+fn foo<T>(T x) -> T => x
+
+compt fn add<i32 V>(i32 x) -> i32 => x + V

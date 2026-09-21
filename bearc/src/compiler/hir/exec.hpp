@@ -62,8 +62,8 @@ struct ExecYield {
     OptId<ExecId> yield_value;
 };
 
-/// models an l-value
-struct ExecAssignable {
+/// models a named l-value
+struct ExecVariable {
     DefId def_id;
     TypeId type_id;
 };
@@ -464,7 +464,7 @@ struct ExecFnCall {
 };
 
 struct ExecBorrow {
-    DefId borrowee;
+    ExecId borrowee;
     bool mut;
 };
 
@@ -524,7 +524,7 @@ using ExecValue = std::variant<
     ExecBlock, ExecBranch, ExecReturn, ExecYield, ExecJump,
 
     // expressions
-    ExecUnionInit, ExecVariantInit, ExecStructInit, ExecAssignable, ExecComptConstant,
+    ExecUnionInit, ExecVariantInit, ExecStructInit, ExecVariable, ExecComptConstant,
     ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
     ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecFnPtr,
     ExecVariantFieldInit, ExecRange>;

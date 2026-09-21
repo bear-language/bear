@@ -985,7 +985,7 @@ bool Exec::can_be_compt() {
         [](const ExecReturn&) -> bool { return false; },
         [](const ExecYield&) -> bool { return false; },
         // exprs
-        [](const ExecAssignable&) -> bool { return false; },
+        [](const ExecVariable&) -> bool { return false; },
         [](const ExecAssignment&) -> bool { return false; },
         [](const ExecMemberAccess&) -> bool { return false; },
         [](const ExecBinary&) -> bool { return false; },
@@ -2026,13 +2026,20 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             str += "{\n";
 
             const Block& block = ctx.block(t.block_id);
+
+            for (const auto didx : block.defs) {
+                str += TAB;
+                str += def_to_string(ctx, ctx.def_id(didx));
+                str += '\n';
+            }
+
             for (const auto eidx : block.execs) {
                 str += TAB;
                 str += exec_to_string(ctx, ctx.exec_id(eidx));
                 str += '\n';
             }
 
-            str += "}\n";
+            str += "}";
             return str;
         },
         [](const ExecJump& t) -> std::string {
@@ -2122,7 +2129,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 
             return str;
         },
-        [&ctx](const ExecAssignable& t) -> std::string {
+        [&ctx](const ExecVariable& t) -> std::string {
             return ctx.symbol_id_to_cstr(ctx.def(t.def_id).name);
         },
         [&ctx](const ExecComptConstant& t) -> std::string { return t.to_string(ctx); },
@@ -2165,10 +2172,10 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             str += ')';
             return str;
         },
-        [](const ExecBorrow& t) -> std::string {
+        [&ctx](const ExecBorrow& t) -> std::string {
             std::string str{};
             str += '&';
-            str += def_id_str(t.borrowee);
+            str += exec_to_string(ctx, t.borrowee);
             return str;
         },
         [&ctx](const ExecDeref& t) -> std::string {

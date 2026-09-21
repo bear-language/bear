@@ -3818,9 +3818,11 @@ bool ComptExprSolver::try_variant_decomp(FileId fid, ScopeId pattern_scope, Scop
         if (i < members.len()) {
             ExecId value = context.exec_id(members.get(i));
 
-            const DefId did = context.register_compt_def(
-                name, span, {},
-                DefVariable{.type_id = needed_tid, .compt_value = value, .moved = false});
+            const DefId did = context.register_compt_def(name, span, {},
+                                                         DefVariable{
+                                                             .type_id = needed_tid,
+                                                             .compt_value = value,
+                                                         });
 
             context.insert_variable(branch_scope, name, did);
         }

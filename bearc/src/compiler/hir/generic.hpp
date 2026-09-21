@@ -42,6 +42,9 @@ struct GenericParam : NodeWithVariantValue<GenericParam> {
         : value{value}, span{span}, name{name} {}
 };
 
+[[nodiscard]] std::string gen_param_to_string(Context& ctx, GenericParamId gid);
+[[nodiscard]] std::string gen_params_to_string(Context& ctx, IdSlice<GenericParamId> gid_slice);
+
 class TickableGenArgSlice {
     IdSlice<GenericArgId> slice;
     HirSize curr_idx{};

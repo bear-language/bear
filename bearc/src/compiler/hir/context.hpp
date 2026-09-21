@@ -100,6 +100,7 @@ class Context {
     [[nodiscard]] SymbolId concat_symbols(SymbolId sid1, SymbolId sid2);
     /// get a symbol, trimming the "" quotes on the outside when interning
     [[nodiscard]] SymbolId symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid);
+    [[nodiscard]] std::string symbold_id_slice_to_string(IdSlice<SymbolId> sid_slice) const;
 
     [[nodiscard]] bool should_warn_as_unused(DefId did) const;
 

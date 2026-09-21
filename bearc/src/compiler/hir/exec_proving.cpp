@@ -160,11 +160,11 @@ template <equivalence E> bool equivalent_exec_impl(const Context& ctx, ExecId ei
 
             return true;
         },
-        [&other](const ExecAssignable& t) -> bool {
-            if (!other.holds<ExecAssignable>()) {
+        [&other](const ExecVariable& t) -> bool {
+            if (!other.holds<ExecVariable>()) {
                 return false;
             }
-            const auto o = other.as<ExecAssignable>();
+            const auto o = other.as<ExecVariable>();
 
             return t.def_id == o.def_id;
         },
@@ -367,9 +367,7 @@ template <equivalence E> size_t hash_exec_impl(const Context& ctx, ExecId eid) {
             }
             return h;
         },
-        [](const ExecAssignable& t) -> size_t {
-            return transform(t.def_id.raw(), t.type_id.raw());
-        },
+        [](const ExecVariable& t) -> size_t { return transform(t.def_id.raw(), t.type_id.raw()); },
         [](const ExecComptConstant& t) -> size_t {
             if constexpr (E == equivalence::implicit) {
                 return transform(t.hash_identity(), t.to_size());
@@ -497,7 +495,7 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
             return t.struct_def_id == o.struct_def_id;
         },
-        [](const ExecAssignable&) -> bool { return false; },
+        [](const ExecVariable&) -> bool { return false; },
         [&e2, &ctx, eid1](const ExecComptConstant& t) -> bool {
             if (e2.holds<ExecRange>()) {
                 return possibly_equivalent_exec(ctx, eid1, e2.as<ExecRange>().start);

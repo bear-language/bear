@@ -187,4 +187,36 @@ std::string gen_arg_to_str(Context& ctx, GenericArgId arg_id) {
     return exec_to_string(ctx, garg.as<ExecId>());
 }
 
+std::string gen_param_to_string(Context& ctx, GenericParamId gid) {
+    const auto& gp = ctx.gen_param(gid);
+    std::string str;
+    if (gp.holds<GenericParamType>()) {
+        str += ctx.symbol(gp.name);
+        for (const auto didx : gp.as<GenericParamType>().contracts) {
+            str += ctx.symbold_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
+            if (didx != gp.as<GenericParamType>().contracts.last_elem()) {
+                str += " + ";
+            }
+        }
+        return str;
+    }
+    // holds<GenericParamVariable>()
+    str += type_to_string(ctx, gp.as<GenericParamVariable>().type);
+    str += " ";
+    str += ctx.symbol(gp.name);
+    return str;
+}
+std::string gen_params_to_string(Context& ctx, IdSlice<GenericParamId> gid_slice) {
+    std::string str;
+    str += "<";
+    for (const auto gidx : gid_slice) {
+        str += gen_param_to_string(ctx, ctx.gen_param_id(gidx));
+        if (gidx != gid_slice.last_elem()) {
+            str += ", ";
+        }
+    }
+    str += ">";
+    return str;
+}
+
 } // namespace hir

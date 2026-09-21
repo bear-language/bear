@@ -72,7 +72,6 @@ struct DefFunctionPrototype {
 struct DefVariable {
     TypeId type_id;
     OptId<ExecId> compt_value{};
-    bool moved = false;
 };
 
 struct DefStruct {
@@ -284,7 +283,9 @@ struct Def : NodeWithVariantValue<Def> {
     bool is_ordered() const noexcept { return member_idx != UNORDERED; };
 };
 
-std::string def_to_string(Context& ctx, ExecId eid);
+[[nodiscard]] std::string def_to_string(Context& ctx, DefId did);
+
+[[nodiscard]] std::string scope_to_string(Context& ctx, ScopeId scope);
 
 } // namespace hir
 

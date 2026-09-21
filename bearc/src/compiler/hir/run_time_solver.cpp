@@ -392,10 +392,13 @@ OptId<ExecId> RuntimeSolver::handle_var_decl(FileId fid, LexicalCtx lctx, InProg
             = context.try_default_value_for_type(maybe_tid.as_id(), span, /*compt=*/false);
     }
 
-    const DefId did = context.register_def(
-        name, compt == compt::compt, storage == storage::statik, align, span, stmt,
-        DefVariable{.type_id = maybe_tid.as_id(), .compt_value = maybe_compt_eid, .moved = false},
-        {});
+    const DefId did = context.register_def(name, compt == compt::compt, storage == storage::statik,
+                                           align, span, stmt,
+                                           DefVariable{
+                                               .type_id = maybe_tid.as_id(),
+                                               .compt_value = maybe_compt_eid,
+                                           },
+                                           {});
 
     // record in scope
     context.insert_variable(lctx.scope, name, did);
@@ -404,7 +407,12 @@ OptId<ExecId> RuntimeSolver::handle_var_decl(FileId fid, LexicalCtx lctx, InProg
     block.defs.push_back(did);
 
     if (maybe_runtime_eid.has_value()) {
-        block.push_back_exec(maybe_runtime_eid.as_id());
+        ExecId assign_eid = context.emplace_exec(
+            ExecAssignment{.lhs = context.emplace_exec(
+                               ExecVariable{.def_id = did, .type_id = maybe_tid.as_id()}, span),
+                           .rhs = maybe_runtime_eid.as_id()},
+            span);
+        block.push_back_exec(assign_eid);
     }
 
     // TODO: do something special for non-compt static variables using a guard variable
@@ -449,9 +457,10 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
 
     const DefId did = context.register_def(
         name, compt == compt::compt, storage == storage::statik, align, span, stmt,
-        DefVariable{.type_id = maybe_tid ? maybe_tid.as_id() : fall_back_tid_which_may_contain_var,
-                    .compt_value = maybe_compt_eid,
-                    .moved = false},
+        DefVariable{
+            .type_id = maybe_tid ? maybe_tid.as_id() : fall_back_tid_which_may_contain_var,
+            .compt_value = maybe_compt_eid,
+        },
         {});
 
     // record in scope

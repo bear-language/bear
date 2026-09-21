@@ -159,9 +159,9 @@ Context::Context(const bearc_args_t& args, instances instances)
         return;
     }
 
-    static constexpr size_t STARTING_FUNCTION_CNT_APPROX = 0x1000; // play it safe
+    static constexpr size_t STARTING_FUNCTION_CNT_APPROX = 0x100; // play it safe
     all_function_dids.reserve(STARTING_FUNCTION_CNT_APPROX);
-    static constexpr size_t STARTING_STRUCT_STATIC_DID_CNT = 0x1000; // ^^^
+    static constexpr size_t STARTING_STRUCT_STATIC_DID_CNT = 0x100; // ^^^
     static_struct_member_dids.reserve(STARTING_STRUCT_STATIC_DID_CNT);
 
     const std::filesystem::path& root_file = maybe_root_file.value();
@@ -409,6 +409,17 @@ static auto parse_hex(Context& ctx, FileId fid, std::string_view hex_str, const 
         return false;
     }
     return str[0] == '_';
+}
+
+[[nodiscard]] std::string Context::symbold_id_slice_to_string(IdSlice<SymbolId> sid_slice) const {
+    std::string str;
+    for (const auto sidx : sid_slice) {
+        str += symbol(symbol_id(sidx));
+        if (sidx != sid_slice.last_elem()) {
+            str += "..";
+        }
+    }
+    return str;
 }
 
 SymbolId Context::symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid) {
@@ -791,6 +802,25 @@ void Context::try_print_info() {
             }
             std::cout << ansi_reset() << "\n";
         }
+    }
+    if (has_flag(CLI_FLAG_DUMP_HIR)) {
+        std::cout << ansi_bold_magenta() << "============== HIR dump =============\n"
+                  << ansi_reset();
+        std::cout << scope_to_string(*this, root_scope());
+        std::cout << '\n';
+
+        std::cout << ansi_bold_cyan() << "=== Instatiated generic functions ===\n" << ansi_reset();
+        // print all generic functions (these aren't inside of scopes!)
+        for (const auto did : all_function_dids) {
+            const auto& fn_def = def(did);
+            if (fn_def.holds<DefFunction>()
+                && fn_def.as<DefFunction>().maybe_generic_args.has_value()) {
+                std::cout << def_to_string(*this, did);
+                std::cout << '\n';
+            }
+        }
+        std::cout << ansi_bold_magenta() << "^^^^^^^^^^^^^^ HIR dump ^^^^^^^^^^^^^\n"
+                  << ansi_reset();
     }
     // 3. print diagnostics last (so always seen first in terminal)
     if (!has_flag(CLI_FLAG_SILENT)) {
@@ -3756,7 +3786,7 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
                 },
                 Span::generated(), false);
         },
-        [](const ExecAssignable& d) -> OptId<TypeId> { return d.type_id; },
+        [](const ExecVariable& d) -> OptId<TypeId> { return d.type_id; },
         [](const ExecFnPtr& d) -> OptId<TypeId> { return d.fn_ptr_tid; },
         [this](const ExecComptConstant& d) -> OptId<TypeId> {
             auto bin_type = d.type_builtin();
@@ -3828,9 +3858,16 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             return {};
         },
         [this](const ExecBorrow& d) -> OptId<TypeId> {
-            assert(def(d.borrowee).holds<DefVariable>());
-            const auto inner_tid = def(d.borrowee).as<DefVariable>().type_id;
-            return emplace_type(TypeRef{.inner = inner_tid}, Span::generated(), d.mut);
+            const auto maybe_inner_tid = infer_type_from_exec(d.borrowee);
+            if (maybe_inner_tid.empty()) {
+                return {};
+            }
+            // borrowing a ref is still just a ref
+            if (type(maybe_inner_tid.as_id()).holds<TypeRef>()) {
+                return maybe_inner_tid;
+            }
+            return emplace_type(TypeRef{.inner = maybe_inner_tid.as_id()}, Span::generated(),
+                                d.mut);
         },
         [this](const ExecAddrOf& d) -> OptId<TypeId> {
             const auto maybe_inner = infer_type_from_exec(d.addressed);
