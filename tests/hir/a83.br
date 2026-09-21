@@ -2,5 +2,5 @@
 
 fn main() -> i32 {
     {}
-    {return compt 0;}
+    {return compt 0;} // TODO
 }
