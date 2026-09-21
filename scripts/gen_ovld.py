@@ -3,21 +3,22 @@
 # use to more easily write variant visitors:
 
 types = """
-DefModule, DefFunction, DefGenericFunction, DefFunctionPrototype, DefVariable,
-                   DefStruct, DefGenericStruct, DefVariant, DefGenericVariant, DefVariantField,
-                   DefUnion, DefGenericContract, DefContract, DefDeftype, DefScopeWrapper,
-                   DefUnevaluated, DefMalformed
+    ExecBlock, ExecBranch, ExecReturn, ExecYield, ExecJump,
+
+    ExecUnionInit, ExecVariantInit, ExecStructInit, ExecVariable, ExecComptConstant,
+    ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
+    ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecFnPtr,
+    ExecVariantFieldInit, ExecRange
 """
 
 names = [t.strip() for t in types.replace("\n", "").split(",") if t.strip()]
 
 template = """\
-[&ctx](const {name}& d) -> {ret} {{
-    // todo
+[](const {name}& d) -> {ret} {{
     return {val};
 }},"""
 
-RETURN_TYPE = "std::string"
+RETURN_TYPE = "bool"
 
 print("const auto vs = Ovld{")
 for n in names:
