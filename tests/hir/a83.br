@@ -1,6 +1,31 @@
 // tests/hir/a83.br
 
 fn main() -> i32 {
-    {}
-    {return compt 0;} // TODO
+    {} // oops
+    {return compt 0;} // no return error here 
+                      // since the compiler knows
+                      // we return on all paths
+}
+
+fn foo(i32 x) -> i32 {
+    {{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{;}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
+}
+
+fn bar(i32 x) -> i32 {
+    {
+        void _0;
+    }
+}
+
+fn baz(i32 x) -> i32 {
+    {
+        compt var hmmm = bar;
+        {
+            {
+                {
+                    return hmmm();
+                }
+            }
+        }
+    }
 }

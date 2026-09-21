@@ -554,4 +554,54 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
     return e1.visit(vs);
 }
 
+template <typename T>
+    requires requires { is_any_of_v<ExecReturn, ExecYield>; }
+bool definitely_returns_yields_impl(const Context& ctx, ExecId eid) {
+    const auto vs = Ovld{
+        [](const ExecReturn&) -> bool { return std::same_as<T, ExecReturn>; },
+        [&ctx](const ExecBlock& d) -> bool {
+            const auto execs = ctx.block(d.block_id).execs;
+            // try the last exec
+            if (execs.len()) {
+                return definitely_returns_yields_impl<T>(ctx, ctx.exec_id(execs.last_elem()));
+            }
+            return false;
+        },
+        [&ctx](const ExecBranch& d) -> bool {
+            return definitely_returns_yields_impl<T>(ctx, d.then_block)
+                   && definitely_returns_yields_impl<T>(ctx, d.else_block);
+        },
+        [](const ExecYield&) -> bool { return std::same_as<T, ExecYield>; },
+        [](const ExecJump&) -> bool { return {}; },
+        [](const ExecUnionInit&) -> bool { return {}; },
+        [](const ExecVariantInit&) -> bool { return {}; },
+        [](const ExecStructInit&) -> bool { return {}; },
+        [](const ExecVariable&) -> bool { return {}; },
+        [](const ExecComptConstant&) -> bool { return {}; },
+        [](const ExecListLiteral&) -> bool { return {}; },
+        [](const ExecAssignment&) -> bool { return {}; },
+        [](const ExecMemberAccess&) -> bool { return {}; },
+        [](const ExecBinary&) -> bool { return {}; },
+        [](const ExecCast&) -> bool { return {}; },
+        [](const ExecSubscript&) -> bool { return {}; },
+        [](const ExecFnCall&) -> bool { return {}; },
+        [](const ExecBorrow&) -> bool { return {}; },
+        [](const ExecAddrOf&) -> bool { return {}; },
+        [](const ExecDeref&) -> bool { return {}; },
+        [](const ExecMatch&) -> bool { return {}; },
+        [](const ExecMatchBranch&) -> bool { return {}; },
+        [](const ExecFnPtr&) -> bool { return {}; },
+        [](const ExecVariantFieldInit&) -> bool { return {}; },
+        [](const ExecRange&) -> bool { return {}; },
+    };
+
+    return ctx.exec(eid).visit(vs);
+}
+bool definitely_returns(const Context& ctx, ExecId eid) {
+    return definitely_returns_yields_impl<ExecReturn>(ctx, eid);
+}
+bool definitely_yields(const Context& ctx, ExecId eid) {
+    return definitely_returns_yields_impl<ExecYield>(ctx, eid);
+}
+
 } // namespace hir

@@ -143,8 +143,7 @@ namespace hir {
         // TODO: don't issue a false positive for nested blocks
         if (!hit_block_terminator && i == stmts.len - 1 && must_return()
             && (maybe_eid.empty()
-                || (maybe_eid.has_value()
-                    && !context.exec(maybe_eid.as_id()).holds<ExecReturn>()))) {
+                || (maybe_eid.has_value() && !definitely_returns(context, maybe_eid.as_id())))) {
 
             Span span{context, fid, stmts.start[i]};
 
@@ -202,7 +201,8 @@ namespace hir {
             dl.link(context.emplace_diagnostic(
                 block_span, diag_code::end_function_body_with_a_return_statement, diag_type::help));
         } else {
-            context.emplace_diagnostic(block_span, diag_code::empty_block, diag_type::warning);
+            context.emplace_diagnostic(block_span, diag_code::empty_block_does_nothing,
+                                       diag_type::warning);
         }
     }
 
