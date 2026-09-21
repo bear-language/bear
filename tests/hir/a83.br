@@ -1,0 +1,6 @@
+// tests/hir/a83.br
+
+fn main() -> i32 {
+    {}
+    {return compt 0;}
+}

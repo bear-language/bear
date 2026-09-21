@@ -2066,6 +2066,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
                 str += " ";
                 str += exec_to_string(ctx, t.return_value.as_id());
             }
+            str += ";";
             return str;
         },
         [&ctx](const ExecYield& t) -> std::string {

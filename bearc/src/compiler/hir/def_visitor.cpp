@@ -22,6 +22,7 @@
 #include "utils/data_arena.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
+#include <iostream>
 #include <optional>
 #include <stddef.h>
 
@@ -871,7 +872,7 @@ void DefVisitor::resolve_fn_body_block(FileId fid, DefId func_did) {
     // defs inside the function body
     func.body = solver.solve_block(
         fid, LexicalCtx{.scope = func_scope, .map = context.make_persistent_move_map()},
-        fn_stmt->stmt.fn_decl->block_stmt);
+        fn_stmt->stmt.fn_decl->block_stmt, /*require_return=*/func.return_type.has_value());
 }
 
 bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {

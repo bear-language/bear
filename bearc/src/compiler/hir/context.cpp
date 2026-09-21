@@ -819,6 +819,7 @@ void Context::try_print_info() {
                 std::cout << '\n';
             }
         }
+        std::cout << ansi_bold_cyan() << "^^^ Instatiated generic functions ^^^\n" << ansi_reset();
         std::cout << ansi_bold_magenta() << "^^^^^^^^^^^^^^ HIR dump ^^^^^^^^^^^^^\n"
                   << ansi_reset();
     }

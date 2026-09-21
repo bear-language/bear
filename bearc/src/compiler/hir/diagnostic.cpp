@@ -459,6 +459,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "is never used";
     case diag_code::this_diag_has_been_reemitted_due_to_criticality:
         return "this diagnostic has been re-emitted due to criticality";
+    case diag_code::empty_block:
+        return "empty block";
     }
 
     std::unreachable();

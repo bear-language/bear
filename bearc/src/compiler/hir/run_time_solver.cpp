@@ -104,15 +104,22 @@ namespace hir {
     return {};
 }
 
+[[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block_requiring_return(FileId fid, LexicalCtx lctx,
+                                                                        ast_slice_of_stmts_t stmts,
+                                                                        Span span) {
+    return solve_block(fid, lctx, stmts, span, true);
+}
+
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block(FileId fid, LexicalCtx lctx,
-                                                       const ast_stmt_t* stmt) {
+                                                       const ast_stmt_t* stmt,
+                                                       bool require_return) {
     assert(stmt->type == AST_STMT_BLOCK);
-    return solve_block(fid, lctx, stmt->stmt.block.stmts, Span{context, fid, stmt});
+    return solve_block(fid, lctx, stmt->stmt.block.stmts, Span{context, fid, stmt}, require_return);
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block(FileId fid, LexicalCtx parent_lctx,
-                                                       ast_slice_of_stmts_t stmts,
-                                                       Span block_span) {
+                                                       ast_slice_of_stmts_t stmts, Span block_span,
+                                                       bool require_return) {
 
     InProgressBlock in_prog_block{};
     DataArena move_arena{0x100}; // decently sized
@@ -123,6 +130,10 @@ namespace hir {
 
     bool hit_block_terminator{false};
 
+    const auto must_return = [this, require_return]() {
+        return this->current_return_tid.has_value() && require_return;
+    };
+
     for (auto i = 0uz; i < stmts.len; ++i) {
         const auto maybe_eid = handle_stmt(fid, curr_lctx, in_prog_block, stmts.start[i]);
 
@@ -130,7 +141,7 @@ namespace hir {
         // expecting a return type
         //
         // TODO: don't issue a false positive for nested blocks
-        if (!hit_block_terminator && i == stmts.len - 1 && this->current_return_tid.has_value()
+        if (!hit_block_terminator && i == stmts.len - 1 && must_return()
             && (maybe_eid.empty()
                 || (maybe_eid.has_value()
                     && !context.exec(maybe_eid.as_id()).holds<ExecReturn>()))) {
@@ -178,6 +189,23 @@ namespace hir {
         }
     }
 
+    if (!stmts.len) {
+        if (must_return()) {
+            DiagLinker dl{context};
+            dl.link(context.emplace_diagnostic(
+                block_span, diag_code::function_may_not_return_a_value_in_all_control_flow_paths,
+                diag_type::error));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                context.type(this->current_return_tid.as_id()).span,
+                diag_code::function_has_return_type, diag_type::note,
+                DiagnosticTypeAfterMessage{.tid = this->current_return_tid.as_id()}));
+            dl.link(context.emplace_diagnostic(
+                block_span, diag_code::end_function_body_with_a_return_statement, diag_type::help));
+        } else {
+            context.emplace_diagnostic(block_span, diag_code::empty_block, diag_type::warning);
+        }
+    }
+
     return context.emplace_exec(
         ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(in_prog_block.execs),
                                               .defs = context.freeze_id_vec(in_prog_block.defs),
@@ -191,7 +219,8 @@ OptId<ExecId> RuntimeSolver::handle_use(FileId fid, LexicalCtx lctx, const ast_s
     return {};
 }
 
-OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt) {
+OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                           const ast_stmt_t* stmt) {
     assert(stmt->type == AST_STMT_RETURN);
 
     if (this->current_return_tid.has_value()) {
@@ -206,9 +235,11 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, const as
                 diag_code::function_has_return_type, diag_type::note,
                 DiagnosticTypeAfterMessage{.tid = this->current_return_tid.as_id()}));
         } else {
-            return context.emplace_exec(
+            const auto eid = context.emplace_exec(
                 ExecReturn{.return_value = solve_expr(fid, lctx, stmt->stmt.return_stmt.expr)},
                 Span{context, fid, stmt});
+            block.push_back_exec(eid);
+            return eid;
         }
     } else {
         if (stmt->stmt.return_stmt.expr) {
@@ -217,8 +248,9 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, const as
                                        diag_type::error);
         }
     }
-
-    return context.emplace_exec(ExecReturn{.return_value = {}}, Span{context, fid, stmt});
+    const auto eid = context.emplace_exec(ExecReturn{.return_value = {}}, Span{context, fid, stmt});
+    block.push_back_exec(eid);
+    return eid;
 }
 
 OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
@@ -230,7 +262,7 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_USE:
         return handle_use(fid, lctx, stmt);
     case AST_STMT_RETURN:
-        return handle_return(fid, lctx, stmt);
+        return handle_return(fid, lctx, block, stmt);
     case AST_STMT_COMPT_MODIFIER:
         return handle_compt(fid, lctx, block, stmt, align);
     case AST_STMT_STATIC_MODIFIER:

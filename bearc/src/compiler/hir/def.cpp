@@ -69,6 +69,7 @@ std::string def_to_string(Context& ctx, DefId did) {
             if (d.return_type.has_value()) {
                 str += d.discardable ? "~> " : "-> ";
                 str += type_to_string(ctx, d.return_type.as_id());
+                str += " ";
             }
             str += d.body.has_value() ? exec_to_string(ctx, d.body.as_id()) : ";";
             return str;

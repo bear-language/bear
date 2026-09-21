@@ -61,10 +61,14 @@ class RuntimeSolver {
         return context.infer_type_from_exec(eid);
     }
 
-    [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, ast_slice_of_stmts_t stmts,
-                                            Span span);
+    [[nodiscard]] OptId<ExecId> solve_block_requiring_return(FileId fid, LexicalCtx lctx,
+                                                             ast_slice_of_stmts_t stmts, Span span);
 
-    [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
+    [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, ast_slice_of_stmts_t stmts,
+                                            Span span, bool require_return = false);
+
+    [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt,
+                                            bool require_return = false);
 
   private:
     enum class storage : uint8_t {
@@ -94,7 +98,8 @@ class RuntimeSolver {
     OptId<ExecId> handle_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                               const ast_stmt_t* stmt, storage storage = storage::non_static,
                               compt compt = compt::non_compt, uint8_t align = 0);
-    OptId<ExecId> handle_return(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
+    OptId<ExecId> handle_return(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                const ast_stmt_t* stmt);
     OptId<ExecId> handle_use(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
