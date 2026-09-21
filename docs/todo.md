@@ -1,6 +1,7 @@
 ### todos
 
 #### misc/priority 
+- [ ] finish `a83.br` by recursively walking end of nested block for returns?
 - [ ] finish `def_to_str`
 
 #### function body resolution / runtime eval:
