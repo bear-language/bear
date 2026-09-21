@@ -99,7 +99,7 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
             return std::nullopt; // poison
         }
 
-        const auto maybe_conv_eid = try_convert_to(maybe_eid.as_id(), into_tid);
+        const auto maybe_conv_eid = context.try_convert_to(maybe_eid.as_id(), into_tid);
 
         if (maybe_conv_eid.empty()) {
 
@@ -790,9 +790,9 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     if (maybe_eid.has_value()
         && context.def(func_did).template as<DefFunction>().return_type.has_value()) {
         const auto orig_eid = maybe_eid.as_id();
-        maybe_eid
-            = try_convert_to(maybe_eid.as_id(),
-                             context.def(func_did).template as<DefFunction>().return_type.as_id());
+        maybe_eid = context.try_convert_to(
+            maybe_eid.as_id(),
+            context.def(func_did).template as<DefFunction>().return_type.as_id());
         if (maybe_eid.empty()) {
             if (const auto maybe_tid = infer_type_from_exec(orig_eid); maybe_tid.has_value()) {
                 context.emplace_diagnostic_with_message_value(
@@ -3194,46 +3194,6 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
     }
 
     return try_compt_fn_call(func_did, arg_vec, prior_diag_cnt, Span{context, fid, expr});
-}
-
-[[nodiscard]] OptId<ExecId> ComptExprSolver::try_convert_to(ExecId eid, TypeId into_tid) {
-    const Exec& exec = context.exec(eid);
-
-    // since lengthless exec can't be inferred
-    if (exec.holds<ExecListLiteral>() && !exec.as<ExecListLiteral>().len()) {
-        const auto& ty = context.type(into_tid);
-        if (ty.template holds<TypeSlice>()) {
-            return eid;
-        }
-        return {};
-    }
-
-    // make sure all list literals can be assigned to compt slices
-    if (exec.holds<ExecListLiteral>() && context.type(into_tid).template holds<TypeSlice>()
-        && exec.as<ExecListLiteral>().elem_type_id.has_value()
-        && context.equivalent_type(context.type(into_tid).template as<TypeSlice>().inner,
-                                   exec.as<ExecListLiteral>().elem_type_id.as_id())) {
-        return eid;
-    }
-
-    OptId<TypeId> maybe_inferred_etid = infer_type_from_exec(eid);
-    if (maybe_inferred_etid.has_value()
-        && context.type_inferable_as(maybe_inferred_etid.as_id(), into_tid)) {
-        return eid;
-    }
-
-    if (!exec.holds<ExecConst>()) {
-        return {};
-    }
-    const Type& type = context.type(into_tid);
-    if (!type.holds<TypeBuiltin>()) {
-        return {};
-    }
-    auto conv = exec.as<ExecConst>().try_safe_convert_to(type.as<TypeBuiltin>().type);
-    if (!conv.has_value()) {
-        return {};
-    }
-    return context.emplace_exec(ExecConst{conv.value()}, exec.span, exec.compt);
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::solve_expr_borrow(FileId fid, ScopeId scope,

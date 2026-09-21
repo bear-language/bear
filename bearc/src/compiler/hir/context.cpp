@@ -3744,6 +3744,46 @@ OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {
     return maybe_new;
 }
 
+[[nodiscard]] OptId<ExecId> Context::try_convert_to(ExecId eid, TypeId into_tid) {
+    const Exec& ex = this->exec(eid);
+
+    // since lengthless exec can't be inferred
+    if (ex.holds<ExecListLiteral>() && !ex.as<ExecListLiteral>().len()) {
+        const auto& ty = type(into_tid);
+        if (ty.template holds<TypeSlice>()) {
+            return eid;
+        }
+        return {};
+    }
+
+    // make sure all list literals can be assigned to compt slices
+    if (ex.holds<ExecListLiteral>() && type(into_tid).template holds<TypeSlice>()
+        && ex.as<ExecListLiteral>().elem_type_id.has_value()
+        && equivalent_type(type(into_tid).template as<TypeSlice>().inner,
+                           ex.as<ExecListLiteral>().elem_type_id.as_id())) {
+        return eid;
+    }
+
+    OptId<TypeId> maybe_inferred_etid = infer_type_from_exec(eid);
+    if (maybe_inferred_etid.has_value()
+        && type_inferable_as(maybe_inferred_etid.as_id(), into_tid)) {
+        return eid;
+    }
+
+    if (!ex.holds<ExecConst>()) {
+        return {};
+    }
+    const Type& ty = type(into_tid);
+    if (!ty.holds<TypeBuiltin>()) {
+        return {};
+    }
+    auto conv = ex.as<ExecConst>().try_safe_convert_to(ty.as<TypeBuiltin>().type);
+    if (!conv.has_value()) {
+        return {};
+    }
+    return emplace_exec(ExecConst{conv.value()}, ex.span, ex.compt);
+}
+
 OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
     const Exec& exec = this->exec(eid);
 

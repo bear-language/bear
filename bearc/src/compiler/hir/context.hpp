@@ -910,6 +910,8 @@ class Context {
 
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
 
+    [[nodiscard]] OptId<ExecId> try_convert_to(ExecId eid, TypeId into_tid);
+
   private:
     // containers:
     // ~~~~~~~~~~~~~~~~~ file stuff ~~~~~~~~~~~~~~~~~~~
