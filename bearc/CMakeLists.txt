@@ -17,6 +17,16 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+
+if( ipo_supported AND (CMAKE_BUILD_TYPE STREQUAL "Release"))
+    message(STATUS "[INFO] IPO / LTO enabled")
+    set_property(TARGET bearc PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+    message(STATUS "[INFO] IPO / LTO not supported: (${ipo_error})")
+endif()
+
 # for globbing:
 # file(GLOB_RECURSE SRC CONFIGURE_DEPENDS src/*.c)
 
