@@ -2,6 +2,7 @@
 
 #### misc/priority 
 - [ ] finish `def_to_str`
+- [ ] add diagnostic querying primitives to `ContextDatabase`
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
