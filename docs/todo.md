@@ -2,7 +2,8 @@
 
 #### misc/priority 
 - [ ] finish `def_to_str`
-- [ ] add diagnostic querying primitives to `ContextDatabase`
+- [ ] wrap `context.emplace_diagnostic` / `context.emplace_diagnostic_with_message` in `RunTimeExprSolver` and `TypeResolver` so that diagnostic emissions can be toggled with `.disable_diagnostics()` / `.enable_diagnostics()`
+- [ ] make the ast query-able (walk and search for best node at a given span). this will be a bit less in complex than the pretty printer which also walks every node type
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
