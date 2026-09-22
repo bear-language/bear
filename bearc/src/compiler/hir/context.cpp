@@ -80,12 +80,13 @@ static constexpr size_t DEFAULT_EXPRS_CAP = 0x200;
 
 Context::Context(const bearc_args_t& args) : Context(args, instances::multiple) {}
 
-Context::Context(const bearc_args_t& args, instances instances) : Context(args, instances, {}) {}
+Context::Context(const bearc_args_t& args, instances instances)
+    : Context(args, instances, {}, /*do_register_spans*/ false) {}
 
 std::atomic<bool> Context::one_instance_status = true;
 
 Context::Context(const bearc_args_t& args, instances instances,
-                 std::span<const SourceOverlay> source_overlays)
+                 std::span<const SourceOverlay> source_overlays, bool do_register_spans)
     : file_ids{DEFAULT_FILE_ID_VEC_CAP}, files{DEFAULT_FILE_VEC_CAP},
       id_map_arena{DEFAULT_ID_MAP_ARENA_CAP},
       symbol_id_to_file_id_map{id_map_arena, DEFAULT_SYM_TO_FILE_ID_MAP_CAP},
@@ -144,8 +145,8 @@ Context::Context(const bearc_args_t& args, instances instances,
       def_to_deduction_guides{def_to_deduction_guides_arena, DEFAULT_TYPE_CAP / 4},
       diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
       only_one_context_instance((instances == instances::one) && one_instance_status),
-      compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]), terse{args.flags[CLI_FLAG_TERSE]},
-      strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]},
+      register_spans{do_register_spans}, compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]),
+      terse{args.flags[CLI_FLAG_TERSE]}, strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]},
       all_src_locs{args.flags[CLI_FLAG_ALL_SRC_LOCS]},
       warn_cyclic_imports{args.flags[CLI_FLAG_WARN_CYCLIC_IMPORT]} {
 
@@ -1082,7 +1083,9 @@ ScopeId Context::root_scope() const {
 
 ScopeId Context::make_scope(OptId<ScopeId> parent_scope, Span span) {
     const auto scope = scopes.emplace_and_get_id(parent_scope, scope_arena);
-    register_span_to_scope(span, scope);
+    if (register_spans) {
+        register_span_to_scope(span, scope);
+    }
     return scope;
 }
 
@@ -1098,7 +1101,9 @@ ScopeId Context::make_medium_scope(OptId<ScopeId> parent_scope, Span span) {
 
 ScopeId Context::make_scope(OptId<ScopeId> parent_scope, HirSize capacity, Span span) {
     const auto scope = scopes.emplace_and_get_id(parent_scope, capacity, scope_arena);
-    register_span_to_scope(span, scope);
+    if (register_spans) {
+        register_span_to_scope(span, scope);
+    }
     return scope;
 }
 

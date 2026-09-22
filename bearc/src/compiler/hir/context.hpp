@@ -74,7 +74,7 @@ class Context {
     /// - instances must be set appropriately (instances::one if there is one Context in the
     /// program, else instances::multiple)
     Context(const bearc_args_t& args, instances instances,
-            std::span<const SourceOverlay> source_overlays);
+            std::span<const SourceOverlay> source_overlays, bool do_register_spans = true);
 
     /// context is not copy constructable (would be too expensive)
     Context(const Context&) = delete;
@@ -1132,6 +1132,7 @@ class Context {
     static std::atomic<bool> one_instance_status;
 
     const bool only_one_context_instance;
+    bool register_spans{false};
 
     bool compact_diagnostics{false};
     bool terse{false};
