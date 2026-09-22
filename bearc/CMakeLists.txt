@@ -20,11 +20,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(CheckIPOSupported)
 check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
 
-if( ipo_supported AND (CMAKE_BUILD_TYPE STREQUAL "Release"))
+if(ipo_supported AND (CMAKE_BUILD_TYPE STREQUAL "Release"))
     message(STATUS "[INFO] IPO / LTO enabled")
-    set_property(TARGET bearc PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-else()
+    set(BEARC_ENABLE_IPO TRUE)
+elseif(NOT ipo_supported)
     message(STATUS "[INFO] IPO / LTO not supported: (${ipo_error})")
+    set(BEARC_ENABLE_IPO FALSE)
+else()
+    message(STATUS "[INFO] IPO / LTO not enabled (build type is '${CMAKE_BUILD_TYPE}')")
+    set(BEARC_ENABLE_IPO FALSE)
 endif()
 
 # for globbing:
@@ -142,6 +146,13 @@ endif()
 target_include_directories(${EXECUTABLE} PRIVATE src)
 target_include_directories(${EXECUTABLE} PUBLIC include)
 target_include_directories(${EXECUTABLE} PUBLIC include/bearc)
+
+if(BEARC_ENABLE_IPO)
+    set_property(TARGET ${EXECUTABLE} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    if(BUILD_LIB)
+        set_property(TARGET ${BEARC_LIB} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endif()
+endif()
 
 
 # LLVM
