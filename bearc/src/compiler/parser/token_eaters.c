@@ -85,7 +85,9 @@ token_t* parser_peek_match(parser_t* parser, token_type_e type) {
 token_t* parser_match_token(parser_t* parser, token_type_e type) {
     token_t* tkn = parser_peek_match(parser, type);
     if (tkn) {
-        ++parser->pos;
+        if (parser->pos < parser->tokens->size - 1) {
+            ++parser->pos;
+        }
         parser->prev_discarded = false; // ensure
     }
     return tkn;
@@ -100,7 +102,9 @@ token_t* parser_match_token_call(parser_t* parser, bool (*match)(token_type_e)) 
     token_t* tkn = vector_at(parser->tokens, parser->pos);
     if (match(tkn->type)) {
         if (tkn->type != TOK_EOF) {
-            parser->pos++;
+            if (parser->pos < parser->tokens->size - 1) {
+                parser->pos++;
+            }
             parser->prev_discarded = false;
         }
         return tkn;
@@ -112,7 +116,9 @@ token_t* parser_match_token_call(parser_t* parser, bool (*match)(token_type_e)) 
 token_t* parser_expect_token(parser_t* parser, token_type_e expected_type) {
     token_t* tkn = vector_at(parser->tokens, parser->pos);
     if (tkn->type == expected_type) {
-        parser->pos++;
+        if (parser->pos < parser->tokens->size - 1) {
+            parser->pos++;
+        }
         parser->prev_discarded = false;
         return tkn;
     }
@@ -132,7 +138,9 @@ token_t* parser_expect_token_with_err_code(parser_t* parser, token_type_e expect
                                            error_code_e code) {
     token_t* tkn = vector_at(parser->tokens, parser->pos);
     if (tkn->type == expected_type) {
-        parser->pos++;
+        if (parser->pos < parser->tokens->size - 1) {
+            parser->pos++;
+        }
         parser->prev_discarded = false;
         return tkn;
     }
@@ -151,7 +159,9 @@ token_t* parser_expect_token_call(parser_t* parser, bool (*match)(token_type_e),
                                   error_code_e code) {
     token_t* tkn = vector_at(parser->tokens, parser->pos);
     if (match(tkn->type)) {
-        parser->pos++;
+        if (parser->pos < parser->tokens->size - 1) {
+            parser->pos++;
+        }
         parser->prev_discarded = false;
         return tkn;
     }
@@ -220,7 +230,7 @@ token_t* parser_expect_generic_closing_delim(parser_t* p) {
     // this unsigned_integral embedded val is zero initialized. So we're just overloading it here to
     // check how many times we've ticked the tokens >>> and >> to be in place of > > > and > >
     if ((tkn = parser_peek_match(p, TOK_RSHA))) {
-        uint32_t ticks = ++(tkn->val.unsigned_integral);
+        uint32_t ticks = ++tkn->val.unsigned_integral;
         if (ticks == 3) {
             return parser_eat(p);
         }
@@ -229,7 +239,7 @@ token_t* parser_expect_generic_closing_delim(parser_t* p) {
         }
     }
     if ((tkn = parser_peek_match(p, TOK_RSHL))) {
-        uint32_t ticks = ++(tkn->val.unsigned_integral);
+        uint32_t ticks = ++tkn->val.unsigned_integral;
         if (ticks == 2) {
             return parser_eat(p);
         }
