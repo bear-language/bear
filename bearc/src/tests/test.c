@@ -462,6 +462,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a83", 7);
     char* args04[] = {"bearc", "main.br", "-I", "tests/projects/04", "tests/lib"};
     ASSERT_EQ_ERR_FROM_ARGSN(args04, 2, 3);
+    ASSERT_EQ_ERR("hir/a84", 10);
 
     return TEST_RESULT;
 }

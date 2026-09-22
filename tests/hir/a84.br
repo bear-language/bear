@@ -1,0 +1,33 @@
+// tests/hir/a84.br
+
+struct MemberNames<T, var NAMES> {
+    compt bool failed = @err(!(@same_type(typeof NAMES[0], str)),"NAMES should be of type [&]str");
+    compt fn are_matching() -> bool => false if failed else @members_of(T) == NAMES
+}
+
+struct Foo {
+    i32 a;
+}
+
+compt [&]str a = ["a"];
+
+var _0 = @static_assert MemberNames..are_matching::<Foo, a>();
+
+var _1 = @static_assert MemberNames..are_matching::<Foo, (["b"])>();
+
+var _2 = @static_assert MemberNames..are_matching::<Foo, ([123])>();
+
+struct Bar<T> {
+    T a;
+    T b;
+    T c;
+    T d;
+}
+
+var _3 = @static_assert MemberNames..are_matching::<Bar::i32, (["a", "b", "c", "d"])>();
+
+compt var d = "d";
+
+var _4 = @static_assert MemberNames..are_matching::<Bar::i32, (["a", "b", "c", d])>();
+
+var _5 = @static_assert MemberNames..are_matching::<Bar::i32, (["a", "b", "c", 123])>();

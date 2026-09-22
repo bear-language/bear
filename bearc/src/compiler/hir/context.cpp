@@ -225,15 +225,19 @@ Context::Context(const bearc_args_t& args, instances instances,
             const OptId<DefId> maybe_gen_parent = try_generic_parent_for_def(did);
             if (maybe_gen_parent.has_value() && def(maybe_gen_parent.as_id()).holds<DefStruct>()) {
                 const Def& d = def(maybe_gen_parent.as_id());
+                const OptId<CanonicalGenericArgsId> gen_args
+                    = generic_args_for_def(maybe_gen_parent.as_id());
+                if (gen_args.empty()) {
+                    continue;
+                }
                 force_link_diagnostic(emplace_diagnostic(
                     d.span, diag_code::in_generic_instantiation_of_type, diag_type::note,
-                    DiagnosticTypeAfterMessage{
-                        .tid = emplace_type(
-                            TypeStruct{
-                                .def_id = maybe_gen_parent.as_id(),
-                                .gen_args_slice = generic_args_for_def(maybe_gen_parent.as_id()),
-                            },
-                            Span::generated(), false)},
+                    DiagnosticTypeAfterMessage{.tid = emplace_type(
+                                                   TypeStruct{
+                                                       .def_id = maybe_gen_parent.as_id(),
+                                                       .gen_args_slice = gen_args,
+                                                   },
+                                                   span_for_gen_args(gen_args.as_id()), false)},
                     DiagnosticInfoNoPreview{}));
                 force_link_diagnostic(emplace_diagnostic_with_message_value(
                     d.span, diag_code::declared_here_as_generic, diag_type::note,
