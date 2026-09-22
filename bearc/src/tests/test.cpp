@@ -9,6 +9,7 @@
 #include "tests/test.h"
 #include "compiler/hir/context_database.hpp"
 #include "compiler/hir/exec.hpp"
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -33,13 +34,13 @@ br_test_result_t test_context_db(void) {
           };
 
     auto assert_compt = [&br_test_result, &econst](ContextDatabase& db, const char* name, bool b) {
-        auto def = db.query_def({name});
+        auto def = db.query_canon_def({name});
         auto exec = econst(def, db);
         TEST_ASSERT_EQ(b, exec.as<ExecConst>().as<bool>());
     };
 
     auto assert_no_compt_val = [&br_test_result](ContextDatabase& db, const char* name) {
-        auto def = db.query_def({name});
+        auto def = db.query_canon_def({name});
         if (!def.variable.has_value()) {
             TEST_ASSERT(true);
             TEST_ASSERT(true);
@@ -58,15 +59,15 @@ br_test_result_t test_context_db(void) {
     const char* args0[] = {"bearc", "tests/hir/28.br"};
     ContextDatabase db28{sizeof(args0) / sizeof(char*), args0};
 
-    auto def0 = db28.query_def({"e"});
+    auto def0 = db28.query_canon_def({"e"});
     auto exec0 = econst(def0, db28);
     TEST_ASSERT_EQ(0x10, exec0.as<ExecConst>().as<i32>());
 
-    auto def1 = db28.query_def({"b1"});
+    auto def1 = db28.query_canon_def({"b1"});
     auto exec1 = econst(def1, db28);
-    TEST_ASSERT_EQ((0x11 | 0x10), exec1.as<ExecConst>().as<u8>());
+    TEST_ASSERT_EQ((0x11 | 0x10), static_cast<uint32_t>(exec1.as<ExecConst>().as<u8>()));
 
-    auto def2 = db28.query_def({"h2"});
+    auto def2 = db28.query_canon_def({"h2"});
     auto exec2 = econst(def2, db28);
     TEST_ASSERT_EQ((0x1111 ^ 0x1001), exec2.as<ExecConst>().as<usize>());
 
@@ -101,7 +102,7 @@ br_test_result_t test_context_db(void) {
     // TEST 4: struct mem access
     const char* args3[] = {"bearc", "tests/hir/44.br"};
     ContextDatabase db44{sizeof(args2) / sizeof(char*), args3};
-    auto d3 = db44.query_def_id({"Foo", "a"});
+    auto d3 = db44.query_canon_def_id({"Foo", "a"});
     TEST_ASSERT(d3.variable_id.has_value());
 
     return TEST_RESULT;

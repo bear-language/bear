@@ -13,8 +13,18 @@
 using namespace hir;
 
 ContextDatabase::DefQueryResult
-ContextDatabase::query_def(const std::vector<std::string>& def_path) {
-    auto def_ids = query_def_id(def_path);
+ContextDatabase::query_canon_def(const std::vector<std::string>& canonical_def_name) {
+    return query_def(ctx->root_scope(), canonical_def_name);
+}
+
+[[nodiscard]] ContextDatabase::DefQueryResult
+ContextDatabase::query_def(Span span, const std::vector<std::string>& canonical_def_name) {
+    return query_def(ctx->scope_for_span(span), canonical_def_name);
+}
+
+[[nodiscard]] ContextDatabase::DefQueryResult
+ContextDatabase::query_def(ScopeId scope, const std::vector<std::string>& canonical_def_name) {
+    auto def_ids = query_def_id(scope, canonical_def_name);
 
     auto maybe_mod = def_ids.mod_id;
 
@@ -34,19 +44,28 @@ ContextDatabase::query_def(const std::vector<std::string>& def_path) {
 }
 
 ContextDatabase::DefIdQueryResult
-ContextDatabase::query_def_id(const std::vector<std::string>& def_path) {
+ContextDatabase::query_canon_def_id(const std::vector<std::string>& canonical_def_name) {
+    return query_def_id(ctx->root_scope(), canonical_def_name);
+}
+
+[[nodiscard]] ContextDatabase::DefIdQueryResult
+ContextDatabase::query_def_id(Span span, const std::vector<std::string>& canonical_def_name) {
+    return query_def_id(ctx->scope_for_span(span), canonical_def_name);
+}
+
+[[nodiscard]] ContextDatabase::DefIdQueryResult
+ContextDatabase::query_def_id(hir::ScopeId scope,
+                              const std::vector<std::string>& canonical_def_name) {
     llvm::SmallVector<SymbolId> sid_vec;
-    for (const auto& s : def_path) {
+    for (const auto& s : canonical_def_name) {
         sid_vec.push_back(ctx->symbol_id(s));
     }
     IdSlice<SymbolId> sid_slice = ctx->freeze_id_vec(sid_vec);
-    auto maybe_mod
-        = ctx->look_up_scoped_namespace_bypassing_visibility(ctx->root_scope(), sid_slice);
+    auto maybe_mod = ctx->look_up_scoped_namespace_bypassing_visibility(scope, sid_slice);
 
-    auto maybe_type = ctx->look_up_scoped_type_bypassing_visibility(ctx->root_scope(), sid_slice);
+    auto maybe_type = ctx->look_up_scoped_type_bypassing_visibility(scope, sid_slice);
 
-    auto maybe_variable
-        = ctx->look_up_scoped_variable_bypassing_visibility(ctx->root_scope(), sid_slice);
+    auto maybe_variable = ctx->look_up_scoped_variable_bypassing_visibility(scope, sid_slice);
     return DefIdQueryResult{
         .mod_id = maybe_mod, .type_id = maybe_type, .variable_id = maybe_variable};
 }

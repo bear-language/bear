@@ -1035,7 +1035,7 @@ FileAst& Context::ast(FileId file_id) { return file_asts.at(files.at(file_id).as
 const FileAst& Context::ast(FileId file_id) const { return file_asts.at(files.at(file_id).ast_id); }
 
 ScopeId Context::get_or_make_root_scope() {
-    if (scopes.size() == 0) {
+    if (scopes.empty()) {
         return make_scope(std::nullopt, Span::generated());
     }
     // the top-level scope will have to be the first scope!
@@ -1090,7 +1090,7 @@ ScopeId Context::scope_for_span(Span span) {
     size_t mid = find_mid(pairs);
 
     // binary search for span that is approx match
-    while (pairs.size() > 0 && !span.within_same_file_contained_in(pairs[mid].span)) {
+    while (!pairs.empty() && !span.within_same_file_contained_in(pairs[mid].span)) {
         if (pairs[mid].span.start > span.start) {
             pairs = pairs.subspan(0, mid);
         } else if (pairs[mid].span.start < span.start) {
@@ -1304,7 +1304,7 @@ Def& Context::def(DefId def_id) { return defs.at(def_id); }
     // build up [child, child, root]
     while (curr) {
         names.push_back(curr->name);
-        curr = (curr->parent.has_value()) ? &def(curr->parent.as_id()) : nullptr;
+        curr = curr->parent.has_value() ? &def(curr->parent.as_id()) : nullptr;
     }
     // reverse as to put in proper order for root..child..child
     std::reverse(names.begin(), names.end());
@@ -1847,8 +1847,10 @@ OptId<DefId> Context::look_up_scoped_namespace_bypassing_visibility(ScopeId scop
     if (idx > ords.len()) {
         auto d0 = emplace_diagnostic_with_message_value(
             exec.span, diag_code::requested_struct_member, diag_type::error,
-            DiagnosticIdxOutOfBounds{.idx_sid = symbol_id(std::to_string(idx)),
-                                     .length_sid = symbol_id(std::to_string(ords.len()))});
+            DiagnosticIdxOutOfBounds{
+                .idx_sid = symbol_id(std::to_string(idx)),
+                .length_sid = symbol_id(std::to_string(ords.len())),
+            });
         if (!def(struct_did).as<DefStruct>().anonymous) {
             auto d1 = emplace_diagnostic_with_message_value(
                 def(struct_did).span, diag_code::declared_here, diag_type::note,
@@ -3715,7 +3717,7 @@ void Context::register_import_files_parallel(const char* const* file_paths, uint
     // if last, consume remaining args, else used the ticked args
     return try_generic_instantiation(
         def_visitor, orig_did,
-        emplace_generic_arg_id_slice(last ? remaining_args : (maybe_gen_args.value())));
+        emplace_generic_arg_id_slice(last ? remaining_args : maybe_gen_args.value()));
 }
 
 OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {

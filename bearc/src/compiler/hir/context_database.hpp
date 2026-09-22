@@ -12,6 +12,7 @@
 #include "cli/args.h"
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def.hpp"
+#include "compiler/hir/span.hpp"
 
 class ContextDatabase {
   public:
@@ -31,9 +32,25 @@ class ContextDatabase {
         hir::OptId<hir::DefId> mod_id, type_id, variable_id;
     };
 
-    [[nodiscard]] DefQueryResult query_def(const std::vector<std::string>& def_path);
+    using Span = hir::Span;
 
-    [[nodiscard]] DefIdQueryResult query_def_id(const std::vector<std::string>& def_path);
+    [[nodiscard]] DefQueryResult
+    query_canon_def(const std::vector<std::string>& canonical_def_name);
+
+    [[nodiscard]] DefQueryResult query_def(Span span,
+                                           const std::vector<std::string>& canonical_def_name);
+
+    [[nodiscard]] DefQueryResult query_def(hir::ScopeId scope,
+                                           const std::vector<std::string>& canonical_def_name);
+
+    [[nodiscard]] DefIdQueryResult
+    query_canon_def_id(const std::vector<std::string>& canonical_def_name);
+
+    [[nodiscard]] DefIdQueryResult query_def_id(Span span,
+                                                const std::vector<std::string>& canonical_def_name);
+
+    [[nodiscard]] DefIdQueryResult query_def_id(hir::ScopeId scope,
+                                                const std::vector<std::string>& canonical_def_name);
 
     [[nodiscard]] hir::Exec exec(hir::ExecId eid) const;
 
