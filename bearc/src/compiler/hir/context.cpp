@@ -32,6 +32,7 @@
 #include "utils/data_arena.hpp"
 #include "utils/log.hpp"
 #include "llvm/ADT/SmallVector.h"
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -79,9 +80,12 @@ static constexpr size_t DEFAULT_EXPRS_CAP = 0x200;
 
 Context::Context(const bearc_args_t& args) : Context(args, instances::multiple) {}
 
+Context::Context(const bearc_args_t& args, instances instances) : Context(args, instances, {}) {}
+
 std::atomic<bool> Context::one_instance_status = true;
 
-Context::Context(const bearc_args_t& args, instances instances)
+Context::Context(const bearc_args_t& args, instances instances,
+                 std::span<const SourceOverlay> source_overlays)
     : file_ids{DEFAULT_FILE_ID_VEC_CAP}, files{DEFAULT_FILE_VEC_CAP},
       id_map_arena{DEFAULT_ID_MAP_ARENA_CAP},
       symbol_id_to_file_id_map{id_map_arena, DEFAULT_SYM_TO_FILE_ID_MAP_CAP},
@@ -146,6 +150,9 @@ Context::Context(const bearc_args_t& args, instances instances)
       warn_cyclic_imports{args.flags[CLI_FLAG_WARN_CYCLIC_IMPORT]} {
 
     one_instance_status = false; // we exist now
+
+    // must be known before any file is read
+    this->source_overlays.assign(source_overlays.begin(), source_overlays.end());
 
     // this may only fail in horribly malfored arguments in test cases
     assert(args.input_file_name);
@@ -558,7 +565,11 @@ FileId Context::file(SymbolId path_symbol) {
         return maybe_file_id.as_id();
     }
     // ****************** all lexing and parsing done in this one line
-    FileAstId ast_id = this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol));
+    const char* overlay_src = overlay_src_for(path_symbol);
+    FileAstId ast_id
+        = overlay_src
+              ? this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol), overlay_src)
+              : this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol));
     // ^^^^^^^^^^^^^^^^^^
     FileId file_id = this->files.emplace_and_get_id(path_symbol, ast_id);
     // store this mapping for future detection
@@ -639,8 +650,10 @@ FileId Context::file_parallel(SymbolId path_symbol) {
         }
     }
     // ****************** all lexing and parsing done in this one line
-    FileAst file_ast{symbol_id_to_cstr(
-        path_symbol)}; // pure parsing, doesn't touch Context, so this is fully parallelizable
+    // pure parsing, doesn't touch Context, so this is fully parallelizable
+    const char* overlay_src = overlay_src_for(path_symbol);
+    FileAst file_ast = overlay_src ? FileAst{symbol_id_to_cstr(path_symbol), overlay_src}
+                                   : FileAst{symbol_id_to_cstr(path_symbol)};
     // ^^^^^^^^^^^^^^^^^^
 
     std::unique_lock write_lock{import_file_mutex};
@@ -668,6 +681,16 @@ FileId Context::file(std::filesystem::path& path) {
 }
 FileAstId Context::emplace_ast(const char* file_name) {
     return this->file_asts.emplace_and_get_id(file_name);
+}
+
+const char* Context::overlay_src_for(SymbolId path) const {
+    const std::string_view path_sv = symbol(path);
+    for (const SourceOverlay& overlay : source_overlays) {
+        if (overlay.path == path_sv) {
+            return overlay.src;
+        }
+    }
+    return nullptr;
 }
 
 const char* Context::symbol_id_to_cstr(SymbolId id) const {
@@ -882,6 +905,15 @@ void Context::try_print_info() {
 
 const char* Context::file_name(FileId id) const { return symbol_id_to_cstr(files.at(id).path); }
 
+OptId<FileId> Context::file_id_for_path(std::string_view path) const {
+    for (FileId fid = files.begin_id(); fid != files.end_id(); ++fid) {
+        if (symbol(files.at(fid).path) == path) {
+            return fid;
+        }
+    }
+    return OptId<FileId>{};
+}
+
 OptId<FileId> Context::try_file_from_import_statement(FileId importer_id,
                                                       const ast_stmt_t* import_statement) {
     assert(import_statement->type == AST_STMT_IMPORT);
@@ -1078,43 +1110,40 @@ ScopeId Context::make_compt_scope(ScopeId parent_scope, HirSize capacity) {
 void Context::register_span_to_scope(Span span, ScopeId scope) {
     if (!span.is_generated()) {
         file_to_spans_to_scopes.at(span.file_id).emplace_back(span, scope);
+        spans_to_scopes_sorted = false;
     }
 }
 
 ScopeId Context::scope_for_span(Span span) {
-    // pairs are naturally sorted by start and nested spans are naturally decreasing in length
-    std::span pairs{file_to_spans_to_scopes.at(span.file_id)};
-
-    const auto find_mid = +[](decltype(pairs) pairs) -> size_t { return (pairs.size() - 1) / 2; };
-
-    size_t mid = find_mid(pairs);
-
-    // binary search for span that is approx match
-    while (!pairs.empty() && !span.within_same_file_contained_in(pairs[mid].span)) {
-        if (pairs[mid].span.start > span.start) {
-            pairs = pairs.subspan(0, mid);
-        } else if (pairs[mid].span.start < span.start) {
-            pairs = pairs.subspan(mid + 1);
-        } else {
-            break; // starts match, but not directly contained (this means we're overlapping, which
-                   // isn't ideal) but we'll still have to find a best match
+    // spans are registered in lowering order, which isn't source order (e.g. every function's scope
+    // is registered before any function body's block scope), so sort before the first query
+    // - by start, and for equal starts, outer (longer) spans first
+    if (!spans_to_scopes_sorted) {
+        for (FileId fid = files.begin_id(); fid != files.end_id(); ++fid) {
+            std::ranges::sort(file_to_spans_to_scopes.at(fid),
+                              [](const SpanScopePair& a, const SpanScopePair& b) {
+                                  return a.span.start != b.span.start ? a.span.start < b.span.start
+                                                                      : a.span.len > b.span.len;
+                              });
         }
-        mid = find_mid(pairs);
+        spans_to_scopes_sorted = true;
     }
 
-    auto best_match = pairs[mid];
-    pairs = pairs.subspan(mid);
-    for (const auto pair : pairs) {
-        // gone too far
-        if (!span.within_same_file_contained_in(pair.span)) {
-            break;
-        }
-        // smaller span means better match (more granular)
-        if (pair.span.len < best_match.span.len) {
-            best_match = pair;
+    const std::vector<SpanScopePair>& pairs = file_to_spans_to_scopes.at(span.file_id);
+
+    // of the spans starting at or before this one, the innermost container is the one that starts
+    // last, and scanning backwards only passes over siblings that already ended
+    auto it = std::ranges::upper_bound(pairs, span.start, {},
+                                       [](const SpanScopePair& pair) { return pair.span.start; });
+    while (it != pairs.begin()) {
+        --it;
+        if (span.within_same_file_contained_in(it->span)) {
+            return it->scope;
         }
     }
-    return best_match.scope;
+
+    // not contained by any registered span (e.g. top-level code, since the root scope has no span)
+    return root_scope();
 }
 
 DefId Context::register_generated_deftype(ScopeId scope, SymbolId name, TypeId type_id,

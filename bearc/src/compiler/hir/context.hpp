@@ -34,9 +34,21 @@
 #include <cstdint>
 #include <filesystem>
 #include <shared_mutex>
+#include <span>
+#include <string_view>
 #include <type_traits>
+#include <vector>
 
 namespace hir {
+
+/// in-memory contents that replace the on-disk contents of a source file (e.g. an unsaved editor
+/// buffer)
+/// - path must be the canonical path that the file resolves to (see resolve_on_import_path)
+/// - src must be null-terminated and must outlive the Context it is given to
+struct SourceOverlay {
+    std::string_view path;
+    const char* src;
+};
 
 /**
  * primary data container for hir structures
@@ -56,6 +68,13 @@ class Context {
     /// - instances must be set appropriately (instances::one if there is one Context in the
     /// program, else instances::multiple)
     Context(const bearc_args_t& args, instances instances);
+
+    /// constructs a context instance from (cli) flags, reading any file whose canonical path
+    /// matches an overlay from that overlay's src instead of from disk
+    /// - instances must be set appropriately (instances::one if there is one Context in the
+    /// program, else instances::multiple)
+    Context(const bearc_args_t& args, instances instances,
+            std::span<const SourceOverlay> source_overlays);
 
     /// context is not copy constructable (would be too expensive)
     Context(const Context&) = delete;
@@ -128,6 +147,8 @@ class Context {
     [[nodiscard]] FileId file(std::filesystem::path& path);
     /// retrieves the file name for a given FileId
     [[nodiscard]] const char* file_name(FileId id) const;
+    /// retrieves the FileId for an already registered (canonical) file path, if any
+    [[nodiscard]] OptId<FileId> file_id_for_path(std::string_view path) const;
     /// gets the FileAst for a given file
     [[nodiscard]] FileAst& ast(FileId file_id);
     /// gets the FileAst for a given file
@@ -931,6 +952,8 @@ class Context {
     NodeVector<FileAst> file_asts;
     DataArena intrinsic_files_set_arena;
     IdSet<SymbolId> intrinsic_files;
+    /// in-memory file contents that take precedence over the disk (usually empty)
+    std::vector<SourceOverlay> source_overlays;
 
     /// FileId -> IdSlice<FileId> since all importees are always known when lowering a given
     /// file
@@ -1068,6 +1091,8 @@ class Context {
 
     // for getting the scope for a given
     IdVecMap<FileId, std::vector<SpanScopePair>> file_to_spans_to_scopes;
+    /// file_to_spans_to_scopes is (lazily) sorted by scope_for_span, registration invalidates it
+    bool spans_to_scopes_sorted{false};
 
     // for storing generic deduction steps
     NodeVector<DeductionStep> deduction_steps;
@@ -1121,6 +1146,8 @@ class Context {
     /// forceably emplaces ast, not checking if it has already been processed. This function is
     /// wrapped by file handling logic and should thus not be used directly anywhere else
     [[nodiscard]] FileAstId emplace_ast(const char* file_name);
+    /// gets the overlaid src for a path, or nullptr if the file should be read from disk
+    [[nodiscard]] const char* overlay_src_for(SymbolId path) const;
     void register_importer(FileId importee, FileId importer);
     void report_cycle(llvm::SmallVectorImpl<FileId>& import_stack, const token_t* import_path_tkn);
     [[nodiscard]] OptId<FileId> try_file_from_import_statement(FileId importer_id,

@@ -96,3 +96,50 @@ ContextDatabase::message_for_parser_diagnostic(const compiler_error_t& err) {
 std::string ContextDatabase::message_for_diagnostic(hir::DiagnosticId did) {
     return diagnostic(did).message_string(*ctx);
 }
+
+namespace {
+
+std::vector<std::pair<std::string, std::string>>
+copy_overlays(std::span<const SourceOverlay> overlays) {
+    std::vector<std::pair<std::string, std::string>> storage;
+    storage.reserve(overlays.size());
+    for (const SourceOverlay& overlay : overlays) {
+        storage.emplace_back(overlay.path, overlay.src);
+    }
+    return storage;
+}
+
+std::vector<SourceOverlay>
+overlay_views(const std::vector<std::pair<std::string, std::string>>& storage) {
+    std::vector<SourceOverlay> views;
+    views.reserve(storage.size());
+    for (const auto& [path, src] : storage) {
+        views.push_back(SourceOverlay{.path = path, .src = src.c_str()});
+    }
+    return views;
+}
+
+} // namespace
+
+ContextDatabase::ContextDatabase(std::vector<const char*> args_vec,
+                                 std::span<const SourceOverlay> overlays)
+    : args{std::make_unique<bearc_args>(parse_cli_args(static_cast<int>(args_vec.size()),
+                                                       const_cast<char**>(args_vec.data())))},
+      overlay_storage{copy_overlays(overlays)},
+      ctx{std::make_unique<Context>(*this->args, Context::instances::multiple,
+                                    overlay_views(overlay_storage))} {}
+
+OptId<FileId> ContextDatabase::file_id_for_path(std::string_view path) const {
+    return ctx->file_id_for_path(path);
+}
+
+const char* ContextDatabase::file_name(FileId fid) const { return ctx->file_name(fid); }
+
+std::string_view ContextDatabase::file_source(FileId fid) const {
+    const FileAst& ast = ctx->ast(fid);
+    return std::string_view{ast.buffer(), ast.src()->src_len};
+}
+
+bool ContextDatabase::file_is_intrinsic(FileId fid) const { return ctx->file_is_intrinsic(fid); }
+
+std::string_view ContextDatabase::symbol(SymbolId sid) const { return ctx->symbol(sid); }
