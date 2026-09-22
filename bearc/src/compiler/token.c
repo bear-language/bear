@@ -582,6 +582,12 @@ void token_check_if_valid_literal_and_set_value(token_t* tkn) {
         return;
     }
 
+    // numeric literals cannot start with non-numbers
+    if (str[0] < '0' || str[0] > '9') {
+        tkn->type = TOK_INDETERMINATE;
+        return;
+    }
+
     // ~~~ NUMERIC LITERALS ~~~
     // copy to temporary buffer and null-terminate
     char buf[64]; // may need to adjust very long numbers
