@@ -1,0 +1,5 @@
+// tests/hir/67.br
+
+struct Inf {}
+
+f32 nan;
