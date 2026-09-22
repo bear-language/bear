@@ -73,7 +73,7 @@ const char* error_message_for_code(error_code_e error_code) { return error_messa
 
 error_diag_type_e error_diagnostic_type(error_code_e error_code) { return diag_types[error_code]; }
 
-const char* error_message_context_for(compiler_error_t* error) {
+const char* error_message_context_for(const compiler_error_t* error) {
     if (error->expected_token_type != TOK_NONE) {
         return token_to_string_map()[error->expected_token_type];
     }

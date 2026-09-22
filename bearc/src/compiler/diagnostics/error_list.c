@@ -104,13 +104,25 @@ void print_diagnostic(const src_buffer_t* src_buffer, const char* start, size_t 
 
     // do printing now that we have all strings setup
     if (compact) {
-        printf("%s%s:%zu:%zu: %s%s: %s%s%s%s\n", ansi_bold_reset(), src_buffer->file_name,
-               adjusted_line, adjusted_col, accent_color, error_word, ansi_bold_reset(),
-               error_message, context, ansi_reset());
+        if (!strlen(context)) {
+            printf("%s%s:%zu:%zu: %s%s: %s%s%s%s\n", ansi_bold_reset(), src_buffer->file_name,
+                   adjusted_line, adjusted_col, accent_color, error_word, ansi_bold_reset(),
+                   error_message, context, ansi_reset());
+        } else {
+            printf("%s%s:%zu:%zu: %s%s: %s%s`%s`%s\n", ansi_bold_reset(), src_buffer->file_name,
+                   adjusted_line, adjusted_col, accent_color, error_word, ansi_bold_reset(),
+                   error_message, context, ansi_reset());
+        }
     } else {
-        printf("%s%s: %s%s%s \n --> %s:%zu:%zu %s\n", accent_color, error_word, ansi_bold_reset(),
-               error_message, context, src_buffer->file_name, adjusted_line, adjusted_col,
-               ansi_reset());
+        if (!strlen(context)) {
+            printf("%s%s: %s%s%s \n --> %s:%zu:%zu %s\n", accent_color, error_word,
+                   ansi_bold_reset(), error_message, context, src_buffer->file_name, adjusted_line,
+                   adjusted_col, ansi_reset());
+        } else {
+            printf("%s%s: %s%s`%s` \n --> %s:%zu:%zu %s\n", accent_color, error_word,
+                   ansi_bold_reset(), error_message, context, src_buffer->file_name, adjusted_line,
+                   adjusted_col, ansi_reset());
+        }
     }
 
     string_view_t line_preview = get_line_string_view(src_buffer, start);
@@ -196,8 +208,12 @@ void compiler_error_print_err(const compiler_error_list_t* list, size_t i, bool 
             printf("%s%s%s: %s `%s%.*s%s%s`\n", accent_color, error_word, ansi_bold_reset(),
                    error_message, accent_color, (int)context_len, context, ansi_bold_reset(),
                    ansi_reset());
-        } else {
+        } else if (!strlen(context)) {
             printf("%s%s%s: %s %s%.*s%s%s\n", accent_color, error_word, ansi_bold_reset(),
+                   error_message, accent_color, (int)context_len, context, ansi_bold_reset(),
+                   ansi_reset());
+        } else {
+            printf("%s%s%s: %s `%s%.*s%s`%s\n", accent_color, error_word, ansi_bold_reset(),
                    error_message, accent_color, (int)context_len, context, ansi_bold_reset(),
                    ansi_reset());
         }

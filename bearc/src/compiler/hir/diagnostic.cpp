@@ -504,19 +504,19 @@ void Diagnostic::print_line_with_number(HirSize line, const auto& printable) con
 
 std::string Diagnostic::line(int min_width) const {
     std::stringstream ss;
-    ss << "  " << std::setw(std::max(min_width, width((span.line)))) << "" << "  | ";
+    ss << "  " << std::setw(std::max(min_width, width(span.line))) << "" << "  | ";
     return ss.str();
 }
 
 std::string Diagnostic::diag(int min_width) const {
     std::stringstream ss;
-    ss << "  " << std::setw(std::max(min_width, width((span.line)))) << "" << "  \\";
+    ss << "  " << std::setw(std::max(min_width, width(span.line))) << "" << "  \\";
     return ss.str();
 }
 
 std::string Diagnostic::line_with_number(HirSize line, int min_width) const {
     std::stringstream ss;
-    ss << "  " << std::setw(std::max(min_width, width((span.line)))) << line << "  | ";
+    ss << "  " << std::setw(std::max(min_width, width(span.line))) << line << "  | ";
     return ss.str();
 }
 
@@ -734,7 +734,7 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
             // make a full word before line break;
             std::string tmp;
             tmp.reserve(MAX_LINE_LEN);
-            while (buf.size() >= 1 && buf.at(buf.size() - 1) != ' ') {
+            while (!buf.empty() && buf.at(buf.size() - 1) != ' ') {
                 const char c = buf.at(buf.size() - 1);
                 buf.pop_back();
                 tmp.push_back(c);
@@ -799,6 +799,16 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
 
 bool Diagnostic::has_complex_message() const {
     return !std::holds_alternative<DiagnosticNoOtherInfo>(message_value);
+}
+
+[[nodiscard]] std::string Diagnostic::message_string(Context& ctx) const {
+    std::string msg_str{};
+    if (has_complex_message()) {
+        build_complex_message(ctx, msg_str);
+    } else {
+        msg_str = message_for_code(code);
+    }
+    return msg_str;
 }
 
 void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
@@ -878,12 +888,12 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                    },
                    [&](DiagnosticTypeAfterMessage d) {
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        type_helper(d.tid);
                    },
                    [&](DiagnosticTypeAfterMessageAsMentioned d) {
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        type_helper_as_mentioned(d.tid);
                    },
 
@@ -912,7 +922,7 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        str += ansi_bold_reset();
                        str += "` ";
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        type_helper(d.tid);
                    },
                    [&](DiagnosticSymbolAfterMessage d) {
@@ -943,7 +953,7 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                    },
                    [&](DiagnosticTypeToType t) {
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        type_helper(t.from);
                        str += " to ";
                        type_helper(t.to);
@@ -951,7 +961,7 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                    },
                    [&](DiagnosticTypeAndType t) {
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        type_helper(t.lhs_tid);
                        str += " and ";
                        type_helper(t.rhs_tid);
@@ -959,7 +969,7 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                    },
                    [&](DiagnosticTypeAndTypeForBinaryOp t) {
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        type_helper(t.lhs_tid);
                        str += " and ";
                        type_helper(t.rhs_tid);
@@ -976,7 +986,7 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        str += ctx.symbol_id_to_cstr(d.leading);
                        str += "` ";
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        str += ansi_bold_green();
                        str += ctx.symbol_id_to_cstr(d.sid1);
                        str += ansi_bold_reset();

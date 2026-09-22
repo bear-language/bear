@@ -620,6 +620,8 @@ class Context {
 
     [[nodiscard]] const Exec& exec(IdIdx<ExecId> id) const;
 
+    [[nodiscard]] const Diagnostic& diagnostic(DiagnosticId did) const;
+
     [[nodiscard]] BlockId emplace_block(Block block);
 
     [[nodiscard]] const Block& block(BlockId bid) const;
@@ -911,6 +913,13 @@ class Context {
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
 
     [[nodiscard]] OptId<ExecId> try_convert_to(ExecId eid, TypeId into_tid);
+
+    [[nodiscard]] const llvm::SmallVectorImpl<hir::DiagnosticId>&
+    diagnostics_for_file(hir::FileId fid) const;
+
+    [[nodiscard]] const compiler_error_list_t& parser_diagnostics_for_file(hir::FileId fid) const;
+
+    [[nodiscard]] static std::string message_for_parser_diagnostic(const compiler_error_t& err);
 
   private:
     // containers:

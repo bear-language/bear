@@ -104,7 +104,7 @@ error_diag_type_e error_diagnostic_type(error_code_e error_code);
  * *                **
  * first string /// this function gives this string
  */
-const char* error_message_context_for(compiler_error_t* error);
+const char* error_message_context_for(const compiler_error_t* error);
 
 #ifdef __cplusplus
 }

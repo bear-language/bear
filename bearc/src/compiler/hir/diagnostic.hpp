@@ -429,13 +429,14 @@ struct Diagnostic : NodeWithVariantValue<Diagnostic> {
           type(type) {}
     void set_next(DiagnosticId next) { this->next = next; }
     void set_prev(DiagnosticId prev) { this->prev = prev; }
+    [[nodiscard]] std::string message_string(Context& ctx) const;
 
   private:
-    bool has_complex_message() const;
+    [[nodiscard]] bool has_complex_message() const;
     void build_complex_message(Context& ctx, std::string& message_str) const;
-    static const char* message_for_code(enum diag_code c);
-    static const char* name_for_type(enum diag_type t);
-    static const char* accent_color_for_type(enum diag_type t);
+    [[nodiscard]] static const char* message_for_code(enum diag_code c);
+    [[nodiscard]] static const char* name_for_type(enum diag_type t);
+    [[nodiscard]] static const char* accent_color_for_type(enum diag_type t);
     void print_info_value(Context& context, HirSize min_width, bool more_than_one_line) const;
     void print_multiline(Context& context, bool print_file) const;
     void print_line(const auto& printable) const;
@@ -443,7 +444,7 @@ struct Diagnostic : NodeWithVariantValue<Diagnostic> {
     [[nodiscard]] std::string line(int min_width) const;
     [[nodiscard]] std::string diag(int min_width) const;
     [[nodiscard]] std::string line_with_number(HirSize line, int min_width) const;
-    static int width(HirSize line);
+    [[nodiscard]] static int width(HirSize line);
 };
 
 struct DiagRange {

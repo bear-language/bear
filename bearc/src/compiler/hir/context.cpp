@@ -1545,6 +1545,10 @@ TypeId Context::emplace_type(const TypeValue& value, Span span, bool mut) {
     return blocks.emplace_and_get_id(block);
 }
 
+[[nodiscard]] const Diagnostic& Context::diagnostic(DiagnosticId did) const {
+    return this->diagnostics.at(did);
+}
+
 [[nodiscard]] const Block& Context::block(BlockId bid) const { return blocks.at(bid); }
 
 [[nodiscard]] GenericArg Context::gen_arg(GenericArgId id) const { return generic_args.at(id); }
@@ -3976,6 +3980,28 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
     }
 
     return maybe_new;
+}
+
+[[nodiscard]] const llvm::SmallVectorImpl<hir::DiagnosticId>&
+Context::diagnostics_for_file(hir::FileId fid) const {
+    return this->file_to_diagnostics.at(fid);
+}
+[[nodiscard]] const compiler_error_list_t&
+Context::parser_diagnostics_for_file(hir::FileId fid) const {
+    return ast(fid).error_list();
+}
+
+std::string Context::message_for_parser_diagnostic(const compiler_error_t& err) {
+    std::string str;
+    str += error_message_for_code(err.error_code);
+    str += ' ';
+    const char* const context = error_message_context_for(&err);
+    if (strlen(context)) {
+        str += '`';
+        str += context;
+        str += '`';
+    }
+    return str;
 }
 
 } // namespace hir

@@ -72,4 +72,27 @@ ContextDatabase::query_def_id(hir::ScopeId scope,
 
 int ContextDatabase::diagnostic_count() const noexcept { return ctx->diagnostic_count(); }
 
-hir::Exec ContextDatabase::exec(hir::ExecId eid) const { return ctx->exec(eid); }
+const hir::Diagnostic& ContextDatabase::diagnostic(hir::DiagnosticId did) const {
+    return ctx->diagnostic(did);
+}
+
+const hir::Exec& ContextDatabase::exec(hir::ExecId eid) const { return ctx->exec(eid); }
+
+[[nodiscard]] const llvm::SmallVectorImpl<hir::DiagnosticId>&
+ContextDatabase::diagnostics_for_file(hir::FileId fid) const {
+    return ctx->diagnostics_for_file(fid);
+}
+
+[[nodiscard]] const compiler_error_list_t&
+ContextDatabase::parser_diagnostics_for_file(hir::FileId fid) const {
+    return ctx->parser_diagnostics_for_file(fid);
+}
+
+[[nodiscard]] std::string
+ContextDatabase::message_for_parser_diagnostic(const compiler_error_t& err) {
+    return Context::message_for_parser_diagnostic(err);
+}
+
+std::string ContextDatabase::message_for_diagnostic(hir::DiagnosticId did) {
+    return diagnostic(did).message_string(*ctx);
+}

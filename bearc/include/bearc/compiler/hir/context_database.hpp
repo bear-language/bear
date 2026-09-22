@@ -12,6 +12,8 @@
 #include "cli/args.h"
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def.hpp"
+#include "compiler/hir/exec.hpp"
+#include "compiler/hir/indexing.hpp"
 #include "compiler/hir/span.hpp"
 
 class ContextDatabase {
@@ -52,9 +54,22 @@ class ContextDatabase {
     [[nodiscard]] DefIdQueryResult query_def_id(hir::ScopeId scope,
                                                 const std::vector<std::string>& canonical_def_name);
 
-    [[nodiscard]] hir::Exec exec(hir::ExecId eid) const;
+    [[nodiscard]] const hir::Exec& exec(hir::ExecId eid) const;
 
     [[nodiscard]] int diagnostic_count() const noexcept;
+
+    [[nodiscard]] const hir::Diagnostic& diagnostic(hir::DiagnosticId did) const;
+
+    /// gets the hir (semantic anaylsis phase) / logical diagnostics for a given file
+    [[nodiscard]] const llvm::SmallVectorImpl<hir::DiagnosticId>&
+    diagnostics_for_file(hir::FileId fid) const;
+
+    /// gets the parser diagnostics for a file
+    [[nodiscard]] const compiler_error_list_t& parser_diagnostics_for_file(hir::FileId fid) const;
+
+    [[nodiscard]] static std::string message_for_parser_diagnostic(const compiler_error_t& err);
+
+    [[nodiscard]] std::string message_for_diagnostic(hir::DiagnosticId did);
 
   private:
     std::unique_ptr<const bearc_args> args;
