@@ -70,7 +70,7 @@
         - `@statics_of` Type 
         - `@type_id` Type 
         - `@id` Expression 
-        - `@scoped_id` `(` Indentifier `,` Expression `)`
+        - `@scoped_id` `(` Identifier `,` Expression `)`
 
 #### Statements
 - *File*: TopLevelStatement(s)
