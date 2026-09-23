@@ -383,7 +383,7 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::invalid_operands_for_binary_expression:
         return "invalid operands for binary expression";
     case diag_code::cannot_assign_compt_value_to_mutable_ref_type:
-        return "cannot cannot compile-time constant value to mutable reference type";
+        return "cannot assign compile-time constant value to mutable reference type";
     case diag_code::cannot_assign_compt_value_to_mutable_slice_type:
         return "cannot assign compile-time constant value to mutable slice type";
     case diag_code::compt_declarations_should_not_be_ref_type:
