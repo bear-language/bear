@@ -3,12 +3,23 @@
 #### misc/priority 
 - [ ] finish `def_to_str`
 - [ ] wrap `context.emplace_diagnostic` / `context.emplace_diagnostic_with_message` in `ComptExprSolver`, `RunTimeExprSolver`, and `TypeResolver` so that diagnostic emissions can be toggled with `.disable_diagnostics()` / `.enable_diagnostics()`
-- [ ] better Span queries, either:
-    - [ ] make the AST query-able (walk and search for best node at a given span)
-        - this will be a bit less in complex than the pretty printer which also walks every node type
-        - potentially problematic since Context will have to process each node yield by an AST query (which will also definitely require the disabled diagnostic emission)
-    - [ ] index Span -> Exec and Span -> Type when `ctx.register_spans` is set 
-        - will require updating all emplacers and bit a of gymnastics for types since we will only want to index the Span -> outermost type 
+- [ ] better Span queries: index Span -> Exec and Span -> Type when `ctx.register_spans` is set
+    - [ ] registration lives entirely in the emplacers (`emplace_exec`, `emplace_compt_exec`, `register_exec`, `emplace_type`), Context owns all the state
+        - skip generated spans and skip while diagnostics are disabled (speculative solves), so do the diagnostic toggle bullet first
+    - [ ] one entry per span, keyed by `{FileId, start, len}` -> `{id, compt_dirty, generic_dirty}`
+        - memory is bounded by distinct source spans, no matter how many generic instances / compt evals
+    - [ ] on emplace:
+    ```
+        if span not in index:
+            insert {id}
+        else if new is compt:
+            mark compt_dirty   # compt re-eval (compt fib, loops, etc.)
+        else:
+            mark generic_dirty # runtime bodies are solved once per def, so this is an instantiation
+    ```
+        - no type comparisons, a second emplacement is enough to mark dirty
+    - [ ] on query: lazily flatten into a sorted per-file vec and reuse the `scope_for_span` search (innermost containing span)
+        - dirty entries -> `value depends on compt/generic parameters` instead of a concrete type
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s

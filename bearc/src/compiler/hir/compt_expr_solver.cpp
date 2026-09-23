@@ -1375,7 +1375,9 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
             DiagnosticSymbolAfterMessage(eecc.to_symbol_id(context)));
         return std::nullopt;
     }
-    return context.emplace_exec(maybe_converted.value(), exec.span, /*compt*/ true);
+    // this Span::combine should be fine since it's structured like `exec as type`
+    return context.emplace_exec(maybe_converted.value(), Span::combine(exec.span, type.span),
+                                /*compt*/ true);
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::solve_binary_compt_exec(ExecId lhs_eid, binary_op op,
