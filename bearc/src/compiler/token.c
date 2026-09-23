@@ -181,6 +181,8 @@ static void string_to_token_map_init(void) {
     strimap_emplace(&string_to_token_map, "==", TOK_BOOL_EQ);
     strimap_emplace(&string_to_token_map, "!=", TOK_NE);
 
+    strimap_emplace(&string_to_token_map, ".*", TOK_DEREF);
+
     // range stuff
     strimap_emplace(&string_to_token_map, "...", TOK_ELLIPSE);
     strimap_emplace(&string_to_token_map, "...=", TOK_ELLIPSE_EQ);
@@ -356,6 +358,8 @@ static const char* token_to_string_map_impl[TOK__NUM] = {
     [TOK_EQ_ARROW] = "=>",
     [TOK_SCOPE_RES] = "..",
     [TOK_GENERIC_SEP] = "::",
+
+    [TOK_DEREF] = ".*",
 
     // range
     [TOK_ELLIPSE] = "...",

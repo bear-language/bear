@@ -1,0 +1,5 @@
+// tests/hir/a85.br
+
+compt *i32 foo = null;
+
+var _0 = foo.*;

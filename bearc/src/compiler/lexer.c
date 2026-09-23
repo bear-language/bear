@@ -119,7 +119,7 @@ lex_multichar_operator:
         n1 = '\0'; // makes future n1 bounds check unnecessary
     }
     switch (c) {
-    case ('.'): {
+    case '.': {
         if (pos + 3 < end_of_buf && n1 == '.' && pos[2] == '.' && pos[3] == '=') {
             // ...=
             LEX_KNOWN_LEN_PUSH(4);
@@ -128,10 +128,11 @@ lex_multichar_operator:
             // ...
             LEX_KNOWN_LEN_PUSH(3);
         }
-        if (n1 == '.') {
+        if (n1 == '.' || n1 == '*') {
+            // .. and .*
             LEX_KNOWN_LEN_PUSH(2);
         }
-        if ((n1) >= '0' && n1 <= '9' && len > 0 && start[0] >= '0' && start[0] <= '9') {
+        if (n1 >= '0' && n1 <= '9' && len > 0 && start[0] >= '0' && start[0] <= '9') {
             // only continue as float if the token we're already
             // accumulating started with a digit
             ++pos;
@@ -143,7 +144,7 @@ lex_multichar_operator:
         LEX_KNOWN_LEN_PUSH(1);
     }
     // assignment
-    case ('='): {
+    case '=': {
         if (n1 == '=' || n1 == '>') {
             LEX_KNOWN_LEN_PUSH(2);
         }
@@ -151,30 +152,21 @@ lex_multichar_operator:
     }
 
     // arithmetic
-    case ('+'): {
+    case '+': {
         if (n1 == '=' || n1 == '+') {
             // ++ or +=
             LEX_KNOWN_LEN_PUSH(2);
         }
         LEX_KNOWN_LEN_PUSH(1);
     }
-    case ('-'): {
-        /*
-if ((n1) >= '0' && n1 <= '9') {
-// just proceed, this is a numerical lit
-++pos;
-++len;
-++col;
-goto lex_start;
-}
-*/
+    case '-': {
         if (n1 == '=' || n1 == '-' || n1 == '>') {
             // --, ->, or -=
             LEX_KNOWN_LEN_PUSH(2);
         }
         LEX_KNOWN_LEN_PUSH(1);
     }
-    case ('|'):
+    case '|':
         if (n1 == '|') {
             // ||
             LEX_KNOWN_LEN_PUSH(2);
@@ -184,7 +176,7 @@ goto lex_start;
             LEX_KNOWN_LEN_PUSH(2);
         }
         LEX_KNOWN_LEN_PUSH(1);
-    case ('&'):
+    case '&':
         if (n1 == '&') {
             // ||
             LEX_KNOWN_LEN_PUSH(2);
@@ -194,7 +186,7 @@ goto lex_start;
             LEX_KNOWN_LEN_PUSH(2);
         }
         LEX_KNOWN_LEN_PUSH(1);
-    case ('~'):
+    case '~':
         if (n1 == '>' || n1 == '=') {
             // ~>
             LEX_KNOWN_LEN_PUSH(2);
@@ -202,13 +194,13 @@ goto lex_start;
         LEX_KNOWN_LEN_PUSH(1);
         break;
     // intentional fallthrough ~~~~~~~~~~~~~~~~~~~~
-    case ('*'):
-    case ('/'):
-    case ('%'):
+    case '*':
+    case '/':
+    case '%':
     // bitwise
-    case ('^'):
+    case '^':
     // boolean
-    case ('!'):
+    case '!':
         if (n1 == '=') {
             // [sym]=
             LEX_KNOWN_LEN_PUSH(2);
@@ -216,7 +208,7 @@ goto lex_start;
         LEX_KNOWN_LEN_PUSH(1);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // comparison
-    case ('>'): {
+    case '>': {
         if (pos + 3 < end_of_buf && n1 == '>' && pos[2] == '>' && pos[3] == '=') {
             // >>>=
             LEX_KNOWN_LEN_PUSH(4);
@@ -232,7 +224,7 @@ goto lex_start;
         // >
         LEX_KNOWN_LEN_PUSH(1);
     }
-    case ('<'): {
+    case '<': {
         if (pos + 2 < end_of_buf && n1 == '<' && (pos[2] == '=')) {
             // <<=
             LEX_KNOWN_LEN_PUSH(3);
@@ -244,7 +236,7 @@ goto lex_start;
         // // <
         LEX_KNOWN_LEN_PUSH(1);
     }
-    case (':'): {
+    case ':': {
         if (n1 == ':') {
             // ::
             LEX_KNOWN_LEN_PUSH(2);
