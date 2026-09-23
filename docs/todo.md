@@ -3,7 +3,12 @@
 #### misc/priority 
 - [ ] finish `def_to_str`
 - [ ] wrap `context.emplace_diagnostic` / `context.emplace_diagnostic_with_message` in `ComptExprSolver`, `RunTimeExprSolver`, and `TypeResolver` so that diagnostic emissions can be toggled with `.disable_diagnostics()` / `.enable_diagnostics()`
-- [ ] make the ast query-able (walk and search for best node at a given span). this will be a bit less in complex than the pretty printer which also walks every node type
+- [ ] better Span queries, either:
+    - [ ] make the AST query-able (walk and search for best node at a given span)
+        - this will be a bit less in complex than the pretty printer which also walks every node type
+        - potentially problematic since Context will have to process each node yield by an AST query (which will also definitely require the disabled diagnostic emission)
+    - [ ] index Span -> Exec and Span -> Type when `ctx.register_spans` is set 
+        - will require updating all emplacers and bit a of gymnastics for types since we will only want to index the Span -> outermost type 
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
