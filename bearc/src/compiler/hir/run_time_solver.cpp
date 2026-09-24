@@ -243,9 +243,15 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, InProgre
         }
     } else {
         if (stmt->stmt.return_stmt.expr) {
-            context.emplace_diagnostic(Span{context, fid, stmt->stmt.return_stmt.expr},
-                                       diag_code::function_does_not_return_a_value,
-                                       diag_type::error);
+            DiagLinker dl{context};
+            const ast_expr_t* expr = stmt->stmt.return_stmt.expr;
+            dl.link(context.emplace_diagnostic(Span{context, fid, expr},
+                                               diag_code::function_does_not_return_a_value,
+                                               diag_type::error));
+            Span span{context, fid, expr};
+            dl.link(context.emplace_diagnostic_with_message_value(
+                span, diag_code::remove, diag_type::help,
+                DiagnosticSymbolAfterMessage{context.symbol_id(span)}));
         }
     }
     const auto eid = context.emplace_exec(ExecReturn{.return_value = {}}, Span{context, fid, stmt});

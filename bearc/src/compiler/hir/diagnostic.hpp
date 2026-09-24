@@ -20,6 +20,10 @@ namespace hir {
 
 class Context;
 enum class diag_code : uint8_t {
+    // actionable
+    replace_with,
+    remove,
+    // ^^^^^^^^
     imported_file_dne,
     redefined_symbol,
     previous_def_here,
@@ -44,8 +48,6 @@ enum class diag_code : uint8_t {
     use_of_undeclared_identifier,
     use_of_undeclared_mod,
     not_declared_in_this_scope,
-    replace_with,
-    remove,
     invalid_alignas,
     alignas_expr_must_be_a_valid_uint_lit,
     multiple_alignas_on_one_def,
