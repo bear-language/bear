@@ -1,0 +1,10 @@
+// tests/hir/a86.br
+
+fn main() {
+    compt struct(i32, i32) a = (1,2);
+    compt var _1 = a[0]; // oops not indexable, well not like this
+    compt var _2 = a.0;
+    compt var foo = [1,2,3];
+    compt var _3 = foo.0;
+    return 0;
+}
