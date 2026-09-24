@@ -1107,7 +1107,7 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                    },
                    [&](DiagnosticTyButGot d) {
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        str += ansi_bold_green();
                        type_helper_color(d.expected_tid, ansi_bold_green());
                        str += ansi_bold_reset();
@@ -1118,23 +1118,23 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                    },
                    [&](DiagnosticSymbolBeforeAndAfterMessage d) {
                        sid_helper(d.before_sid);
-                       str += " ";
+                       str += ' ';
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        sid_helper(d.after_sid);
                    },
                    [&](DiagnosticTypeBeforeMessageAndSymbolAfter d) {
                        type_helper(d.tid);
-                       str += " ";
+                       str += ' ';
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        sid_helper(d.sid);
                    },
                    [&](DiagnosticTypeBeforeMessageAndSymbolWithMaybeGenArgsAfter d) {
                        type_helper(d.tid);
-                       str += " ";
+                       str += ' ';
                        str += message_for_code(code);
-                       str += " ";
+                       str += ' ';
                        if (d.maybe_gen_args.empty()) {
                            sid_helper(d.sid);
                        } else {
@@ -1162,7 +1162,7 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                    },
                    [&](DiagnosticTypeBeforeMessage d) {
                        type_helper(d.tid);
-                       str += " ";
+                       str += ' ';
                        str += message_for_code(code);
                    }}; // namespace hir
     std::visit(vs, message_value);
