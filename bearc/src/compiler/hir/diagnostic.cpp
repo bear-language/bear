@@ -461,6 +461,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "this diagnostic has been re-emitted due to criticality";
     case diag_code::empty_block_does_nothing:
         return "block does nothing";
+    case diag_code::value_is_not_indexable:
+        return "value is not indexable";
     }
 
     std::unreachable();

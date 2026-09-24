@@ -1513,10 +1513,10 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
         // prefer lhs
         if (use_lhs_type) {
             auto maybe_converted_rhs = rhs_val.try_safe_convert_to(lhs_val.type_builtin());
-            rhs_val = (maybe_converted_rhs.has_value()) ? maybe_converted_rhs.value() : rhs_val;
+            rhs_val = maybe_converted_rhs.has_value() ? maybe_converted_rhs.value() : rhs_val;
         } else if (use_rhs_type) {
             auto maybe_converted_lhs = lhs_val.try_safe_convert_to(rhs_val.type_builtin());
-            lhs_val = (maybe_converted_lhs.has_value()) ? maybe_converted_lhs.value() : lhs_val;
+            lhs_val = maybe_converted_lhs.has_value() ? maybe_converted_lhs.value() : lhs_val;
         }
     }
 }
@@ -1562,7 +1562,7 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
 
         // for div and mod guard div by zero so we don't crash the interpreter
     case binary_op::divide:
-        maybe_value = (guard_div_by_zero()) ? std::nullopt : ExecConst::divide(lhs_val, rhs_val);
+        maybe_value = guard_div_by_zero() ? std::nullopt : ExecConst::divide(lhs_val, rhs_val);
         break;
     case binary_op::modulo:
         maybe_value = guard_div_by_zero() ? std::nullopt : ExecConst::mod(lhs_val, rhs_val);
@@ -2585,7 +2585,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
         // be helpful if we do this:
         // [1, 2, 3].len() => should be just `len`
         // "123123123".len() => should be just `len`
-        if (((lhs_exec.holds<ExecListLiteral>())
+        if ((lhs_exec.holds<ExecListLiteral>()
              || (lhs_exec.holds<ExecConst>() && lhs_exec.as<ExecConst>().holds<SymbolId>()))
             && rhs->type == AST_EXPR_FN_CALL && rhs->expr.fn_call.left_expr->type == AST_EXPR_ID) {
             const auto id_slice = rhs->expr.fn_call.left_expr->expr.id.slice;
@@ -2823,7 +2823,7 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
             // structs have special look up rules cuz we need to look into their member
             // functions
             if (exec.holds<ExecStructInit>()) {
-                if ((expr->expr.fn_call.is_generic)) {
+                if (expr->expr.fn_call.is_generic) {
                     if (const auto maybe_gen_arg_id
                         = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
                         maybe_gen_arg_id.has_value()) {
@@ -2838,7 +2838,7 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
                         func_name, fn_name_span, scope);
                 }
             } else {
-                if ((expr->expr.fn_call.is_generic)) {
+                if (expr->expr.fn_call.is_generic) {
                     if (const auto maybe_gen_arg_id
                         = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
                         maybe_gen_arg_id.has_value()) {
@@ -3280,9 +3280,11 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
         return std::nullopt; // posioned
     }
     const auto tid = maybe_tid.as_id();
-    context.emplace_diagnostic_with_message_value(Span{context, fid, expr->expr.subscript.lhs},
-                                                  diag_code::remove, diag_type::error,
-                                                  DiagnosticTypeAfterMessage{.tid = tid});
+    Span span{context, fid, expr->expr.subscript.lhs};
+    auto d0 = context.emplace_diagnostic(span, diag_code::value_is_not_indexable, diag_type::error);
+    auto d1 = context.emplace_diagnostic_with_message_value(
+        span, diag_code::value_is_of_type, diag_type::note, DiagnosticTypeAfterMessage{.tid = tid});
+    context.link_diagnostic(d0, d1);
     return std::nullopt;
 }
 

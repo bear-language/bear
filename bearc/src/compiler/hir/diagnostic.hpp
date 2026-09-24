@@ -233,6 +233,7 @@ enum class diag_code : uint8_t {
     is_never_used,
     this_diag_has_been_reemitted_due_to_criticality,
     empty_block_does_nothing,
+    value_is_not_indexable,
 
     count, // this must be last,
 
