@@ -391,7 +391,7 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::should_not_be_declared_hid:
         return "should not be declared `hid`";
     case diag_code::matching_on_floats_may_cause_unintended_behavior:
-        return "matching on floating point values maybe cause unintended behavior due to limited "
+        return "matching on floating point values may cause unintended behavior due to limited "
                "precision";
     case diag_code::pattern_can_never_match_matched_value:
         return "pattern can never match matched value";
