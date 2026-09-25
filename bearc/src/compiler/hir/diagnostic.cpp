@@ -460,7 +460,7 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::this_diag_has_been_reemitted_due_to_criticality:
         return "this diagnostic has been re-emitted due to criticality";
     case diag_code::empty_block_does_nothing:
-        return "block does nothing";
+        return "empty block does nothing";
     case diag_code::value_is_not_indexable:
         return "value is not indexable";
     }
