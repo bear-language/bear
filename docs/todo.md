@@ -1,8 +1,10 @@
 ### todos
 
 #### misc/priority 
+- [ ] have `RunTimeSolver` statefully track all local definitions so that we can have static `alloca`s in LLVM 
+    - [ ] functions will need to store this now; an `IdSlice<DefId>` frozen after RunTimeSolver is done lowering a body will suffice
 - [ ] finish `def_to_str`
-- [ ] wrap `context.emplace_diagnostic` / `context.emplace_diagnostic_with_message` in `ComptExprSolver`, `RunTimeExprSolver`, and `TypeResolver` so that diagnostic emissions can be toggled with `.disable_diagnostics()` / `.enable_diagnostics()`
+- [ ] wrap `context.emplace_diagnostic` / `context.emplace_diagnostic_with_message` in `ComptExprSolver`, `RunTimeSolver`, and `TypeResolver` so that diagnostic emissions can be toggled with `.disable_diagnostics()` / `.enable_diagnostics()`
 - [ ] better Span queries: index Span -> Exec and Span -> Type when `ctx.register_spans` is set
     - [ ] registration lives entirely in the emplacers (`emplace_exec`, `emplace_compt_exec`, `register_exec`, `emplace_type`), Context owns all the state
         - skip generated spans and skip while diagnostics are disabled (speculative solves), so do the diagnostic toggle bullet first
