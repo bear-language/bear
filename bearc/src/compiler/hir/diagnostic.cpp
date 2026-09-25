@@ -463,6 +463,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "empty block does nothing";
     case diag_code::value_is_not_indexable:
         return "value is not indexable";
+    case diag_code::cannot_dereference_pointer_at_compile_time:
+        return "cannot dereference pointer at compile time";
     }
 
     std::unreachable();

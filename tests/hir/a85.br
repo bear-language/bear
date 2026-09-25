@@ -2,4 +2,6 @@
 
 compt *i32 foo = null;
 
+compt *void _bar = null;
+
 var _0 = foo.*;

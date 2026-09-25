@@ -29,22 +29,23 @@ class Context;
 
 // ------ struct impls -------
 
+/// do NOT reorder these
 enum class builtin_type : uint8_t {
-    u8,
-    i8,
-    u16,
-    i16,
-    u32,
-    i32,
-    u64,
-    i64,
-    charr,
-    f32,
-    f64,
-    voidd,
-    str,
-    nullpointer,
-    boolean,
+    u8 = 0,
+    i8 = 1,
+    u16 = 2,
+    i16 = 3,
+    u32 = 4,
+    i32 = 5,
+    u64 = 6,
+    i64 = 7,
+    charr = 8,
+    f32 = 9,
+    f64 = 10,
+    voidd = 11,
+    str = 12,
+    nullpointer = 13,
+    boolean = 14,
 };
 
 const char* builtin_type_to_cstr(builtin_type t);
@@ -123,7 +124,7 @@ struct Type : NodeWithVariantValue<Type> {
     Type(const TypeValue& value, Span span, bool mut)
         : value{value}, span{span}, canonical{HIR_ID_NONE}, mut{mut} {}
 
-    OptId<TypeId> try_inner() const {
+    constexpr OptId<TypeId> try_inner() const {
         using OTid = OptId<TypeId>;
         auto vs = Ovld{
             [](const TypeBuiltin&) -> OTid { return OTid{}; },
@@ -137,6 +138,25 @@ struct Type : NodeWithVariantValue<Type> {
             [](const TypePtr& t) -> OTid { return t.inner; },
             [](const TypeFnPtr&) -> OTid { return OTid{}; },
             [](const TypeVar&) -> OTid { return OTid{}; },
+        };
+        return std::visit(vs, value);
+    }
+
+    // either a typed pointer, *void, or nullptr
+    constexpr bool is_pointer_type() const {
+        using OTid = OptId<TypeId>;
+        auto vs = Ovld{
+            [](const TypeBuiltin& t) -> bool { return t.type == builtin_type::nullpointer; },
+            [](const TypeStruct&) -> bool { return {}; },
+            [](const TypeVariant&) -> bool { return {}; },
+            [](const TypeUnion&) -> bool { return {}; },
+            [](const TypeDeftype&) -> bool { return {}; },
+            [](const TypeArr& t) -> bool { return {}; },
+            [](const TypeSlice& t) -> bool { return {}; },
+            [](const TypeRef& t) -> bool { return {}; },
+            [](const TypePtr& t) -> bool { return {}; },
+            [](const TypeFnPtr&) -> bool { return true; },
+            [](const TypeVar&) -> bool { return {}; },
         };
         return std::visit(vs, value);
     }

@@ -536,11 +536,29 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
                                              diag_type::error);
         // be more helpful for ++ and -- at compt
         if ((t == TOK_INC || t == TOK_DEC) && maybe_inner.has_value()) {
-            auto d1 = context.emplace_diagnostic(
-                Span{fid, context.ast(fid).buffer(), expr->expr.unary.expr->first,
-                     expr->expr.unary.expr->last},
-                diag_code::immutable_value_is_not_assignable, diag_type::note);
+            auto d1 = context.emplace_diagnostic(Span{context, fid, expr},
+                                                 diag_code::immutable_value_is_not_assignable,
+                                                 diag_type::note);
             context.link_diagnostic(d0, d1);
+            return std::nullopt;
+        }
+        if ((t == TOK_DEREF) && maybe_inner.has_value()) {
+            const auto maybe_inferred = infer_type_from_exec(maybe_inner.as_id());
+            if (maybe_inferred && context.type(maybe_inferred.as_id()).is_pointer_type()) {
+                auto d1 = context.emplace_diagnostic(
+                    Span{context, fid, expr}, diag_code::cannot_dereference_pointer_at_compile_time,
+                    diag_type::note);
+                context.link_diagnostic(d0, d1);
+            } else if (maybe_inferred) { // yes inferred but not a pointer
+                auto d1 = context.emplace_diagnostic(Span{context, fid, expr->expr.unary.expr},
+                                                     diag_code::value_is_not_a_pointer,
+                                                     diag_type::note);
+                auto d2 = context.emplace_diagnostic_with_message_value(
+                    Span{context, fid, expr->expr.unary.expr}, diag_code::value_is_of_type,
+                    diag_type::note, DiagnosticTypeAfterMessage{.tid = maybe_inferred.as_id()});
+                context.link_diagnostic(d0, d1);
+                context.link_diagnostic(d1, d2);
+            }
             return std::nullopt;
         }
         // inner is already cooked and error has been reported

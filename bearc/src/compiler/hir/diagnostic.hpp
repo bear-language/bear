@@ -234,6 +234,7 @@ enum class diag_code : uint8_t {
     this_diag_has_been_reemitted_due_to_criticality,
     empty_block_does_nothing,
     value_is_not_indexable,
+    cannot_dereference_pointer_at_compile_time,
 
     count, // this must be last,
 

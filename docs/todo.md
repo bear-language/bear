@@ -49,6 +49,7 @@
         - [ ] * mut T   -> *T        
         - [ ] \[&]T      -> \[&] T mut  (fail)
         - [ ] \[&] T mut -> \[&]T       
+        - [ ] null -> *T (don't forget)
 - [ ] "borrow checker":
     - [ ] allow mutiple immutable and mutable borrows
     - [ ] no lifetimes
