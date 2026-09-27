@@ -57,6 +57,7 @@ bearc --help          # to see CLI usage
 #### Tooling 
 - [A Neovim plugin is availible](https://github.com/bear-language/bear.nvim), which easily can be used in Vim as well.
 - [A VSCode extension is availible](https://github.com/bear-language/bear-vscode), which includes syntax highlighting. Right now, local install is required, directions are in the linked repo.
+- [A language server is availible](https://github.com/bear-language/bearls), which implements the LSP for use in any editor that supports it.
 - More to come in the future
 
 #### Previews
