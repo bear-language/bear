@@ -36,6 +36,7 @@ struct DefFunction {
 
     IdSlice<DefId> params;
     IdSlice<TypeId> param_types;
+    IdSlice<DefId> locals{};
     OptId<TypeId> return_type;
     OptId<ExecId> body;
     // generic args, if any

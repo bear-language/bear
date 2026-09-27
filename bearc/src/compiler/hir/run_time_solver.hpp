@@ -22,7 +22,8 @@ namespace hir {
 class RuntimeSolver {
     DefVisitor& def_visitor;
     Context& context;
-    OptId<TypeId> current_return_tid{};
+    llvm::SmallVector<DefId> locals;
+    OptId<TypeId> return_tid{};
     OptId<ExecId> current_loop_block_eid{};
     /// used for jumping to the update exec for a for loop
     OptId<ExecId> current_loop_update_eid{};
@@ -32,6 +33,7 @@ class RuntimeSolver {
         llvm::SmallVector<DefId> defs;
         llvm::SmallVector<ExecId> execs;
         constexpr void push_back_exec(ExecId eid) { execs.push_back(eid); }
+        constexpr void push_back_def(DefId did) { defs.push_back(did); }
     };
 
   public:
@@ -40,9 +42,11 @@ class RuntimeSolver {
 
     [[nodiscard]] Context& get_context() { return this->context; }
 
-    void set_return_type(OptId<TypeId> maybe_tid) { this->current_return_tid = maybe_tid; }
+    [[nodiscard]] llvm::SmallVector<DefId>& get_locals() { return this->locals; }
 
-    void reset_return_type() { this->current_return_tid = {}; }
+    void set_return_type(OptId<TypeId> maybe_tid) { this->return_tid = maybe_tid; }
+
+    void reset_return_type() { this->return_tid = {}; }
 
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr,
                                            TypeId into_tid);

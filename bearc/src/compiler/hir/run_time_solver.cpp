@@ -130,9 +130,8 @@ namespace hir {
 
     bool hit_block_terminator{false};
 
-    const auto must_return = [this, require_return]() {
-        return this->current_return_tid.has_value() && require_return;
-    };
+    const auto must_return
+        = [this, require_return]() { return this->return_tid.has_value() && require_return; };
 
     for (auto i = 0uz; i < stmts.len; ++i) {
         const auto maybe_eid = handle_stmt(fid, curr_lctx, in_prog_block, stmts.start[i]);
@@ -152,9 +151,8 @@ namespace hir {
                 span, diag_code::function_may_not_return_a_value_in_all_control_flow_paths,
                 diag_type::error));
             dl.link(context.emplace_diagnostic_with_message_value(
-                context.type(this->current_return_tid.as_id()).span,
-                diag_code::function_has_return_type, diag_type::note,
-                DiagnosticTypeAfterMessage{.tid = this->current_return_tid.as_id()}));
+                context.type(this->return_tid.as_id()).span, diag_code::function_has_return_type,
+                diag_type::note, DiagnosticTypeAfterMessage{.tid = this->return_tid.as_id()}));
             dl.link(context.emplace_diagnostic(
                 span, diag_code::end_function_body_with_a_return_statement, diag_type::help));
         }
@@ -195,9 +193,8 @@ namespace hir {
                 block_span, diag_code::function_may_not_return_a_value_in_all_control_flow_paths,
                 diag_type::error));
             dl.link(context.emplace_diagnostic_with_message_value(
-                context.type(this->current_return_tid.as_id()).span,
-                diag_code::function_has_return_type, diag_type::note,
-                DiagnosticTypeAfterMessage{.tid = this->current_return_tid.as_id()}));
+                context.type(this->return_tid.as_id()).span, diag_code::function_has_return_type,
+                diag_type::note, DiagnosticTypeAfterMessage{.tid = this->return_tid.as_id()}));
             dl.link(context.emplace_diagnostic(
                 block_span, diag_code::end_function_body_with_a_return_statement, diag_type::help));
         } else {
@@ -223,7 +220,7 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, InProgre
                                            const ast_stmt_t* stmt) {
     assert(stmt->type == AST_STMT_RETURN);
 
-    if (this->current_return_tid.has_value()) {
+    if (this->return_tid.has_value()) {
         if (!stmt->stmt.return_stmt.expr) {
             DiagLinker dl{context};
 
@@ -231,9 +228,8 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, InProgre
                                                diag_code::function_expected_return_value,
                                                diag_type::error));
             dl.link(context.emplace_diagnostic_with_message_value(
-                context.type(this->current_return_tid.as_id()).span,
-                diag_code::function_has_return_type, diag_type::note,
-                DiagnosticTypeAfterMessage{.tid = this->current_return_tid.as_id()}));
+                context.type(this->return_tid.as_id()).span, diag_code::function_has_return_type,
+                diag_type::note, DiagnosticTypeAfterMessage{.tid = this->return_tid.as_id()}));
         } else {
             const auto eid = context.emplace_exec(
                 ExecReturn{.return_value = solve_expr(fid, lctx, stmt->stmt.return_stmt.expr)},
@@ -442,7 +438,11 @@ OptId<ExecId> RuntimeSolver::handle_var_decl(FileId fid, LexicalCtx lctx, InProg
     context.insert_variable(lctx.scope, name, did);
 
     // always emplace the did
-    block.defs.push_back(did);
+    block.push_back_def(did);
+
+    if (storage != storage::statik) {
+        locals.push_back(did);
+    }
 
     if (maybe_runtime_eid.has_value()) {
         ExecId assign_eid = context.emplace_exec(
@@ -505,7 +505,11 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
     context.insert_variable(lctx.scope, name, did);
 
     // always emplace the did
-    block.defs.push_back(did);
+    block.push_back_def(did);
+
+    if (storage != storage::statik) {
+        locals.push_back(did);
+    }
 
     if (maybe_runtime_eid.has_value()) {
         block.push_back_exec(maybe_runtime_eid.as_id());

@@ -144,17 +144,16 @@ struct Type : NodeWithVariantValue<Type> {
 
     // either a typed pointer, *void, or nullptr
     constexpr bool is_pointer_type() const {
-        using OTid = OptId<TypeId>;
         auto vs = Ovld{
             [](const TypeBuiltin& t) -> bool { return t.type == builtin_type::nullpointer; },
             [](const TypeStruct&) -> bool { return {}; },
             [](const TypeVariant&) -> bool { return {}; },
             [](const TypeUnion&) -> bool { return {}; },
             [](const TypeDeftype&) -> bool { return {}; },
-            [](const TypeArr& t) -> bool { return {}; },
-            [](const TypeSlice& t) -> bool { return {}; },
-            [](const TypeRef& t) -> bool { return {}; },
-            [](const TypePtr& t) -> bool { return {}; },
+            [](const TypeArr&) -> bool { return {}; },
+            [](const TypeSlice&) -> bool { return {}; },
+            [](const TypeRef&) -> bool { return {}; },
+            [](const TypePtr&) -> bool { return {}; },
             [](const TypeFnPtr&) -> bool { return true; },
             [](const TypeVar&) -> bool { return {}; },
         };
@@ -181,15 +180,15 @@ template <TypeTransformerFunctor F> class TypeTransformer {
     Type get_type(TypeId tid) const noexcept;
     Type get_type_as_mentioned(TypeId tid) const noexcept;
 
-    typename F::value_type invoke(TypeId tid, auto get_type_functor);
-    typename F::value_type invoke(TypeId tid1, TypeId tid2, auto get_type_functor);
+    F::value_type invoke(TypeId tid, auto get_type_functor);
+    F::value_type invoke(TypeId tid1, TypeId tid2, auto get_type_functor);
 
   public:
     TypeTransformer(Context& context) : context(context) {}
-    typename F::value_type operator()(TypeId tid1, TypeId tid2);
-    typename F::value_type operator()(TypeId tid);
-    typename F::value_type invoke_as_mentioned(TypeId tid);
-    typename F::value_type invoke_as_mentioned(TypeId tid1, TypeId tid2);
+    F::value_type operator()(TypeId tid1, TypeId tid2);
+    F::value_type operator()(TypeId tid);
+    F::value_type invoke_as_mentioned(TypeId tid);
+    F::value_type invoke_as_mentioned(TypeId tid1, TypeId tid2);
 };
 
 template <class C>

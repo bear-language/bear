@@ -22,7 +22,6 @@
 #include "utils/data_arena.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
-#include <iostream>
 #include <optional>
 #include <stddef.h>
 
@@ -96,11 +95,11 @@ DefId DefVisitor::visit_as_mutator(DefId def) {
 }
 
 static auto parent_is_struct(const Context& context, const Def& def) {
-    return (def.parent.has_value()) ? context.is_struct_def(def.parent.as_id()) : false;
+    return def.parent.has_value() ? context.is_struct_def(def.parent.as_id()) : false;
 };
 
 static auto parent_is_union(const Context& context, const Def& def) {
-    return (def.parent.has_value()) ? context.is_union_def(def.parent.as_id()) : false;
+    return def.parent.has_value() ? context.is_union_def(def.parent.as_id()) : false;
 };
 
 DefId DefVisitor::resolve_def(DefId did) {
@@ -386,7 +385,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         auto param_types = context.freeze_id_vec(type_vec);
 
         auto return_tid
-            = (fn_decl.return_type)
+            = fn_decl.return_type
                   ? TypeResolver{context, *this}.resolve_type(fid, scope, fn_decl.return_type)
                   : std::nullopt;
 
@@ -507,7 +506,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         const IdSlice<TypeId> param_types = context.freeze_id_vec(type_vec);
 
         const OptId<TypeId> return_tid
-            = (fn_decl.return_type)
+            = fn_decl.return_type
                   ? TypeResolver{context, *this}.resolve_type(fid, scope, fn_decl.return_type)
                   : std::nullopt;
         if (return_tid.has_value()) {
@@ -849,6 +848,8 @@ void DefVisitor::resolve_fn_body_expr(FileId fid, DefId func_did) {
     /// set the function body to this manufactured return
     context.def(func_did).as<DefFunction>().body
         = context.emplace_exec(ExecBlock{.block_id = blid}, span);
+
+    context.def(func_did).as<DefFunction>().locals = context.freeze_id_vec(solver.get_locals());
 }
 
 void DefVisitor::resolve_fn_body_block(FileId fid, DefId func_did) {
@@ -873,6 +874,9 @@ void DefVisitor::resolve_fn_body_block(FileId fid, DefId func_did) {
     func.body = solver.solve_block(
         fid, LexicalCtx{.scope = func_scope, .map = context.make_persistent_move_map()},
         fn_stmt->stmt.fn_decl->block_stmt, /*require_return=*/func.return_type.has_value());
+
+    // reaccess func because the reference could have been invalidated when solving the block
+    context.def(func_did).as<DefFunction>().locals = context.freeze_id_vec(solver.get_locals());
 }
 
 bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {
@@ -937,7 +941,7 @@ bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {
         const Def& matching_def = context.def(matched_fn_did);
 
         if (!matching_def.holds<DefFunction>()) {
-            const auto code = (matching_def.holds<DefGenericFunction>())
+            const auto code = matching_def.holds<DefGenericFunction>()
                                   ? diag_code::raw_use_of_generic_function
                                   : diag_code::not_a_function;
             auto d = context.emplace_diagnostic(

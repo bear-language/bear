@@ -643,6 +643,14 @@ contract Default {
 }
         )";
     file_intrinsic(symbol_id(default_name), default_src);
+    const char* copy_name = "intrinsic/default";
+    const char* copy_src =
+        R"(
+contract Copy {
+    mt copy() -> T;
+}
+        )";
+    file_intrinsic(symbol_id(copy_name), copy_src);
 }
 
 FileId Context::file_parallel(SymbolId path_symbol) {
