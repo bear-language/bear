@@ -1,0 +1,30 @@
+// tests/hir/a87.br
+
+struct Foo {
+    *i32 a;
+}
+
+fn main() -> i32 {
+    Foo _0 {.}; 
+
+    Foo _1 = {.}; 
+
+    Foo _2 = {.a = null};  
+
+    u32 a = -123;
+
+    return compt get_exit_code();
+}
+
+/// gets the exit code for this program
+/// - just returns 0
+fn get_exit_code() -> i32 => 0
+
+fn _0() -> i32 => "abc"
+
+fn _1() -> u8 => 1234123124
+
+fn _2() -> u8 => 1.0
+
+/// gets the number 12
+fn get_12() -> i8 => 12
