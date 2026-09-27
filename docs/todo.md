@@ -11,13 +11,10 @@
             - [x] tracks DefId -> ExecId and DefId -> ExecIdSliceId tracking where defs were moved (for good diagnostics)
             - [ ] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
     - [ ] impl `RunTimeExprSolver`
-        - [ ] maximally desugar things to get rid of unneeded Exec types 
-            - [ ] preunary, postunary
-            - [ ] improve how blocks work (desugar loops/if branches/matches)
+        - [ ] basic impls (consider factoring out common behavior w/ `ComptExprSolver` into expr_solver_common or something like that)
         - [ ] use deduction guides for functions/(variants/structs?)
         - [ ] make sure assignment type checking is properly rigid around mutable types (especially references).
             - [ ] this is already impl'd: see `Context::assignable_from_type_to_type`, but a version of this basic on inferable types (with `var` inference) is needed for variable decls
-        - [ ] break up assign inits into the def (variable loc) and the exec (initializer), use a flag to track single-init of non-mut typed variables
     
 - [ ] note: (impl. detail) the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
     - [ ] ensure these work:
@@ -30,16 +27,15 @@
         - [ ] \[&]T      -> \[&] T mut  (fail)
         - [ ] \[&] T mut -> \[&]T       
         - [ ] null -> *T (don't forget)
-- [ ] "borrow checker":
-    - [ ] allow mutiple immutable and mutable borrows
-    - [ ] no lifetimes
+
+- [ ] reference stuff:
     - [ ] strictly ban returning a reference to a local variable directly out of a function
-- [ ] remember: run-time values that are immutable references and have compile-time initializers can just reference static variables that store that compile-time value
+    - [ ] remember: run-time values that are immutable references and have compile-time initializers can just reference static variables that store that compile-time value
 
-- [ ] tighten up mention/mutation tracking for better `unused variable: foo` diagnostics (and top level decls when not a lib build)
+- [ ] tighten up mention/mutation tracking 
+    - improve/fix `unused variable: foo` diagnostics (for non top-levels)
+    - add `foo is never mutated, consider not declaring as mutable`
 - [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
-
-- [ ] consider queuing structure declarations (as is done for functions) for better LLVM lowering, or just do it lazily as needed
 
 - [ ] just find main thru top-level scope; only require it in non-lib builds 
 
