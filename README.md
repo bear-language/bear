@@ -10,7 +10,7 @@
 </div>
 
 -------------
-- A modern C-alternative with powerful static reflection, compile-time evaluation, and metapgrogramming. 
+- A modern C-alternative with powerful static reflection, compile-time evaluation, and metaprogramming. 
 - Bear is statically-typed and compiled using LLVM as the backend.
 - Codegen is still a work-in-progress.
 
