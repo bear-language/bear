@@ -2,6 +2,7 @@
 
 #### priority 
 - [ ] finish `def_to_str`
+- [ ] make `def_to_str_preview` and expose in `ContextDatabase` (can be used for hover preview)
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
