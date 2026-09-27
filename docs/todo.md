@@ -1,27 +1,7 @@
 ### todos
 
-#### misc/priority 
-- [ ] have `RunTimeSolver` statefully track all local definitions so that we can have static `alloca`s in LLVM 
-    - [ ] functions will need to store this now; an `IdSlice<DefId>` frozen after RunTimeSolver is done lowering a body will suffice
+#### priority 
 - [ ] finish `def_to_str`
-- [ ] wrap `context.emplace_diagnostic` / `context.emplace_diagnostic_with_message` in `ComptExprSolver`, `RunTimeSolver`, and `TypeResolver` so that diagnostic emissions can be toggled with `.disable_diagnostics()` / `.enable_diagnostics()`
-- [ ] better Span queries: index Span -> Exec and Span -> Type when `ctx.register_spans` is set
-    - [ ] registration lives entirely in the emplacers (`emplace_exec`, `emplace_compt_exec`, `register_exec`, `emplace_type`), Context owns all the state
-        - skip generated spans and skip while diagnostics are disabled (speculative solves), so do the diagnostic toggle bullet first
-    - [ ] one entry per span, keyed by `{FileId, start, len}` -> `{id, compt_dirty, generic_dirty}`
-        - memory is bounded by distinct source spans, no matter how many generic instances / compt evals
-    - [ ] on emplace:
-    ```
-        if span not in index:
-            insert {id}
-        else if new is compt:
-            mark compt_dirty   # compt re-eval (compt fib, loops, etc.)
-        else:
-            mark generic_dirty # runtime bodies are solved once per def, so this is an instantiation
-    ```
-        - no type comparisons, a second emplacement is enough to mark dirty
-    - [ ] on query: lazily flatten into a sorted per-file vec and reuse the `scope_for_span` search (innermost containing span)
-        - dirty entries -> `value depends on compt/generic parameters` instead of a concrete type
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
@@ -80,6 +60,25 @@
         - [ ] implement use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members (relatively easy but tedious on some special-casing inside the compile-time solver)
 
 
+#### queries
+- [ ] better Span queries: index Span -> Exec and Span -> Type when `ctx.register_spans` is set
+    - [ ] registration lives entirely in the emplacers (`emplace_exec`, `emplace_compt_exec`, `register_exec`, `emplace_type`), Context owns all the state
+        - skip generated spans and skip while diagnostics are disabled (speculative solves), so do the diagnostic toggle bullet first
+    - [ ] one entry per span, keyed by `{FileId, start, len}` -> `{id, compt_dirty, generic_dirty}`
+        - memory is bounded by distinct source spans, no matter how many generic instances / compt evals
+    - [ ] on emplace:
+    ```
+        if span not in index:
+            insert {id}
+        else if new is compt:
+            mark compt_dirty   # compt re-eval (compt fib, loops, etc.)
+        else:
+            mark generic_dirty # runtime bodies are solved once per def, so this is an instantiation
+    ```
+        - no type comparisons, a second emplacement is enough to mark dirty
+    - [ ] on query: lazily flatten into a sorted per-file vec and reuse the `scope_for_span` search (innermost containing span)
+        - dirty entries -> `value depends on compt/generic parameters` instead of a concrete type
+
 #### optimizations
 - [ ] `hir::Context` ctor that takes a stale context and a list of updated files, and then based on the stale context's files (necessary for above flag and also AST reuse for the future LSP):
 ```
@@ -104,16 +103,12 @@
 - [ ] cave package-manager
     - run, init, build, check, and other nice-to-haves
 
-- [ ] language server 
-    - using the LSP (for VSCode/IDE/text-editor portability)
-    - implemented in C++ (or Rust) using libbearc
-
 - [ ] bear-tree-sitter
     - parser implemented with tree-sitter for complex syntax highlighing 
 
 - [ ] VSCode
-    - [ ] update highlighting to have parity with `bear.nvim`
     - [ ] basic cave/bearc integration (run button)
+    - [ ] eventually include builts of bearls / prompt download
 
 - [ ] Verify/implement debugger compatibility 
 
@@ -138,9 +133,6 @@ lexer & parser
 hir & later 
 ----------- 
 - [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps
-- [ ] add Exec Stringifier for run-time execs (currently only compt-able values are implemented)
-- [ ] add a Def Stringifier (tedious)  
-- [ ] arbitrary source code reconstruction from hir::Context
 
 #### diagnostics
 - [ ] using a scope iterator, use Levenshtein distance to make a `help: did you mean:` `...`
@@ -148,6 +140,3 @@ hir & later
 #### debugging 
 - [x] make a scope iterator
 - [ ] debug logger to display context and scope contents
-
-#### lsp-friendly features
-- [lsp compatibility plan here](docs/lsp-compat.md)
