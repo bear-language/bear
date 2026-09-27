@@ -10,6 +10,7 @@
 #include "compiler/ast/expr.h"
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
+#include "compiler/hir/expr_solver_common.h"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/matching.hpp"
 #include "compiler/hir/type.hpp"
@@ -397,52 +398,7 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
         break;
     }
     case AST_EXPR_LITERAL: {
-        const token_t* tkn = expr->expr.literal.tkn;
-        switch (tkn->type) {
-        case TOK_CHAR_LIT:
-            maybe_value = ExecConst{tkn->val.character};
-            break;
-        // try as i32 if possible
-        case TOK_INT_LIT: {
-            maybe_value = ExecConst{tkn->val.signed_integral};
-            auto maybe_signed = maybe_value->try_safe_convert_to(builtin_type::i32);
-            if (maybe_signed.has_value()) {
-                maybe_value = maybe_signed;
-            }
-        } break;
-            // try as i32 and then i64 if possible
-        case TOK_UINT_LIT: {
-            maybe_value = ExecConst{tkn->val.unsigned_integral};
-            auto maybe_signed = maybe_value->try_safe_convert_to(builtin_type::i32);
-            if (maybe_signed.has_value()) {
-                maybe_value = maybe_signed;
-            } else {
-                maybe_signed = maybe_value->try_safe_convert_to(builtin_type::i64);
-                if (maybe_signed.has_value()) {
-                    maybe_value = maybe_signed;
-                }
-            }
-            break;
-        }
-        case TOK_FLOAT_LIT:
-            maybe_value = ExecConst{tkn->val.floating};
-            break;
-        case TOK_STR_LIT:
-            maybe_value = ExecConst{context.symbol_id_for_str_lit_tkn(tkn, fid)};
-            break;
-        case TOK_BOOL_LIT_FALSE:
-            maybe_value = ExecConst{false};
-            break;
-        case TOK_BOOL_LIT_TRUE:
-            maybe_value = ExecConst{true};
-            break;
-        case TOK_NULL_LIT:
-            maybe_value = ExecConst{nullptr};
-            break;
-        default:
-            std::unreachable();
-            break;
-        }
+        maybe_value = solve_expr_literal(context, fid, expr);
         break;
     }
     case AST_EXPR_BINARY: {

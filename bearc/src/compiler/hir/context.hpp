@@ -605,7 +605,12 @@ class Context {
     [[nodiscard]] bool equivalent_type(TypeId tid1, TypeId tid2) const;
 
     /// assignable type, like when it comes to assigning one value to another
+    /// - types should be explicit
     [[nodiscard]] bool assignable_from_type_to(TypeId from, TypeId to);
+
+    /// assignable type, like when it comes to assigning one value to another
+    /// - types may be implicit (contain `var`)
+    [[nodiscard]] bool assignable_and_inferable_from_type_to(TypeId from, TypeId to);
 
     /// checks if two types are equivalent, ignoring mut qualifiers
     /// note: this is a lot slower than equivalent_type(TypeId,TypeId))
@@ -933,6 +938,7 @@ class Context {
 
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
 
+    /// does not emit diagnostics on failure
     [[nodiscard]] OptId<ExecId> try_convert_to(ExecId eid, TypeId into_tid);
 
     [[nodiscard]] const llvm::SmallVectorImpl<hir::DiagnosticId>&
@@ -941,6 +947,10 @@ class Context {
     [[nodiscard]] const compiler_error_list_t& parser_diagnostics_for_file(hir::FileId fid) const;
 
     [[nodiscard]] static std::string message_for_parser_diagnostic(const compiler_error_t& err);
+
+    /// helper where both types are references (this has special rules due to how references are
+    /// internally stored in context)
+    [[nodiscard]] bool assignable_from_type_to_refs(TypeId from, TypeId to);
 
   private:
     // containers:
@@ -1188,10 +1198,6 @@ class Context {
     recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice_of_stmts_t stmts,
                                               const ast_type_t* curr_type, SymbolId sid,
                                               bool nested = false);
-
-    /// helper where both types are references (this has special rules due to how references are
-    /// internally stored in context)
-    [[nodiscard]] bool assignable_from_type_to_refs(TypeId from, TypeId to);
 
     /// private helper that calculates the type of some exec.
     /// note: `infer_type_from_exec` is what should be used since that properly internally caches

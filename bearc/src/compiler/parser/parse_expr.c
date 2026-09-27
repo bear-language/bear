@@ -149,7 +149,7 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    if (parser_peek_match(p, TOK_LBRACE) && parser_mode(p) != PARSER_MODE_BAN_STRUCT_INIT
+    if (lhs && parser_peek_match(p, TOK_LBRACE) && parser_mode(p) != PARSER_MODE_BAN_STRUCT_INIT
         && lhs->type == AST_EXPR_ID) {
         lhs = parse_expr_struct_init(p, lhs, NULL); // no generic args
     }

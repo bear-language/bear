@@ -131,6 +131,12 @@ class RuntimeSolver {
                                    const ast_stmt_t* stmt);
     OptId<ExecId> handle_break(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
     OptId<ExecId> handle_continue(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
+
+    [[nodiscard]] OptId<ExecId> handle_literal(FileId fid, const ast_expr_t* expr);
+
+    /// tries to convert to the corret type if possible, otherwise returns the value of the
+    /// incorrect type (the behavior is done this way so diagnostics can be externally managed)
+    [[nodiscard]] OptId<ExecId> handle_literal(FileId fid, const ast_expr_t* expr, TypeId into_tid);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);

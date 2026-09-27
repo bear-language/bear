@@ -13,6 +13,7 @@
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
+#include "compiler/hir/expr_solver_common.h"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
@@ -50,10 +51,11 @@ namespace hir {
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr, TypeId into_tid) {
-    const Type& ty = context.type(into_tid);
-    if (ty.holds<TypeVar>()) {
+    if (context.type(into_tid).holds<TypeVar>()) {
         return handle_any_typed_expr(fid, lctx, expr);
     }
+
+    OptId<ExecId> maybe_eid{};
 
     // TODO
     switch (expr->type) {
@@ -73,9 +75,11 @@ namespace hir {
     case AST_EXPR_TYPE_ID:
         return ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, expr, into_tid);
         // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    case AST_EXPR_LITERAL:
+        maybe_eid = handle_literal(fid, expr, into_tid); // tries conversion if possible internally
+        break;
     case AST_EXPR_ID:
     case AST_EXPR_GENERIC_ID:
-    case AST_EXPR_LITERAL:
     case AST_EXPR_LIST_LITERAL:
     case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
@@ -101,7 +105,30 @@ namespace hir {
     case AST_EXPR_INVALID:
         break;
     }
-    return {};
+
+    if (maybe_eid.empty()) {
+        return {};
+    }
+
+    // empty list literal is not inferable, so do this here
+    if (const auto& exec = context.exec(maybe_eid.as_id());
+        exec.holds<ExecListLiteral>() && !exec.as<ExecListLiteral>().len()
+        && context.type(into_tid).holds_any_of<TypeSlice, TypeArr>()) {
+        return maybe_eid;
+    }
+
+    const auto maybe_tid = context.infer_type_from_exec(maybe_eid.as_id());
+    if (maybe_tid.empty()) {
+        return {};
+    }
+    if (!context.assignable_and_inferable_from_type_to(maybe_tid.as_id(), into_tid)) {
+        context.emplace_diagnostic_with_message_value(
+            Span{context, fid, expr}, diag_code::cannot_convert_value_of_type, diag_type::error,
+            DiagnosticTypeToType{.from = maybe_tid.as_id(), .to = into_tid});
+        return {};
+    }
+
+    return maybe_eid;
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block_requiring_return(FileId fid, LexicalCtx lctx,
@@ -619,9 +646,10 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_TYPE_ID:
         return ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, expr);
         // ^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^
+    case AST_EXPR_LITERAL:
+        return handle_literal(fid, expr);
     case AST_EXPR_ID:
     case AST_EXPR_GENERIC_ID:
-    case AST_EXPR_LITERAL:
     case AST_EXPR_LIST_LITERAL:
     case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
@@ -648,6 +676,30 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         break;
     }
     return {};
+}
+
+OptId<ExecId> RuntimeSolver::handle_literal(FileId fid, const ast_expr_t* expr) {
+    const auto maybe_value = solve_expr_literal(context, fid, expr);
+    if (!maybe_value) {
+        return {};
+    }
+    return context.emplace_compt_exec(maybe_value.value(), Span{context, fid, expr});
+}
+
+OptId<ExecId> RuntimeSolver::handle_literal(FileId fid, const ast_expr_t* expr, TypeId into_tid) {
+    const auto maybe_value = solve_expr_literal(context, fid, expr);
+    if (!maybe_value) {
+        return {};
+    }
+    const Type& ty = context.type(into_tid);
+    if (!ty.holds<TypeBuiltin>()) {
+        return {};
+    }
+    const auto bin_type = ty.as<TypeBuiltin>().type;
+    const auto maybe_converted = maybe_value.value().try_down_convert_to(bin_type);
+    // take converted if successful, else take the original value
+    return context.emplace_compt_exec(
+        maybe_converted ? maybe_converted.value() : maybe_value.value(), Span{context, fid, expr});
 }
 
 } // namespace hir

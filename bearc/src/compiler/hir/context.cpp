@@ -2287,21 +2287,30 @@ bool Context::equivalent_type(TypeId tid1, TypeId tid2) const {
     return type(tid1).canonical == type(tid2).canonical;
 }
 
-[[nodiscard]] bool Context::assignable_from_type_to(TypeId from, TypeId to) {
+template <equivalence E>
+[[nodiscard]] static bool assignable_from_type_to_impl(Context& ctx, TypeId from, TypeId to) {
 
-    const Type& from_ty = type(from);
-    const Type& to_ty = type(to);
+    const Type& from_ty = ctx.type(from);
+    const Type& to_ty = ctx.type(to);
 
     // references have special rules since they behave a bit differently (they're not really
     // textbook 'by-value' how other types are)
     if (from_ty.holds_same<TypeRef>(to_ty)) {
-        return assignable_from_type_to_refs(from, to);
+        return ctx.assignable_from_type_to_refs(from, to);
     }
 
-    TypeComparator<DoNotConsiderMut> equivalent_not_considering_mut_for_one_layer{*this};
+    if constexpr (E == equivalence::exact) {
+        TypeComparator<DoNotConsiderMut> equivalent_not_considering_mut_for_one_layer{ctx};
 
-    if (!equivalent_not_considering_mut_for_one_layer(from_ty, to_ty)) {
-        return false;
+        if (!equivalent_not_considering_mut_for_one_layer(from_ty, to_ty)) {
+            return false;
+        }
+    } else {
+        TypeInferer<DoNotConsiderMut> equivalent_not_considering_mut_for_one_layer{ctx};
+
+        if (!equivalent_not_considering_mut_for_one_layer(from_ty, to_ty)) {
+            return false;
+        }
     }
 
     const auto from_inner = from_ty.try_inner();
@@ -2318,7 +2327,16 @@ bool Context::equivalent_type(TypeId tid1, TypeId tid2) const {
     }
 
     // make sure the inners are all the same
-    return equivalent_type(from_inner.as_id(), to_inner.as_id());
+    return E == equivalence::exact ? ctx.equivalent_type(from_inner.as_id(), to_inner.as_id())
+                                   : ctx.type_inferable_as(from_inner.as_id(), to_inner.as_id());
+}
+
+[[nodiscard]] bool Context::assignable_from_type_to(TypeId from, TypeId to) {
+    return assignable_from_type_to_impl<equivalence::exact>(*this, from, to);
+}
+
+[[nodiscard]] bool Context::assignable_and_inferable_from_type_to(TypeId from, TypeId to) {
+    return assignable_from_type_to_impl<equivalence::implicit>(*this, from, to);
 }
 
 [[nodiscard]] bool Context::assignable_from_type_to_refs(TypeId from, TypeId to) {
