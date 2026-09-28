@@ -416,26 +416,6 @@ typename F::value_type TypeTransformer<F>::invoke_as_mentioned(TypeId tid1, Type
     return invoke(tid1, tid2, [this](TypeId tid) { return get_type_as_mentioned(tid); });
 }
 
-// explicit instatiantiations for the TypeTransformer
-template class TypeTransformer<TypeHasher<DoConsiderMut>>;
-template class TypeTransformer<TypeHasher<DoNotConsiderMut>>;
-
-template class TypeComparator<DoConsiderMut>;
-template class TypeComparator<DoNotConsiderMut>;
-
-template class TypeTransformer<TypeComparator<DoConsiderMut>>;
-template class TypeTransformer<TypeComparator<DoNotConsiderMut>>;
-
-template class TypeTransformer<TypeInferer<DoConsiderMut>>;
-template class TypeTransformer<TypeInferer<DoNotConsiderMut>>;
-
-template class TypeTransformer<TypeToString<DoConsiderMut>>;
-template class TypeTransformer<TypeToString<DoNotConsiderMut>>;
-
-template class TypeTransformer<TypeContainsVar>;
-template class TypeTransformer<TypeContainsDeftype>;
-template class TypeTransformer<TypeContainsMut>;
-
 CanonicalTypeTable::CanonicalTypeTable(Context& context, DataArena& arena, HirSize capacity)
     : context(context), arena(arena), count{0} {
     this->capacity = (capacity > DEFAULT_CAP) ? capacity : DEFAULT_CAP;
@@ -974,5 +954,28 @@ template <ConsiderMut C> bool TypeInferer<C>::operator()(const Type& t1, const T
     }
     return t1.visit(vs);
 }
+
+// explicit instatiantiations for the TypeTransformer
+template class TypeTransformer<TypeHasher<DoConsiderMut>>;
+template class TypeTransformer<TypeHasher<DoNotConsiderMut>>;
+
+template class TypeComparator<DoConsiderMut>;
+template class TypeComparator<DoNotConsiderMut>;
+
+template class TypeInferer<DoConsiderMut>;
+template class TypeInferer<DoNotConsiderMut>;
+
+template class TypeTransformer<TypeComparator<DoConsiderMut>>;
+template class TypeTransformer<TypeComparator<DoNotConsiderMut>>;
+
+template class TypeTransformer<TypeInferer<DoConsiderMut>>;
+template class TypeTransformer<TypeInferer<DoNotConsiderMut>>;
+
+template class TypeTransformer<TypeToString<DoConsiderMut>>;
+template class TypeTransformer<TypeToString<DoNotConsiderMut>>;
+
+template class TypeTransformer<TypeContainsVar>;
+template class TypeTransformer<TypeContainsDeftype>;
+template class TypeTransformer<TypeContainsMut>;
 
 } // namespace hir
