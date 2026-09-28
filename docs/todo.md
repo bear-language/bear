@@ -2,6 +2,9 @@
 
 #### priority 
 - [ ] finish `def_to_str`
+- [ ] revamp `ComptExprSolver::handle_struct_init`
+    - [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps
+    - [ ] fix diagnostic chaining issues
 - [ ] make `def_to_pretty_preview_str` and expose in `ContextDatabase` (can be used for hover preview)
 
 #### function body resolution / runtime eval:
@@ -129,7 +132,6 @@ lexer & parser
 
 hir & later 
 ----------- 
-- [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps
 
 #### diagnostics
 - [ ] using a scope iterator, use Levenshtein distance to make a `help: did you mean:` `...`
