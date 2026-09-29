@@ -465,6 +465,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "value is not indexable";
     case diag_code::cannot_dereference_pointer_at_compile_time:
         return "cannot dereference pointer at compile time";
+    case diag_code::cannot_access_non_static_member_without_accessing_thru_an_instance:
+        return "cannot access non-static member without accessing through an instance";
+    case diag_code::is_not_a_variable:
+        return "is not a variable";
     }
 
     std::unreachable();

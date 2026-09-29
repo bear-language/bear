@@ -44,7 +44,7 @@ std::string def_to_string(Context& ctx, DefId did) {
             std::string str;
             str += "mod ";
             str += ctx.symbold_id_slice_to_string(ctx.canonical_name(did));
-            str += " ";
+            str += ' ';
             str += scope_to_string(ctx, d.scope);
             return str;
         },
@@ -58,7 +58,7 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += d.maybe_generic_args.has_value()
                        ? gen_args_to_str(ctx, d.maybe_generic_args.as_id())
                        : "";
-            str += "(";
+            str += '(';
             for (const auto tidx : d.param_types) {
                 str += type_to_string(ctx, ctx.type_id(tidx));
                 if (tidx != d.param_types.last_elem()) {
@@ -69,9 +69,14 @@ std::string def_to_string(Context& ctx, DefId did) {
             if (d.return_type.has_value()) {
                 str += d.discardable ? "~> " : "-> ";
                 str += type_to_string(ctx, d.return_type.as_id());
-                str += " ";
             }
-            str += d.body.has_value() ? exec_to_string(ctx, d.body.as_id()) : ";";
+            if (d.body) {
+                str += ' ';
+                str += exec_to_string(ctx, d.body.as_id());
+
+            } else {
+                str += ';';
+            }
             return str;
         },
         [&ctx, did](const DefGenericFunction& d) -> std::string {
@@ -82,7 +87,7 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += "fn ";
             str += ctx.symbold_id_slice_to_string(ctx.canonical_name(did));
             str += gen_params_to_string(ctx, d.generic_params);
-            str += "(";
+            str += '(';
             for (auto i{0uz}; i < d.param_cnt; ++i) {
                 str += "...";
                 if (i != d.param_cnt - 1) {
@@ -96,19 +101,19 @@ std::string def_to_string(Context& ctx, DefId did) {
             std::string str;
             str += "fn ";
             str += ctx.symbol(ctx.def(did).name);
-            str += "(";
+            str += '(';
             for (const auto tidx : d.param_types) {
                 str += type_to_string(ctx, ctx.type_id(tidx));
                 if (tidx != d.param_types.end()) {
                     str += ", ";
                 }
             }
-            str += ")";
+            str += ')';
             if (d.return_type.has_value()) {
                 str += " -> ";
                 str += type_to_string(ctx, d.return_type.as_id());
             }
-            str += ";";
+            str += ';';
             return str;
         },
         [&ctx, did](const DefVariable& d) -> std::string {
@@ -117,20 +122,52 @@ std::string def_to_string(Context& ctx, DefId did) {
                 str += "compt ";
             }
             str += type_to_string(ctx, d.type_id);
-            str += " ";
+            str += ' ';
             str += ctx.symbol(ctx.def(did).name);
             if (d.compt_value) {
                 str += " = ";
                 str += "(compt ";
                 str += exec_to_string(ctx, d.compt_value.as_id());
-                str += ")";
+                str += ')';
             }
-            str += ";";
+            str += ';';
             return str;
         },
-        [&ctx](const DefStruct& d) -> std::string {
-            // todo
-            return {};
+        [&ctx, did](const DefStruct& d) -> std::string {
+            std::string str;
+            str += "struct ";
+            str += ctx.symbol(ctx.def(did).name);
+
+            const auto contracts = d.contracts;
+            if (contracts.len()) {
+                str += " has ";
+
+                for (const auto didx : contracts) {
+
+                    str += ctx.symbold_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
+
+                    if (didx != contracts.last_elem()) {
+                        str += " + ";
+                    }
+                }
+
+                str += " {\n";
+
+                const auto ordered_mems = d.ordered_members;
+
+                str += "--- ordered members ---\n";
+                for (const auto didx : ordered_mems) {
+                    str += def_to_string(ctx, ctx.def_id(didx));
+                    str += '\n';
+                }
+                str += "^^^ ordered members ^^^\n";
+
+                str += scope_to_string(ctx, d.scope);
+
+                str += "\n}\n";
+            }
+
+            return str;
         },
         [&ctx](const DefGenericStruct& d) -> std::string {
             // todo

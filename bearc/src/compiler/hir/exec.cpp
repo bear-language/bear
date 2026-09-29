@@ -1111,7 +1111,7 @@ std::string ExecConst::to_string() const {
     case builtin_type::nullpointer:
         return "null";
     case builtin_type::boolean:
-        return (as<bool>()) ? "true" : "false";
+        return as<bool>() ? "true" : "false";
     }
     std::unreachable();
     return "";
@@ -1148,7 +1148,7 @@ std::string ExecConst::to_string(const Context& ctx) const {
     case builtin_type::nullpointer:
         return "null";
     case builtin_type::boolean:
-        return (as<bool>()) ? "true" : "false";
+        return as<bool>() ? "true" : "false";
     }
     std::unreachable();
     return "";
@@ -1237,7 +1237,7 @@ template <typename T> EConst e_preun_plus(ExecConst e) {
 }
 
 template <typename T> EConst e_preun_minus(ExecConst e) {
-    return EConst{static_cast<T>(-(e.as<T>()))};
+    return EConst{static_cast<T>(-e.as<T>())};
 }
 
 template <typename T> EConst e_bit_not(ExecConst e) { return EConst{static_cast<T>(~e.as<T>())}; }
@@ -2039,7 +2039,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
                 str += '\n';
             }
 
-            str += "}";
+            str += '}';
             return str;
         },
         [](const ExecJump& t) -> std::string {
@@ -2063,17 +2063,17 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             std::string str{};
             str += "return";
             if (t.return_value.has_value()) {
-                str += " ";
+                str += ' ';
                 str += exec_to_string(ctx, t.return_value.as_id());
             }
-            str += ";";
+            str += ';';
             return str;
         },
         [&ctx](const ExecYield& t) -> std::string {
             std::string str{};
             str += "yield";
             if (t.yield_value.has_value()) {
-                str += " ";
+                str += ' ';
                 str += exec_to_string(ctx, t.yield_value.as_id());
             }
             return str;
@@ -2103,7 +2103,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             if (!t.anonymous) {
                 str += ctx.symbol_id_to_cstr(ctx.def(t.struct_def_id).name);
 
-                str += "{";
+                str += '{';
             } else {
                 str += '(';
             }
@@ -2111,6 +2111,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             for (auto i = 0u; i < t.member_inits.len(); ++i) {
                 const auto eidx = t.member_inits.get(i);
                 if (!t.anonymous) {
+                    str += '.';
                     str += ctx.symbol_id_to_cstr(
                         ctx.def(ctx.def(t.struct_def_id).as<DefStruct>().ordered_members.get(i))
                             .name);
@@ -2123,7 +2124,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             }
 
             if (!t.anonymous) {
-                str += "}";
+                str += '}';
             } else {
                 str += ')';
             }
@@ -2136,9 +2137,9 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         [&ctx](const ExecComptConstant& t) -> std::string { return t.to_string(ctx); },
         [&ctx](const ExecListLiteral& t) -> std::string {
             std::string str{};
-            str += "[";
+            str += '[';
             str += slice_of_execs_to_str(ctx, t.elems);
-            str += "]";
+            str += ']';
             return str;
         },
         [&ctx](const ExecAssignment& e) -> std::string {
@@ -2215,7 +2216,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 
             str += ctx.symbol_id_to_cstr(ctx.def(t.variant_field_def_id).name);
 
-            str += "(";
+            str += '(';
 
             for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
                 str += exec_to_string(ctx, ctx.exec_id(eidx));
@@ -2223,7 +2224,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
                     str += ", ";
                 }
             }
-            str += ")";
+            str += ')';
 
             return str;
         },

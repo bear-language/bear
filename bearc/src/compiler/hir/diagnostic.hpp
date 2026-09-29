@@ -235,6 +235,8 @@ enum class diag_code : uint8_t {
     empty_block_does_nothing,
     value_is_not_indexable,
     cannot_dereference_pointer_at_compile_time,
+    cannot_access_non_static_member_without_accessing_thru_an_instance,
+    is_not_a_variable,
 
     count, // this must be last,
 
