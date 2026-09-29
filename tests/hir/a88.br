@@ -1,0 +1,8 @@
+// tests/hir/a88.br
+
+contract Bar {}
+
+struct Foo has Default + Bar {
+    i32 a = 0;
+    fn default() -> Self => compt Self{}
+}
