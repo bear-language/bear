@@ -121,7 +121,8 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
     }
     const DefId did = maybe_did.as_id();
     const Def& def = context.def(def_visitor.visit_as_dependent(did));
-    if (def.holds<DefVariable>() && def.as<DefVariable>().compt_value.has_value() && def.compt) {
+
+    if (def.holds<DefVariable>()) {
 
         if (!def.statik && def.parent
             && context.def(def.parent.as_id()).holds_any_of<DefStruct, DefUnion>()) {
@@ -135,21 +136,34 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
             context.link_diagnostic(d0, d1);
             return {};
         }
-        if (!def.compt) {
-            auto d0 = context.emplace_diagnostic(
-                expr_span, diag_code::cannot_resolve_at_compt, diag_type::error,
-                DiagnosticSubCode{.sub_code = diag_code::is_not_a_compile_time_constant});
-            auto d1 = context.emplace_diagnostic_with_message_value(
-                def.span, diag_code::declared_here_without_compt, diag_type::note,
-                DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
-            context.link_diagnostic(d0, d1);
-            return {};
+
+        if (C == compt_or_runtime::compt) {
+
+            if (!def.compt) {
+                auto d0 = context.emplace_diagnostic(
+                    expr_span, diag_code::cannot_resolve_at_compt, diag_type::error,
+                    DiagnosticSubCode{.sub_code = diag_code::is_not_a_compile_time_constant});
+                auto d1 = context.emplace_diagnostic_with_message_value(
+                    def.span, diag_code::declared_here_without_compt, diag_type::note,
+                    DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
+                context.link_diagnostic(d0, d1);
+                return std::nullopt;
+            }
+
+            if (!def.as<DefVariable>().compt_value.has_value()) {
+                return {}; // poisoned
+            }
         }
 
-        // right thing, we good
-        // (make new exec w/ same val since we need to update the span loc!)
-        auto orig_exec = context.exec(def.as<DefVariable>().compt_value.as_id());
-        return context.emplace_exec(orig_exec.value, expr_span, true);
+        if (def.as<DefVariable>().compt_value.has_value()) {
+            // right thing, we good for anything that's compt/runtime eval + compt
+            // (make new exec w/ same val since we need to update the span loc!)
+            auto orig_exec = context.exec(def.as<DefVariable>().compt_value.as_id());
+            return context.emplace_compt_exec(orig_exec.value, expr_span);
+        }
+        // handle runtime
+        return context.emplace_exec(
+            ExecVariable{.def_id = did, .type_id = def.as<DefVariable>().type_id}, expr_span);
     }
     // we hit a def corresponding to a function, so a compt function pointer is quite
     // helpful here.
@@ -187,7 +201,6 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
     if constexpr (C == compt_or_runtime::compt) {
         auto d0 = context.emplace_diagnostic(
             expr_span, diag_code::is_not_a_variable, diag_type::error,
-            DiagnosticSymbolBeforeMessage{.sid = def.name},
             DiagnosticSubCode{.sub_code = diag_code::is_not_a_compile_time_constant});
         auto d1 = context.emplace_diagnostic_with_message_value(
             def.span, diag_code::declared_here, diag_type::note,

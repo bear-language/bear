@@ -225,9 +225,9 @@ br_test_result_t test_hir(void) {
     char* args43[] = {"bearc", "tests/hir/43.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args43, 2);
     char* args44[] = {"bearc", "tests/hir/44.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args44, 4);
+    ASSERT_EQ_ERR_FROM_ARGS(args44, 3);
     char* args45[] = {"bearc", "tests/hir/45.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args45, 11);
+    ASSERT_EQ_ERR_FROM_ARGS(args45, 10);
     char* args46[] = {"bearc", "tests/hir/46.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args46, 1);
     char* args47[] = {"bearc", "tests/hir/47.br"};
@@ -331,7 +331,7 @@ br_test_result_t test_hir(void) {
     char* args96[] = {"bearc", "tests/hir/96.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args96, 4);
     char* args97[] = {"bearc", "tests/hir/97.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args97, 7);
+    ASSERT_EQ_ERR_FROM_ARGS(args97, 6);
     char* args98[] = {"bearc", "tests/hir/98.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args98, 11);
     char* args99[] = {"bearc", "tests/hir/99.br"};
@@ -339,7 +339,7 @@ br_test_result_t test_hir(void) {
     char* args_a00[] = {"bearc", "tests/hir/a00.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a00, 5);
     char* args_a01[] = {"bearc", "tests/hir/a01.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args_a01, 34);
+    ASSERT_EQ_ERR_FROM_ARGS(args_a01, 28);
     char* args_a02[] = {"bearc", "tests/hir/a02.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a02, 15);
     char* args_a03[] = {"bearc", "tests/hir/a03.br"};
@@ -438,7 +438,7 @@ br_test_result_t test_hir(void) {
     // this test is kinda dodgy and only exists because it accidently  found a spanning issue with
     // function call diagnostics (hir/a64):
     char* args_a64[] = {"bearc", "tests/hir/a64.br", "-I", "tests/lib"};
-    ASSERT_EQ_ERR_FROM_ARGS(args_a64, 23);
+    ASSERT_EQ_ERR_FROM_ARGS(args_a64, 21);
     char* args_a65[] = {"bearc", "tests/hir/a65.br", "-I", "tests/lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a65, 3);
     ASSERT_EQ_ERR("hir/a66", 12);
