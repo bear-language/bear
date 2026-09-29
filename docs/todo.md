@@ -1,7 +1,7 @@
 ### todos
 
 #### priority 
-- [ ] finish `def_to_str`
+- [ ] finish `def_to_str` for hir debugging
 - [ ] revamp `ComptExprSolver::handle_struct_init`
     - [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps
     - [ ] fix diagnostic chaining issues
@@ -19,6 +19,9 @@
         - [ ] use deduction guides for functions/(variants/structs?)
         - [ ] make sure assignment type checking is properly rigid around mutable types (especially references).
             - [ ] this is already impl'd: see `Context::assignable_from_type_to_type`, but a version of this basic on inferable types (with `var` inference) is needed for variable decls
+    - [ ] drop flags, tracked by block/lexical scope (only emit when a variable is conditionally dropped)
+    - [ ] static variable guard variables (thread safe, ideally or eventually)
+        - only needed if LHS is not knowable at compt (in which case it can be an LLVM global w/ a constant initializer)
     
 - [ ] note: (impl. detail) the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
     - [ ] ensure these work:
