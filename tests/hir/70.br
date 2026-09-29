@@ -5,7 +5,7 @@ contract ToComptStr {
 
 struct IntWrapper has ToComptStr {
     i64 val = 0;
-    mt get() -> typeof val => val
+    mt get() -> typeof val => self.val
     mt mut set(typeof(val) set_to) => self.val = set_to
 
     fn new(i64 val) -> Self => IntWrapper{.val = val}

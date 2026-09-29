@@ -6,7 +6,7 @@ struct List<T1, T2, T3, T4, T5> {
     T3 c;
     T4 d;
     T5 e;
-    compt fn foo() -> dne => dne // oops
+    compt fn foo() -> dne => dne // oops, todo this gets re-emitted a bit annoyingly
 }
 
 var _0 = @static_assert @same_type(List<u8, u8, u8, u8, u32>, List<u8, u8, u8, u8, u32>);

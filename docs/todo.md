@@ -1,6 +1,10 @@
 ### todos
 
 #### priority 
+- [ ] fix current broken tests 
+    - [ ] wrap `context.emplace_diagnostic` / `context.emplace_diagnostic_with_message_value` in ComptExprSolver
+    - [ ] make it so non-`compt` functions evaluated at compt have their bodies evaluated in a disabled diagnostic mode because their bodies get lowered later as runtime funcs, should fix (most) broken tests
+
 - [ ] finish `def_to_str` for hir debugging
 - [ ] revamp `ComptExprSolver::handle_struct_init`
     - [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps

@@ -8,6 +8,7 @@
 // Licensed under the Apache License 2.0. See LICENSE for details.
 
 #include "compiler/hir/run_time_solver.hpp"
+#include "compiler/ast/expr.h"
 #include "compiler/ast/stmt.h"
 #include "compiler/hir/compt_expr_solver.hpp"
 #include "compiler/hir/def.hpp"
@@ -79,7 +80,11 @@ namespace hir {
         maybe_eid = handle_literal(fid, expr, into_tid); // tries conversion if possible internally
         break;
     case AST_EXPR_ID:
+        maybe_eid = handle_any_id(fid, lctx, expr);
+        break;
     case AST_EXPR_GENERIC_ID:
+        maybe_eid = handle_any_generic_id(fid, lctx, expr);
+        break;
     case AST_EXPR_LIST_LITERAL:
     case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
@@ -649,7 +654,9 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_LITERAL:
         return handle_literal(fid, expr);
     case AST_EXPR_ID:
+        return handle_any_id(fid, lctx, expr);
     case AST_EXPR_GENERIC_ID:
+        return handle_any_generic_id(fid, lctx, expr);
     case AST_EXPR_LIST_LITERAL:
     case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
@@ -676,6 +683,27 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         break;
     }
     return {};
+}
+
+OptId<ExecId> RuntimeSolver::handle_any_id(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_ID);
+    return handle_any_id_impl<compt_or_runtime::runtime>(context, def_visitor, fid, lctx.scope,
+                                                         expr->expr.id.slice, {});
+}
+
+OptId<ExecId> RuntimeSolver::handle_any_generic_id(FileId fid, LexicalCtx lctx,
+                                                   const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_GENERIC_ID);
+
+    ComptExprSolver solver{def_visitor};
+    const auto maybe_gen_args
+        = solver.lower_generic_args(fid, lctx.scope, expr->expr.generic_id.args);
+    if (maybe_gen_args.empty()) {
+        return {};
+    }
+
+    return handle_any_id_impl<compt_or_runtime::runtime>(
+        context, def_visitor, fid, lctx.scope, expr->expr.generic_id.slice, maybe_gen_args.as_id());
 }
 
 OptId<ExecId> RuntimeSolver::handle_literal(FileId fid, const ast_expr_t* expr) {

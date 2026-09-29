@@ -107,6 +107,9 @@ class RuntimeSolver {
     OptId<ExecId> handle_use(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_any_id(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_any_generic_id(FileId fid, LexicalCtx lctx,
+                                                      const ast_expr_t* expr);
     OptId<ExecId> handle_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                const ast_stmt_t* stmt, uint8_t align = 0);
     OptId<ExecId> handle_static(FileId fid, LexicalCtx lctx, InProgressBlock& block,

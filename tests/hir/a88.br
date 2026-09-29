@@ -3,6 +3,30 @@
 contract Bar {}
 
 struct Foo has Default + Bar {
-    i32 a = 0;
+    i32 a = DEFAULT_A;
+    
+    compt i32 DEFAULT_A = 0;
+
     fn default() -> Self => compt Self{}
+    fn oops() -> typeof a => a // oops
+    fn foo() -> i32 => DEFAULT_A 
+    fn new(i32 a) -> Self => Self{.a = a}
 }
+
+struct Baz<T has Default> {
+    T a = compt T..default();
+
+    mt get() -> T => self.a;
+    fn new(T a) -> Self => Self{.a = a}
+    fn make_4() -> [4]Self => [new(Foo..new(0)), new(Foo..new(1)), new(Foo..new(2)), new(Foo..new(3))]
+}
+
+var _0 = @static_assert(Baz::<Foo>{} == Baz::<Foo>{.a = Foo..new(0)});
+
+deftype B = Baz::Foo;
+
+var _1 = @static_assert(B..new(Foo..new(0)) == Baz::<Foo>{.a = {}});
+
+var _2 = @static_assert(B..new(Foo..new(0)) == B..make_4[0]); // oops (forgot to call)
+
+var _3 = @static_assert(B..new(Foo..new(0)) == B..make_4()[0]);

@@ -3992,7 +3992,7 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             if (maybe_tid.empty()) {
                 return {};
             }
-            // fine since maybe_tid should be a ptr type which has an inner
+            // fine since maybe_tid should be a ref/ptr type which has an inner
             return type(maybe_tid.as_id()).try_inner();
         },
         // these are ctrl and do not yield values

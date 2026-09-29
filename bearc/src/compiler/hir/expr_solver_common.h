@@ -162,8 +162,14 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
             return context.emplace_compt_exec(orig_exec.value, expr_span);
         }
         // handle runtime
-        return context.emplace_exec(
-            ExecVariable{.def_id = did, .type_id = def.as<DefVariable>().type_id}, expr_span);
+        const auto tid = def.as<DefVariable>().type_id;
+        const auto variable_exec
+            = context.emplace_exec(ExecVariable{.def_id = did, .type_id = tid}, expr_span);
+        // try auto-dereference
+        if (context.type(tid).holds<TypeRef>()) {
+            return context.emplace_exec(ExecDeref{.dereferenced = variable_exec}, expr_span);
+        }
+        return variable_exec;
     }
     // we hit a def corresponding to a function, so a compt function pointer is quite
     // helpful here.
