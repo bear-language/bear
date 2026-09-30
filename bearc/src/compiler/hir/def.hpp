@@ -227,26 +227,26 @@ struct Def : NodeWithVariantValue<Def> {
     /// underlying structure
     DefValue value;
     /// span in src
-    const Span span;
+    Span span;
     /// id corresponding to the interned identifier
-    const SymbolId name;
+    SymbolId name;
     /// parent's definition, if any
     OptId<DefId> parent;
     static constexpr HirSize UNORDERED = HIR_SIZE_MAX;
     /// indicates member's order in a struct, equals NOT_ORDERED if unordered
     HirSize member_idx = UNORDERED;
     /// indicates pub (true) or hid (false) visibility
-    const bool pub = false;
+    bool pub = false;
     /// indicates compt (compile-time)
     bool compt = false;
     /// indicates static (storage duration)
-    const bool statik = false;
+    bool statik = false;
     /// indicates generic
     bool generic = false;
     /// indicates alignment preference, 0 = default alignment
-    const uint8_t alignment_preference = 0;
+    uint8_t alignment_preference = 0;
     /// indicates ABI
-    const abi_lang abi = abi_lang::bear;
+    abi_lang abi = abi_lang::bear;
     /// indicates if this def is top level
     bool top_level{false};
 

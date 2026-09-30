@@ -534,7 +534,7 @@ struct Exec : NodeWithVariantValue<Exec> {
     using id_type = ExecId;
     using value_type = ExecValue;
     ExecValue value;
-    const Span span;
+    Span span;
     bool compt;
     Exec(Context& ctx, ExecValue value, Span span, bool should_be_compt);
     static bool is_equivalent(const Context& ctx, ExecId eid1, ExecId eid2);
