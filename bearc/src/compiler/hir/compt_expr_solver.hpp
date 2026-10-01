@@ -151,7 +151,7 @@ class ComptExprSolver {
                                                      ExecConst lhs_val, binary_op op,
                                                      ExecConst rhs_val);
 
-    static void guard_try_converge_types(ExecConst& lhs_val, binary_op op, ExecConst& rhs_val);
+    void guard_try_converge_types(ExecConst& lhs_val, binary_op op, ExecConst& rhs_val);
 
     [[nodiscard]] OptId<ExecId> handle_binary_scalar(const Exec& lhs, binary_op op,
                                                      const Exec& rhs);

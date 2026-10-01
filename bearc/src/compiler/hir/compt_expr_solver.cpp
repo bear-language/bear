@@ -643,7 +643,8 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
             return emplace_e(maybe_value.value());
         }
 
-        auto maybe_converted = maybe_value.value().try_safe_convert_to(into_builtin.value());
+        auto maybe_converted
+            = maybe_value.value().try_safe_convert_to(context, into_builtin.value());
 
         if (!maybe_converted.has_value()) {
             auto from_builtin = maybe_value.value().type_builtin();
@@ -1337,8 +1338,9 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
 
     // allow string casts by converting to symbol id
     std::optional<ExecConst> maybe_converted
-        = (into_builtin == builtin_type::str) ? ExecConst{from_constant.to_symbol_id(context)}
-                                              : from_constant.try_safe_convert_to(into_builtin);
+        = (into_builtin == builtin_type::str)
+              ? ExecConst{from_constant.to_symbol_id(context)}
+              : from_constant.try_safe_convert_to(context, into_builtin);
     if (!maybe_converted.has_value()) {
         context.emplace_diagnostic_with_message_value(
             exec.span, diag_code::cannot_convert_expression_to_type, diag_type::error,
@@ -1486,10 +1488,10 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
         const bool use_rhs_type = rhs_val.has_binary_op(op);
         // prefer lhs
         if (use_lhs_type) {
-            auto maybe_converted_rhs = rhs_val.try_safe_convert_to(lhs_val.type_builtin());
+            auto maybe_converted_rhs = rhs_val.try_safe_convert_to(context, lhs_val.type_builtin());
             rhs_val = maybe_converted_rhs.has_value() ? maybe_converted_rhs.value() : rhs_val;
         } else if (use_rhs_type) {
-            auto maybe_converted_lhs = lhs_val.try_safe_convert_to(rhs_val.type_builtin());
+            auto maybe_converted_lhs = lhs_val.try_safe_convert_to(context, rhs_val.type_builtin());
             lhs_val = maybe_converted_lhs.has_value() ? maybe_converted_lhs.value() : lhs_val;
         }
     }
@@ -1733,8 +1735,8 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
 
     // converge types to BOOL, if possible
 
-    auto maybe_converted_lhs = lhs_val.try_safe_convert_to(builtin_type::boolean);
-    auto maybe_converted_rhs = rhs_val.try_safe_convert_to(builtin_type::boolean);
+    auto maybe_converted_lhs = lhs_val.try_safe_convert_to(context, builtin_type::boolean);
+    auto maybe_converted_rhs = rhs_val.try_safe_convert_to(context, builtin_type::boolean);
 
     auto do_no_bool = [this](const Exec& exec) {
         context.emplace_diagnostic_with_message_value(
@@ -2629,7 +2631,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             const Exec& lhs_exec = context.exec(lhs.as_id());
             if (lhs_exec.holds<ExecConst>()) {
                 const std::optional<ExecConst> econst
-                    = lhs_exec.as<ExecConst>().try_safe_convert_to(builtin_type::boolean);
+                    = lhs_exec.as<ExecConst>().try_safe_convert_to(context, builtin_type::boolean);
                 if (econst.has_value()) {
                     const bool bval = econst.value().as<bool>();
                     // false && ____ => always false
@@ -3813,7 +3815,8 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
 
         DefId struct_did = ty.as<TypeStruct>().def_id;
 
-        const IdSlice<DefId> ordered_members = context.ordered_defs_for(struct_did);
+        const IdSlice<DefId> ordered_members
+            = context.def(struct_did).as<DefStruct>().ordered_members;
 
         for (auto didx = ordered_members.begin(); didx != ordered_members.end(); ++didx) {
             DefId did = context.def_id(didx);

@@ -21,12 +21,12 @@
 #include <utility>
 namespace hir {
 
-std::optional<ExecConst> ExecConst::try_safe_convert_to(builtin_type type) const {
-    auto maybe_up = try_up_convert_to(type);
+std::optional<ExecConst> ExecConst::try_safe_convert_to(Context& ctx, builtin_type type) const {
+    auto maybe_up = try_up_convert_to(ctx, type);
     return maybe_up.has_value() ? maybe_up : try_down_convert_to(type);
 }
 
-std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
+std::optional<ExecConst> ExecConst::try_up_convert_to(Context& ctx, builtin_type type) const {
     using OptConst = std::optional<ExecConst>;
     auto to_optconst
         = +[](ConstantValue constval) -> OptConst { return OptConst{ExecConst{constval}}; };
@@ -342,8 +342,9 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(builtin_type type) const {
             return to_optconst(ConstantValue{static_cast<float>(val)});
         case builtin_type::f64:
             return to_optconst(ConstantValue{static_cast<double>(val)});
-        case builtin_type::voidd:
         case builtin_type::str:
+            return ExecConst{ctx.symbol_id(std::string{val})}; // fine cuz sso
+        case builtin_type::voidd:
         case builtin_type::nullpointer:
             return none();
         case builtin_type::boolean:

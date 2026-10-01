@@ -1,0 +1,27 @@
+// tests/hir/a89.br
+
+import "compt_str.br";
+
+// @COOL
+
+compt var a = (1, 2, "three", ["f", "o", "u", "r"]);
+
+var _0 = @note to_compt_str(a);
+
+var _1 = @note format_str("Bobby got a % %% on his assignment.", (100,));
+
+var _2 = @note format_str("%", (1,));
+
+var _3 = @note format_str("%", (1));
+
+var _4 = @note format_str("%, %, %", (1, 2, 3));
+
+var _5 = @note format_str("%, %, %, %", (1, 2, 3));
+
+var _6 = @note format_str("%, %", (1, 2, 3));
+
+var _7 = @static_assert(format_str("%%%%%", (1,)) == "%%1");
+
+var _8 = @static_assert(format_str("12 - % = %", (12,24)) == "12 - 12 = 24");
+
+var _9 = @static_assert(format_str("12 - % = %", (12,24)) == "12 - 12 = 24");

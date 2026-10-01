@@ -1,17 +1,37 @@
 // tests/lib/compt_str.br
 
+import "size.br";
+
+// @COOL
+
 contract ToComptStr {
     compt mt to_compt_str() -> str;
 }
 
+
 compt fn to_compt_str<T>(T item) -> str => {
-    item.to_compt_str() if @has_contract(decay T, ToComptStr)
+    item.__compt_str..to_compt_str() if @has_contract(decay T, ToComptStr)
         else item if @same_type(T, str)
         else list_to_str(item) if @defined(item.len)
+        else tuple_to_str(item) if @members_of(T).len > 0 
         else item as str
 }
 
-compt fn list_to_str(var list) -> str => ("[" + list_helper(list, 0) + "]")
+compt fn format_str<T>(str fmt, T tup) -> str => (
+    "(format_str failed)"
+        if @err(@members_of(T).len == 0, "second argument of type `" + @type_to_str(T) + "` aka `" + @type_to_str(decay T) + "` is not valid since it has no members") else
+    "(format_str failed)"
+        if @err(__compt_str..count_specifiers(fmt, 0, 0) != @members_of(T).len,
+            "format string has " + __compt_str..plural(__compt_str..count_specifiers(fmt, 0, 0), "specifier")
+            + " but " + __compt_str..plural(@members_of(T).len, "argument") + " were given") else
+    __compt_str..parse_fmt_str(fmt, tup, 0, 0)
+)
+
+compt fn list_to_str(var list) -> str => ("[" + __compt_str..list_helper(list, 0) + "]")
+
+compt fn tuple_to_str<T>(T tup) -> str => "(" + __compt_str..tuple_to_str_helper(tup, 0, @members_of(typeof tup).len) + ")"
+
+mod __compt_str {
 
 compt fn list_helper(var list, var i) -> str => {
     "" if i == list.len 
@@ -20,3 +40,53 @@ compt fn list_helper(var list, var i) -> str => {
 
 compt fn maybe_comma(var len, var i) => "" if (i >= len - 1) else ", "
 
+compt fn tuple_to_str_helper<T>(T tup, usize i, usize len) -> str => (
+    "" if i == len
+        else to_compt_str(tup.(i)) + maybe_comma(len, i) + tuple_to_str_helper(tup, i + 1, len)
+)
+
+compt fn parse_fmt_str<T>(str fmt, T tup, usize i, usize tup_i) -> str => (
+    parse_fmt_str_helper(fmt, tup, i, tup_i)
+)
+
+compt fn parse_fmt_str_helper<T>(str fmt, T tup, usize i, usize tup_i) -> str => (
+    "" if (i == fmt.len) else
+    collect_chars_until_fmt(fmt, i, "").0 + parse_fmt_str_helper(
+        fmt,
+        tup,
+        collect_chars_until_fmt(fmt, i, "").1,
+        tup_i
+    ) if (fmt[i] != '%' || fmt.escaped_percent_sign_at(i)) else
+    collect_fmt(tup, tup_i, "") + parse_fmt_str_helper(fmt, tup, i + 1, tup_i + 1)
+)
+
+compt fn non_escaped_percent_sign_at(str fmt, usize i) -> bool => (
+    fmt[i] == '%' && i + 1 < fmt.len && fmt[i + 1] != '%'
+)
+
+compt fn escaped_percent_sign_at(str fmt, usize i) -> bool => (
+    fmt[i] == '%' && i + 1 < fmt.len && fmt[i + 1] == '%'
+)
+
+compt fn collect_chars_until_fmt(str fmt, usize i, str in_prog) -> struct(str, usize) => (
+    (in_prog + fmt[i], i + 1) if fmt[i] != '%' else 
+    (in_prog + '%', i + 2) if fmt.escaped_percent_sign_at(i) else 
+    (in_prog, i) // base
+) 
+
+compt fn collect_fmt<T>(T tup, usize tup_i, str in_prog) -> str => (
+    in_prog + to_compt_str(tup.(tup_i))
+) 
+
+compt fn count_specifiers(str fmt, usize i, usize count) -> usize => (
+    count if i >= fmt.len else
+    count_specifiers(fmt, i + 2, count) if fmt.escaped_percent_sign_at(i) else
+    count_specifiers(fmt, i + 1, count + 1) if fmt[i] == '%' else
+    count_specifiers(fmt, i + 1, count)
+)
+
+compt fn plural(usize n, str word) -> str => (
+    to_compt_str(n) + " " + word + ("" if n == 1 else "s")
+)
+
+}

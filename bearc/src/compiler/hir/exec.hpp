@@ -375,11 +375,13 @@ struct ExecComptConstant : NodeWithVariantValue<ExecComptConstant> {
     SymbolId to_symbol_id(Context& ctx) const;
 
     // returns none if conversion fails, diagnostics must be reported outside of this method
-    [[nodiscard]] std::optional<ExecComptConstant> try_safe_convert_to(builtin_type type) const;
+    [[nodiscard]] std::optional<ExecComptConstant> try_safe_convert_to(Context& ctx,
+                                                                       builtin_type type) const;
 
     ExecComptConstant(ConstantValue constval) : value{constval} {}
 
-    [[nodiscard]] std::optional<ExecComptConstant> try_up_convert_to(builtin_type type) const;
+    [[nodiscard]] std::optional<ExecComptConstant> try_up_convert_to(Context& ctx,
+                                                                     builtin_type type) const;
     [[nodiscard]] std::optional<ExecComptConstant> try_down_convert_to(builtin_type type) const;
 
     [[nodiscard]] bool has_binary_op(binary_op op) const;

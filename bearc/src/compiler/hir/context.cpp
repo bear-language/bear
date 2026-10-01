@@ -3848,7 +3848,7 @@ OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {
     if (!ty.holds<TypeBuiltin>()) {
         return {};
     }
-    auto conv = ex.as<ExecConst>().try_safe_convert_to(ty.as<TypeBuiltin>().type);
+    auto conv = ex.as<ExecConst>().try_safe_convert_to(*this, ty.as<TypeBuiltin>().type);
     if (!conv.has_value()) {
         return {};
     }
