@@ -1,10 +1,6 @@
 ### todos
 
 #### priority 
-- [ ] fix current broken tests 
-    - [ ] wrap `context.emplace_diagnostic` / `context.emplace_diagnostic_with_message_value` in ComptExprSolver
-    - [ ] make it so non-`compt` functions evaluated at compt have their bodies evaluated in a disabled diagnostic mode because their bodies get lowered later as runtime funcs, should fix (most) broken tests
-
 - [ ] finish `def_to_str` for hir debugging
 - [ ] revamp `ComptExprSolver::handle_struct_init`
     - [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps
@@ -66,6 +62,10 @@
 - [ ] reflection improvements
         - [ ] implement use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members (relatively easy but tedious on some special-casing inside the compile-time solver)
 
+- [ ] reduce redundant diagnostics (particularly revolving around compt eval)
+    - [ ] wrap `context.emplace_diagnostic` / `context.emplace_diagnostic_with_message_value` in ComptExprSolver
+    - [ ] make it so non-`compt` functions evaluated at compt have their bodies evaluated in a disabled diagnostic mode because their bodies get lowered later as runtime funcs, should fix (most) broken tests
+
 
 #### queries
 - [ ] better Span queries: index Span -> Exec and Span -> Type when `ctx.register_spans` is set
@@ -101,6 +101,7 @@
     delete the stale context and replace it with the new context 
     # note make sure dtor of files inside context properly handle being moved (no double frees, etc.)
 ```
+
 #### long term (compiler)
 - [ ] LLVM IR
 - [ ] automatic extern functions and struct definition exports for static libraries
@@ -114,8 +115,9 @@
     - parser implemented with tree-sitter for complex syntax highlighing 
 
 - [ ] VSCode
+    - [x] highlighing, lsp hooks 
     - [ ] basic cave/bearc integration (run button)
-    - [ ] eventually include builts of bearls / prompt download
+    - [ ] eventually include builds of bearls / prompt download
 
 - [ ] Verify/implement debugger compatibility 
 
