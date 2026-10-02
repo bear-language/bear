@@ -905,7 +905,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         auto id_slice = expr->expr.struct_init.id;
         OptId<DefId> maybe_struct_did{};
         if (id_slice.len == 0) {
-            if (into_tid.empty() || TypeTransformer<TypeContainsVar>{context}(into_tid.as_id())) {
+            if (into_tid.empty() || context.type(into_tid.as_id()).holds<TypeVar>()) {
                 auto d0 = context.emplace_diagnostic(
                     expr_span, diag_code::cannot_infer_type_for_initializer, diag_type::error);
                 auto d1 = context.emplace_diagnostic(
