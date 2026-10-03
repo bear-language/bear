@@ -13,7 +13,6 @@
 
 namespace hir {
 
-static std::string def_id_str(DefId did) { return "Def#" + std::to_string(did.raw()); }
 static std::string scope_id_str(ScopeId sid) { return "Scope#" + std::to_string(sid.raw()); }
 
 std::string scope_to_string(Context& ctx, ScopeId scope) {
@@ -177,7 +176,7 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += ';';
             return str;
         },
-        [&ctx, did](const DefVariant& d) -> std::string {
+        [&ctx, did](const DefVariant&) -> std::string {
             std::string str;
             str += "variant ";
             str += ctx.symbol(ctx.def(did).name);
@@ -192,13 +191,13 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += ';';
             return str;
         },
-        [&ctx, did](const DefVariantField& d) -> std::string {
+        [&ctx, did](const DefVariantField&) -> std::string {
             std::string str;
             str += ctx.symbol(ctx.def(did).name);
             str += "()";
             return {};
         },
-        [&ctx, did](const DefUnion& d) -> std::string {
+        [&ctx, did](const DefUnion&) -> std::string {
             std::string str;
             str += "union ";
             str += ctx.symbol(ctx.def(did).name);
@@ -213,7 +212,7 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += ';';
             return str;
         },
-        [&ctx, did](const DefContract& d) -> std::string {
+        [&ctx, did](const DefContract&) -> std::string {
             std::string str;
             str += "contract ";
             str += ctx.symbol(ctx.def(did).name);
@@ -228,9 +227,9 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += ';';
             return str;
         },
-        [&ctx](const DefScopeWrapper& d) -> std::string { return "(scope wrapper)"; },
-        [&ctx](const DefUnevaluated& d) -> std::string { return "(unevaluated)"; },
-        [&ctx](const DefMalformed& d) -> std::string { return "(malformed)"; },
+        [](const DefScopeWrapper&) -> std::string { return "(scope wrapper)"; },
+        [](const DefUnevaluated&) -> std::string { return "(unevaluated)"; },
+        [](const DefMalformed&) -> std::string { return "(malformed)"; },
     };
     return ctx.def(did).visit(vs);
 }
