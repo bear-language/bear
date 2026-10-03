@@ -169,50 +169,68 @@ std::string def_to_string(Context& ctx, DefId did) {
 
             return str;
         },
-        [&ctx](const DefGenericStruct& d) -> std::string {
-            // todo
+        [&ctx, did](const DefGenericStruct& d) -> std::string {
+            std::string str;
+            str += "struct ";
+            str += ctx.symbol(ctx.def(did).name);
+            str += gen_params_to_string(ctx, d.generic_params);
+            str += ';';
+            return str;
+        },
+        [&ctx, did](const DefVariant& d) -> std::string {
+            std::string str;
+            str += "variant ";
+            str += ctx.symbol(ctx.def(did).name);
+            str += ';';
+            return str;
+        },
+        [&ctx, did](const DefGenericVariant& d) -> std::string {
+            std::string str;
+            str += "variant ";
+            str += ctx.symbol(ctx.def(did).name);
+            str += gen_params_to_string(ctx, d.generic_params);
+            str += ';';
+            return str;
+        },
+        [&ctx, did](const DefVariantField& d) -> std::string {
+            std::string str;
+            str += ctx.symbol(ctx.def(did).name);
+            str += "()";
             return {};
         },
-        [&ctx](const DefVariant& d) -> std::string {
-            // todo
-            return {};
+        [&ctx, did](const DefUnion& d) -> std::string {
+            std::string str;
+            str += "union ";
+            str += ctx.symbol(ctx.def(did).name);
+            str += ';';
+            return str;
         },
-        [&ctx](const DefGenericVariant& d) -> std::string {
-            // todo
-            return {};
+        [&ctx, did](const DefGenericContract& d) -> std::string {
+            std::string str;
+            str += "contract ";
+            str += ctx.symbol(ctx.def(did).name);
+            str += gen_params_to_string(ctx, d.generic_params);
+            str += ';';
+            return str;
         },
-        [&ctx](const DefVariantField& d) -> std::string {
-            // todo
-            return {};
+        [&ctx, did](const DefContract& d) -> std::string {
+            std::string str;
+            str += "contract ";
+            str += ctx.symbol(ctx.def(did).name);
+            str += ';';
+            return str;
         },
-        [&ctx](const DefUnion& d) -> std::string {
-            // todo
-            return {};
+        [&ctx, did](const DefDeftype& d) -> std::string {
+            std::string str{"deftype "};
+            str += ctx.symbol(ctx.def(did).name);
+            str += ' ';
+            str += type_to_string_with_akas(ctx, d.type);
+            str += ';';
+            return str;
         },
-        [&ctx](const DefGenericContract& d) -> std::string {
-            // todo
-            return {};
-        },
-        [&ctx](const DefContract& d) -> std::string {
-            // todo
-            return {};
-        },
-        [&ctx](const DefDeftype& d) -> std::string {
-            // todo
-            return {};
-        },
-        [&ctx](const DefScopeWrapper& d) -> std::string {
-            // todo
-            return {};
-        },
-        [&ctx](const DefUnevaluated& d) -> std::string {
-            // todo
-            return {};
-        },
-        [&ctx](const DefMalformed& d) -> std::string {
-            // todo
-            return {};
-        },
+        [&ctx](const DefScopeWrapper& d) -> std::string { return "(scope wrapper)"; },
+        [&ctx](const DefUnevaluated& d) -> std::string { return "(unevaluated)"; },
+        [&ctx](const DefMalformed& d) -> std::string { return "(malformed)"; },
     };
     return ctx.def(did).visit(vs);
 }
