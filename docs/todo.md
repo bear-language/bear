@@ -1,7 +1,6 @@
 ### todos
 
 #### priority 
-- [ ] finish `def_to_str` for hir debugging
 - [ ] revamp `ComptExprSolver::handle_struct_init`
     - [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps
     - [ ] fix diagnostic chaining issues
