@@ -13,7 +13,7 @@ var _0 = a.a;
 
 var _1 = a.b;
 
-compt Foo b = {.d = 1, .c = 2}; // oops (wrong order)
+compt Foo b = {.d = 1, .c = 2}; 
 
 compt Foo c = {.c = 1, .d = 2};
 

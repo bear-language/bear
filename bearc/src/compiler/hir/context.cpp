@@ -1912,50 +1912,55 @@ OptId<DefId> Context::look_up_scoped_namespace_bypassing_visibility(ScopeId scop
     return idx;
 }
 
-OptId<DefId> Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_id,
-                                                      Span id_span, ScopeId local_scope) {
+OptId<DefId>
+Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_id, Span id_span,
+                                         ScopeId local_scope,
+                                         std::optional<std::reference_wrapper<DiagLinker>> dl) {
     assert(struct_def.holds<DefStruct>());
+
+    DiagLinker loc_dl{*this};
+
+    if (!dl) {
+        dl.emplace(std::ref(loc_dl));
+    }
+
     auto maybe_def
         = Scope::look_up_local_variable(*this, struct_def.as<DefStruct>().scope, symbol_id);
     if (maybe_def.empty()) {
-        auto d0 = emplace_diagnostic_with_message_value(
+        dl->get().link(emplace_diagnostic_with_message_value(
             id_span, diag_code::id_does_not_name_a_member_variable_of, diag_type::error,
-            DiagnosticSymbolAfterMessage{.sid = struct_def.name});
-        auto d1 = emplace_diagnostic_with_message_value(
+            DiagnosticSymbolAfterMessage{.sid = struct_def.name}));
+        dl->get().link(emplace_diagnostic_with_message_value(
             struct_def.span, diag_code::declared_here, diag_type::note,
-            DiagnosticSymbolBeforeMessage{.sid = struct_def.name});
-        link_diagnostic(d0, d1);
-        return std::nullopt;
+            DiagnosticSymbolBeforeMessage{.sid = struct_def.name}));
+        return {};
     }
     const Def& def = this->def(maybe_def.as_id());
     if (!def.holds<DefVariable>()) {
-        auto d0 = emplace_diagnostic_with_message_value(
+        dl->get().link(emplace_diagnostic_with_message_value(
             id_span, diag_code::id_does_not_name_a_member_variable_of, diag_type::error,
-            DiagnosticSymbolAfterMessage{.sid = struct_def.name});
-        auto d1 = emplace_diagnostic_with_message_value(
+            DiagnosticSymbolAfterMessage{.sid = struct_def.name}));
+        dl->get().link(emplace_diagnostic_with_message_value(
             def.span, diag_code::declared_here, diag_type::note,
-            DiagnosticSymbolBeforeMessage{.sid = def.name});
-        link_diagnostic(d0, d1);
+            DiagnosticSymbolBeforeMessage{.sid = def.name}));
         return std::nullopt;
     }
     if (!def.is_ordered()) {
-        auto d0 = emplace_diagnostic_with_message_value(
+        dl->get().link(emplace_diagnostic_with_message_value(
             id_span, diag_code::id_names_a_non_mem_thru_dot_for, diag_type::error,
-            DiagnosticSymbolAfterMessage{.sid = struct_def.name});
-        auto d1 = emplace_diagnostic_with_message_value(
+            DiagnosticSymbolAfterMessage{.sid = struct_def.name}));
+        dl->get().link(emplace_diagnostic_with_message_value(
             def.span, diag_code::declared_here, diag_type::note,
-            DiagnosticSymbolBeforeMessage{.sid = def.name});
-        link_diagnostic(d0, d1);
+            DiagnosticSymbolBeforeMessage{.sid = def.name}));
         return std::nullopt;
     }
     if (!def.pub && !scope_has_parent(local_scope, struct_def.as<DefStruct>().scope)) {
-        auto d0 = emplace_diagnostic_with_message_value(
+        dl->get().link(emplace_diagnostic_with_message_value(
             id_span, diag_code::is_declared_hid, diag_type::error,
-            DiagnosticSymbolBeforeMessage{.sid = symbol_id});
-        auto d1 = emplace_diagnostic_with_message_value(
+            DiagnosticSymbolBeforeMessage{.sid = symbol_id}));
+        dl->get().link(emplace_diagnostic_with_message_value(
             def.span, diag_code::declared_here, diag_type::note,
-            DiagnosticSymbolBeforeMessage{.sid = symbol_id});
-        link_diagnostic(d0, d1);
+            DiagnosticSymbolBeforeMessage{.sid = symbol_id}));
     }
     return maybe_def;
 }

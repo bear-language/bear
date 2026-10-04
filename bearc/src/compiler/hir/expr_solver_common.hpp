@@ -424,7 +424,7 @@ template <IsExprSolver Solver>
         const SymbolId mem_sid = context.symbol_id(mem_init.id);
         Span id_span{context, fid, mem_init.id};
         const OptId<DefId> maybe_mem_did = context.look_up_member_var_guarding_hid(
-            context.def(struct_did), mem_sid, id_span, scope);
+            context.def(struct_did), mem_sid, id_span, scope, dl);
         if (maybe_mem_did.empty()) {
             continue;
         }

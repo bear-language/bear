@@ -33,6 +33,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <shared_mutex>
 #include <span>
 #include <string_view>
@@ -372,9 +373,10 @@ class Context {
     /// simply looks up a local variable inside some scope and issues a diagnostic if necessary
     /// struct_def must correspond to a Def with value of DefStruct
     /// only returns a DefId if it is a variable definition
-    [[nodiscard]] OptId<DefId> look_up_member_var_guarding_hid(const Def& struct_def,
-                                                               SymbolId symbol_id, Span id_span,
-                                                               ScopeId local_scope);
+    [[nodiscard]] OptId<DefId>
+    look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_id, Span id_span,
+                                    ScopeId local_scope,
+                                    std::optional<std::reference_wrapper<DiagLinker>> dl = {});
 
     /// tries to get a valid struct member index given a compt exec; emits diagnostics on failure
     [[nodiscard]] std::optional<HirSize> try_member_index(DefId struct_did, ExecId ord_eid);
