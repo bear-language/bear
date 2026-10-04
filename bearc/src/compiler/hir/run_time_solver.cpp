@@ -87,7 +87,8 @@ namespace hir {
         maybe_eid = handle_any_generic_id(fid, lctx, expr);
         break;
     case AST_EXPR_STRUCT_INIT:
-        return solve_struct_or_union_init(*this, fid, lctx.scope, lctx.map, expr, into_tid);
+        maybe_eid = solve_struct_or_union_init(*this, fid, lctx.scope, lctx.map, expr, into_tid);
+        break;
     case AST_EXPR_LIST_LITERAL:
     case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
@@ -525,8 +526,8 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
     } else {
         maybe_runtime_eid = solve_expr(fid, lctx, stmt->stmt.var_init_decl.rhs, maybe_tid);
         if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())
-            && maybe_compt_eid.has_value()) {
-            maybe_tid = infer_type_from_exec(maybe_compt_eid.as_id());
+            && maybe_runtime_eid.has_value()) {
+            maybe_tid = infer_type_from_exec(maybe_runtime_eid.as_id());
         }
     }
 
@@ -663,7 +664,7 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return handle_any_id(fid, lctx, expr);
     case AST_EXPR_GENERIC_ID:
         return handle_any_generic_id(fid, lctx, expr);
-    case AST_EXPR_STRUCT_MEMBER_INIT:
+    case AST_EXPR_STRUCT_INIT:
         return solve_struct_or_union_init(*this, fid, lctx.scope, lctx.map, expr, {});
     case AST_EXPR_LIST_LITERAL:
     case AST_EXPR_BINARY:
@@ -676,7 +677,7 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_BORROW:
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_TYPE_TO_STR:
-    case AST_EXPR_STRUCT_INIT:
+    case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
     case AST_EXPR_TERNARY_IF:
     case AST_EXPR_VARIANT_DECOMP:
@@ -727,6 +728,9 @@ OptId<ExecId> RuntimeSolver::handle_literal(FileId fid, const ast_expr_t* expr, 
     }
     const Type& ty = context.type(into_tid);
     if (!ty.holds<TypeBuiltin>()) {
+        context.emplace_diagnostic_with_message_value(
+            Span{context, fid, expr}, diag_code::cannot_convert_expression_to_type,
+            diag_type::error, DiagnosticTypeAfterMessage{.tid = into_tid});
         return {};
     }
     const auto bin_type = ty.as<TypeBuiltin>().type;
