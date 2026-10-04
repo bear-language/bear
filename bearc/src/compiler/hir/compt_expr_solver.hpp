@@ -44,6 +44,8 @@ class ComptExprSolver {
 
     [[nodiscard]] Context& get_context() { return this->context; }
 
+    [[nodiscard]] DefVisitor& get_def_visitor() { return this->def_visitor; }
+
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr) {
         return solve_expr(fid, scope, expr, std::nullopt);
     }
@@ -118,6 +120,12 @@ class ComptExprSolver {
     /// eid - the inner exec being operated on, which must be a compt exec
     [[nodiscard]] OptId<ExecId> solve_preunary_exec(unary_op op, Span op_span, ExecId eid);
 
+    [[nodiscard]] OptId<ExecId> handle_union_init(FileId fid, ScopeId scope, DefId union_did,
+                                                  const ast_expr_t* expr);
+
+    [[nodiscard]] OptId<ExecId> handle_struct_init(FileId fid, ScopeId scope, DefId struct_did,
+                                                   const ast_expr_t* expr, OptId<TypeId> into_tid);
+
   private:
     void enter_compt_fn() { ++call_depth; }
     void exit_compt_fn() { --call_depth; }
@@ -126,15 +134,9 @@ class ComptExprSolver {
     /// solve a struct's value at compile-time, this essentially attempts a canonicalization down
     /// to a struct-init eexpression where each field is evaluatable at compile-time
     ///
-    [[nodiscard]] OptId<ExecId> solve_struct_or_union(FileId fid, ScopeId scope,
-                                                      const ast_expr_t* expr,
-                                                      OptId<TypeId> into_tid);
-
-    [[nodiscard]] OptId<ExecId> handle_union_init(FileId fid, ScopeId scope, DefId union_did,
-                                                  const ast_expr_t* expr);
-
-    [[nodiscard]] OptId<ExecId> handle_struct_init(FileId fid, ScopeId scope, DefId struct_did,
-                                                   const ast_expr_t* expr, OptId<TypeId> into_tid);
+    [[nodiscard]] OptId<ExecId> handle_struct_or_union_init(FileId fid, ScopeId scope,
+                                                            const ast_expr_t* expr,
+                                                            OptId<TypeId> into_tid);
 
     [[nodiscard]] OptId<ExecId> handle_cast(FileId fid, ScopeId scope, ExecId eid,
                                             const ast_expr_t* into_expr);

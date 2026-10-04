@@ -14,7 +14,7 @@
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
-#include "compiler/hir/expr_solver_common.h"
+#include "compiler/hir/expr_solver_common.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"

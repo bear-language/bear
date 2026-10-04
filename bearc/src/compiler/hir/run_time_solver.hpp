@@ -42,6 +42,8 @@ class RuntimeSolver {
 
     [[nodiscard]] Context& get_context() { return this->context; }
 
+    [[nodiscard]] DefVisitor& get_def_visitor() { return this->def_visitor; }
+
     [[nodiscard]] llvm::SmallVector<DefId>& get_locals() { return this->locals; }
 
     void set_return_type(OptId<TypeId> maybe_tid) { this->return_tid = maybe_tid; }

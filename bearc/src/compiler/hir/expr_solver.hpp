@@ -21,6 +21,7 @@ concept IsExprSolver
           { s.infer_type_from_exec(eid) } -> std::same_as<OptId<TypeId>>;
           { s.solve_expr(fid, scope, expr) } -> std::same_as<OptId<ExecId>>;
           { s.get_context() } -> std::same_as<Context&>;
+          { s.get_def_visitor() } -> std::same_as<DefVisitor&>;
       };
 
 } // namespace hir
