@@ -12,9 +12,11 @@
 #include "compiler/ast/expr.h"
 #include "compiler/hir/compt_expr_solver.hpp"
 #include "compiler/hir/context.hpp"
+#include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "compiler/hir/inline_id_map.hpp"
 
 namespace hir {
 
@@ -410,78 +412,82 @@ template <IsExprSolver Solver>
         rel_arity = relative_arity::too_many;
     }
 
-    // TODO: instead of requiring a fixed order, allow any order
-    // - use an InlineIdMap for lookup instead of expecting the decl. order!
-
-    llvm::SmallVector<ExecId> member_init_execs;
+    DiagLinker dl{context};
+    InlineIdMap<DefId, ExecId> mem_defs_to_execs{};
     bool cooked = false;
-    for (auto i = 0uz; i < member_dids.len(); i++) {
-        auto didx = member_dids.get(i);
-        const Def& member = context.def(didx);
-
-        if (member.holds<DefUnevaluated>()) {
-            continue; // must be poisoned
-        }
-
-        assert(member.holds<DefVariable>());
-        const auto& member_as_var = member.as<DefVariable>();
-
-        const TypeId member_type = member_as_var.type_id;
-        const OptId<ExecId> default_val = member_as_var.compt_value;
-
-        // handle too few
-        if (i >= init_slice.len) {
-            // get default value for the member field
-            if (default_val.has_value()) {
-                member_init_execs.emplace_back(default_val.as_id());
-            } else {
-                cooked = true;
-                context.emplace_diagnostic(
-                    Span(fid, context.ast(fid).buffer(), expr->last),
-                    diag_code::struct_field_not_initialized, diag_type::error,
-                    DiagnosticSymbolAfterMessage{.sid = context.def(member_dids.get(i)).name},
-                    DiagnosticNoOtherInfo{});
-            }
-            continue; // guard overflow
-        }
-        assert(i < init_slice.len);
-        const ast_expr_t* member_init_expr = init_slice.start[i];
-
+    for (auto i = 0uz; i < init_slice.len; i++) {
+        ast_expr_t* member_init_expr = init_slice.start[i];
         if (member_init_expr->type != AST_EXPR_STRUCT_MEMBER_INIT) {
-            return std::nullopt; // malformed, so was already reported by parser
+            return {};
         }
-        const token_t* proposed_member_name_tkn = member_init_expr->expr.struct_member_init.id;
-        const ast_expr_t* proposed_val = member_init_expr->expr.struct_member_init.value;
-        const Span proposed_member_span = Span{context, fid, member_init_expr};
+        ast_expr_struct_member_init mem_init = member_init_expr->expr.struct_member_init;
+        const SymbolId mem_sid = context.symbol_id(mem_init.id);
+        Span id_span{context, fid, mem_init.id};
+        const OptId<DefId> maybe_mem_did = context.look_up_member_var_guarding_hid(
+            context.def(struct_did), mem_sid, id_span, scope);
+        if (maybe_mem_did.empty()) {
+            continue;
+        }
+        if (context.def(maybe_mem_did.as_id()).statik) {
+            dl.link(context.emplace_diagnostic_with_message_value(
+                id_span, diag_code::id_does_not_name_a_member_variable_of, diag_type::error,
+                DiagnosticSymbolAfterMessage{.sid = context.def(struct_did).name}));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                context.def(maybe_mem_did.as_id()).span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = mem_sid}));
+            continue;
+        }
+        TypeId mem_tid = context.def(maybe_mem_did.as_id()).as<DefVariable>().type_id;
+        const auto maybe_eid = solver.solve_expr(fid, scope, mem_init.value, mem_tid);
+        if (!maybe_eid) {
+            continue;
+        }
+        const auto maybe_existing = mem_defs_to_execs.at(maybe_mem_did.as_id());
+        if (maybe_existing) {
+            dl.link(context.emplace_diagnostic_with_message_value(
+                id_span, diag_code::reinitialized_struct_member, diag_type::error,
+                DiagnosticSymbolAfterMessage{.sid = mem_sid}));
+            dl.link(context.emplace_diagnostic(context.exec(maybe_existing.as_id()).span,
+                                               diag_code::initialized_here, diag_type::note));
+            continue;
+        }
+        mem_defs_to_execs.insert(maybe_mem_did.as_id(), maybe_eid.as_id());
+    }
 
-        const SymbolId true_name = member.name;
-        if (context.symbol_id(proposed_member_name_tkn) != true_name) {
+    llvm::SmallVector<ExecId> member_init_execs{};
+    for (const auto didx : member_dids) {
+        const auto did = context.def_id(didx);
+        const auto maybe_eid = mem_defs_to_execs.at(did);
+        const auto maybe_default_eid = context.def(did).as<DefVariable>().compt_value;
+        if (!maybe_eid && !maybe_default_eid) {
             cooked = true;
-            context.emplace_diagnostic(proposed_member_span,
-                                       diag_code::field_initializer_does_not_match_field,
-                                       diag_type::error, DiagnosticSymbolAfterMessage{member.name},
-                                       DiagnosticNoOtherInfo{});
+            dl.link(context.emplace_diagnostic_with_message_value(
+                Span{context, fid, expr}, diag_code::struct_initializer_does_not_initialize_field,
+                diag_type::error, DiagnosticSymbolAfterMessage{.sid = context.def(did).name}));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                Span{context, fid, expr},
+                diag_code::does_not_have_a_default_value_so_an_initial_value_is_needed,
+                diag_type::note, DiagnosticSymbolBeforeMessage{.sid = context.def(did).name}));
+            dl.link(context.emplace_diagnostic(context.def(did).span, diag_code::declared_here,
+                                               diag_type::note));
             continue;
         }
-        OptId<ExecId> hopefully_exec = solver.solve_expr(fid, scope, proposed_val, member_type);
-        if (!hopefully_exec.has_value()) {
-            cooked = true;
-            // just continue, caused by other so must have already been reported
-            continue;
+        if (maybe_eid) {
+            member_init_execs.push_back(maybe_eid.as_id());
+        } else if (maybe_default_eid) {
+            member_init_execs.push_back(maybe_default_eid.as_id());
         }
-        // emplace the init execs
-        member_init_execs.emplace_back(hopefully_exec.as_id());
     }
     if (rel_arity == relative_arity::too_many) {
         cooked = true;
-        context.emplace_diagnostic(Span{context, fid, init_slice},
-                                   diag_code::too_many_initializers_given_for_struct_init,
-                                   diag_type::error);
+        dl.link(context.emplace_diagnostic(Span{context, fid, init_slice},
+                                           diag_code::too_many_initializers_given_for_struct_init,
+                                           diag_type::error));
     }
     if (cooked) {
-        context.emplace_diagnostic(
+        dl.link(context.emplace_diagnostic(
             context.def(struct_did).span, diag_code::declared_here, diag_type::note,
-            DiagnosticSymbolBeforeMessage{context.def(struct_did).name}, DiagnosticNoOtherInfo{});
+            DiagnosticSymbolBeforeMessage{context.def(struct_did).name}, DiagnosticNoOtherInfo{}));
         return std::nullopt;
     }
     // type check before returning here! but only if the into type has a value

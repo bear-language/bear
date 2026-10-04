@@ -469,6 +469,14 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot access non-static member without accessing through an instance";
     case diag_code::is_not_a_variable:
         return "is not a variable";
+    case diag_code::struct_initializer_does_not_initialize_field:
+        return "struct initializer does not initialize field";
+    case diag_code::reinitialized_struct_member:
+        return "reinitialzed struct member";
+    case diag_code::initialized_here:
+        return "initialized here";
+    case diag_code::does_not_have_a_default_value_so_an_initial_value_is_needed:
+        return "does not have a default value so an initial value is needed";
     }
 
     std::unreachable();

@@ -237,6 +237,10 @@ enum class diag_code : uint8_t {
     cannot_dereference_pointer_at_compile_time,
     cannot_access_non_static_member_without_accessing_thru_an_instance,
     is_not_a_variable,
+    struct_initializer_does_not_initialize_field,
+    reinitialized_struct_member,
+    initialized_here,
+    does_not_have_a_default_value_so_an_initial_value_is_needed,
 
     count, // this must be last,
 
