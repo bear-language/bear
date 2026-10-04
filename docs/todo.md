@@ -2,6 +2,7 @@
 
 #### priority 
 - [ ] make `def_to_pretty_preview_str` and expose in `ContextDatabase` (can be used for hover preview)
+- [ ] fix failing tests by finishing `RunTimeSolver::solve_expr`
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
@@ -10,12 +11,11 @@
         - [ ] `MoveMapId`: same idea as a scope, but:
             - [x] tracks DefId -> ExecId and DefId -> ExecIdSliceId tracking where defs were moved (for good diagnostics)
             - [ ] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
-    - [ ] impl `RunTimeExprSolver`
-        - [ ] basic impls (consider factoring out common behavior w/ `ComptExprSolver` into `expr_solver_common.hpp`)
+    - [ ] impl `RunTimeSolver`
         - [ ] use deduction guides for functions/(variants/structs?)
         - [ ] make sure assignment type checking is properly rigid around mutable types (especially references).
             - [ ] this is already impl'd: see `Context::assignable_from_type_to_type`, but a version of this basic on inferable types (with `var` inference) is needed for variable decls
-    - [ ] drop flags, tracked by block/lexical scope (only emit when a variable is conditionally dropped)
+    - [ ] drop/destructor flags, tracked by block/lexical scope (only emit when a variable is conditionally dropped)
     - [ ] static variable guard variables (thread safe, ideally or eventually)
         - only needed if LHS is not knowable at compt (in which case it can be an LLVM global w/ a constant initializer)
     

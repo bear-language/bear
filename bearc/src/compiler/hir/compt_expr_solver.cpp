@@ -901,7 +901,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         return validate_lookup(maybe_did, id_slice);
     }
     case AST_EXPR_STRUCT_INIT: {
-        maybe_eid = solve_struct_or_union_init(*this, fid, scope, expr, into_tid);
+        maybe_eid = solve_struct_or_union_init(*this, fid, scope, {}, expr, into_tid);
         break;
     }
 
@@ -1051,14 +1051,14 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
 [[nodiscard]] OptId<ExecId> ComptExprSolver::handle_union_init(FileId fid, ScopeId scope,
                                                                DefId union_did,
                                                                const ast_expr_t* expr) {
-    return solve_union_init(*this, fid, scope, union_did, expr);
+    return solve_union_init(*this, fid, scope, {}, union_did, expr);
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::handle_struct_init(FileId fid, ScopeId scope,
                                                                 DefId struct_did,
                                                                 const ast_expr_t* expr,
                                                                 OptId<TypeId> into_tid) {
-    return solve_struct_init(*this, fid, scope, struct_did, expr, into_tid);
+    return solve_struct_init(*this, fid, scope, {}, struct_did, expr, into_tid);
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::handle_cast(FileId fid, ScopeId scope, ExecId eid,

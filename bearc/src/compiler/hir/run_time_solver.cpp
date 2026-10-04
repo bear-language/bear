@@ -85,6 +85,8 @@ namespace hir {
     case AST_EXPR_GENERIC_ID:
         maybe_eid = handle_any_generic_id(fid, lctx, expr);
         break;
+    case AST_EXPR_STRUCT_INIT:
+        return solve_struct_or_union_init(*this, fid, lctx.scope, lctx.map, expr, into_tid);
     case AST_EXPR_LIST_LITERAL:
     case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
@@ -97,7 +99,6 @@ namespace hir {
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_SAME_TYPE:
     case AST_EXPR_TYPE_TO_STR:
-    case AST_EXPR_STRUCT_INIT:
     case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
     case AST_EXPR_TERNARY_IF:
@@ -147,6 +148,12 @@ namespace hir {
                                                        bool require_return) {
     assert(stmt->type == AST_STMT_BLOCK);
     return solve_block(fid, lctx, stmt->stmt.block.stmts, Span{context, fid, stmt}, require_return);
+}
+
+[[nodiscard]] OptId<GenericArgIdSliceId>
+RuntimeSolver::lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generic_args_t gen_args,
+                                  bool need_layout_info) {
+    return ComptExprSolver{def_visitor}.lower_generic_args(fid, scope, gen_args, need_layout_info);
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block(FileId fid, LexicalCtx parent_lctx,
@@ -655,6 +662,8 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return handle_any_id(fid, lctx, expr);
     case AST_EXPR_GENERIC_ID:
         return handle_any_generic_id(fid, lctx, expr);
+    case AST_EXPR_STRUCT_MEMBER_INIT:
+        return solve_struct_or_union_init(*this, fid, lctx.scope, lctx.map, expr, {});
     case AST_EXPR_LIST_LITERAL:
     case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
@@ -668,7 +677,6 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_SAME_TYPE:
     case AST_EXPR_TYPE_TO_STR:
     case AST_EXPR_STRUCT_INIT:
-    case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
     case AST_EXPR_TERNARY_IF:
     case AST_EXPR_VARIANT_DECOMP:

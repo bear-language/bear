@@ -76,6 +76,17 @@ class RuntimeSolver {
     [[nodiscard]] OptId<ExecId> solve_block(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt,
                                             bool require_return = false);
 
+    /// lowers generic args, like ::<i32, 123> or ::i32, etc.
+    ///
+    /// fid - FileId containing the lexical generic args
+    /// scope - ScopeId containing the lexical generic args
+    /// gen_args - generic arg ast nodes
+    /// need_layout_info = false - bool indicating if the nested types inside the args need
+    /// need_layout_info
+    [[nodiscard]] OptId<GenericArgIdSliceId>
+    lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generic_args_t gen_args,
+                       bool need_layout_info = false);
+
   private:
     enum class storage : uint8_t {
         non_static = 0,

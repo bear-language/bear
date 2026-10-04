@@ -228,9 +228,11 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
     return {};
 }
 
+// a non-empty MoveMapId has to be passed in for a RuntimeSolver solver
 template <IsExprSolver Solver>
 [[nodiscard]] static inline OptId<ExecId>
-solve_struct_or_union_init(Solver& solver, FileId fid, ScopeId scope, const ast_expr_t* expr,
+solve_struct_or_union_init(Solver& solver, FileId fid, ScopeId scope,
+                           OptId<MoveMapId> maybe_move_map, const ast_expr_t* expr,
                            OptId<TypeId> into_tid) {
     Context& context = solver.get_context();
     DefVisitor& def_visitor = solver.get_def_visitor();
@@ -260,11 +262,7 @@ solve_struct_or_union_init(Solver& solver, FileId fid, ScopeId scope, const ast_
             maybe_did = context.look_up_scoped_type(scope, sid_slice, id_span);
         } else {
             const auto maybe_generic_args
-                = std::same_as<Solver, ComptExprSolver>
-                      ? solver.lower_generic_args(fid, scope, expr->expr.struct_init.generic_args,
-                                                  false)
-                      : ComptExprSolver{def_visitor}.lower_generic_args(
-                            fid, scope, expr->expr.struct_init.generic_args, false);
+                = solver.lower_generic_args(fid, scope, expr->expr.struct_init.generic_args, false);
             if (maybe_generic_args.empty()) {
                 return {}; // poisoned
             }
@@ -285,7 +283,8 @@ solve_struct_or_union_init(Solver& solver, FileId fid, ScopeId scope, const ast_
         // try as union
         auto maybe_union_def = context.ensure_union_def(did);
         if (maybe_union_def.has_value()) {
-            return solve_union_init(solver, fid, scope, maybe_union_def.as_id(), expr);
+            return solve_union_init(solver, fid, scope, maybe_move_map, maybe_union_def.as_id(),
+                                    expr);
         }
 
         maybe_struct_did = context.ensure_struct_def(did);
@@ -316,16 +315,16 @@ solve_struct_or_union_init(Solver& solver, FileId fid, ScopeId scope, const ast_
         return {};
     }
     DefId struct_did = maybe_struct_did.as_id();
-    maybe_eid = solve_struct_init(solver, fid, scope, struct_did, expr, into_tid);
+    maybe_eid = solve_struct_init(solver, fid, scope, maybe_move_map, struct_did, expr, into_tid);
     return maybe_eid;
 }
 
 template <IsExprSolver Solver>
-[[nodiscard]] static inline OptId<ExecId> solve_union_init(Solver& solver, FileId fid,
-                                                           ScopeId scope, DefId union_did,
-                                                           const ast_expr_t* expr) {
+[[nodiscard]] static inline OptId<ExecId>
+solve_union_init(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> maybe_move_map,
+                 DefId union_did, const ast_expr_t* expr) {
 
-    static constexpr bool is_compt_eval = std::same_as<Solver, ComptExprSolver>;
+    static constexpr bool is_compt_eval = std::is_same_v<Solver, ComptExprSolver>;
     Context& context = solver.get_context();
 
     assert(context.def(union_did).template holds<DefUnion>());
@@ -378,8 +377,15 @@ template <IsExprSolver Solver>
         return {}; // poisoned
     }
     TypeId needed_tid = context.def(matched_did).template as<DefVariable>().type_id;
-    OptId<ExecId> maybe_val
-        = solver.solve_expr(fid, scope, member_init->expr.struct_member_init.value, needed_tid);
+    OptId<ExecId> maybe_val;
+    if constexpr (is_compt_eval) {
+        maybe_val
+            = solver.solve_expr(fid, scope, member_init->expr.struct_member_init.value, needed_tid);
+    } else {
+        maybe_val
+            = solver.solve_expr(fid, LexicalCtx{.scope = scope, .map = maybe_move_map.as_id()},
+                                member_init->expr.struct_member_init.value, needed_tid);
+    }
     if (maybe_val.empty()) {
         return {}; // poisoned
     }
@@ -394,8 +400,8 @@ template <IsExprSolver Solver>
 
 template <IsExprSolver Solver>
 [[nodiscard]] OptId<ExecId> solve_struct_init(Solver& solver, FileId fid, ScopeId scope,
-                                              DefId struct_did, const ast_expr_t* expr,
-                                              OptId<TypeId> into_tid) {
+                                              OptId<MoveMapId> maybe_move_map, DefId struct_did,
+                                              const ast_expr_t* expr, OptId<TypeId> into_tid) {
 
     static constexpr bool is_compt_eval = std::same_as<Solver, ComptExprSolver>;
 
@@ -438,7 +444,14 @@ template <IsExprSolver Solver>
             continue;
         }
         TypeId mem_tid = context.def(maybe_mem_did.as_id()).as<DefVariable>().type_id;
-        const auto maybe_eid = solver.solve_expr(fid, scope, mem_init.value, mem_tid);
+        OptId<ExecId> maybe_eid;
+        if constexpr (is_compt_eval) {
+            maybe_eid = solver.solve_expr(fid, scope, mem_init.value, mem_tid);
+        } else {
+            maybe_eid
+                = solver.solve_expr(fid, LexicalCtx{.scope = scope, .map = maybe_move_map.as_id()},
+                                    mem_init.value, mem_tid);
+        }
         if (!maybe_eid) {
             continue;
         }
