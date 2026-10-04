@@ -170,8 +170,6 @@ namespace hir {
 
         // if this is the last statement (and we didn't already see a (premature) return) and we're
         // expecting a return type
-        //
-        // TODO: don't issue a false positive for nested blocks
         if (!hit_block_terminator && i == stmts.len - 1 && must_return()
             && (maybe_eid.empty()
                 || (maybe_eid.has_value() && !definitely_returns(context, maybe_eid.as_id())))) {

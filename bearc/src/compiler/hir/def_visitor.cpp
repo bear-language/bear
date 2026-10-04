@@ -15,11 +15,11 @@
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "compiler/hir/inline_id_map.hpp"
 #include "compiler/hir/run_time_solver.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/type_resolver.hpp"
-#include "utils/data_arena.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
 #include <optional>
@@ -1014,8 +1014,7 @@ bool DefVisitor::try_satisfy_contracts(DefId struct_did, IdSlice<DefId> contract
 DefVisitor::resolve_generic_params(FileId fid, ScopeId scope,
                                    ast_slice_of_generic_params_t gen_params) {
     llvm::SmallVector<GenericParamId> param_vec;
-    DataArena arena{0x200};
-    IdHashMap<SymbolId, GenericParamId> param_map{arena, 0x80};
+    InlineIdMap<SymbolId, GenericParamId> param_map{};
     bool cooked = false;
     for (size_t i = 0; i < gen_params.len; ++i) {
         const OptId<GenericParamId> maybe_param_id

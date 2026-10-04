@@ -43,6 +43,7 @@ class Span {
     [[nodiscard]] Span(const Context& ctx, FileId file_id, const ast_stmt_t* stmt);
     /// stmts.len should be > 0, default to Span::generated() as a fallback otherwise
     [[nodiscard]] Span(const Context& ctx, FileId file_id, ast_slice_of_stmts_t stmts);
+    [[nodiscard]] Span(const Context& ctx, FileId file_id, ast_slice_of_exprs exprs);
     [[nodiscard]] Span(const Context& ctx, FileId file_id, const token_t* tkn);
     [[nodiscard]] static std::string_view retrieve_from_buffer(const char* data, Span span);
     [[nodiscard]] std::string_view as_sv(const Context& context) const;

@@ -48,6 +48,15 @@ Span::Span(const Context& ctx, FileId file_id, ast_slice_of_stmts_t stmts) {
     }
 }
 
+Span::Span(const Context& ctx, FileId file_id, ast_slice_of_exprs exprs) {
+    // assert(exprs.len);
+    if (exprs.len) {
+        *this = Span(ctx, file_id, exprs.start[0]->first, exprs.start[exprs.len - 1]->last);
+    } else {
+        *this = Span::generated();
+    }
+}
+
 Span::Span(const Context& ctx, FileId file_id, const token_t* tkn)
     : start(tkn->start - ctx.ast(file_id).buffer()), len(tkn->len), file_id(file_id),
       line(tkn->loc.line), col(tkn->loc.col) {}
@@ -95,8 +104,8 @@ Span Span::find_between_spans(const Context& ctx, FileId fid, Span s1, Span s2) 
     }
     static_assert(sizeof(size_t) == sizeof(const char*));
     return Span{(s1.start + len_from_left + 1),
-                (s2.start - s1.start - len_from_left - len_from_right - 1), (s1.file_id), (s1.line),
-                (s1.col)};
+                (s2.start - s1.start - len_from_left - len_from_right - 1), s1.file_id, s1.line,
+                s1.col};
 }
 
 } // namespace hir

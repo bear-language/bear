@@ -410,6 +410,9 @@ template <IsExprSolver Solver>
         rel_arity = relative_arity::too_many;
     }
 
+    // TODO: instead of requiring a fixed order, allow any order
+    // - use an InlineIdMap for lookup instead of expecting the decl. order!
+
     llvm::SmallVector<ExecId> member_init_execs;
     bool cooked = false;
     for (auto i = 0uz; i < member_dids.len(); i++) {
@@ -449,8 +452,7 @@ template <IsExprSolver Solver>
         }
         const token_t* proposed_member_name_tkn = member_init_expr->expr.struct_member_init.id;
         const ast_expr_t* proposed_val = member_init_expr->expr.struct_member_init.value;
-        const Span proposed_member_span
-            = Span(fid, context.ast(fid).buffer(), member_init_expr->first, member_init_expr->last);
+        const Span proposed_member_span = Span{context, fid, member_init_expr};
 
         const SymbolId true_name = member.name;
         if (context.symbol_id(proposed_member_name_tkn) != true_name) {
@@ -472,9 +474,7 @@ template <IsExprSolver Solver>
     }
     if (rel_arity == relative_arity::too_many) {
         cooked = true;
-        const token_t* first = init_slice.start[member_dids.len()]->first;
-        const token_t* last = init_slice.start[init_slice.len - 1]->last;
-        context.emplace_diagnostic(Span(fid, context.ast(fid).buffer(), first, last),
+        context.emplace_diagnostic(Span{context, fid, init_slice},
                                    diag_code::too_many_initializers_given_for_struct_init,
                                    diag_type::error);
     }

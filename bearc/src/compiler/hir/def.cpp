@@ -37,7 +37,6 @@ std::string scope_to_string(Context& ctx, ScopeId scope) {
 }
 
 std::string def_to_string(Context& ctx, DefId did) {
-    // TODO finish
     const auto vs = Ovld{
         [&ctx, did](const DefModule& d) -> std::string {
             std::string str;
