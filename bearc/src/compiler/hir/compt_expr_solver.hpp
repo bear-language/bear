@@ -120,12 +120,6 @@ class ComptExprSolver {
     /// eid - the inner exec being operated on, which must be a compt exec
     [[nodiscard]] OptId<ExecId> solve_preunary_exec(unary_op op, Span op_span, ExecId eid);
 
-    [[nodiscard]] OptId<ExecId> handle_union_init(FileId fid, ScopeId scope, DefId union_did,
-                                                  const ast_expr_t* expr);
-
-    [[nodiscard]] OptId<ExecId> handle_struct_init(FileId fid, ScopeId scope, DefId struct_did,
-                                                   const ast_expr_t* expr, OptId<TypeId> into_tid);
-
   private:
     void enter_compt_fn() { ++call_depth; }
     void exit_compt_fn() { --call_depth; }
@@ -140,6 +134,12 @@ class ComptExprSolver {
 
     [[nodiscard]] OptId<ExecId> handle_cast(FileId fid, ScopeId scope, ExecId eid,
                                             const ast_expr_t* into_expr);
+
+    [[nodiscard]] OptId<ExecId> handle_union_init(FileId fid, ScopeId scope, DefId union_did,
+                                                  const ast_expr_t* expr);
+
+    [[nodiscard]] OptId<ExecId> handle_struct_init(FileId fid, ScopeId scope, DefId struct_did,
+                                                   const ast_expr_t* expr, OptId<TypeId> into_tid);
 
     [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, ScopeId scope, const ast_type_t* type);
 
