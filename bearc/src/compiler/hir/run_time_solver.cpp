@@ -72,6 +72,7 @@ namespace hir {
     case AST_EXPR_REFLECTED_ID:
     case AST_EXPR_REFLECTED_SCOPED_ID:
     case AST_EXPR_ALIGNOF:
+    case AST_EXPR_SAME_TYPE:
     case AST_EXPR_SIZEOF:
     case AST_EXPR_TYPE_ID:
         return ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, expr, into_tid);
@@ -97,7 +98,6 @@ namespace hir {
     case AST_EXPR_TYPE:
     case AST_EXPR_BORROW:
     case AST_EXPR_ADDR_OF:
-    case AST_EXPR_SAME_TYPE:
     case AST_EXPR_TYPE_TO_STR:
     case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
@@ -652,6 +652,7 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_REFLECTED_ID:
     case AST_EXPR_REFLECTED_SCOPED_ID:
     case AST_EXPR_ALIGNOF:
+    case AST_EXPR_SAME_TYPE:
     case AST_EXPR_SIZEOF:
     case AST_EXPR_TYPE_ID:
         return ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, expr);
@@ -674,7 +675,6 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_TYPE:
     case AST_EXPR_BORROW:
     case AST_EXPR_ADDR_OF:
-    case AST_EXPR_SAME_TYPE:
     case AST_EXPR_TYPE_TO_STR:
     case AST_EXPR_STRUCT_INIT:
     case AST_EXPR_CLOSURE:
