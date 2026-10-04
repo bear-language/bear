@@ -2,8 +2,7 @@
 
 #### priority 
 - [ ] revamp `ComptExprSolver::handle_struct_init`
-    - [ ] allow arbitrarily ordered struct members inits, will require mini symbol hashmaps
-    - [ ] fix diagnostic chaining issues
+    - [ ] verify new impl & update tests as needed
 - [ ] make `def_to_pretty_preview_str` and expose in `ContextDatabase` (can be used for hover preview)
 
 #### function body resolution / runtime eval:
