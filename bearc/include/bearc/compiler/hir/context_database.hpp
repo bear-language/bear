@@ -99,6 +99,12 @@ class ContextDatabase {
     /// gets the string of an interned symbol
     [[nodiscard]] std::string_view symbol(hir::SymbolId sid) const;
 
+    /// gets a pretty preview for an hir::Def
+    /// note: does not have a trailing newline
+    [[nodiscard]] std::string pretty_preview_for_def(hir::DefId did,
+                                                     hir::string_preview_mode preview_mode
+                                                     = hir::string_preview_mode::ticks_bear);
+
   private:
     std::unique_ptr<const bearc_args> args;
     /// owned {path, src} copies of the source overlays that ctx reads from

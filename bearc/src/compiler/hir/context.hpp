@@ -954,6 +954,11 @@ class Context {
     /// internally stored in context)
     [[nodiscard]] bool assignable_from_type_to_refs(TypeId from, TypeId to);
 
+    /// gets a pretty preview for an hir::Def
+    /// note: does not have a trailing newline
+    [[nodiscard]] std::string pretty_preview_for_def(DefId did, string_preview_mode preview_mode
+                                                                = string_preview_mode::ticks_bear);
+
   private:
     // containers:
     // ~~~~~~~~~~~~~~~~~ file stuff ~~~~~~~~~~~~~~~~~~~

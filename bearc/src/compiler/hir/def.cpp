@@ -7,6 +7,7 @@
 // Licensed under the Apache License 2.0. See LICENSE for details.
 
 #include "compiler/hir/def.hpp"
+#include "compiler/ast/stmt.h"
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/indexing.hpp"
 #include <string>
@@ -85,14 +86,36 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += "fn ";
             str += ctx.symbold_id_slice_to_string(ctx.canonical_name(did));
             str += gen_params_to_string(ctx, d.generic_params);
-            str += '(';
-            for (auto i{0uz}; i < d.param_cnt; ++i) {
-                str += "...";
-                if (i != d.param_cnt - 1) {
-                    str += ", ";
+            const auto* fn_node = ctx.def_ast_node(did);
+            if (!fn_node) {
+                str += '(';
+                for (auto i{0uz}; i < d.param_cnt; ++i) {
+                    str += "...";
+                    if (i != d.param_cnt - 1) {
+                        str += ", ";
+                    }
                 }
+                str += ") -> [return_type]? {}";
+            } else if (fn_node->type == AST_STMT_FN_DECL) {
+                ast_stmt_fn_decl_t fn = *fn_node->stmt.fn_decl;
+                str += '(';
+                for (auto i{0uz}; i < d.param_cnt; ++i) {
+                    str += Span{ctx, ctx.def(did).span.file_id, fn.params.start[i]->first,
+                                fn.params.start[i]->last}
+                               .as_sv(ctx);
+                    if (i != d.param_cnt - 1) {
+                        str += ", ";
+                    }
+                }
+                str += ')';
+                if (fn.return_type) {
+                    str += ' ';
+                    str += Span{ctx, ctx.def(did).span.file_id, fn.return_type->first,
+                                fn.return_type->last}
+                               .as_sv(ctx);
+                }
+                str += " {}";
             }
-            str += ") -> [return_type]? {...}";
             return str;
         },
         [&ctx, did](const DefFunctionPrototype& d) -> std::string {
@@ -148,22 +171,20 @@ std::string def_to_string(Context& ctx, DefId did) {
                         str += " + ";
                     }
                 }
-
-                str += " {\n";
-
-                const auto ordered_mems = d.ordered_members;
-
-                str += "--- ordered members ---\n";
-                for (const auto didx : ordered_mems) {
-                    str += def_to_string(ctx, ctx.def_id(didx));
-                    str += '\n';
-                }
-                str += "^^^ ordered members ^^^\n";
-
-                str += scope_to_string(ctx, d.scope);
-
-                str += "\n}\n";
             }
+
+            str += " {\n";
+
+            const auto ordered_mems = d.ordered_members;
+
+            for (const auto didx : ordered_mems) {
+                str += def_to_string(ctx, ctx.def_id(didx));
+                str += '\n';
+            }
+
+            str += scope_to_string(ctx, d.scope);
+
+            str += "\n}\n";
 
             return str;
         },
@@ -172,14 +193,14 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += "struct ";
             str += ctx.symbol(ctx.def(did).name);
             str += gen_params_to_string(ctx, d.generic_params);
-            str += ';';
+            str += "{}";
             return str;
         },
         [&ctx, did](const DefVariant&) -> std::string {
             std::string str;
             str += "variant ";
             str += ctx.symbol(ctx.def(did).name);
-            str += ';';
+            str += "{}";
             return str;
         },
         [&ctx, did](const DefGenericVariant& d) -> std::string {
@@ -187,7 +208,7 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += "variant ";
             str += ctx.symbol(ctx.def(did).name);
             str += gen_params_to_string(ctx, d.generic_params);
-            str += ';';
+            str += "{}";
             return str;
         },
         [&ctx, did](const DefVariantField&) -> std::string {
@@ -200,7 +221,7 @@ std::string def_to_string(Context& ctx, DefId did) {
             std::string str;
             str += "union ";
             str += ctx.symbol(ctx.def(did).name);
-            str += ';';
+            str += "{}";
             return str;
         },
         [&ctx, did](const DefGenericContract& d) -> std::string {
@@ -208,14 +229,14 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += "contract ";
             str += ctx.symbol(ctx.def(did).name);
             str += gen_params_to_string(ctx, d.generic_params);
-            str += ';';
+            str += "{}";
             return str;
         },
         [&ctx, did](const DefContract&) -> std::string {
             std::string str;
             str += "contract ";
             str += ctx.symbol(ctx.def(did).name);
-            str += ';';
+            str += "{}";
             return str;
         },
         [&ctx, did](const DefDeftype& d) -> std::string {
@@ -232,4 +253,121 @@ std::string def_to_string(Context& ctx, DefId did) {
     };
     return ctx.def(did).visit(vs);
 }
+
+std::string def_to_pretty_string_preview(Context& ctx, DefId did,
+                                         string_preview_mode preview_mode) {
+    const auto vs = Ovld{
+        [&ctx, did](const DefModule& d) -> std::string {
+            std::string str;
+
+            str += "mod ";
+            str += ctx.symbol(ctx.def(did).name);
+
+            return str;
+        },
+        [&ctx, did](const DefFunction& d) -> std::string {
+            std::string str;
+
+            if (ctx.def(did).compt) {
+                str += "compt ";
+            }
+            str += "fn ";
+            str += ctx.symbold_id_slice_to_string(ctx.canonical_name(did));
+            str += d.maybe_generic_args.has_value()
+                       ? gen_args_to_str(ctx, d.maybe_generic_args.as_id())
+                       : "";
+            str += '(';
+            for (const auto tidx : d.param_types) {
+                str += type_to_string(ctx, ctx.type_id(tidx));
+                if (tidx != d.param_types.last_elem()) {
+                    str += ", ";
+                }
+            }
+            str += ") ";
+            if (d.return_type.has_value()) {
+                str += d.discardable ? "~> " : "-> ";
+                str += type_to_string(ctx, d.return_type.as_id());
+            }
+            if (d.body) {
+                str += " {}";
+
+            } else {
+                str += ';';
+            }
+
+            return str;
+        },
+        [&ctx, did](const DefGenericFunction&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefFunctionPrototype&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefVariable&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefStruct& d) -> std::string {
+            std::string str;
+            str += "struct ";
+            str += ctx.symbol(ctx.def(did).name);
+
+            const auto contracts = d.contracts;
+            if (contracts.len()) {
+                str += " has ";
+
+                for (const auto didx : contracts) {
+
+                    str += ctx.symbold_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
+
+                    if (didx != contracts.last_elem()) {
+                        str += " + ";
+                    }
+                }
+            }
+
+            str += " {\n";
+
+            const auto ordered_mems = d.ordered_members;
+
+            for (const auto didx : ordered_mems) {
+                str += def_to_string(ctx, ctx.def_id(didx));
+                str += '\n';
+            }
+
+            str += "\n}";
+
+            return str;
+        },
+        [&ctx, did](const DefGenericStruct&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefVariant&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefGenericVariant&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefVariantField&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefUnion&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefGenericContract&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefContract&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefDeftype&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefScopeWrapper&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefUnevaluated&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefMalformed&) -> std::string { return def_to_string(ctx, did); },
+    };
+
+    std::string cannonical_name_comment = "// canonical name: ";
+    cannonical_name_comment += ctx.symbold_id_slice_to_string(ctx.canonical_name(did));
+
+    std::string str;
+    switch (preview_mode) {
+    case string_preview_mode::no_ticks:
+        str += cannonical_name_comment;
+        break;
+    case string_preview_mode::ticks:
+        str += "```\n";
+        str += cannonical_name_comment;
+        str += ctx.def(did).visit(vs);
+        str += "\n```";
+        break;
+    case string_preview_mode::ticks_bear:
+        str += "```bear\n";
+        str += cannonical_name_comment;
+        str += ctx.def(did).visit(vs);
+        str += "\n```";
+        break;
+    }
+
+    return str;
+}
+
 } // namespace hir

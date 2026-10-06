@@ -123,8 +123,8 @@ overlay_views(const std::vector<std::pair<std::string, std::string>>& storage) {
 
 ContextDatabase::ContextDatabase(std::vector<const char*> args_vec,
                                  std::span<const SourceOverlay> overlays)
-    : args{std::make_unique<bearc_args>(parse_cli_args(static_cast<int>(args_vec.size()),
-                                                       const_cast<char**>(args_vec.data())))},
+    : args{std::make_unique<bearc_args>(
+          parse_cli_args(static_cast<int>(args_vec.size()), const_cast<char**>(args_vec.data())))},
       overlay_storage{copy_overlays(overlays)},
       ctx{std::make_unique<Context>(*this->args, Context::instances::multiple,
                                     overlay_views(overlay_storage))} {}
@@ -143,3 +143,7 @@ std::string_view ContextDatabase::file_source(FileId fid) const {
 bool ContextDatabase::file_is_intrinsic(FileId fid) const { return ctx->file_is_intrinsic(fid); }
 
 std::string_view ContextDatabase::symbol(SymbolId sid) const { return ctx->symbol(sid); }
+
+std::string ContextDatabase::pretty_preview_for_def(DefId did, string_preview_mode preview_mode) {
+    return def_to_pretty_string_preview(*ctx, did, preview_mode);
+}

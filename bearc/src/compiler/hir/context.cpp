@@ -4075,4 +4075,8 @@ std::string Context::message_for_parser_diagnostic(const compiler_error_t& err) 
     return str;
 }
 
+std::string Context::pretty_preview_for_def(DefId did, string_preview_mode preview_mode) {
+    return def_to_pretty_string_preview(*this, did, preview_mode);
+}
+
 } // namespace hir

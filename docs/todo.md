@@ -1,7 +1,6 @@
 ### todos
 
 #### priority 
-- [ ] make `def_to_pretty_preview_str` and expose in `ContextDatabase` (can be used for hover preview)
 - [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (7 are failing as of 20261006)
     - mostly/entirely due to fn expr bodies now being resolved
 - [ ] implement full fuzzing tests of parser + hir

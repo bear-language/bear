@@ -286,6 +286,23 @@ struct Def : NodeWithVariantValue<Def> {
 
 [[nodiscard]] std::string def_to_string(Context& ctx, DefId did);
 
+enum class string_preview_mode : uint8_t {
+    /// just the string, not wrapped in ticks
+    no_ticks,
+    /// ```
+    /// <str>
+    /// ```
+    ticks,
+    /// ```bear
+    /// <str>
+    /// ```
+    ticks_bear,
+};
+
+[[nodiscard]] std::string def_to_pretty_string_preview(Context& ctx, DefId did,
+                                                       string_preview_mode preview_mode
+                                                       = string_preview_mode::no_ticks);
+
 [[nodiscard]] std::string scope_to_string(Context& ctx, ScopeId scope);
 
 } // namespace hir
