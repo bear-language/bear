@@ -54,9 +54,7 @@
     - [ ] struct deduction guide use (building them is impl'd but untested)
     - [ ] variant deduction guides (building and use)
 
-- [ ] variadic functions? 
-    - [ ] only allow in functions as last param like this: `fn foo(i32 a, i32 b, ...) {}` or pass through some kind of anonymous struct, like Zig
-    - [ ] get variadic params/args working at compt w/ callable functions
+- [ ] generic deftypes e.g. `deftype MutDecay<T> = mut decay T;` 
 
 - [ ] reflection improvements
         - [ ] implement use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members (relatively easy but tedious on some special-casing inside the compile-time solver)

@@ -1,0 +1,47 @@
+// tests/hir/a90.br
+
+import "compt_str.br";
+import "size.br";
+
+mod test_hir_a90_br;
+
+mod compt_tup {
+
+struct PseudoTuple<T> {
+    hid compt bool check_is_struct_with_members = 
+        @err(!@members_of(T).len, type_to_str_with_akas::<T>() + " does not have any member variables");
+    T val;
+    compt mt member_at(usize i) -> var => self.val.(i)
+    compt fn new(T val) -> Self => Self{.val = val}
+}
+
+}
+
+use compt_tup..PseudoTuple;
+
+struct Foo {
+    u64 a = 0;
+    u32 b = 0;
+    u16 c = 0;
+    u8 d = 0;
+}
+
+compt var a = PseudoTuple..new::<Foo>({}); // TODO this fails fuzz
+
+deftype FooTup = PseudoTuple<Foo>;
+
+compt var b = FooTup..new({});
+
+compt var c = FooTup..new(Foo{.d = 12, .c = 11});
+
+var _0 = @static_assert a == b;
+
+var _1 = @static_assert b != c;
+
+var _2 = @static_assert c == FooTup{.val = {.c = 11, .d = 12, .b = 0, .a = 0}};
+
+var _3 = @static_assert c.member_at(2) != a.member_at(2);
+
+var _4 = @static_assert c.member_at(2) == a.member_at(2); // oops
+
+var _5 = a.member_at(1000); // oops
