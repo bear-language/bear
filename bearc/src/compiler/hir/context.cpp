@@ -628,10 +628,12 @@ void Context::register_intrinsic_files() {
     const char* range_name = "intrinsic/range";
     const char* range_src =
         R"(
-mod std;
 struct Range<T> {
     T start;
     T end;
+}
+mod std {
+use Range;
 }
         )";
     file_intrinsic(symbol_id(range_name), range_src);

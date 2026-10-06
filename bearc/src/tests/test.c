@@ -135,7 +135,7 @@ br_test_result_t test_parser(void) {
 
 br_test_result_t test_hir(void) {
     TEST_INIT("hir");
-    char* hir_args[] = {"bearc"};
+    char* hir_args[] = {"bearc", "-I", "tests/lib"};
     TEST_SET_ARGS(hir_args);
     char* args1[] = {"bearc", "07.br", "-I", "tests/hir"};
     ASSERT_EQ_ERR_FROM_ARGS(args1, 0);
@@ -469,6 +469,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a88", 4);
     char* argsa89[] = {"bearc", "tests/hir/a89.br", "-I", "tests/lib"};
     ASSERT_EQ_ERR_FROM_ARGSN(argsa89, 13, 2);
+    ASSERT_EQ_ERR("hir/a90", 5);
 
     return TEST_RESULT;
 }

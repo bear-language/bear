@@ -4,6 +4,8 @@ import "size.br";
 
 // @COOL
 
+compt fn type_to_str_with_akas<T>() -> str => "`" + @type_to_str(T) + "` aka `" + @type_to_str(decay T) + "`"
+
 contract ToComptStr {
     compt mt to_compt_str() -> str;
 }

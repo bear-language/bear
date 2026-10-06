@@ -2,7 +2,10 @@
 
 #### priority 
 - [ ] make `def_to_pretty_preview_str` and expose in `ContextDatabase` (can be used for hover preview)
-- [ ] fix failing tests by finishing `RunTimeSolver::solve_expr`
+- [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (7 are failing as of 20261006)
+    - mostly/entirely due to fn expr bodies now being resolved
+- [ ] implement full fuzzing tests of parser + hir
+- [ ] make deftype resolution not declaration order dependent
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
