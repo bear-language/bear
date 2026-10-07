@@ -184,7 +184,7 @@ std::string def_to_string(Context& ctx, DefId did) {
 
             str += scope_to_string(ctx, d.scope);
 
-            str += "\n}\n";
+            str += "}\n";
 
             return str;
         },
@@ -352,16 +352,20 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
     switch (preview_mode) {
     case string_preview_mode::no_ticks:
         str += cannonical_name_comment;
+        str += '\n';
+        str += ctx.def(did).visit(vs);
         break;
     case string_preview_mode::ticks:
         str += "```\n";
         str += cannonical_name_comment;
+        str += '\n';
         str += ctx.def(did).visit(vs);
         str += "\n```";
         break;
     case string_preview_mode::ticks_bear:
         str += "```bear\n";
         str += cannonical_name_comment;
+        str += '\n';
         str += ctx.def(did).visit(vs);
         str += "\n```";
         break;
