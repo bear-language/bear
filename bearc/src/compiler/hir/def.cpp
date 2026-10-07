@@ -178,6 +178,7 @@ std::string def_to_string(Context& ctx, DefId did) {
             const auto ordered_mems = d.ordered_members;
 
             for (const auto didx : ordered_mems) {
+                str += "    ";
                 str += def_to_string(ctx, ctx.def_id(didx));
                 str += '\n';
             }
@@ -324,11 +325,12 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
             const auto ordered_mems = d.ordered_members;
 
             for (const auto didx : ordered_mems) {
+                str += "    ";
                 str += def_to_string(ctx, ctx.def_id(didx));
                 str += '\n';
             }
 
-            str += "\n}";
+            str += '}';
 
             return str;
         },
