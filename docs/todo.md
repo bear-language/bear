@@ -17,6 +17,9 @@
         - [ ] use deduction guides for functions/(variants/structs?)
         - [ ] make sure assignment type checking is properly rigid around mutable types (especially references).
             - [ ] this is already impl'd: see `Context::assignable_from_type_to_type`, but a version of this basic on inferable types (with `var` inference) is needed for variable decls
+    - [ ] fix mut semantics on struct members 
+        - [ ] warn on `mut` declared members
+        - [ ] make it so the struct instance's mutability entirely determines the member mutability
     - [ ] drop/destructor flags, tracked by block/lexical scope (only emit when a variable is conditionally dropped)
     - [ ] static variable guard variables (thread safe, ideally or eventually)
         - only needed if LHS is not knowable at compt (in which case it can be an LLVM global w/ a constant initializer)
