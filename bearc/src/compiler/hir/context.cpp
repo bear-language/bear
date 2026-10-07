@@ -423,7 +423,7 @@ static auto parse_hex(Context& ctx, FileId fid, std::string_view hex_str, const 
     return str[0] == '_';
 }
 
-[[nodiscard]] std::string Context::symbold_id_slice_to_string(IdSlice<SymbolId> sid_slice) const {
+[[nodiscard]] std::string Context::symbol_id_slice_to_string(IdSlice<SymbolId> sid_slice) const {
     std::string str;
     for (const auto sidx : sid_slice) {
         str += symbol(symbol_id(sidx));

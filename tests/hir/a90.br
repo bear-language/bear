@@ -7,6 +7,9 @@ mod test_hir_a90_br;
 
 mod compt_tup {
 
+/// wraps a struct and mimics tuple-like behavior
+/// - only works at compile-time
+/// - this is useless, by the way
 struct PseudoTuple<T> {
     hid compt bool check_is_struct_with_members = 
         @err(!@members_of(T).len, type_to_str_with_akas::<T>() + " does not have any member variables");

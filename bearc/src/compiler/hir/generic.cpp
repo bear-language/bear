@@ -193,7 +193,7 @@ std::string gen_param_to_string(Context& ctx, GenericParamId gid) {
     if (gp.holds<GenericParamType>()) {
         str += ctx.symbol(gp.name);
         for (const auto didx : gp.as<GenericParamType>().contracts) {
-            str += ctx.symbold_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
+            str += ctx.symbol_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
             if (didx != gp.as<GenericParamType>().contracts.last_elem()) {
                 str += " + ";
             }

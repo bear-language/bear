@@ -42,7 +42,7 @@ std::string def_to_string(Context& ctx, DefId did) {
         [&ctx, did](const DefModule& d) -> std::string {
             std::string str;
             str += "mod ";
-            str += ctx.symbold_id_slice_to_string(ctx.canonical_name(did));
+            str += ctx.symbol_id_slice_to_string(ctx.canonical_name(did));
             str += ' ';
             str += scope_to_string(ctx, d.scope);
             return str;
@@ -53,7 +53,7 @@ std::string def_to_string(Context& ctx, DefId did) {
                 str += "compt ";
             }
             str += "fn ";
-            str += ctx.symbold_id_slice_to_string(ctx.canonical_name(did));
+            str += ctx.symbol_id_slice_to_string(ctx.canonical_name(did));
             str += d.maybe_generic_args.has_value()
                        ? gen_args_to_str(ctx, d.maybe_generic_args.as_id())
                        : "";
@@ -84,7 +84,7 @@ std::string def_to_string(Context& ctx, DefId did) {
                 str += "compt ";
             }
             str += "fn ";
-            str += ctx.symbold_id_slice_to_string(ctx.canonical_name(did));
+            str += ctx.symbol(ctx.def(did).name);
             str += gen_params_to_string(ctx, d.generic_params);
             const auto* fn_node = ctx.def_ast_node(did);
             if (!fn_node) {
@@ -165,7 +165,7 @@ std::string def_to_string(Context& ctx, DefId did) {
 
                 for (const auto didx : contracts) {
 
-                    str += ctx.symbold_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
+                    str += ctx.symbol_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
 
                     if (didx != contracts.last_elem()) {
                         str += " + ";
@@ -242,7 +242,7 @@ std::string def_to_string(Context& ctx, DefId did) {
         [&ctx, did](const DefDeftype& d) -> std::string {
             std::string str{"deftype "};
             str += ctx.symbol(ctx.def(did).name);
-            str += ' ';
+            str += " = ";
             str += type_to_string_with_akas(ctx, d.type);
             str += ';';
             return str;
@@ -272,7 +272,7 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
                 str += "compt ";
             }
             str += "fn ";
-            str += ctx.symbold_id_slice_to_string(ctx.canonical_name(did));
+            str += ctx.symbol(ctx.def(did).name);
             str += d.maybe_generic_args.has_value()
                        ? gen_args_to_str(ctx, d.maybe_generic_args.as_id())
                        : "";
@@ -311,7 +311,7 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
 
                 for (const auto didx : contracts) {
 
-                    str += ctx.symbold_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
+                    str += ctx.symbol_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
 
                     if (didx != contracts.last_elem()) {
                         str += " + ";
@@ -346,7 +346,7 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
     };
 
     std::string cannonical_name_comment = "// canonical name: ";
-    cannonical_name_comment += ctx.symbold_id_slice_to_string(ctx.canonical_name(did));
+    cannonical_name_comment += ctx.symbol_id_slice_to_string(ctx.canonical_name(did));
 
     std::string str;
     switch (preview_mode) {
