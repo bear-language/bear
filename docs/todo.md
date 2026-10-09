@@ -1,7 +1,7 @@
 ### todos
 
 #### priority 
-- [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (7 are failing as of 20261006)
+- [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (8 are failing as of 20261009)
     - mostly/entirely due to fn expr bodies now being resolved
 - [ ] implement full fuzzing tests of parser + hir
 - [ ] make deftype resolution not declaration order dependent

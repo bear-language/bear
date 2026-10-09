@@ -901,7 +901,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         return validate_lookup(maybe_did, id_slice);
     }
     case AST_EXPR_STRUCT_INIT: {
-        maybe_eid = solve_struct_or_union_init(*this, fid, scope, {}, expr, into_tid);
+        maybe_eid = handle_struct_or_union_init_impl(*this, fid, scope, {}, expr, into_tid);
         break;
     }
 
@@ -1815,114 +1815,7 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
 [[nodiscard]] OptId<ExecId> ComptExprSolver::handle_list_literal(FileId fid, ScopeId scope,
                                                                  const ast_expr_t* list_expr,
                                                                  OptId<TypeId> maybe_into_type) {
-    assert(list_expr->type == AST_EXPR_LIST_LITERAL);
-
-    Span whole_list_span{fid, context.ast(fid).buffer(), list_expr->first, list_expr->last};
-
-    ast_expr_list_literal_t list = list_expr->expr.list_literal;
-
-    ast_slice_of_exprs_t list_slice = list.slice;
-
-    // to properly understand desired type (if there is one)
-    OptId<TypeId> maybe_elem_into_type{};
-
-    // if into type is builtin, try to cast
-    if (maybe_into_type.has_value()) {
-        TypeId into_type = maybe_into_type.as_id();
-        const Type& type = context.type(into_type);
-        if (type.holds<TypeArr>()) {
-            auto inner_tid = type.as<TypeArr>().inner;
-
-            maybe_elem_into_type = inner_tid;
-        }
-    }
-
-    // guard empty
-    if (list_slice.len == 0) {
-        return context.emplace_compt_exec(
-            ExecListLiteral{.elems = IdSlice<ExecId>{}, .elem_type_id = maybe_elem_into_type},
-            whole_list_span);
-    }
-
-    llvm::SmallVector<ExecId> elem_execs{};
-
-    for (HirSize i = 0; i < list_slice.len; ++i) {
-        const ast_expr_t* expr = list_slice.start[i];
-        OptId<ExecId> maybe_exec
-            = solve_expr(fid, scope, expr,
-                         maybe_elem_into_type); // this inner part runs at compt and thus
-                                                // will recursive check that sub exprs are
-                                                // compt and will error out when appropriate
-        if (maybe_exec.empty()) {
-            return std::nullopt; // poisoned
-        }
-        elem_execs.push_back(maybe_exec.as_id());
-    }
-
-    IdSlice<ExecId> elem_slice = context.freeze_id_vec(elem_execs);
-
-    OptId<TypeId> maybe_first_type = infer_type_from_exec(context.exec_id(elem_slice.begin()));
-
-    if (maybe_first_type.empty()) {
-        return std::nullopt; // poisoned
-    }
-
-    // We will now type check this list literal for type-homogeneousness:
-
-    const Exec& first_exec = context.exec(elem_slice.begin());
-    TypeId type_for_list = maybe_first_type.as_id();
-
-    bool homo_type = true;
-    OptId<DiagnosticId> prev_diag{};
-
-    for (IdIdx<ExecId> eidx = elem_slice.begin(); eidx != elem_slice.end(); eidx++) {
-        ExecId eid = context.exec_id(eidx);
-        OptId<TypeId> maybe_curr_type = infer_type_from_exec(eid);
-
-        if (maybe_curr_type.empty()) {
-            return std::nullopt; // poisoned
-        }
-
-        TypeId curr_type = maybe_curr_type.as_id();
-
-        if (!context.equivalent_type(curr_type, type_for_list)) {
-
-            const Exec& curr_exec = context.exec(eid);
-
-            // check if it's own first hetero-rodeo, and, if so, emplace the once diagnostic
-            // for the whole list before emplacing the per-exec diagnostics
-            if (homo_type) {
-                prev_diag = context.emplace_diagnostic(
-                    whole_list_span, diag_code::mismatched_types_in_list_literal, diag_type::error);
-                // say type of first diagnostic this one time
-                auto curr_diag = context.emplace_diagnostic_with_message_value(
-                    first_exec.span, diag_code::value_is_of_type, diag_type::note,
-                    DiagnosticTypeAfterMessage{.tid = type_for_list});
-                context.link_diagnostic(prev_diag.as_id(), curr_diag);
-                prev_diag = curr_diag;
-            }
-
-            homo_type = false;
-
-            // prev_diag will always be set by now
-            auto curr_diag = prev_diag.as_id();
-
-            auto next_diag = context.emplace_diagnostic_with_message_value(
-                curr_exec.span, diag_code::value_is_of_type, diag_type::note,
-                DiagnosticTypeAfterMessage{.tid = curr_type});
-            context.link_diagnostic(curr_diag, next_diag);
-            prev_diag = next_diag;
-        }
-    }
-
-    // list isn't homogeneous, so it's invalid
-    if (!homo_type) {
-        return std::nullopt;
-    }
-
-    // fine, homogeneous, so return
-    return context.emplace_compt_exec(
-        ExecListLiteral{.elems = elem_slice, .elem_type_id = type_for_list}, whole_list_span);
+    return solve_list_literal_impl(*this, fid, scope, {}, list_expr, maybe_into_type);
 }
 
 [[nodiscard]] OptId<ExecId>

@@ -87,9 +87,11 @@ namespace hir {
         maybe_eid = handle_any_generic_id(fid, lctx, expr);
         break;
     case AST_EXPR_STRUCT_INIT:
-        maybe_eid = solve_struct_or_union_init(*this, fid, lctx.scope, lctx.map, expr, into_tid);
+        maybe_eid = handle_struct_or_union_init(fid, lctx, expr, into_tid);
         break;
     case AST_EXPR_LIST_LITERAL:
+        maybe_eid = handle_list_literal(fid, lctx, expr, into_tid);
+        break;
     case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
     case AST_EXPR_PRE_UNARY:
@@ -665,8 +667,9 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_GENERIC_ID:
         return handle_any_generic_id(fid, lctx, expr);
     case AST_EXPR_STRUCT_INIT:
-        return solve_struct_or_union_init(*this, fid, lctx.scope, lctx.map, expr, {});
+        return handle_struct_or_union_init(fid, lctx, expr, {});
     case AST_EXPR_LIST_LITERAL:
+        return handle_list_literal(fid, lctx, expr, {});
     case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
     case AST_EXPR_PRE_UNARY:
@@ -738,6 +741,18 @@ OptId<ExecId> RuntimeSolver::handle_literal(FileId fid, const ast_expr_t* expr, 
     // take converted if successful, else take the original value
     return context.emplace_compt_exec(
         maybe_converted ? maybe_converted.value() : maybe_value.value(), Span{context, fid, expr});
+}
+
+OptId<ExecId> RuntimeSolver::handle_struct_or_union_init(FileId fid, LexicalCtx lctx,
+                                                         const ast_expr_t* expr,
+                                                         OptId<TypeId> maybe_into_tid) {
+    return handle_struct_or_union_init_impl(*this, fid, lctx.scope, lctx.map, expr, maybe_into_tid);
+}
+
+OptId<ExecId> RuntimeSolver::handle_list_literal(FileId fid, LexicalCtx lctx,
+                                                 const ast_expr_t* expr,
+                                                 OptId<TypeId> maybe_into_tid) {
+    return solve_list_literal_impl(*this, fid, lctx.scope, lctx.map, expr, maybe_into_tid);
 }
 
 } // namespace hir

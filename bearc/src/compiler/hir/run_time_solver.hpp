@@ -153,6 +153,13 @@ class RuntimeSolver {
     /// tries to convert to the corret type if possible, otherwise returns the value of the
     /// incorrect type (the behavior is done this way so diagnostics can be externally managed)
     [[nodiscard]] OptId<ExecId> handle_literal(FileId fid, const ast_expr_t* expr, TypeId into_tid);
+
+    [[nodiscard]] OptId<ExecId> handle_struct_or_union_init(FileId fid, LexicalCtx lctx,
+                                                            const ast_expr_t* expr,
+                                                            OptId<TypeId> maybe_into_tid);
+    [[nodiscard]] OptId<ExecId> handle_list_literal(FileId fid, LexicalCtx lctx,
+                                                    const ast_expr_t* expr,
+                                                    OptId<TypeId> maybe_into_tid);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);
