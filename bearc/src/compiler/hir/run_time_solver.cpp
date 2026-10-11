@@ -92,8 +92,10 @@ namespace hir {
     case AST_EXPR_LIST_LITERAL:
         maybe_eid = handle_list_literal(fid, lctx, expr, into_tid);
         break;
-    case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
+        maybe_eid = handle_grouping(fid, lctx, expr, {});
+        break;
+    case AST_EXPR_BINARY:
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_POST_UNARY:
     case AST_EXPR_SUBSCRIPT:
@@ -670,8 +672,9 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return handle_struct_or_union_init(fid, lctx, expr, {});
     case AST_EXPR_LIST_LITERAL:
         return handle_list_literal(fid, lctx, expr, {});
-    case AST_EXPR_BINARY:
     case AST_EXPR_GROUPING:
+        return handle_grouping(fid, lctx, expr, {});
+    case AST_EXPR_BINARY:
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_POST_UNARY:
     case AST_EXPR_SUBSCRIPT:

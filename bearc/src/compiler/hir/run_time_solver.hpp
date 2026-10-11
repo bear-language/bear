@@ -15,6 +15,7 @@
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
+#include <cassert>
 #include <cstdint>
 
 namespace hir {
@@ -160,6 +161,11 @@ class RuntimeSolver {
     [[nodiscard]] OptId<ExecId> handle_list_literal(FileId fid, LexicalCtx lctx,
                                                     const ast_expr_t* expr,
                                                     OptId<TypeId> maybe_into_tid);
+    [[nodiscard]] OptId<ExecId> handle_grouping(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                                OptId<TypeId> maybe_into_tid) {
+        assert(expr->type == AST_EXPR_GROUPING);
+        return solve_expr(fid, lctx, expr->expr.grouping.expr, maybe_into_tid);
+    }
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);

@@ -27,6 +27,18 @@ enum class compt_or_runtime : uint8_t {
     runtime,
 };
 
+template <class Solver>
+[[nodiscard]] static inline OptId<ExecId>
+solve_expr_helper(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> maybe_move_map,
+                  const ast_expr_t* expr, OptId<TypeId> maybe_into_tid = {}) {
+    if constexpr (std::same_as<Solver, ComptExprSolver>) {
+        return solver.solve_expr(fid, scope, expr, maybe_into_tid);
+    } else {
+        return solver.solve_expr(fid, LexicalCtx{.scope = scope, .map = maybe_move_map.as_id()},
+                                 expr, maybe_into_tid);
+    }
+}
+
 [[nodiscard]] static inline std::optional<hir::ExecConst>
 solve_expr_literal(Context& ctx, FileId fid, const ast_expr_t* expr) {
     assert(expr->type == AST_EXPR_LITERAL);
@@ -379,15 +391,8 @@ solve_union_init(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> may
         return {}; // poisoned
     }
     TypeId needed_tid = context.def(matched_did).template as<DefVariable>().type_id;
-    OptId<ExecId> maybe_val;
-    if constexpr (is_compt_eval) {
-        maybe_val
-            = solver.solve_expr(fid, scope, member_init->expr.struct_member_init.value, needed_tid);
-    } else {
-        maybe_val
-            = solver.solve_expr(fid, LexicalCtx{.scope = scope, .map = maybe_move_map.as_id()},
-                                member_init->expr.struct_member_init.value, needed_tid);
-    }
+    OptId<ExecId> maybe_val = solve_expr_helper(
+        solver, fid, scope, maybe_move_map, member_init->expr.struct_member_init.value, needed_tid);
     if (maybe_val.empty()) {
         return {}; // poisoned
     }
@@ -446,14 +451,8 @@ template <IsExprSolver Solver>
             continue;
         }
         TypeId mem_tid = context.def(maybe_mem_did.as_id()).as<DefVariable>().type_id;
-        OptId<ExecId> maybe_eid;
-        if constexpr (is_compt_eval) {
-            maybe_eid = solver.solve_expr(fid, scope, mem_init.value, mem_tid);
-        } else {
-            maybe_eid
-                = solver.solve_expr(fid, LexicalCtx{.scope = scope, .map = maybe_move_map.as_id()},
-                                    mem_init.value, mem_tid);
-        }
+        OptId<ExecId> maybe_eid
+            = solve_expr_helper(solver, fid, scope, maybe_move_map, mem_init.value, mem_tid);
         if (!maybe_eid) {
             continue;
         }
@@ -571,14 +570,8 @@ solve_list_literal_impl(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMap
 
     for (HirSize i = 0; i < list_slice.len; ++i) {
         const ast_expr_t* expr = list_slice.start[i];
-        OptId<ExecId> maybe_exec{};
-        if constexpr (is_compt_eval) {
-            maybe_exec = solver.solve_expr(fid, scope, expr, maybe_elem_into_type);
-        } else {
-            maybe_exec
-                = solver.solve_expr(fid, LexicalCtx{.scope = scope, .map = maybe_move_map.as_id()},
-                                    expr, maybe_into_type);
-        }
+        OptId<ExecId> maybe_exec
+            = solve_expr_helper(solver, fid, scope, maybe_move_map, expr, maybe_elem_into_type);
         if (maybe_exec.empty()) {
             return std::nullopt; // poisoned
         }
