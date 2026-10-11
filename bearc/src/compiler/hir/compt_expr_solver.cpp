@@ -3723,44 +3723,7 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::solve_tuple_init(FileId fid, ScopeId scope,
                                                               const ast_expr_t* expr) {
-    assert(expr->type == AST_EXPR_TUPLE_INIT);
-
-    const auto exprs = expr->expr.tuple.exprs;
-
-    llvm::SmallVector<ExecId> eid_vec{};
-
-    for (auto i = 0uz; i < exprs.len; ++i) {
-        const auto maybe_eid = solve_expr(fid, scope, exprs.start[i]);
-        if (maybe_eid.empty()) {
-            return {};
-        }
-        eid_vec.push_back(maybe_eid.as_id());
-    }
-
-    llvm::SmallVector<TypeId> tid_vec{};
-
-    for (const auto eid : eid_vec) {
-        const auto maybe_tid = infer_type_from_exec(eid);
-        if (maybe_tid.empty()) {
-            return {};
-        }
-        tid_vec.push_back(maybe_tid.as_id());
-    }
-
-    const auto maybe_anon_tid = TypeResolver{context, def_visitor}.make_anon_struct_type(tid_vec);
-
-    if (maybe_anon_tid.empty()) {
-        return {};
-    }
-
-    const auto& ty = context.type(maybe_anon_tid.as_id());
-
-    assert(ty.holds<TypeStruct>());
-
-    return context.emplace_compt_exec(ExecStructInit{.member_inits = context.freeze_id_vec(eid_vec),
-                                                     .struct_def_id = ty.as<TypeStruct>().def_id,
-                                                     .anonymous = true},
-                                      Span{context, fid, expr});
+    return solve_tuple_init_impl(*this, fid, scope, {}, expr);
 }
 [[nodiscard]] OptId<ExecId> ComptExprSolver::solve_type_id(FileId fid, ScopeId scope,
                                                            const ast_expr_t* expr) {

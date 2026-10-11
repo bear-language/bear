@@ -19,6 +19,7 @@
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/inline_id_map.hpp"
 #include "compiler/hir/scope.hpp"
+#include "compiler/hir/type_resolver.hpp"
 
 namespace hir {
 
@@ -638,6 +639,54 @@ solve_list_literal_impl(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMap
     // fine, homogeneous, so return
     return context.emplace_exec(ExecListLiteral{.elems = elem_slice, .elem_type_id = type_for_list},
                                 whole_list_span, is_compt_eval);
+}
+
+template <class Solver>
+[[nodiscard]] OptId<ExecId> solve_tuple_init_impl(Solver& solver, FileId fid, ScopeId scope,
+                                                  OptId<MoveMapId> maybe_move_map,
+                                                  const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_TUPLE_INIT);
+
+    const auto exprs = expr->expr.tuple.exprs;
+
+    llvm::SmallVector<ExecId> eid_vec{};
+
+    Context& context = solver.get_context();
+
+    for (auto i = 0uz; i < exprs.len; ++i) {
+        const auto maybe_eid
+            = solve_expr_helper(solver, fid, scope, maybe_move_map, exprs.start[i]);
+        if (maybe_eid.empty()) {
+            return {};
+        }
+        eid_vec.push_back(maybe_eid.as_id());
+    }
+
+    llvm::SmallVector<TypeId> tid_vec{};
+
+    for (const auto eid : eid_vec) {
+        const auto maybe_tid = context.infer_type_from_exec(eid);
+        if (maybe_tid.empty()) {
+            return {};
+        }
+        tid_vec.push_back(maybe_tid.as_id());
+    }
+
+    const auto maybe_anon_tid
+        = TypeResolver{context, solver.get_def_visitor()}.make_anon_struct_type(tid_vec);
+
+    if (maybe_anon_tid.empty()) {
+        return {};
+    }
+
+    const auto& ty = context.type(maybe_anon_tid.as_id());
+
+    assert(ty.holds<TypeStruct>());
+
+    return context.emplace_exec(ExecStructInit{.member_inits = context.freeze_id_vec(eid_vec),
+                                               .struct_def_id = ty.as<TypeStruct>().def_id,
+                                               .anonymous = true},
+                                Span{context, fid, expr}, std::same_as<Solver, ComptExprSolver>);
 }
 
 } // namespace hir

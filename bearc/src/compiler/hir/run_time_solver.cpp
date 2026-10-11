@@ -95,6 +95,9 @@ namespace hir {
     case AST_EXPR_GROUPING:
         maybe_eid = handle_grouping(fid, lctx, expr, {});
         break;
+    case AST_EXPR_TUPLE_INIT:
+        maybe_eid = handle_tuple_init(fid, lctx, expr);
+        break;
     case AST_EXPR_BINARY:
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_POST_UNARY:
@@ -112,7 +115,6 @@ namespace hir {
     case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_MATCH:
     case AST_EXPR_ELSE_MATCH_PATTERN:
-    case AST_EXPR_TUPLE_INIT:
     case AST_EXPR_INVALID:
         break;
     }
@@ -674,6 +676,8 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return handle_list_literal(fid, lctx, expr, {});
     case AST_EXPR_GROUPING:
         return handle_grouping(fid, lctx, expr, {});
+    case AST_EXPR_TUPLE_INIT:
+        return handle_tuple_init(fid, lctx, expr);
     case AST_EXPR_BINARY:
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_POST_UNARY:
@@ -691,7 +695,6 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_MATCH:
     case AST_EXPR_ELSE_MATCH_PATTERN:
-    case AST_EXPR_TUPLE_INIT:
     case AST_EXPR_INVALID:
         break;
     }
@@ -756,6 +759,10 @@ OptId<ExecId> RuntimeSolver::handle_list_literal(FileId fid, LexicalCtx lctx,
                                                  const ast_expr_t* expr,
                                                  OptId<TypeId> maybe_into_tid) {
     return solve_list_literal_impl(*this, fid, lctx.scope, lctx.map, expr, maybe_into_tid);
+}
+OptId<ExecId> RuntimeSolver::handle_tuple_init(FileId fid, LexicalCtx lctx,
+                                               const ast_expr_t* expr) {
+    return solve_tuple_init_impl(*this, fid, lctx.scope, lctx.map, expr);
 }
 
 } // namespace hir

@@ -166,6 +166,8 @@ class RuntimeSolver {
         assert(expr->type == AST_EXPR_GROUPING);
         return solve_expr(fid, lctx, expr->expr.grouping.expr, maybe_into_tid);
     }
+    [[nodiscard]] OptId<ExecId> handle_tuple_init(FileId fid, LexicalCtx lctx,
+                                                  const ast_expr_t* expr);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);
