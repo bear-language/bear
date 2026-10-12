@@ -1,0 +1,114 @@
+// tests/hir/a91.br
+
+fn main() {
+    i32 foo;
+    &i32 rfoo = &foo;
+    i32 ifoo = &foo; // oops
+    &mut var rfoo1 = &mut foo; // oops
+    
+    var _0 = @note @type_to_str(typeof rfoo1);
+
+    mut i32 a = 12;
+    mut var b = 13;
+
+    var _1 = @note @type_to_str(typeof b);
+
+    &i32 ra = &a;
+    &mut i32 rma = &mut a; 
+    &i32 rb = &b;
+
+    &u64 ra64 = &a;
+}
+
+fn mut_and_immut_conversions() {
+    mut i32 a = 1;
+
+    &mut i32 rma = &mut a;
+    &i32 ra = &mut a; // &mut -> & is fine
+
+    &mut i32 rma1 = &a; // oops
+    &mut i32 rma2 = ra; // oops (auto-deref'd)
+    &i32 ra1 = a; // oops
+    &i64 ra64 = &a; // oops
+
+    i32 copied = ra; // auto-deref
+    mut i32 copied_mut = rma;
+}
+
+fn reborrows() {
+    mut i32 a = 1;
+    &i32 ra = &a;
+    &mut i32 rma = &mut a;
+
+    &i32 rra = &ra;
+    &i32 rrma = &rma;
+    &mut i32 rrma1 = &mut rma; // should be ok, `rma` is `&mut i32`
+    &mut i32 rra1 = &mut ra; // oops
+
+    var collapsed = &mut &mut a;
+    var _0 = @note @type_to_str(typeof collapsed);
+    var collapsed1 = & &a;
+    var _1 = @note @type_to_str(typeof collapsed1);
+    mut var collapsed_mut = &mut &mut a;
+    var _2 = @note @type_to_str(typeof collapsed_mut);
+}
+
+fn groupings_and_literals() {
+    mut i32 a = 1;
+    i32 b = 2;
+
+    &i32 rg = &(a);
+    &mut i32 rmg = &mut (a);
+    &mut i32 rmg1 = &mut (b); // oops
+
+    &i32 rl = &12;
+    &mut i32 rml = &mut 12; // oops
+
+    var rt = &(1, 2);
+    var _0 = @note @type_to_str(typeof rt);
+    var rli = &[1, 2, 3];
+    var _1 = @note @type_to_str(typeof rli);
+}
+
+struct Foo {
+    i32 x = 0;
+}
+
+fn aggregates() {
+    mut Foo f = Foo{};
+    Foo g = Foo{};
+
+    &mut Foo rf = &mut f;
+    &Foo rg = &g;
+    &mut Foo rmg = &mut g; // oops
+
+    mut struct(i32, i32) t = (1, 2);
+    var rt = &mut t;
+    var _0 = @note @type_to_str(typeof rt);
+    mut var rt_mut = &mut t;
+    var _1 = @note @type_to_str(typeof rt_mut);
+
+    mut var t1 = (1, 2);
+    var rt1 = &mut t1; // should be ok, `t1` is declared `mut`
+}
+
+fn inferred_refs() {
+    mut i32 a = 1;
+    i32 b = 2;
+
+    var rm = &mut a;
+    var _0 = @note @type_to_str(typeof rm);
+    mut var rm_mut = &mut a;
+    var _4 = @note @type_to_str(typeof rm_mut);
+    var rb = &b;
+    var _1 = @note @type_to_str(typeof rb);
+    &mut var rmv = &mut a;
+    var _2 = @note @type_to_str(typeof rmv);
+    &var rv = &mut a;
+    var _3 = @note @type_to_str(typeof rv);
+
+    mut var c = 3;
+    &mut i32 rc = &mut c; // should be ok, `c` is declared `mut`
+
+    &mut i32 rx = &mut undeclared; // oops
+}

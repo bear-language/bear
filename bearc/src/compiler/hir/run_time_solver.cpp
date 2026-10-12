@@ -98,13 +98,15 @@ namespace hir {
     case AST_EXPR_TUPLE_INIT:
         maybe_eid = handle_tuple_init(fid, lctx, expr);
         break;
+    case AST_EXPR_BORROW:
+        maybe_eid = handle_borrow(fid, lctx, expr);
+        break;
     case AST_EXPR_BINARY:
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_POST_UNARY:
     case AST_EXPR_SUBSCRIPT:
     case AST_EXPR_FN_CALL:
     case AST_EXPR_TYPE:
-    case AST_EXPR_BORROW:
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_TYPE_TO_STR:
     case AST_EXPR_STRUCT_MEMBER_INIT:
@@ -489,11 +491,15 @@ OptId<ExecId> RuntimeSolver::handle_var_decl(FileId fid, LexicalCtx lctx, InProg
     }
 
     if (maybe_runtime_eid.has_value()) {
-        ExecId assign_eid = context.emplace_exec(
-            ExecAssignment{.lhs = context.emplace_exec(
-                               ExecVariable{.def_id = did, .type_id = maybe_tid.as_id()}, span),
-                           .rhs = maybe_runtime_eid.as_id()},
-            span);
+        ExecId assign_eid
+            = context.emplace_exec(ExecAssignment{.lhs = context.emplace_exec(
+                                                      ExecVariable{
+                                                          .def_id = did,
+                                                          .type_id = maybe_tid.as_id(),
+                                                      },
+                                                      span),
+                                                  .rhs = maybe_runtime_eid.as_id()},
+                                   span);
         block.push_back_exec(assign_eid);
     }
 
@@ -533,7 +539,10 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
         maybe_runtime_eid = solve_expr(fid, lctx, stmt->stmt.var_init_decl.rhs, maybe_tid);
         if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())
             && maybe_runtime_eid.has_value()) {
+            bool mut = context.type(maybe_tid.as_id()).mut;
             maybe_tid = infer_type_from_exec(maybe_runtime_eid.as_id());
+            maybe_tid = context.emplace_type(context.type(maybe_tid.as_id()).value,
+                                             context.type(maybe_tid.as_id()).span, mut);
         }
     }
 
@@ -678,13 +687,14 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return handle_grouping(fid, lctx, expr, {});
     case AST_EXPR_TUPLE_INIT:
         return handle_tuple_init(fid, lctx, expr);
+    case AST_EXPR_BORROW:
+        return handle_borrow(fid, lctx, expr);
     case AST_EXPR_BINARY:
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_POST_UNARY:
     case AST_EXPR_SUBSCRIPT:
     case AST_EXPR_FN_CALL:
     case AST_EXPR_TYPE:
-    case AST_EXPR_BORROW:
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_TYPE_TO_STR:
     case AST_EXPR_STRUCT_MEMBER_INIT:
@@ -760,9 +770,39 @@ OptId<ExecId> RuntimeSolver::handle_list_literal(FileId fid, LexicalCtx lctx,
                                                  OptId<TypeId> maybe_into_tid) {
     return solve_list_literal_impl(*this, fid, lctx.scope, lctx.map, expr, maybe_into_tid);
 }
+
 OptId<ExecId> RuntimeSolver::handle_tuple_init(FileId fid, LexicalCtx lctx,
                                                const ast_expr_t* expr) {
     return solve_tuple_init_impl(*this, fid, lctx.scope, lctx.map, expr);
+}
+
+OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_BORROW);
+
+    const auto maybe_inner_eid = solve_expr(fid, lctx, expr->expr.borrow.borrowed);
+
+    if (maybe_inner_eid.empty()) {
+        return {};
+    }
+
+    const bool mut_borrow = expr->expr.borrow.mut;
+
+    const auto maybe_inner_tid = context.infer_type_from_exec(maybe_inner_eid.as_id());
+    if (maybe_inner_tid.empty()) {
+        return {};
+    }
+
+    const Type& ty = context.type(maybe_inner_tid.as_id());
+
+    if (!ty.mut && mut_borrow) {
+        context.emplace_diagnostic_with_message_value(
+            Span{context.exec(maybe_inner_eid.as_id()).span},
+            diag_code::cannot_take_a_mutable_reference_to_immutable_value_of_type, diag_type::error,
+            DiagnosticTypeAfterMessage{.tid = maybe_inner_tid.as_id()});
+    }
+
+    return context.emplace_exec(ExecBorrow{.borrowee = maybe_inner_eid.as_id(), .mut = mut_borrow},
+                                Span{context, fid, expr});
 }
 
 } // namespace hir

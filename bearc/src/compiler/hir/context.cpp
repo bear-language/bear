@@ -2303,7 +2303,7 @@ template <equivalence E>
     // references have special rules since they behave a bit differently (they're not really
     // textbook 'by-value' how other types are)
     if (from_ty.holds_same<TypeRef>(to_ty)) {
-        return ctx.assignable_from_type_to_refs(from, to);
+        return assignable_from_type_to_refs_impl<E>(ctx, from, to);
     }
 
     if constexpr (E == equivalence::exact) {
@@ -2346,10 +2346,11 @@ template <equivalence E>
     return assignable_from_type_to_impl<equivalence::implicit>(*this, from, to);
 }
 
-[[nodiscard]] bool Context::assignable_from_type_to_refs(TypeId from, TypeId to) {
+template <equivalence E>
+[[nodiscard]] bool assignable_from_type_to_refs_impl(Context& ctx, TypeId from, TypeId to) {
 
-    const Type& from_ty = type(from);
-    const Type& to_ty = type(to);
+    const Type& from_ty = ctx.type(from);
+    const Type& to_ty = ctx.type(to);
 
     assert(from_ty.holds_same<TypeRef>(to_ty));
 
@@ -2360,7 +2361,8 @@ template <equivalence E>
 
     // .as_id() is safe here because we know both of these hold ref types which always have inner
     // types
-    return equivalent_type(from_ty.try_inner().as_id(), to_ty.try_inner().as_id());
+    return assignable_from_type_to_impl<E>(ctx, from_ty.try_inner().as_id(),
+                                           to_ty.try_inner().as_id());
 }
 
 [[nodiscard]] bool Context::equivalent_type_ignoring_mut(TypeId tid1, TypeId tid2) {
@@ -3960,8 +3962,8 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             if (maybe_tid.empty()) {
                 return {};
             }
-            // since the ExecSubscript is already type checked, we know LHS must either be a ptr, an
-            // array, or a slice, for all of which this works (getting the inner type)
+            // since the ExecSubscript is already type checked, we know LHS must either be a
+            // ptr, an array, or a slice, for all of which this works (getting the inner type)
             return type(maybe_tid.as_id()).try_inner();
         },
         [this](const ExecFnCall& d) -> OptId<TypeId> {
@@ -3984,8 +3986,17 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             if (type(maybe_inner_tid.as_id()).holds<TypeRef>()) {
                 return maybe_inner_tid;
             }
-            return emplace_type(TypeRef{.inner = maybe_inner_tid.as_id()}, Span::generated(),
-                                d.mut);
+            const Type& inner_ty = type(maybe_inner_tid.as_id());
+
+            const auto inner_tid
+                = inner_ty.mut
+                      ? emplace_type(inner_ty.value, inner_ty.span, false)
+                      : maybe_inner_tid.as_id(); // ensure inner ty is not mut (since the
+                                                 // mutness is handled by the reference, this is
+                                                 // kinda arbitrary and just an impl detail for
+                                                 // easier understanding of reference types)
+                                                 // but still ensure to not override the inner tid
+            return emplace_type(TypeRef{.inner = inner_tid}, Span::generated(), d.mut);
         },
         [this](const ExecAddrOf& d) -> OptId<TypeId> {
             const auto maybe_inner = infer_type_from_exec(d.addressed);
@@ -4000,7 +4011,12 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
                 return {};
             }
             // fine since maybe_tid should be a ref/ptr type which has an inner
-            return type(maybe_tid.as_id()).try_inner();
+            const auto inner_tid = type(maybe_tid.as_id()).try_inner().as_id();
+            const Type& ty = type(inner_tid);
+            if (!ty.mut && d.mut) {
+                return emplace_type(ty.value, ty.span, true);
+            }
+            return inner_tid;
         },
         // these are ctrl and do not yield values
         [](const ExecMatch&) -> OptId<TypeId> { return {}; },

@@ -168,6 +168,7 @@ class RuntimeSolver {
     }
     [[nodiscard]] OptId<ExecId> handle_tuple_init(FileId fid, LexicalCtx lctx,
                                                   const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_borrow(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);

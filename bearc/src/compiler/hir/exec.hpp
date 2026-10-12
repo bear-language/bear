@@ -472,6 +472,7 @@ struct ExecBorrow {
 
 struct ExecDeref {
     ExecId dereferenced;
+    bool mut;
 };
 
 struct ExecAddrOf {

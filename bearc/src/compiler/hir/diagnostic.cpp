@@ -477,6 +477,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "initialized here";
     case diag_code::does_not_have_a_default_value_so_an_initial_value_is_needed:
         return "does not have a default value so an initial value is needed";
+    case diag_code::cannot_take_a_mutable_reference_to_immutable_value_of_type:
+        return "cannot take a mutable reference to immutable value of type";
     }
 
     std::unreachable();

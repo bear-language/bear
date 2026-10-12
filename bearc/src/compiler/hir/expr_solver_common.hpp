@@ -182,11 +182,15 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
         }
         // handle runtime
         const auto tid = def.as<DefVariable>().type_id;
+
+        const bool mut_ref = context.type(tid).mut;
+
         const auto variable_exec
             = context.emplace_exec(ExecVariable{.def_id = did, .type_id = tid}, expr_span);
         // try auto-dereference
         if (context.type(tid).holds<TypeRef>()) {
-            return context.emplace_exec(ExecDeref{.dereferenced = variable_exec}, expr_span);
+            return context.emplace_exec(ExecDeref{.dereferenced = variable_exec, .mut = mut_ref},
+                                        expr_span);
         }
         return variable_exec;
     }
