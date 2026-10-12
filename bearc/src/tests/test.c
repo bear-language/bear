@@ -470,6 +470,7 @@ br_test_result_t test_hir(void) {
     char* argsa89[] = {"bearc", "tests/hir/a89.br", "-I", "tests/lib"};
     ASSERT_EQ_ERR_FROM_ARGSN(argsa89, 13, 2);
     ASSERT_EQ_ERR("hir/a90", 5);
+    ASSERT_EQ_ERR("hir/a91", 26);
 
     return TEST_RESULT;
 }
