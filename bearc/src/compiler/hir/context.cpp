@@ -4095,4 +4095,36 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
     return def_to_pretty_string_preview(*this, did, preview_mode);
 }
 
+[[nodiscard]] bool Context::is_lvalue(ExecId eid) const {
+    // TODO finish
+    const auto vs = Ovld{
+        [](const ExecDeref&) -> bool { return false; },
+        [](const ExecBlock&) -> bool { return false; },
+        [](const ExecBranch&) -> bool { return false; },
+        [](const ExecReturn&) -> bool { return false; },
+        [](const ExecYield&) -> bool { return false; },
+        [](const ExecJump&) -> bool { return false; },
+        [](const ExecUnionInit&) -> bool { return false; },
+        [](const ExecVariantInit&) -> bool { return false; },
+        [](const ExecStructInit&) -> bool { return false; },
+        [](const ExecVariable&) -> bool { return false; },
+        [](const ExecComptConstant&) -> bool { return false; },
+        [](const ExecListLiteral&) -> bool { return false; },
+        [](const ExecAssignment&) -> bool { return false; },
+        [](const ExecMemberAccess&) -> bool { return false; },
+        [](const ExecBinary&) -> bool { return false; },
+        [](const ExecCast&) -> bool { return false; },
+        [](const ExecSubscript&) -> bool { return false; },
+        [](const ExecFnCall&) -> bool { return false; },
+        [](const ExecBorrow&) -> bool { return false; },
+        [](const ExecAddrOf&) -> bool { return false; },
+        [](const ExecMatch&) -> bool { return false; },
+        [](const ExecMatchBranch&) -> bool { return false; },
+        [](const ExecFnPtr&) -> bool { return false; },
+        [](const ExecVariantFieldInit&) -> bool { return false; },
+        [](const ExecRange&) -> bool { return false; },
+    };
+    return exec(eid).visit(vs);
+}
+
 } // namespace hir

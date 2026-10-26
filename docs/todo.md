@@ -1,6 +1,7 @@
 ### todos
 
 #### priority 
+- [ ] finish `Context::is_lvalue`
 - [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (8 are failing as of 20261009)
     - mostly/entirely due to fn expr bodies now being resolved
 - [ ] implement full fuzzing tests of parser + hir
