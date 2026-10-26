@@ -1,7 +1,8 @@
 ### todos
 
 #### priority 
-- [ ] finish `Context::is_lvalue`
+- [x] finish `Context::is_lvalue`
+- [ ] impl lvalue check for mutable borrows or immut compt constant promotion in `RunTimeSolver::handle_borrow`
 - [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (8 are failing as of 20261009)
     - mostly/entirely due to fn expr bodies now being resolved
 - [ ] implement full fuzzing tests of parser + hir

@@ -796,6 +796,9 @@ OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const as
 
     const bool mut_borrow = expr->expr.borrow.mut;
 
+    // TODO: make sure inner is an lvalue (or perhaps a promotable compt constant if it's an immut
+    // borrow)
+
     const auto maybe_inner_tid = context.infer_type_from_exec(maybe_inner_eid.as_id());
     if (maybe_inner_tid.empty()) {
         return {};
