@@ -565,7 +565,16 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
     }
 
     if (maybe_runtime_eid.has_value()) {
-        block.push_back_exec(maybe_runtime_eid.as_id());
+        ExecId assign_eid
+            = context.emplace_exec(ExecAssignment{.lhs = context.emplace_exec(
+                                                      ExecVariable{
+                                                          .def_id = did,
+                                                          .type_id = maybe_tid.as_id(),
+                                                      },
+                                                      span),
+                                                  .rhs = maybe_runtime_eid.as_id()},
+                                   span);
+        block.push_back_exec(assign_eid);
     }
 
     // TODO: do something special for non-compt static variables using a guard variable
