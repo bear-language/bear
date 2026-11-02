@@ -4096,17 +4096,16 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
 }
 
 [[nodiscard]] bool Context::is_lvalue(ExecId eid) const {
-    // TODO finish
     const auto vs = Ovld{
         // yes
         [](const ExecDeref&) -> bool { return true; },
         [](const ExecVariable&) -> bool { return true; },
+        [this](const ExecMemberAccess& e) -> bool { return is_lvalue(e.owner); },
         // ~~~~~ these *should* be handled by auto-dereferencing of reference types ~~~~~
         [](const ExecBorrow&) -> bool { return false; },
         [](const ExecSubscript&) -> bool { return false; },
         [](const ExecFnCall&) -> bool { return false; },
         [](const ExecAssignment&) -> bool { return false; },
-        [](const ExecMemberAccess&) -> bool { return false; },
         [](const ExecBinary&) -> bool { return false; },
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // no
