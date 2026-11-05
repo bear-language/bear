@@ -26,6 +26,7 @@ ast_type_t* parser_sync_type(parser_t* p) {
     token_range_t range = parser_sync(p);
     ast_type_t* dummy_type = parser_alloc_type(p);
     dummy_type->tag = AST_TYPE_INVALID;
+    dummy_type->canonical_base = dummy_type;
     dummy_type->first = range.first;
     dummy_type->last = range.last;
     return dummy_type;
@@ -36,6 +37,7 @@ static ast_type_t* parser_invalid_type_and_toss_next_tkn(parser_t* p) {
     parser_toss(p);
     ast_type_t* dummy_type = parser_alloc_type(p);
     dummy_type->tag = AST_TYPE_INVALID;
+    dummy_type->canonical_base = dummy_type;
     dummy_type->first = tkn;
     dummy_type->last = tkn;
     return dummy_type;

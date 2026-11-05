@@ -330,7 +330,8 @@ handle_struct_or_union_init_impl(Solver& solver, FileId fid, ScopeId scope,
         }
     }
 
-    if (maybe_struct_did.empty()) {
+    if (maybe_struct_did.empty()
+        || !context.def(maybe_struct_did.as_id()).template holds<DefStruct>()) {
         return {};
     }
     DefId struct_did = maybe_struct_did.as_id();
@@ -376,6 +377,9 @@ solve_union_init(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> may
     }
 
     const ast_expr_t* member_init = expr->expr.struct_init.member_inits.start[0];
+    if (member_init->type != AST_EXPR_STRUCT_MEMBER_INIT) {
+        return {};
+    }
     SymbolId member_name = context.symbol_id(member_init->expr.struct_member_init.id);
     OptId<DefId> maybe_match = context.linear_name_match_in_def_slice(member_dids, member_name);
     if (maybe_match.empty()) {
@@ -476,6 +480,9 @@ template <IsExprSolver Solver>
     llvm::SmallVector<ExecId> member_init_execs{};
     for (const auto didx : member_dids) {
         const auto did = context.def_id(didx);
+        if (!context.def(did).template holds<DefVariable>()) {
+            return std::nullopt;
+        }
         const auto maybe_eid = mem_defs_to_execs.at(did);
         const auto maybe_default_eid = context.def(did).as<DefVariable>().compt_value;
         if (!maybe_eid && !maybe_default_eid) {

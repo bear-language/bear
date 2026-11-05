@@ -18,6 +18,7 @@
 #include "compiler/hir/type.hpp"
 #include "compiler/token.h"
 #include "llvm/ADT/SmallVector.h"
+#include <bit>
 #include <cstdint>
 #include <variant>
 
@@ -110,7 +111,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             const auto* tkn = expr->expr.literal.tkn;
             static constexpr auto MAX_ALIGN = 128u;
             if (tkn->type == TOK_UINT_LIT && tkn->val.unsigned_integral <= MAX_ALIGN
-                && tkn->val.unsigned_integral > 0) {
+                && std::has_single_bit(tkn->val.unsigned_integral)) {
                 return tkn->val.unsigned_integral;
             }
             return 0u;

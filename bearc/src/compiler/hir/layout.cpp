@@ -79,6 +79,10 @@ LayoutId find_or_calculate_layout_for_type(Context& context, TypeId tid) {
             for (auto didx = mems.begin(); didx != mems.end(); ++didx) {
                 // all struct ordered members are variable definitions
                 const auto& def = context.def(didx);
+                if (!def.holds<DefVariable>()) {
+                    offset_vec.emplace_back(offset);
+                    continue;
+                }
                 const auto tid = def.as<DefVariable>().type_id;
 
                 const LayoutId mem_lid = find_or_calculate_layout_for_type(context, tid);
@@ -126,6 +130,10 @@ LayoutId find_or_calculate_layout_for_type(Context& context, TypeId tid) {
                 for (auto didx = mems.begin(); didx != mems.end(); ++didx) {
                     // all variant members are ordered members are variable definitions
                     const auto& def = context.def(didx);
+                    if (!def.holds<DefVariable>()) {
+                        offset_vec.push_back(Offset{offset});
+                        continue;
+                    }
                     const auto tid = def.as<DefVariable>().type_id;
 
                     const LayoutId mem_lid = find_or_calculate_layout_for_type(context, tid);
@@ -186,9 +194,12 @@ LayoutId find_or_calculate_layout_for_type(Context& context, TypeId tid) {
         [&context](const TypeUnion& t) -> Layout {
             llvm::SmallVector<LayoutId> layout_vec{};
 
-            IdSlice<DefId> mems = context.def(t.def_id).as<DefUnion>().ordered_members;
+            IdSlice<DefId> mems = context.ordered_defs_for(t.def_id);
 
             for (auto didx = mems.begin(); didx != mems.end(); ++didx) {
+                if (!context.def(didx).holds<DefVariable>()) {
+                    continue;
+                }
                 layout_vec.push_back(find_or_calculate_layout_for_type(
                     context, context.def(didx).as<DefVariable>().type_id));
             }

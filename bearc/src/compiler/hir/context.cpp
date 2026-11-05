@@ -1784,10 +1784,14 @@ OptId<DefId> Context::look_up_scoped(auto on_first, auto on_last, ScopeId scope,
                                          ? look_up_type(curr_scope, sid)
                                          : look_up_local_type(curr_scope, sid);
                    maybe_type.has_value()) {
-            curr_scope = scope_for_def(guard_hid_type(
+            const auto maybe_scope = try_scope_for_def(guard_hid_type(
                 scope, maybe_type.as_id(),
                 IdSlice<SymbolId>{id_slice.begin(), sidx.raw() + 1 - id_slice.begin().raw()},
                 id_span));
+            if (maybe_scope.empty()) {
+                return {};
+            }
+            curr_scope = maybe_scope.as_id();
         } else {
             return {}; // none of those
         }
@@ -1896,7 +1900,7 @@ OptId<DefId> Context::look_up_scoped_namespace_bypassing_visibility(ScopeId scop
     const Def& d = def(struct_did);
     assert(d.holds<DefStruct>());
     const auto ords = d.as<DefStruct>().ordered_members;
-    if (idx > ords.len()) {
+    if (idx >= ords.len()) {
         auto d0 = emplace_diagnostic_with_message_value(
             exec.span, diag_code::requested_struct_member, diag_type::error,
             DiagnosticIdxOutOfBounds{
@@ -2148,6 +2152,9 @@ bool Context::scope_has_parent(ScopeId local_scope, ScopeId possible_parent) con
             if (curr_did.empty()) {
                 maybe_did = look_up_variable(scope, sid);
             } else {
+                if (!def(curr_did.as_id()).holds<DefStruct>()) {
+                    return false;
+                }
                 maybe_did = look_up_member_function_no_diag_except_hid(def(curr_did.as_id()), sid,
                                                                        id_span, scope);
                 if (maybe_did.empty()) {
@@ -2284,6 +2291,9 @@ OptId<ScopeId> Context::func_to_scope(DefId did) { return def_to_scope_for_funcs
 
 Span Context::name_span_for_def(DefId did) const {
     const Def& def = this->def(did);
+    if (!def_ast_node(did)) {
+        return def.span;
+    }
     return Span{*this, def.span.file_id,
                 FileAstVisitor::name_of_ast_decl(def_ast_node(did)).value()};
 }

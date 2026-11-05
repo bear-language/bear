@@ -483,6 +483,8 @@ ast_expr_t* parse_expr_defined(parser_t* p) {
     // handle failure
     if (id_slice.len == 0) {
         ex->type = AST_EXPR_INVALID;
+        ex->first = tts_tkn;
+        ex->last = parser_prev(p);
         return ex;
     }
     ex->expr.defined.id = id_slice;
@@ -809,6 +811,8 @@ ast_expr_t* parse_grouping(parser_t* p) {
     ast_expr_t* expr = parse_expr(p);
     if (expr->type == AST_EXPR_INVALID) {
         grouping->type = AST_EXPR_INVALID;
+        grouping->first = lparen;
+        grouping->last = parser_prev(p);
         return grouping;
     }
     if (parser_match_token(p, TOK_COMMA)) {
@@ -930,6 +934,7 @@ ast_expr_t* parse_expr_generic_id(parser_t* p, token_ptr_slice_t id_slice,
     ast_expr_t* s = parser_alloc_expr(p);
     if (!id_slice.len) {
         s->type = AST_EXPR_INVALID;
+        s->first = s->last = parser_prev(p);
         return s;
     }
     s->type = AST_EXPR_GENERIC_ID;

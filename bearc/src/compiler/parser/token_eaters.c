@@ -30,8 +30,9 @@ token_t* parser_eat(parser_t* parser) {
 }
 
 void parser_toss(parser_t* p) {
-    parser_eat(p);
-    p->prev_discarded = true;
+    if (parser_eat(p)->type != TOK_EOF) {
+        p->prev_discarded = true;
+    }
 }
 
 // peek current uneaten token without consuming it

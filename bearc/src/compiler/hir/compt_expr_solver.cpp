@@ -2133,7 +2133,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
         const ast_expr_t* rhs_expr = expr->expr.binary.rhs;
         Span rhs_span{context, fid, rhs_expr};
 
-        if (lhs_exec.holds<ExecUnionInit>()) {
+        if (lhs_exec.holds<ExecUnionInit>() && rhs_expr->type == AST_EXPR_ID) {
             {
                 const Def& union_def = context.def(
                     def_visitor.visit_as_transparent(lhs_exec.as<ExecUnionInit>().union_def_id));
@@ -3465,6 +3465,9 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         llvm::SmallVector<ExecId> strs{};
 
         DefId struct_did = ty.as<TypeStruct>().def_id;
+        if (!context.def(struct_did).holds<DefStruct>()) {
+            return {};
+        }
 
         const IdSlice<DefId> ordered_members
             = context.def(struct_did).as<DefStruct>().ordered_members;
