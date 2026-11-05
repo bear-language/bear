@@ -5,7 +5,6 @@
 - [ ] impl lvalue check for mutable borrows or immut compt constant promotion in `RunTimeSolver::handle_borrow`
 - [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (8 are failing as of 20261009)
     - mostly/entirely due to fn expr bodies now being resolved
-- [ ] implement full fuzzing tests of parser + hir
 - [ ] make deftype resolution not declaration order dependent
 
 #### function body resolution / runtime eval:
