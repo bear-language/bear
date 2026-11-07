@@ -2952,6 +2952,8 @@ OptId<DefId> Context::try_def_for_exec(ExecId eid) const {
     const auto vs = Ovld{
         [](const ExecVariable& e) -> OptId<DefId> { return e.def_id; },
         [this](const ExecDeref& e) -> OptId<DefId> { return try_def_for_exec(e.dereferenced); },
+        [this](const ExecMemberAccess& e) -> OptId<DefId> { return try_def_for_exec(e.owner); },
+
         [](const ExecBlock&) -> OptId<DefId> { return {}; },
         [](const ExecBranch&) -> OptId<DefId> { return {}; },
         [](const ExecReturn&) -> OptId<DefId> { return {}; },
@@ -2963,7 +2965,6 @@ OptId<DefId> Context::try_def_for_exec(ExecId eid) const {
         [](const ExecComptConstant&) -> OptId<DefId> { return {}; },
         [](const ExecListLiteral&) -> OptId<DefId> { return {}; },
         [](const ExecAssignment&) -> OptId<DefId> { return {}; },
-        [](const ExecMemberAccess&) -> OptId<DefId> { return {}; },
         [](const ExecBinary&) -> OptId<DefId> { return {}; },
         [](const ExecCast&) -> OptId<DefId> { return {}; },
         [](const ExecSubscript&) -> OptId<DefId> { return {}; },
@@ -4143,12 +4144,14 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
         [](const ExecVariable&) -> bool { return true; },
         [this](const ExecMemberAccess& e) -> bool { return is_lvalue(e.owner); },
         [this](const ExecBorrow& e) -> bool { return is_lvalue(e.borrowee); },
-        // ~~~~~ these *should* be handled by auto-dereferencing of reference types ~~~~~
-        [](const ExecSubscript&) -> bool { return false; },
+        [this](const ExecSubscript& e) -> bool { return is_lvalue(e.base); },
+        // TODO: these *should* be handled by auto-dereferencing of reference types, otherwise
+        // handle specially
         [](const ExecFnCall&) -> bool { return false; },
         [](const ExecAssignment&) -> bool { return false; },
         [](const ExecBinary&) -> bool { return false; },
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
         // no
         [](const ExecBlock&) -> bool { return false; },
         [](const ExecBranch&) -> bool { return false; },

@@ -803,18 +803,14 @@ OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const as
     // - inner is a promotable compt constant and this is an immut borrow
 
     const bool inner_is_lvalue = context.is_lvalue(maybe_inner_eid.as_id());
-    const bool inner_is_compt_and_borrow_is_immut
-        = context.exec(maybe_inner_eid.as_id()).compt && !mut_borrow;
+    const bool inner_is_compt = context.exec(maybe_inner_eid.as_id()).compt;
 
-    if (!inner_is_lvalue && !inner_is_compt_and_borrow_is_immut) {
+    if (!inner_is_lvalue && !inner_is_compt) {
         const Exec& exec = context.exec(maybe_inner_eid.as_id());
         context.emplace_diagnostic(exec.span, diag_code::cannot_borrow_temporary_value,
                                    diag_type::error);
         return {};
     }
-
-    // the later immut borrow check will catch/handle the compt inner w/ a mut borrow, since that
-    // can't be safely constant-promoted
 
     const auto maybe_inner_tid = context.infer_type_from_exec(maybe_inner_eid.as_id());
     if (maybe_inner_tid.empty()) {

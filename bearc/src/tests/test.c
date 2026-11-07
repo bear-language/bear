@@ -471,6 +471,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR_FROM_ARGSN(argsa89, 13, 2);
     ASSERT_EQ_ERR("hir/a90", 5);
     ASSERT_EQ_ERR("hir/a91", 30);
+    ASSERT_EQ_ERR("hir/a92", 8);
 
     return TEST_RESULT;
 }
