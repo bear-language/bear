@@ -75,8 +75,12 @@ def run(src, label, data):
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seed", type=int, help="random seed for case sampling (default: random)")
-    parser.add_argument("--full", action="store_true", help="run every case instead of a random subset")
+    parser.add_argument(
+        "--seed", type=int, help="random seed for case sampling (default: random)"
+    )
+    parser.add_argument(
+        "--full", action="store_true", help="run every case instead of a random subset"
+    )
     return parser.parse_args()
 
 
@@ -84,7 +88,10 @@ def main():
     args = parse_args()
     seed = args.seed if args.seed is not None else random.randrange(2**32)
     rng = random.Random(seed)
-    print(f"seed: {seed}" + (" (full)" if args.full else f" (sampling ~1/{SAMPLE_RATE})"), flush=True)
+    print(
+        f"seed: {seed}" + (" (full)" if args.full else f" (sampling ~1/{SAMPLE_RATE})"),
+        flush=True,
+    )
 
     build()
     OUT_DIR.mkdir(exist_ok=True)
@@ -113,7 +120,9 @@ def main():
                     failures += 1
                     print(f"  {msg}", flush=True)
 
-    print(f"\n{total - failures}/{total} passed; {failures} failure(s) saved to {OUT_DIR}")
+    print(
+        f"\n (fuzz tests) {total - failures}/{total} passed; {failures} failure(s) saved to {OUT_DIR}"
+    )
     print(f"seed: {seed}")
     sys.exit(1 if failures else 0)
 

@@ -12,9 +12,8 @@ case "$config" in
         ;;
 esac
 
-rm -rf build
-cmake -S . -B build -DCMAKE_BUILD_TYPE="$config" -DTEST=ON
-cmake --build build -j"$(nproc)"
+cmake -S . -B build-test -DCMAKE_BUILD_TYPE="$config" -DTEST=ON
+cmake --build build-test -j"$(nproc)"
 echo "Running tests..."
-./build/bearc/bearc
+./build-test/bearc/bearc
 
