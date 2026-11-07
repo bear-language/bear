@@ -27,10 +27,10 @@
 # installing LLVM development packages:
 
 # Ubuntu / Debian
-sudo apt install llvm-dev 
+sudo apt install llvm-dev zlib1g-dev libzstd-dev
 
 # Fedora / RHEL 
-sudo dnf install llvm-devel
+sudo dnf install llvm-devel llvm-static zlib-ng-compat-devel libzstd-devel
 
 # Arch 
 sudo pacman -S llvm

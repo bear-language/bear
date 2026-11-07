@@ -162,6 +162,14 @@ find_package(LLVM REQUIRED CONFIG)
 message(STATUS "[INFO] found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "[INFO] using LLVMConfig.cmake in: ${LLVM_DIR}")
 
+# LLVMConfig finds these non-fatally, so fail here instead of at link-time
+if(LLVM_ENABLE_ZLIB AND NOT TARGET ZLIB::ZLIB)
+    message(FATAL_ERROR "LLVM requires zlib, but its development package was not found.")
+endif()
+if(LLVM_ENABLE_ZSTD AND NOT TARGET zstd::libzstd_shared)
+    message(FATAL_ERROR "LLVM requires zstd, but its development package was not found.")
+endif()
+
 message(STATUS "[INFO] including LLVM headers: ${LLVM_INCLUDE_DIRS}")
 include_directories(${LLVM_INCLUDE_DIRS})
 
