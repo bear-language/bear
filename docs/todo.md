@@ -1,11 +1,11 @@
 ### todos
 
 #### priority 
-- [x] finish `Context::is_lvalue`
-- [ ] impl lvalue check for mutable borrows or immut compt constant promotion in `RunTimeSolver::handle_borrow`
-- [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (8 are failing as of 20261009)
+- [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (9 are failing as of 20261107)
     - mostly/entirely due to fn expr bodies now being resolved
 - [ ] make deftype resolution not declaration order dependent
+- [ ] emit a diagnostic (e.g. `not yet implemented in a runtime context`) for unhandled expr kinds in `RuntimeSolver::solve_expr` versus returning empty w/o a diag
+- [ ] fix cascading diagnostic in `solve_struct_init`: when a member's value expr fails to solve, don't also report `struct initializer does not initialize field` for that member (likely the +4 in tests 04, 53, 59, 65, 66, 67)
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s

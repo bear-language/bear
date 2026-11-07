@@ -139,7 +139,7 @@ struct Type : NodeWithVariantValue<Type> {
             [](const TypeFnPtr&) -> OTid { return OTid{}; },
             [](const TypeVar&) -> OTid { return OTid{}; },
         };
-        return std::visit(vs, value);
+        return visit_exhaustive(vs, value);
     }
 
     // either a typed pointer, *void, or nullptr
@@ -157,7 +157,7 @@ struct Type : NodeWithVariantValue<Type> {
             [](const TypeFnPtr&) -> bool { return true; },
             [](const TypeVar&) -> bool { return {}; },
         };
-        return std::visit(vs, value);
+        return visit_exhaustive(vs, value);
     }
 };
 

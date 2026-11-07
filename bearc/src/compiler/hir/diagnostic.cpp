@@ -1183,7 +1183,7 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        str += ' ';
                        str += message_for_code(code);
                    }}; // namespace hir
-    std::visit(vs, message_value);
+    visit_exhaustive(vs, message_value);
 }
 
 DiagLinker& DiagLinker::link(DiagnosticId d) {
