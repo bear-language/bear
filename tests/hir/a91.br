@@ -17,7 +17,7 @@ fn main() {
     &mut i32 rma = &mut a; 
     &i32 rb = &b;
 
-    &u64 ra64 = &a;
+    &u64 ra64 = &a; // oops
 }
 
 fn mut_and_immut_conversions() {

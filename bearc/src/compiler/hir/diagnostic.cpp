@@ -479,6 +479,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "does not have a default value so an initial value is needed";
     case diag_code::cannot_take_a_mutable_reference_to_immutable_value_of_type:
         return "cannot take a mutable reference to immutable value of type";
+    case diag_code::cannot_borrow_temporary_value:
+        return "cannot borrow temporary value";
     }
 
     std::unreachable();

@@ -15,10 +15,10 @@ names = [t.strip() for t in types.replace("\n", "").split(",") if t.strip()]
 
 template = """\
 [](const {name}&) -> {ret} {{
-    return false;
+    return {{}};
 }},"""
 
-RETURN_TYPE = "bool"
+RETURN_TYPE = "OptId<DefId>"
 
 print("const auto vs = Ovld{")
 for n in names:

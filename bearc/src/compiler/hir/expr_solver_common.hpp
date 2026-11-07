@@ -411,7 +411,8 @@ solve_union_init(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> may
             .union_def_id = union_did,
             .active_member_idx = context.def(matched_did).member_idx,
         },
-        Span{context, fid, expr}, /*should_be_compt=*/is_compt_eval);
+        Span{context, fid, expr},
+        /*should_be_compt=*/is_compt_eval || context.exec(maybe_val.as_id()).compt);
 }
 
 template <IsExprSolver Solver>
@@ -437,6 +438,7 @@ template <IsExprSolver Solver>
     DiagLinker dl{context};
     InlineIdMap<DefId, ExecId> mem_defs_to_execs{};
     bool cooked = false;
+    bool all_compt = true;
     for (auto i = 0uz; i < init_slice.len; i++) {
         ast_expr_t* member_init_expr = init_slice.start[i];
         if (member_init_expr->type != AST_EXPR_STRUCT_MEMBER_INIT) {
@@ -474,6 +476,7 @@ template <IsExprSolver Solver>
                                                diag_code::initialized_here, diag_type::note));
             continue;
         }
+        all_compt &= context.exec(maybe_eid.as_id()).compt;
         mem_defs_to_execs.insert(maybe_mem_did.as_id(), maybe_eid.as_id());
     }
 
@@ -538,7 +541,7 @@ template <IsExprSolver Solver>
     return context.emplace_exec(
         ExecStructInit{.member_inits = context.freeze_id_vec(member_init_execs),
                        .struct_def_id = struct_did},
-        Span{context, fid, expr}, /*should_be_compt=*/is_compt_eval);
+        Span{context, fid, expr}, /*should_be_compt=*/is_compt_eval || all_compt);
 }
 
 template <IsExprSolver Solver>
@@ -605,6 +608,7 @@ solve_list_literal_impl(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMap
     TypeId type_for_list = maybe_first_type.as_id();
 
     bool homo_type = true;
+    bool all_compt = true;
 
     DiagLinker dl{context};
 
@@ -615,6 +619,8 @@ solve_list_literal_impl(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMap
         if (maybe_curr_type.empty()) {
             return {}; // poisoned
         }
+
+        all_compt &= context.exec(eid).compt;
 
         TypeId curr_type = maybe_curr_type.as_id();
 
@@ -649,7 +655,7 @@ solve_list_literal_impl(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMap
 
     // fine, homogeneous, so return
     return context.emplace_exec(ExecListLiteral{.elems = elem_slice, .elem_type_id = type_for_list},
-                                whole_list_span, is_compt_eval);
+                                whole_list_span, /*should_be_compt=*/is_compt_eval || all_compt);
 }
 
 template <class Solver>
@@ -664,12 +670,17 @@ template <class Solver>
 
     Context& context = solver.get_context();
 
+    bool all_compt = true;
+
     for (auto i = 0uz; i < exprs.len; ++i) {
         const auto maybe_eid
             = solve_expr_helper(solver, fid, scope, maybe_move_map, exprs.start[i]);
         if (maybe_eid.empty()) {
             return {};
         }
+
+        all_compt &= context.exec(maybe_eid.as_id()).compt;
+
         eid_vec.push_back(maybe_eid.as_id());
     }
 
@@ -694,10 +705,12 @@ template <class Solver>
 
     assert(ty.holds<TypeStruct>());
 
+    static constexpr bool should_be_compt = std::same_as<Solver, ComptExprSolver>;
+
     return context.emplace_exec(ExecStructInit{.member_inits = context.freeze_id_vec(eid_vec),
                                                .struct_def_id = ty.as<TypeStruct>().def_id,
                                                .anonymous = true},
-                                Span{context, fid, expr}, std::same_as<Solver, ComptExprSolver>);
+                                Span{context, fid, expr}, should_be_compt || all_compt);
 }
 
 } // namespace hir

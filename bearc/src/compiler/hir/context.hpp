@@ -783,6 +783,8 @@ class Context {
 
     [[nodiscard]] OptId<DefId> try_def_for_type(TypeId tid) const;
 
+    [[nodiscard]] OptId<DefId> try_def_for_exec(ExecId eid) const;
+
     [[nodiscard]] OptId<CanonicalGenericArgsId> generic_args_for_def(DefId did) const;
 
     [[nodiscard]] CanonicalGenericArgsIdMapId make_generic_args_map_and_get_id();

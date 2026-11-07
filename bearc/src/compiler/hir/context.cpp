@@ -2948,6 +2948,37 @@ OptId<DefId> Context::try_def_for_type(TypeId tid) const {
     return {};
 }
 
+OptId<DefId> Context::try_def_for_exec(ExecId eid) const {
+    const auto vs = Ovld{
+        [](const ExecVariable& e) -> OptId<DefId> { return e.def_id; },
+        [this](const ExecDeref& e) -> OptId<DefId> { return try_def_for_exec(e.dereferenced); },
+        [](const ExecBlock&) -> OptId<DefId> { return {}; },
+        [](const ExecBranch&) -> OptId<DefId> { return {}; },
+        [](const ExecReturn&) -> OptId<DefId> { return {}; },
+        [](const ExecYield&) -> OptId<DefId> { return {}; },
+        [](const ExecJump&) -> OptId<DefId> { return {}; },
+        [](const ExecUnionInit&) -> OptId<DefId> { return {}; },
+        [](const ExecVariantInit&) -> OptId<DefId> { return {}; },
+        [](const ExecStructInit&) -> OptId<DefId> { return {}; },
+        [](const ExecComptConstant&) -> OptId<DefId> { return {}; },
+        [](const ExecListLiteral&) -> OptId<DefId> { return {}; },
+        [](const ExecAssignment&) -> OptId<DefId> { return {}; },
+        [](const ExecMemberAccess&) -> OptId<DefId> { return {}; },
+        [](const ExecBinary&) -> OptId<DefId> { return {}; },
+        [](const ExecCast&) -> OptId<DefId> { return {}; },
+        [](const ExecSubscript&) -> OptId<DefId> { return {}; },
+        [](const ExecFnCall&) -> OptId<DefId> { return {}; },
+        [](const ExecBorrow&) -> OptId<DefId> { return {}; },
+        [](const ExecAddrOf&) -> OptId<DefId> { return {}; },
+        [](const ExecMatch&) -> OptId<DefId> { return {}; },
+        [](const ExecMatchBranch&) -> OptId<DefId> { return {}; },
+        [](const ExecFnPtr&) -> OptId<DefId> { return {}; },
+        [](const ExecVariantFieldInit&) -> OptId<DefId> { return {}; },
+        [](const ExecRange&) -> OptId<DefId> { return {}; },
+    };
+    return exec(eid).visit(vs);
+}
+
 OptId<CanonicalGenericArgsId> Context::generic_args_for_def(DefId did) const {
     const Def& d = def(did);
     if (d.holds<DefFunction>()) {
@@ -4111,8 +4142,8 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
         [](const ExecDeref&) -> bool { return true; },
         [](const ExecVariable&) -> bool { return true; },
         [this](const ExecMemberAccess& e) -> bool { return is_lvalue(e.owner); },
+        [this](const ExecBorrow& e) -> bool { return is_lvalue(e.borrowee); },
         // ~~~~~ these *should* be handled by auto-dereferencing of reference types ~~~~~
-        [](const ExecBorrow&) -> bool { return false; },
         [](const ExecSubscript&) -> bool { return false; },
         [](const ExecFnCall&) -> bool { return false; },
         [](const ExecAssignment&) -> bool { return false; },
