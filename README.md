@@ -47,7 +47,8 @@ cmake --build build
 # convient scripts for developers:
 ./scripts/clean-all.sh [Release|Debug] # builds bearc and libbearc
 ./scripts/clean.sh     [Release|Debug] # builds bearc
-./scripts/build-tests.sh               # build and run tests
+./scripts/tests.sh                     # build and run unit tests
+./scripts/fuzz.py                      # run fuzz tests
 ```
 - Also, you will probably want to put `/path/to/bear/build/bearc/` on your path.
 #### Run
