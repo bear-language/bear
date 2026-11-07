@@ -692,6 +692,14 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         }
     }
 
+    // if a call with these args already failed, don't re-evaluate (or re-diagnose) it
+    if (const auto failed_map_id
+        = context.def(func_did).template as<DefFunction>().maybe_compt_failed_args_map_id;
+        failed_map_id.has_value()
+        && context.compt_args_map(failed_map_id.as_id()).contains(canonical_args)) {
+        return {};
+    }
+
     // mark that we're starting another call
     enter_compt_fn();
     if (call_depth > MAX_COMPT_CALL_FRAMES) {
@@ -801,7 +809,13 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     exit_compt_fn();
 
     const auto post_diag_cnt = context.diagnostic_count();
+    // only note the first failure of a fn, so failures propagating up a recursion aren't noted at
+    // every frame
+    const bool failed_before = context.def(func_did)
+                                   .template as<DefFunction>()
+                                   .maybe_compt_failed_args_map_id.has_value();
     if (!context.def(func_did).template as<DefFunction>().posioned
+        && !(maybe_eid.empty() && failed_before)
         && (maybe_eid.empty() || post_diag_cnt > prior_diag_cnt)) {
         const auto d = context.emplace_diagnostic_with_message_value(
             span, diag_code::called_here, diag_type::note,
@@ -812,6 +826,20 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     }
 
     if (maybe_eid.empty()) {
+        // memoize the failure so recursive fns (e.g. a fib that overflows) don't re-evaluate (and
+        // re-diagnose) failing calls exponentially
+        if (context.def(func_did)
+                .template as<DefFunction>()
+                .maybe_compt_failed_args_map_id.empty()) {
+            const CanonicalComptArgsIdMapId map_id = context.make_compt_args_map();
+            context.def(func_did).template as<DefFunction>().maybe_compt_failed_args_map_id
+                = map_id;
+        }
+        context
+            .compt_args_map(context.def(func_did)
+                                .template as<DefFunction>()
+                                .maybe_compt_failed_args_map_id.as_id())
+            .insert(canonical_args, context.emplace_compt_exec(ExecConst{false}, span)); // set
         return {};
     }
 
@@ -1115,7 +1143,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::solve_binary_compt_exec(ExecId lhs_eid, binary_op op,
-                                                                     ExecId rhs_eid) {
+                                                                     ExecId rhs_eid, Span op_span) {
     const Exec& lhs_exec = context.exec(lhs_eid);
     const Exec& rhs_exec = context.exec(rhs_eid);
 
@@ -1187,14 +1215,14 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     case binary_op::less_than_or_equal:
     case binary_op::bool_equal:
     case binary_op::bool_not_equal:
-        return handle_binary_scalar(lhs_exec, op, rhs_exec);
+        return handle_binary_scalar(lhs_exec, op, rhs_exec, op_span);
     case binary_op::bit_or:
     case binary_op::bit_and:
     case binary_op::bit_xor:
     case binary_op::left_bitshift:
     case binary_op::right_shift_logical:
     case binary_op::right_shift_arithmetic:
-        return handle_binary_bitwise(lhs_exec, op, rhs_exec);
+        return handle_binary_bitwise(lhs_exec, op, rhs_exec, op_span);
     case binary_op::bool_or:
     case binary_op::bool_and:
         return handle_binary_bool_conj_disj(lhs_exec, op, rhs_exec);
@@ -1256,7 +1284,7 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::handle_binary_scalar(const Exec& lhs, binary_op op,
-                                                                  const Exec& rhs) {
+                                                                  const Exec& rhs, Span op_span) {
 
     auto lhs_val = lhs.as<ExecConst>();
     auto rhs_val = rhs.as<ExecConst>();
@@ -1285,18 +1313,19 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
 
     switch (op) {
     case binary_op::plus:
-        maybe_value = ExecConst::plus(context, lhs_val, rhs_val);
+        maybe_value = ExecConst::plus(context, op_span, lhs_val, rhs_val);
         break;
     case binary_op::minus:
-        maybe_value = ExecConst::minus(lhs_val, rhs_val);
+        maybe_value = ExecConst::minus(context, op_span, lhs_val, rhs_val);
         break;
     case binary_op::multiply:
-        maybe_value = ExecConst::multiply(lhs_val, rhs_val);
+        maybe_value = ExecConst::multiply(context, op_span, lhs_val, rhs_val);
         break;
 
         // for div and mod guard div by zero so we don't crash the interpreter
     case binary_op::divide:
-        maybe_value = guard_div_by_zero() ? std::nullopt : ExecConst::divide(lhs_val, rhs_val);
+        maybe_value = guard_div_by_zero() ? std::nullopt
+                                          : ExecConst::divide(context, op_span, lhs_val, rhs_val);
         break;
     case binary_op::modulo:
         maybe_value = guard_div_by_zero() ? std::nullopt : ExecConst::mod(lhs_val, rhs_val);
@@ -1332,7 +1361,7 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::handle_binary_bitwise(const Exec& lhs, binary_op op,
-                                                                   const Exec& rhs) {
+                                                                   const Exec& rhs, Span op_span) {
     auto lhs_val = lhs.as<ExecConst>();
     auto rhs_val = rhs.as<ExecConst>();
 
@@ -1371,14 +1400,14 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
         maybe_value = ExecConst::bit_xor(lhs_val, rhs_val);
         break;
     case binary_op::left_bitshift:
-        maybe_value = ExecConst::bit_lsh(lhs_val, rhs_val);
+        maybe_value = ExecConst::bit_lsh(context, op_span, lhs_val, rhs_val);
         break;
     case binary_op::right_shift_logical: {
-        maybe_value = ExecConst::bit_rshl(lhs_val, rhs_val);
+        maybe_value = ExecConst::bit_rshl(context, op_span, lhs_val, rhs_val);
         break;
     }
     case binary_op::right_shift_arithmetic: {
-        maybe_value = ExecConst::bit_rsha(lhs_val, rhs_val);
+        maybe_value = ExecConst::bit_rsha(context, op_span, lhs_val, rhs_val);
         break;
     }
     default:
@@ -1586,7 +1615,7 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
         maybe_value = ExecConst::preunary_plus(inner_val);
         break;
     case unary_op::minus:
-        maybe_value = ExecConst::preunary_minus(inner_val);
+        maybe_value = ExecConst::preunary_minus(context, op_span, inner_val);
         break;
     case unary_op::bool_not:
         maybe_value = ExecConst::preunary_bool_not(inner_val);
@@ -2307,7 +2336,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             return std::nullopt; // already poisoned
         }
         // get res of binary op like +, -, etc.
-        return solve_binary_compt_exec(lhs.as_id(), op, rhs.as_id());
+        return solve_binary_compt_exec(lhs.as_id(), op, rhs.as_id(), Span{context, fid, expr});
     }
     return std::nullopt; // cooked / poisoned already, so just return since error
                          // should've already been reported

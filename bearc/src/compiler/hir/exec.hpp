@@ -391,18 +391,25 @@ struct ExecComptConstant : NodeWithVariantValue<ExecComptConstant> {
 
     using ExecConst = ExecComptConstant;
 
-    [[nodiscard]] static std::optional<ExecConst> plus(Context& ctx, ExecConst lhs, ExecConst rhs);
-    [[nodiscard]] static std::optional<ExecConst> minus(ExecConst lhs, ExecConst rhs);
-    [[nodiscard]] static std::optional<ExecConst> multiply(ExecConst lhs, ExecConst rhs);
-    [[nodiscard]] static std::optional<ExecConst> divide(ExecConst lhs, ExecConst rhs);
+    [[nodiscard]] static std::optional<ExecConst> plus(Context& ctx, Span span, ExecConst lhs,
+                                                       ExecConst rhs);
+    [[nodiscard]] static std::optional<ExecConst> minus(Context& ctx, Span span, ExecConst lhs,
+                                                        ExecConst rhs);
+    [[nodiscard]] static std::optional<ExecConst> multiply(Context& ctx, Span span, ExecConst lhs,
+                                                           ExecConst rhs);
+    [[nodiscard]] static std::optional<ExecConst> divide(Context& ctx, Span span, ExecConst lhs,
+                                                         ExecConst rhs);
     [[nodiscard]] static std::optional<ExecConst> mod(ExecConst lhs, ExecConst rhs);
 
     [[nodiscard]] static std::optional<ExecConst> bit_and(ExecConst lhs, ExecConst rhs);
     [[nodiscard]] static std::optional<ExecConst> bit_or(ExecConst lhs, ExecConst rhs);
     [[nodiscard]] static std::optional<ExecConst> bit_xor(ExecConst lhs, ExecConst rhs);
-    [[nodiscard]] static std::optional<ExecConst> bit_lsh(ExecConst lhs, ExecConst rhs);
-    [[nodiscard]] static std::optional<ExecConst> bit_rsha(ExecConst lhs, ExecConst rhs);
-    [[nodiscard]] static std::optional<ExecConst> bit_rshl(ExecConst lhs, ExecConst rhs);
+    [[nodiscard]] static std::optional<ExecConst> bit_lsh(Context& ctx, Span span, ExecConst lhs,
+                                                          ExecConst rhs);
+    [[nodiscard]] static std::optional<ExecConst> bit_rsha(Context& ctx, Span span, ExecConst lhs,
+                                                           ExecConst rhs);
+    [[nodiscard]] static std::optional<ExecConst> bit_rshl(Context& ctx, Span span, ExecConst lhs,
+                                                           ExecConst rhs);
 
     [[nodiscard]] static std::optional<ExecConst> greater_than(ExecConst lhs, ExecConst rhs);
     [[nodiscard]] static std::optional<ExecConst> less_than(ExecConst lhs, ExecConst rhs);
@@ -415,7 +422,8 @@ struct ExecComptConstant : NodeWithVariantValue<ExecComptConstant> {
     [[nodiscard]] static std::optional<ExecConst> bool_or(ExecConst lhs, ExecConst rhs);
 
     [[nodiscard]] static std::optional<ExecConst> preunary_plus(ExecConst ec);
-    [[nodiscard]] static std::optional<ExecConst> preunary_minus(ExecConst ec);
+    [[nodiscard]] static std::optional<ExecConst> preunary_minus(Context& ctx, Span span,
+                                                                 ExecConst ec);
     [[nodiscard]] static std::optional<ExecConst> preunary_bool_not(ExecConst ec);
     [[nodiscard]] static std::optional<ExecConst> preunary_bit_not(ExecConst ec);
 };

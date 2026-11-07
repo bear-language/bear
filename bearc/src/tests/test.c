@@ -195,7 +195,7 @@ br_test_result_t test_hir(void) {
     char* args28[] = {"bearc", "tests/hir/27.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args28, 23);
     char* args29[] = {"bearc", "tests/hir/28.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args29, 5);
+    ASSERT_EQ_ERR_FROM_ARGS(args29, 9);
     char* args30[] = {"bearc", "tests/hir/30.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args30, 7);
     char* args31[] = {"bearc", "tests/hir/31.br"};
@@ -395,7 +395,7 @@ br_test_result_t test_hir(void) {
     char* args_a28[] = {"bearc", "tests/hir/a28.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a28, 12);
     char* args_a29[] = {"bearc", "tests/hir/a29.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args_a29, 2);
+    ASSERT_EQ_ERR_FROM_ARGS(args_a29, 4);
     char* args_a30[] = {"bearc", "tests/hir/a30.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a30, 2);
     char* args_a31[] = {"bearc", "tests/hir/a31.br"};
@@ -472,6 +472,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a90", 5);
     ASSERT_EQ_ERR("hir/a91", 30);
     ASSERT_EQ_ERR("hir/a92", 8);
+    ASSERT_EQ_ERR("hir/a93", 8);
 
     return TEST_RESULT;
 }

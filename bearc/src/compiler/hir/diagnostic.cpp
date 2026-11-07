@@ -139,6 +139,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "incompatible types for binary operator:";
     case diag_code::dividing_by_zero_at_compt_is_illegal:
         return "dividing by zero at compile-time is illegal";
+    case diag_code::integer_overflow_at_compt_is_illegal_for_signed_type:
+        return "integer overflow at compile-time is illegal for signed type";
+    case diag_code::shift_amount_out_of_range_at_compt_is_illegal_for_type:
+        return "shift amount is negative or not less than the bit width of its type";
     case diag_code::invalid_cast:
         return "invalid cast";
     case diag_code::parentheses_should_be_used_for_chained_casts:

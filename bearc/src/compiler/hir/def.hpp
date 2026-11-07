@@ -43,6 +43,8 @@ struct DefFunction {
     OptId<GenericArgIdSliceId> maybe_generic_args;
     // to access a map from canonical compt (same mechanism as generic) args to memoized ExecId
     OptId<CanonicalComptArgsIdMapId> maybe_compt_args_map_id{};
+    // canonical compt args whose evaluation already failed (and was diagnosed); used as a set
+    OptId<CanonicalComptArgsIdMapId> maybe_compt_failed_args_map_id{};
     bool discardable = false;
     bool takes_self = false;
     bool posioned = false;

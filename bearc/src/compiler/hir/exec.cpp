@@ -16,8 +16,10 @@
 #include "compiler/hir/variant_helpers.hpp"
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <stddef.h>
+#include <type_traits>
 #include <utility>
 namespace hir {
 
@@ -1164,23 +1166,73 @@ using EConst = ExecConst;
     return builtin_type_has_unary_op(type_builtin(), op);
 }
 
-template <typename T> EConst e_plus(EConst l, EConst r) {
-    return EConst{static_cast<T>(l.as<T>() + r.as<T>())};
+// integer ops use the gcc/clang overflow builtins so that compt evaluation never hits UB; they always
+// store the result wrapped (mod 2^N), so unsigned overflow is well-defined (wraps), while signed
+// overflow emits a diagnostic and returns std::nullopt
+
+static std::nullopt_t e_diag_overflow(Context& ctx, Span span, ExecConst r) {
+    ctx.emplace_diagnostic_with_message_value(
+        span, diag_code::integer_overflow_at_compt_is_illegal_for_signed_type, diag_type::error,
+        DiagnosticSymbolAfterMessage{.sid = ctx.symbol_id(builtin_type_to_cstr(r.type_builtin()))});
+    return std::nullopt;
 }
 
-template <typename T> EConst e_minus(EConst l, EConst r) {
-    return EConst{static_cast<T>(l.as<T>() - r.as<T>())};
+template <typename T> std::optional<EConst> e_plus(Context& ctx, Span span, EConst l, EConst r) {
+    if constexpr (std::is_integral_v<T>) {
+        T res;
+        if (__builtin_add_overflow(l.as<T>(), r.as<T>(), &res) && std::is_signed_v<T>) {
+            return e_diag_overflow(ctx, span, r);
+        }
+        return EConst{res};
+    } else {
+        return EConst{static_cast<T>(l.as<T>() + r.as<T>())};
+    }
 }
 
-template <typename T> EConst e_multiply(EConst l, EConst r) {
-    return EConst{static_cast<T>(l.as<T>() * r.as<T>())};
+template <typename T> std::optional<EConst> e_minus(Context& ctx, Span span, EConst l, EConst r) {
+    if constexpr (std::is_integral_v<T>) {
+        T res;
+        if (__builtin_sub_overflow(l.as<T>(), r.as<T>(), &res) && std::is_signed_v<T>) {
+            return e_diag_overflow(ctx, span, r);
+        }
+        return EConst{res};
+    } else {
+        return EConst{static_cast<T>(l.as<T>() - r.as<T>())};
+    }
 }
 
-template <typename T> EConst e_divide(EConst l, EConst r) {
+template <typename T>
+std::optional<EConst> e_multiply(Context& ctx, Span span, EConst l, EConst r) {
+    if constexpr (std::is_integral_v<T>) {
+        T res;
+        if (__builtin_mul_overflow(l.as<T>(), r.as<T>(), &res) && std::is_signed_v<T>) {
+            return e_diag_overflow(ctx, span, r);
+        }
+        return EConst{res};
+    } else {
+        return EConst{static_cast<T>(l.as<T>() * r.as<T>())};
+    }
+}
+
+// MIN / -1 and MIN % -1 (signed only); div by zero is guarded by the caller
+template <typename T> bool e_is_min_by_neg_one(EConst l, EConst r) {
+    if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+        return l.as<T>() == std::numeric_limits<T>::min() && r.as<T>() == -1;
+    }
+    return false;
+}
+
+template <typename T> std::optional<EConst> e_divide(Context& ctx, Span span, EConst l, EConst r) {
+    if (e_is_min_by_neg_one<T>(l, r)) {
+        return e_diag_overflow(ctx, span, r);
+    }
     return EConst{static_cast<T>(l.as<T>() / r.as<T>())};
 }
 
 template <typename T> EConst e_mod(EConst l, EConst r) {
+    if (e_is_min_by_neg_one<T>(l, r)) {
+        return EConst{T{0}}; // mathematically 0, but UB in C++
+    }
     return EConst{static_cast<T>(l.as<T>() % r.as<T>())};
 }
 
@@ -1196,15 +1248,38 @@ template <typename T> EConst e_bit_xor(EConst l, EConst r) {
     return EConst{static_cast<T>(l.as<T>() ^ r.as<T>())};
 }
 
-template <typename T> EConst e_lsh(EConst l, EConst r) {
+// shifting by a negative amount or by >= the bit width of the type is UB
+template <typename T> bool e_guard_shift_amount(Context& ctx, Span span, EConst r) {
+    const T amount = r.as<T>();
+    if (std::cmp_less(amount, 0) || std::cmp_greater_equal(amount, sizeof(T) * 8)) {
+        ctx.emplace_diagnostic_with_message_value(
+            span, diag_code::shift_amount_out_of_range_at_compt_is_illegal_for_type,
+            diag_type::error,
+            DiagnosticSymbolAfterMessage{.sid
+                                         = ctx.symbol_id(builtin_type_to_cstr(r.type_builtin()))});
+        return true;
+    }
+    return false;
+}
+
+template <typename T> std::optional<EConst> e_lsh(Context& ctx, Span span, EConst l, EConst r) {
+    if (e_guard_shift_amount<T>(ctx, span, r)) {
+        return std::nullopt;
+    }
     return EConst{static_cast<T>(l.as<T>() << r.as<T>())};
 }
 
-template <typename T> EConst e_rshl(EConst l, EConst r) {
+template <typename T> std::optional<EConst> e_rshl(Context& ctx, Span span, EConst l, EConst r) {
+    if (e_guard_shift_amount<T>(ctx, span, r)) {
+        return std::nullopt;
+    }
     return EConst{static_cast<T>(l.as<T>() >> r.as<T>())};
 }
 
-template <typename T> EConst e_rsha(EConst l, EConst r) {
+template <typename T> std::optional<EConst> e_rsha(Context& ctx, Span span, EConst l, EConst r) {
+    if (e_guard_shift_amount<T>(ctx, span, r)) {
+        return std::nullopt;
+    }
     return EConst{static_cast<T>(l.as<T>() >> r.as<T>())};
 }
 
@@ -1237,38 +1312,46 @@ template <typename T> EConst e_preun_plus(ExecConst e) {
     return EConst{static_cast<T>(+e.as<T>())};
 }
 
-template <typename T> EConst e_preun_minus(ExecConst e) {
-    return EConst{static_cast<T>(-e.as<T>())};
+template <typename T> std::optional<EConst> e_preun_minus(Context& ctx, Span span, ExecConst e) {
+    if constexpr (std::is_integral_v<T>) {
+        T res;
+        if (__builtin_sub_overflow(T{0}, e.as<T>(), &res) && std::is_signed_v<T>) {
+            return e_diag_overflow(ctx, span, e);
+        }
+        return EConst{res};
+    } else {
+        return EConst{static_cast<T>(-e.as<T>())};
+    }
 }
 
 template <typename T> EConst e_bit_not(ExecConst e) { return EConst{static_cast<T>(~e.as<T>())}; }
 
 template <typename T> EConst e_bool_not(ExecConst e) { return EConst{static_cast<T>(!e.as<T>())}; }
 
-std::optional<ExecConst> ExecConst::plus(Context& ctx, ExecConst lhs, ExecConst rhs) {
+std::optional<ExecConst> ExecConst::plus(Context& ctx, Span span, ExecConst lhs, ExecConst rhs) {
     assert(lhs.holds_same_variant_type(rhs));
     // std::cout << lhs.to_string() << " + " << rhs.to_string() << '\n'; // debug
     switch (lhs.type_builtin()) {
     case builtin_type::u8:
-        return e_plus<u8>(lhs, rhs);
+        return e_plus<u8>(ctx, span, lhs, rhs);
     case builtin_type::i8:
-        return e_plus<i8>(lhs, rhs);
+        return e_plus<i8>(ctx, span, lhs, rhs);
     case builtin_type::u16:
-        return e_plus<u16>(lhs, rhs);
+        return e_plus<u16>(ctx, span, lhs, rhs);
     case builtin_type::i16:
-        return e_plus<i16>(lhs, rhs);
+        return e_plus<i16>(ctx, span, lhs, rhs);
     case builtin_type::u32:
-        return e_plus<u32>(lhs, rhs);
+        return e_plus<u32>(ctx, span, lhs, rhs);
     case builtin_type::i32:
-        return e_plus<i32>(lhs, rhs);
+        return e_plus<i32>(ctx, span, lhs, rhs);
     case builtin_type::u64:
-        return e_plus<u64>(lhs, rhs);
+        return e_plus<u64>(ctx, span, lhs, rhs);
     case builtin_type::i64:
-        return e_plus<i64>(lhs, rhs);
+        return e_plus<i64>(ctx, span, lhs, rhs);
     case builtin_type::f32:
-        return e_plus<f32>(lhs, rhs);
+        return e_plus<f32>(ctx, span, lhs, rhs);
     case builtin_type::f64:
-        return e_plus<f64>(lhs, rhs);
+        return e_plus<f64>(ctx, span, lhs, rhs);
     case builtin_type::str:
         return ExecConst{ctx.concat_symbols(lhs.as<SymbolId>(), rhs.as<SymbolId>())};
     case builtin_type::charr:
@@ -1280,29 +1363,29 @@ std::optional<ExecConst> ExecConst::plus(Context& ctx, ExecConst lhs, ExecConst 
     return std::nullopt;
 }
 
-std::optional<ExecConst> ExecConst::minus(ExecConst lhs, ExecConst rhs) {
+std::optional<ExecConst> ExecConst::minus(Context& ctx, Span span, ExecConst lhs, ExecConst rhs) {
     assert(lhs.holds_same_variant_type(rhs));
     switch (lhs.type_builtin()) {
     case builtin_type::u8:
-        return e_minus<u8>(lhs, rhs);
+        return e_minus<u8>(ctx, span, lhs, rhs);
     case builtin_type::i8:
-        return e_minus<i8>(lhs, rhs);
+        return e_minus<i8>(ctx, span, lhs, rhs);
     case builtin_type::u16:
-        return e_minus<u16>(lhs, rhs);
+        return e_minus<u16>(ctx, span, lhs, rhs);
     case builtin_type::i16:
-        return e_minus<i16>(lhs, rhs);
+        return e_minus<i16>(ctx, span, lhs, rhs);
     case builtin_type::u32:
-        return e_minus<u32>(lhs, rhs);
+        return e_minus<u32>(ctx, span, lhs, rhs);
     case builtin_type::i32:
-        return e_minus<i32>(lhs, rhs);
+        return e_minus<i32>(ctx, span, lhs, rhs);
     case builtin_type::u64:
-        return e_minus<u64>(lhs, rhs);
+        return e_minus<u64>(ctx, span, lhs, rhs);
     case builtin_type::i64:
-        return e_minus<i64>(lhs, rhs);
+        return e_minus<i64>(ctx, span, lhs, rhs);
     case builtin_type::f32:
-        return e_minus<f32>(lhs, rhs);
+        return e_minus<f32>(ctx, span, lhs, rhs);
     case builtin_type::f64:
-        return e_minus<f64>(lhs, rhs);
+        return e_minus<f64>(ctx, span, lhs, rhs);
     case builtin_type::charr:
     case builtin_type::voidd:
     case builtin_type::str:
@@ -1312,29 +1395,30 @@ std::optional<ExecConst> ExecConst::minus(ExecConst lhs, ExecConst rhs) {
     }
     return std::nullopt;
 }
-std::optional<ExecConst> ExecConst::multiply(ExecConst lhs, ExecConst rhs) {
+std::optional<ExecConst> ExecConst::multiply(Context& ctx, Span span, ExecConst lhs,
+                                             ExecConst rhs) {
     assert(lhs.holds_same_variant_type(rhs));
     switch (lhs.type_builtin()) {
     case builtin_type::u8:
-        return e_multiply<u8>(lhs, rhs);
+        return e_multiply<u8>(ctx, span, lhs, rhs);
     case builtin_type::i8:
-        return e_multiply<i8>(lhs, rhs);
+        return e_multiply<i8>(ctx, span, lhs, rhs);
     case builtin_type::u16:
-        return e_multiply<u16>(lhs, rhs);
+        return e_multiply<u16>(ctx, span, lhs, rhs);
     case builtin_type::i16:
-        return e_multiply<i16>(lhs, rhs);
+        return e_multiply<i16>(ctx, span, lhs, rhs);
     case builtin_type::u32:
-        return e_multiply<u32>(lhs, rhs);
+        return e_multiply<u32>(ctx, span, lhs, rhs);
     case builtin_type::i32:
-        return e_multiply<i32>(lhs, rhs);
+        return e_multiply<i32>(ctx, span, lhs, rhs);
     case builtin_type::u64:
-        return e_multiply<u64>(lhs, rhs);
+        return e_multiply<u64>(ctx, span, lhs, rhs);
     case builtin_type::i64:
-        return e_multiply<i64>(lhs, rhs);
+        return e_multiply<i64>(ctx, span, lhs, rhs);
     case builtin_type::f32:
-        return e_multiply<f32>(lhs, rhs);
+        return e_multiply<f32>(ctx, span, lhs, rhs);
     case builtin_type::f64:
-        return e_multiply<f64>(lhs, rhs);
+        return e_multiply<f64>(ctx, span, lhs, rhs);
     case builtin_type::charr:
     case builtin_type::voidd:
     case builtin_type::str:
@@ -1345,29 +1429,29 @@ std::optional<ExecConst> ExecConst::multiply(ExecConst lhs, ExecConst rhs) {
     return std::nullopt;
 }
 
-std::optional<ExecConst> ExecConst::divide(ExecConst lhs, ExecConst rhs) {
+std::optional<ExecConst> ExecConst::divide(Context& ctx, Span span, ExecConst lhs, ExecConst rhs) {
     assert(lhs.holds_same_variant_type(rhs));
     switch (lhs.type_builtin()) {
     case builtin_type::u8:
-        return e_divide<u8>(lhs, rhs);
+        return e_divide<u8>(ctx, span, lhs, rhs);
     case builtin_type::i8:
-        return e_divide<i8>(lhs, rhs);
+        return e_divide<i8>(ctx, span, lhs, rhs);
     case builtin_type::u16:
-        return e_divide<u16>(lhs, rhs);
+        return e_divide<u16>(ctx, span, lhs, rhs);
     case builtin_type::i16:
-        return e_divide<i16>(lhs, rhs);
+        return e_divide<i16>(ctx, span, lhs, rhs);
     case builtin_type::u32:
-        return e_divide<u32>(lhs, rhs);
+        return e_divide<u32>(ctx, span, lhs, rhs);
     case builtin_type::i32:
-        return e_divide<i32>(lhs, rhs);
+        return e_divide<i32>(ctx, span, lhs, rhs);
     case builtin_type::u64:
-        return e_divide<u64>(lhs, rhs);
+        return e_divide<u64>(ctx, span, lhs, rhs);
     case builtin_type::i64:
-        return e_divide<i64>(lhs, rhs);
+        return e_divide<i64>(ctx, span, lhs, rhs);
     case builtin_type::f32:
-        return e_divide<f32>(lhs, rhs);
+        return e_divide<f32>(ctx, span, lhs, rhs);
     case builtin_type::f64:
-        return e_divide<f64>(lhs, rhs);
+        return e_divide<f64>(ctx, span, lhs, rhs);
     case builtin_type::charr:
     case builtin_type::voidd:
     case builtin_type::str:
@@ -1538,25 +1622,25 @@ std::optional<ExecConst> ExecConst::bit_xor(ExecConst lhs, ExecConst rhs) {
     return std::nullopt;
 }
 
-std::optional<ExecConst> ExecConst::bit_lsh(ExecConst lhs, ExecConst rhs) {
+std::optional<ExecConst> ExecConst::bit_lsh(Context& ctx, Span span, ExecConst lhs, ExecConst rhs) {
     assert(lhs.holds_same_variant_type(rhs));
     switch (lhs.type_builtin()) {
     case builtin_type::u8:
-        return e_lsh<u8>(lhs, rhs);
+        return e_lsh<u8>(ctx, span, lhs, rhs);
     case builtin_type::i8:
-        return e_lsh<i8>(lhs, rhs);
+        return e_lsh<i8>(ctx, span, lhs, rhs);
     case builtin_type::u16:
-        return e_lsh<u16>(lhs, rhs);
+        return e_lsh<u16>(ctx, span, lhs, rhs);
     case builtin_type::i16:
-        return e_lsh<i16>(lhs, rhs);
+        return e_lsh<i16>(ctx, span, lhs, rhs);
     case builtin_type::u32:
-        return e_lsh<u32>(lhs, rhs);
+        return e_lsh<u32>(ctx, span, lhs, rhs);
     case builtin_type::i32:
-        return e_lsh<i32>(lhs, rhs);
+        return e_lsh<i32>(ctx, span, lhs, rhs);
     case builtin_type::u64:
-        return e_lsh<u64>(lhs, rhs);
+        return e_lsh<u64>(ctx, span, lhs, rhs);
     case builtin_type::i64:
-        return e_lsh<i64>(lhs, rhs);
+        return e_lsh<i64>(ctx, span, lhs, rhs);
     case builtin_type::f32:
     case builtin_type::f64:
     case builtin_type::charr:
@@ -1568,17 +1652,18 @@ std::optional<ExecConst> ExecConst::bit_lsh(ExecConst lhs, ExecConst rhs) {
     }
     return std::nullopt;
 }
-std::optional<ExecConst> ExecConst::bit_rsha(ExecConst lhs, ExecConst rhs) {
+std::optional<ExecConst> ExecConst::bit_rsha(Context& ctx, Span span, ExecConst lhs,
+                                             ExecConst rhs) {
     assert(lhs.holds_same_variant_type(rhs));
     switch (lhs.type_builtin()) {
     case builtin_type::i8:
-        return e_rsha<i8>(lhs, rhs);
+        return e_rsha<i8>(ctx, span, lhs, rhs);
     case builtin_type::i16:
-        return e_rsha<i16>(lhs, rhs);
+        return e_rsha<i16>(ctx, span, lhs, rhs);
     case builtin_type::i32:
-        return e_rsha<i32>(lhs, rhs);
+        return e_rsha<i32>(ctx, span, lhs, rhs);
     case builtin_type::i64:
-        return e_rsha<i64>(lhs, rhs);
+        return e_rsha<i64>(ctx, span, lhs, rhs);
     case builtin_type::u8:
     case builtin_type::u16:
     case builtin_type::u32:
@@ -1594,17 +1679,18 @@ std::optional<ExecConst> ExecConst::bit_rsha(ExecConst lhs, ExecConst rhs) {
     }
     return std::nullopt;
 }
-std::optional<ExecConst> ExecConst::bit_rshl(ExecConst lhs, ExecConst rhs) {
+std::optional<ExecConst> ExecConst::bit_rshl(Context& ctx, Span span, ExecConst lhs,
+                                             ExecConst rhs) {
     assert(lhs.holds_same_variant_type(rhs));
     switch (lhs.type_builtin()) {
     case builtin_type::u8:
-        return e_rshl<u8>(lhs, rhs);
+        return e_rshl<u8>(ctx, span, lhs, rhs);
     case builtin_type::u16:
-        return e_rshl<u16>(lhs, rhs);
+        return e_rshl<u16>(ctx, span, lhs, rhs);
     case builtin_type::u32:
-        return e_rshl<u32>(lhs, rhs);
+        return e_rshl<u32>(ctx, span, lhs, rhs);
     case builtin_type::u64:
-        return e_rshl<u64>(lhs, rhs);
+        return e_rshl<u64>(ctx, span, lhs, rhs);
     case builtin_type::i8:
     case builtin_type::i16:
     case builtin_type::i32:
@@ -1906,29 +1992,29 @@ std::optional<ExecConst> ExecConst::preunary_plus(ExecConst ec) {
     }
     return std::nullopt;
 }
-std::optional<ExecConst> ExecConst::preunary_minus(ExecConst ec) {
+std::optional<ExecConst> ExecConst::preunary_minus(Context& ctx, Span span, ExecConst ec) {
     assert(ec.holds_same_variant_type(ec));
     switch (ec.type_builtin()) {
     case builtin_type::u8:
-        return e_preun_minus<u8>(ec);
+        return e_preun_minus<u8>(ctx, span, ec);
     case builtin_type::i8:
-        return e_preun_minus<i8>(ec);
+        return e_preun_minus<i8>(ctx, span, ec);
     case builtin_type::u16:
-        return e_preun_minus<u16>(ec);
+        return e_preun_minus<u16>(ctx, span, ec);
     case builtin_type::i16:
-        return e_preun_minus<i16>(ec);
+        return e_preun_minus<i16>(ctx, span, ec);
     case builtin_type::u32:
-        return e_preun_minus<u32>(ec);
+        return e_preun_minus<u32>(ctx, span, ec);
     case builtin_type::i32:
-        return e_preun_minus<i32>(ec);
+        return e_preun_minus<i32>(ctx, span, ec);
     case builtin_type::u64:
-        return e_preun_minus<u64>(ec);
+        return e_preun_minus<u64>(ctx, span, ec);
     case builtin_type::i64:
-        return e_preun_minus<i64>(ec);
+        return e_preun_minus<i64>(ctx, span, ec);
     case builtin_type::f32:
-        return e_preun_minus<f32>(ec);
+        return e_preun_minus<f32>(ctx, span, ec);
     case builtin_type::f64:
-        return e_preun_minus<f64>(ec);
+        return e_preun_minus<f64>(ctx, span, ec);
     case builtin_type::charr:
     case builtin_type::str:
     case builtin_type::nullpointer:

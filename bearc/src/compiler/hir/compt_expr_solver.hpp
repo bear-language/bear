@@ -112,8 +112,10 @@ class ComptExprSolver {
     /// lhs_eid - must be a compt exec
     /// op - the op to do
     /// rhs_eid - must be a compt exec
+    /// op_span - span of the whole binary expr (for overflow diagnostics)
     [[nodiscard]] OptId<ExecId> solve_binary_compt_exec(ExecId lhs_eid, binary_op op,
-                                                        ExecId rhs_eid);
+                                                        ExecId rhs_eid,
+                                                        Span op_span = Span::generated());
 
     /// op - the unary_op todo
     /// op_span - the span of the op (for diagnostic purposes)
@@ -155,11 +157,11 @@ class ComptExprSolver {
 
     void guard_try_converge_types(ExecConst& lhs_val, binary_op op, ExecConst& rhs_val);
 
-    [[nodiscard]] OptId<ExecId> handle_binary_scalar(const Exec& lhs, binary_op op,
-                                                     const Exec& rhs);
+    [[nodiscard]] OptId<ExecId> handle_binary_scalar(const Exec& lhs, binary_op op, const Exec& rhs,
+                                                     Span op_span);
 
     [[nodiscard]] OptId<ExecId> handle_binary_bitwise(const Exec& lhs, binary_op op,
-                                                      const Exec& rhs);
+                                                      const Exec& rhs, Span op_span);
 
     [[nodiscard]] OptId<ExecId> handle_binary_range(ExecId lhs_eid, binary_op op, ExecId rhs_eid);
 

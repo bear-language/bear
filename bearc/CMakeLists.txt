@@ -107,17 +107,32 @@ set(TEST_SRC
 
 set(BEARC_VERSION "${PROJECT_VERSION}")
 
-set(CMAKE_C_FLAGS_DEBUG
-    "-Wall -Wextra -Wpedantic -g -gdwarf-4 -O0 -DBEARC_VERSION=\\\"${BEARC_VERSION}\\\""
-    # "-fsanitize=address,undefined"
-    CACHE STRING "" FORCE)
+set(BEARC_DEBUG_FLAGS
+    "-Wall -Wextra -Wpedantic -g -gdwarf-4 -O0 -DBEARC_VERSION=\\\"${BEARC_VERSION}\\\"")
+
+# UBSan, if its runtime is available (use valgrind for address sanitizing)
+include(CheckCXXSourceCompiles)
+unset(BEARC_HAS_UBSAN CACHE) # re-check every configure, in case libubsan was installed since
+set(CMAKE_REQUIRED_FLAGS "-fsanitize=undefined")
+set(CMAKE_REQUIRED_LINK_OPTIONS "-fsanitize=undefined")
+set(CMAKE_REQUIRED_QUIET ON)
+check_cxx_source_compiles("int main() { return 0; }" BEARC_HAS_UBSAN)
+unset(CMAKE_REQUIRED_FLAGS)
+unset(CMAKE_REQUIRED_LINK_OPTIONS)
+unset(CMAKE_REQUIRED_QUIET)
+
+if(BEARC_HAS_UBSAN)
+    message(STATUS "[INFO] UBSan enabled for debug builds")
+    string(APPEND BEARC_DEBUG_FLAGS " -fsanitize=undefined")
+else()
+    message(STATUS "[WARNING] UBSan runtime (libubsan) not found; building debug without -fsanitize=undefined")
+endif()
+
+set(CMAKE_C_FLAGS_DEBUG "${BEARC_DEBUG_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -DBEARC_VERSION=\\\"${BEARC_VERSION}\\\"" CACHE
     STRING "" FORCE)
 
-set(CMAKE_CXX_FLAGS_DEBUG
-    "-Wall -Wextra -Wpedantic -g -gdwarf-4 -O0 -DBEARC_VERSION=\\\"${BEARC_VERSION}\\\""
-    # "-fsanitize=address,undefined"
-    CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_DEBUG "${BEARC_DEBUG_FLAGS}" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_RELEASE
     "-O3 -DNDEBUG -fno-exceptions -DBEARC_VERSION=\\\"${BEARC_VERSION}\\\"" CACHE
     STRING "" FORCE)

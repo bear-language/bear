@@ -21,9 +21,9 @@ var _2 = @static_assert fib(32) == 2178309;
 
 var _3 = @static_assert fib(45) == 1134903170;
 
-compt var d = fib(400); // fine
+compt var d = fib(400); // oops, i32 overflow
 
-compt var e = fib(700); // fine
+compt var e = fib(700); // oops, i32 overflow (memoized failure, so not re-diagnosed)
 
 compt var f = fib(100000); // oops
 

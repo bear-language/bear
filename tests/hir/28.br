@@ -48,12 +48,12 @@ compt usize i3 = i + i ^ i2;
 
 compt i64 j = 0x10 << 0x10;
 compt i64 j1 = 0x11 >>> 0x10;
-compt i64 j2 = 0x1111 >> 0x1001;
+compt i64 j2 = 0x1111 >> 0x1001; // oops, shift amount out of range
 
 compt u64 k = 0x10 >> 0x10;
 compt u64 k1 = 0x11 >>> 0x10;
-compt u64 k2 = 0x1111 << 0x1001;
+compt u64 k2 = 0x1111 << 0x1001; // oops, shift amount out of range
 
-compt usize l = 0x10 >>> 0x100AFE32;
+compt usize l = 0x10 >>> 0x100AFE32; // oops, shift amount out of range
 compt usize l1 = 100467339 << 0x10;
-compt usize l2 = 0x1111 >> 0x1001;
+compt usize l2 = 0x1111 >> 0x1001; // oops, shift amount out of range

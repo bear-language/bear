@@ -1,0 +1,32 @@
+// tests/hir/a93.br
+
+// testing compt integer overflow and out-of-range shift diagnostics
+
+compt i32 max = 2147483647;
+compt i32 min = -2147483647 - 1;
+
+compt i32 a = max + 1; // oops
+compt i32 b = min - 1; // oops
+compt i32 c = max * 2; // oops
+compt i32 d = min / -1; // oops
+compt i32 e = -min; // oops
+
+compt i32 h = 1 << 32; // oops
+compt i64 i = 1 >> 64; // oops
+compt i32 j = 1 << -1; // oops
+
+// all fine
+compt i32 k = max - 1 + 1;
+compt i32 l = min % -1;
+compt i32 m = 1 << 31;
+compt u64 n = 1 as u64 << 63 as u64;
+
+// unsigned overflow is well-defined (wraps)
+compt u8 f = 255 as u8 + 1 as u8;
+var _0 = @static_assert(f == 0 as u8);
+compt u32 g = 3 as u32 - 5 as u32;
+var _1 = @static_assert(g == 4294967294 as u32);
+compt u16 o = 65535 as u16 * 65535 as u16;
+var _2 = @static_assert(o == 1 as u16);
+compt u64 p = -(1 as u64);
+var _3 = @static_assert(p == 18446744073709551615 as u64);
