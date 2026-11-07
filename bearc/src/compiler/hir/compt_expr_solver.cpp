@@ -16,6 +16,7 @@
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/type_resolver.hpp"
 #include "compiler/parser/token_eaters.h"
+#include "utils/stack.hpp"
 
 namespace hir {
 
@@ -702,7 +703,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
 
     // mark that we're starting another call
     enter_compt_fn();
-    if (call_depth > MAX_COMPT_CALL_FRAMES) {
+    if (call_depth > MAX_COMPT_CALL_FRAMES
+        || utils::remaining_stack_bytes() < MIN_NATIVE_STACK_BYTES) {
         auto d0 = context.emplace_diagnostic_with_message_value(
             span, diag_code::only_message_value_is_meaningful, diag_type::error,
             DiagnosticComptStackOverflow{.function_sid = context.def(func_did).name});

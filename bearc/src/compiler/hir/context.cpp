@@ -31,6 +31,7 @@
 #include "utils/ansi_codes.h"
 #include "utils/data_arena.hpp"
 #include "utils/log.hpp"
+#include "utils/stack.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include <algorithm>
 #include <atomic>
@@ -3765,9 +3766,11 @@ void Context::register_import_files_parallel(const char* const* file_paths, uint
         }
     };
 
-    llvm::SmallVector<std::thread> threads{};
+    // big stacks, since compt evaluation recurses on the native stack (default secondary thread
+    // stacks are tiny, e.g. 512KB on macOS)
+    llvm::SmallVector<llvm::thread> threads{};
     for (uint32_t i = 0; i < n_threads; ++i) {
-        threads.emplace_back(worker);
+        threads.emplace_back(utils::COMPILER_THREAD_STACK, worker);
     }
     for (auto& t : threads) {
         t.join();

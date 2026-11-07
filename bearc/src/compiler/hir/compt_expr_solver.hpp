@@ -25,6 +25,7 @@
 #include "compiler/hir/type.hpp"
 #include "compiler/token.h"
 #include <cassert>
+#include <cstddef>
 #include <optional>
 namespace hir {
 
@@ -35,6 +36,10 @@ class ComptExprSolver {
 
   public:
     static constexpr HirSize MAX_COMPT_CALL_FRAMES = 400;
+    // bail out of compt fn calls before the native stack actually overflows; a single compt
+    // call costs ~18KB of native stack in debug + UBSan builds, so the frame limit alone isn't
+    // enough (and import worker threads may have much smaller stacks than the main thread)
+    static constexpr std::size_t MIN_NATIVE_STACK_BYTES = 256uz * 1024;
 
     ComptExprSolver(Context& ctx, DefVisitor& def_visitor)
         : context{ctx}, def_visitor{def_visitor} {}
