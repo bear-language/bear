@@ -20,6 +20,7 @@
 #include "compiler/hir/inline_id_map.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type_resolver.hpp"
+#include "llvm/ADT/SmallBitVector.h"
 
 namespace hir {
 
@@ -437,6 +438,8 @@ template <IsExprSolver Solver>
 
     DiagLinker dl{context};
     InlineIdMap<DefId, ExecId> mem_defs_to_execs{};
+    // by member_idx; members whose value failed to solve (already diagnosed, so don't cascade)
+    llvm::SmallBitVector poisoned_members(member_dids.len());
     bool cooked = false;
     bool all_compt = true;
     for (auto i = 0uz; i < init_slice.len; i++) {
@@ -465,6 +468,7 @@ template <IsExprSolver Solver>
         OptId<ExecId> maybe_eid
             = solve_expr_helper(solver, fid, scope, maybe_move_map, mem_init.value, mem_tid);
         if (!maybe_eid) {
+            poisoned_members.set(context.def(maybe_mem_did.as_id()).member_idx);
             continue;
         }
         const auto maybe_existing = mem_defs_to_execs.at(maybe_mem_did.as_id());
@@ -488,7 +492,8 @@ template <IsExprSolver Solver>
         }
         const auto maybe_eid = mem_defs_to_execs.at(did);
         const auto maybe_default_eid = context.def(did).as<DefVariable>().compt_value;
-        if (!maybe_eid && !maybe_default_eid) {
+        if (!maybe_eid && !maybe_default_eid
+            && !poisoned_members.test(context.def(did).member_idx)) {
             cooked = true;
             dl.link(context.emplace_diagnostic_with_message_value(
                 Span{context, fid, expr}, diag_code::struct_initializer_does_not_initialize_field,
@@ -518,6 +523,9 @@ template <IsExprSolver Solver>
             context.def(struct_did).span, diag_code::declared_here, diag_type::note,
             DiagnosticSymbolBeforeMessage{context.def(struct_did).name}, DiagnosticNoOtherInfo{}));
         return std::nullopt;
+    }
+    if (poisoned_members.any()) {
+        return {};
     }
     // type check before returning here! but only if the into type has a value
     if (into_tid.has_value() && context.type(into_tid.as_id()).template holds<TypeStruct>()) {

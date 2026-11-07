@@ -1,0 +1,46 @@
+// tests/hir/a92.br
+
+// testing borrows + compt promotion and the like
+
+struct Foo {
+    i32 x = 0;
+}
+
+union Bar {
+    u8 a;
+    i64 b;
+}
+
+compt i32 LIMIT = 10;
+
+fn named_compt_constants() {
+    &i32 r = &LIMIT; // promoted
+    &mut i32 rm = &mut LIMIT; // oops, immutable (not a temporary)
+
+    compt i32 local = 4;
+    &mut i32 rml = &mut local; // oops, immutable (not a temporary)
+}
+
+fn compt_aggregates_are_promoted() {
+    var rl = &[1, 2, 3];
+    var _0 = @static_assert @type_to_str(typeof rl) == "&[3]i32";
+    var rs = &Foo{.x = 5};
+    var _1 = @static_assert @type_to_str(typeof rs) == "&Foo";
+    var ru = &Bar{.a = 1};
+    var _2 = @static_assert @type_to_str(typeof ru) == "&Bar";
+    var rt = &(1, 2);
+    var _3 = @static_assert @type_to_str(typeof rt) == "&struct(i32,i32)";
+    var rd = &Foo{}; // all-default members still count as compt
+}
+
+fn runtime_aggregates_are_temporaries(i32 p, i64 q) {
+    var rl = &[p, 2, 3]; // oops
+    var rs = &Foo{.x = p}; // oops
+    var ru = &Bar{.b = q}; // oops
+    var rt = &(p, 2); // oops
+}
+
+fn mut_borrows_of_compt_values() {
+    var rl = &mut [1, 2, 3]; // oops
+    &mut i32 ri = &mut 12; // oops
+}
