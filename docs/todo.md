@@ -1,7 +1,7 @@
 ### todos
 
 #### priority 
-- [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (9 are failing as of 20261107)
+- [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (4 are failing as of 20261107)
     - mostly/entirely due to fn expr bodies now being resolved
 - [ ] make deftype resolution not declaration order dependent
 - [ ] emit a diagnostic (e.g. `not yet implemented in a runtime context`) for unhandled expr kinds in `RuntimeSolver::solve_expr` versus returning empty w/o a diag
