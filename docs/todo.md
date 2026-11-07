@@ -122,7 +122,6 @@
 
 #### chores
 - [ ] fix highlighting of "\\\\" in bear.nvim
-- [ ] fix undefined arithmetic behavior in `ComptExprSolver` inherited from C++ (signed overflow, etc.)
 
 tools
 ----- 
