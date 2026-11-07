@@ -121,7 +121,7 @@ def main():
                     print(f"  {msg}", flush=True)
 
     print(
-        f"\n (fuzz tests) {total - failures}/{total} passed; {failures} failure(s) saved to {OUT_DIR}"
+        f"\n(fuzz tests) {total - failures}/{total} passed; {failures} failure(s) saved to {OUT_DIR}"
     )
     print(f"seed: {seed}")
     sys.exit(1 if failures else 0)
