@@ -1,4 +1,4 @@
-// tests/hir/a94.br
+// tests/hir/a95.br
 
 // testing address of operator (^) and some borrowing
 
@@ -26,18 +26,18 @@ fn oops() {
     &***i32 _g = f; // oops
     *i32 _h = a; // oops
 
-    *i32 mut _i = ^mut a; // oops, a is really not mut
+    *i32 mut _i = ^mut a; // fine due to value semantics
 
     mut i32 aa;
     
-    *i32 mut _i = ^aa;
-    var mut _j = ^aa;
+    *i32 mut _j = ^aa;
+    var mut _k = ^aa;
 
-    *i32 _k = 5; // oops, but not an lvalue so addr of is not recommended
+    *i32 _l = 5; // oops, but not an lvalue so addr of is not recommended
     
-    &i32 _l = 5; // oops, but not an lvalue borrow of is not recommended
+    &i32 _m = 5; // oops, but not an lvalue borrow of is not recommended
 
-    &mut i32 _m = a; // oops
+    &mut i32 _n = a; // oops
     
 }
 

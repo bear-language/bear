@@ -929,25 +929,6 @@ OptId<ExecId> RuntimeSolver::handle_addr_of(FileId fid, LexicalCtx lctx, const a
 
     const Type& ty = context.type(maybe_inner_tid.as_id());
 
-    // cannot mutably addr immutable data
-    if (!ty.mut && mut_addr_of) {
-        auto d0 = context.emplace_diagnostic_with_message_value(
-            Span{context.exec(maybe_inner_eid.as_id()).span},
-            diag_code::cannot_take_a_mutable_reference_to_immutable_value_of_type, diag_type::error,
-            DiagnosticTypeAfterMessage{.tid = maybe_inner_tid.as_id()});
-        const auto maybe_did = context.try_def_for_exec(maybe_inner_eid.as_id());
-
-        if (maybe_did.has_value()) {
-            const Def& def = context.def(maybe_did.as_id());
-            auto d1 = context.emplace_diagnostic_with_message_value(
-                def.span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = def.name});
-            context.link_diagnostic(d0, d1);
-        }
-
-        return {}; // inner type matter a lot here so return early for less cascading
-    }
-
     return context.emplace_exec(
         ExecAddrOf{.addressed = maybe_inner_eid.as_id(), .mut = mut_addr_of},
         Span{context, fid, expr});
@@ -1157,13 +1138,13 @@ OptId<ExecId> RuntimeSolver::handle_inc_dec(FileId fid, LexicalCtx lctx, const a
         lhs_mut = ty.mut;
         if (ty.holds<TypeBuiltin>()) {
             maybe_one = inc_dec_one_for(ty.as<TypeBuiltin>().type);
-        } else if (ty.is_pointer_type() && !ty.holds<TypeFnPtr>()) { // fn ptrs aren't viable
-
+        } else if (ty.holds<TypePtr>()) { // fn ptrs aren't viable
             // increment by the pointed to type's width
             maybe_one = ConstantValue{
                 context.pointer_size_bytes() == 8
-                    ? static_cast<uint64_t>(context.layout_for_type(lhs_tid).width)
-                    : static_cast<uint32_t>(context.layout_for_type(lhs_tid).width)};
+                    // try_inner safe here cuz TypePtr
+                    ? static_cast<uint64_t>(context.layout_for_type(ty.try_inner().as_id()).width)
+                    : static_cast<uint32_t>(context.layout_for_type(ty.try_inner().as_id()).width)};
         }
     }
 
