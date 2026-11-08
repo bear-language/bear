@@ -118,12 +118,13 @@ DefId DefVisitor::resolve_def(DefId did) {
 
     switch (stmt->type) {
     case AST_STMT_VAR_DECL: {
-        Def& def = context.def(did);
         OptId<TypeId> maybe_tid = TypeResolver{context, *this}.resolve_type(
-            span.file_id, scope, stmt->stmt.var_decl.type, parent_is_struct(context, def));
+            span.file_id, scope, stmt->stmt.var_decl.type,
+            parent_is_struct(context, context.def(did)));
         if (!maybe_tid.has_value()) {
             goto cleanup;
         }
+        Def& def = context.def(did);
         // compt =/= mut guard
         check_to_err_when_compt_is_mut(maybe_tid.as_id(), def);
         if (def.compt) {
@@ -871,20 +872,22 @@ void DefVisitor::resolve_fn_body_block(FileId fid, DefId func_did) {
 
     // this body will now be a deeper scope, so params live in a parent scope to the all remaining
     // defs inside the function body
-    func.body = solver.solve_block(
+    const auto body = solver.solve_block(
         fid, LexicalCtx{.scope = func_scope, .map = context.make_persistent_move_map()},
         fn_stmt->stmt.fn_decl->block_stmt, /*require_return=*/func.return_type.has_value());
 
     // reaccess func because the reference could have been invalidated when solving the block
-    context.def(func_did).as<DefFunction>().locals = context.freeze_id_vec(solver.get_locals());
+    DefFunction& solved_func = context.def(func_did).as<DefFunction>();
+    solved_func.body = body;
+    solved_func.locals = context.freeze_id_vec(solver.get_locals());
 }
 
 bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {
 
-    const Def& struct_def = context.def(struct_did);
+    const Def struct_def = context.def(struct_did);
     assert(struct_def.holds<DefStruct>());
     DefStruct strukt = struct_def.as<DefStruct>();
-    const Def& contract_def = context.def(contract_did);
+    const Def contract_def = context.def(contract_did);
     assert(contract_def.holds<DefContract>());
     DefContract contract = contract_def.as<DefContract>();
 
@@ -897,7 +900,7 @@ bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {
     for (auto didx = contract.funcs.begin(); didx != contract.funcs.end(); ++didx) {
 
         DefId ct_func_did = visit_and_resolve_if_needed(context.def_id(didx));
-        const Def& ct_func_def = context.def(ct_func_did);
+        const Def ct_func_def = context.def(ct_func_did);
 
         OptId<DefId> maybe_matching_named_func_in_struct
             = context.look_up_variable(struct_scope, ct_func_def.name);

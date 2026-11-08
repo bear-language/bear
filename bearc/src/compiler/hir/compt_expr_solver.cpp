@@ -1433,6 +1433,7 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
     const Exec& rhs = context.exec(rhs_eid);
     ExecComptConstant lhs_val = lhs.as<ExecConst>();
     ExecComptConstant rhs_val = rhs.as<ExecConst>();
+    const Span range_span = Span::combine(lhs.span, rhs.span);
 
     // converge types, if possible
     guard_try_converge_types(/* & */ lhs_val, op, /* & */ rhs_val);
@@ -1513,8 +1514,7 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
         }
     }
 
-    return context.emplace_compt_exec(ExecRange{.start = lhs_eid, .end = rhs_eid},
-                                      Span::combine(lhs.span, rhs.span));
+    return context.emplace_compt_exec(ExecRange{.start = lhs_eid, .end = rhs_eid}, range_span);
 }
 
 [[nodiscard]] OptId<ExecId>
@@ -1970,6 +1970,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
     }
 
     const auto bool_val = inner_exec.as<ExecConst>().as<bool>();
+    const Span inner_span = inner_exec.span;
 
     if (!bool_val) {
 
@@ -1985,11 +1986,11 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
         }
         if (maybe_sid.has_value()) {
             context.emplace_diagnostic_with_message_value(
-                inner_exec.span, diag_code::static_assertion_failed_colon, diag_type::error,
+                inner_span, diag_code::static_assertion_failed_colon, diag_type::error,
                 DiagnosticSymbolAfterMessage{.sid = maybe_sid.as_id()});
         } else {
             context.emplace_diagnostic(
-                inner_exec.span, diag_code::static_assertion_failed, diag_type::error,
+                inner_span, diag_code::static_assertion_failed, diag_type::error,
                 DiagnosticSubCode{.sub_code = diag_code::condition_is_false});
         }
     }
@@ -2281,15 +2282,17 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
 
         const auto prior_diag_cnt = context.diagnostic_count();
 
+        const ExecStructInit lhs_struct_init = lhs_exec.as<ExecStructInit>();
+
         // try a member index look-up: foo.0, foo.1, etc
         const auto maybe_rhs = solve_builtin_compt_expr(fid, scope, rhs_expr, builtin_type::u32);
 
         if (maybe_rhs.has_value()) {
-            const std::optional<HirSize> maybe_mem_idx = context.try_member_index(
-                lhs_exec.as<ExecStructInit>().struct_def_id, maybe_rhs.as_id());
+            const std::optional<HirSize> maybe_mem_idx
+                = context.try_member_index(lhs_struct_init.struct_def_id, maybe_rhs.as_id());
             if (maybe_mem_idx.has_value()) {
-                const Exec& mem_exec = context.exec(
-                    lhs_exec.as<ExecStructInit>().member_inits.get(maybe_mem_idx.value()));
+                const Exec& mem_exec
+                    = context.exec(lhs_struct_init.member_inits.get(maybe_mem_idx.value()));
 
                 return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
             }
@@ -2389,11 +2392,12 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
             // functions
             if (exec.holds<ExecStructInit>()) {
                 if (expr->expr.fn_call.is_generic) {
+                    const DefId struct_did = exec.as<ExecStructInit>().struct_def_id;
                     if (const auto maybe_gen_arg_id
                         = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
                         maybe_gen_arg_id.has_value()) {
                         maybe_func_did = context.look_up_generic_member_function_guarding_hid(
-                            def_visitor, context.def(exec.as<ExecStructInit>().struct_def_id),
+                            def_visitor, context.def(struct_did),
                             func_name, Span{context, fid, expr->expr.fn_call.left_expr}, scope,
                             maybe_gen_arg_id.as_id());
                     }
@@ -2861,9 +2865,10 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
     ExecListLiteral l2 = list2.as<ExecListLiteral>();
 
     // decides true/false for == and != based on equality
-    auto emplace_val_based_on_eq = [this, eq_neq, &list1, &list2](const bool eq) {
+    const Span combined_span = Span::combine(list1.span, list2.span);
+    auto emplace_val_based_on_eq = [this, eq_neq, combined_span](const bool eq) {
         const bool cond = (eq_neq == binary_op::bool_equal) ? eq : !eq;
-        return context.emplace_compt_exec(ExecConst{cond}, Span::combine(list1.span, list2.span));
+        return context.emplace_compt_exec(ExecConst{cond}, combined_span);
     };
 
     if (l1.len() != l2.len()) {
@@ -2911,9 +2916,10 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
     ExecStructInit s2 = e2.as<ExecStructInit>();
 
     // decides true/false for == and != based on equality
-    auto emplace_val_based_on_eq = [this, eq_neq, &e1, &e2](const bool eq) {
+    const Span combined_span = Span::combine(e1.span, e2.span);
+    auto emplace_val_based_on_eq = [this, eq_neq, combined_span](const bool eq) {
         const bool cond = (eq_neq == binary_op::bool_equal) ? eq : !eq;
-        return context.emplace_compt_exec(ExecConst{cond}, Span::combine(e1.span, e2.span));
+        return context.emplace_compt_exec(ExecConst{cond}, combined_span);
     };
 
     if (s1.anonymous && s2.anonymous) {
@@ -3257,8 +3263,9 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
     }
 
     // handle range case
+    const Exec& matched = context.exec(matched_eid);
     if (context.exec(maybe_pattern_eid.as_id()).template holds<ExecRange>()
-        && matched_exec.holds<ExecConst>() && matched_exec.as<ExecConst>().is_integral()) {
+        && matched.holds<ExecConst>() && matched.as<ExecConst>().is_integral()) {
         if (value_inside_range(context, maybe_pattern_eid.as_id(), matched_eid)) {
             return true;
         }
@@ -3490,12 +3497,12 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         return {}; // poisoned (some other issue)
     }
 
+    const TypeId elem_tid
+        = context.emplace_type(TypeBuiltin{.type = builtin_type::str}, Span::generated(), false);
+
     const Type& ty = context.type(context.try_decay(maybe_tid.as_id()));
 
     const Span span{context, fid, mems_of_expr};
-
-    const TypeId elem_tid
-        = context.emplace_type(TypeBuiltin{.type = builtin_type::str}, Span::generated(), false);
 
     if (ty.holds<TypeStruct>()) {
 
@@ -3534,12 +3541,12 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         return {}; // poisoned (some other issue)
     }
 
+    const TypeId elem_tid
+        = context.emplace_type(TypeBuiltin{.type = builtin_type::str}, Span::generated(), false);
+
     const Type& ty = context.type(context.try_decay(maybe_tid.as_id()));
 
     const Span span{context, fid, mems_of_expr};
-
-    const TypeId elem_tid
-        = context.emplace_type(TypeBuiltin{.type = builtin_type::str}, Span::generated(), false);
 
     if (ty.holds<TypeStruct>()) {
 
