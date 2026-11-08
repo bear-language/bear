@@ -1,0 +1,14 @@
+// tests/hir/a97.br
+
+var _0 = match 5 as u64 {-1 => 1, else => 2}; // oops
+var _1 = match 5 as u8 {200...=300 => 1, else => 2}; // oops, out of range
+var _2 = match 5 as u8 {
+    0...=100 => 1,
+    50...=60 => 2, // oops, overlaps
+    7 => 3, // oops
+    7 => 4, // oops, redundant
+    150...=200 => 5,
+}; // oops, does not consider 101...=149 and 201...=255
+var _3 = match 5 as u8 {10...=0 => 1, 3 => 2, else => 3}; // oops
+var _4 = match 0 {0...1 => 1, 1...2 => 2, 0...1 => 3, -10000...100000 => 4, else => 5}; // oops x2
+var _5 = @static_assert match 0 {0...0 => 1, else => 2} == 2; // oops, empty range (warning)

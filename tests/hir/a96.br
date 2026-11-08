@@ -1,0 +1,23 @@
+// tests/hir/a96.br
+
+var _0 = @static_assert match 14 {0...14 => 2, else => 1} == 1;
+var _1 = @static_assert match 5 {0...5 => 1, 5...10 => 2, else => 3} == 2;
+var _2 = @static_assert match 5 {0...5 => 1, 5 => 2, else => 3} == 2;
+var _3 = @static_assert match 5 {0...=5 => 1, 6...=10 => 2, else => 3} == 1;
+var _4 = @static_assert match 200 as u8 {0...=127 => 1, 128...=255 => 2} == 2;
+var _5 = @static_assert match -3 as i8 {-128...0 => 1, 0...=127 => 2} == 1;
+var _6 = @static_assert match 0 as u8 {10...=0 => 1, 11...=255 => 2} == 1;
+var _7 = @static_assert match 0 {0...=0 => 1, else => 2} == 1;
+var _8 = @static_assert match 18446744073709551615 as u64 {0 as u64...=18446744073709551615 as u64 => 1} == 1;
+var _9 = @static_assert match 9223372036854775807 as i64 {0 as i64...=9223372036854775807 as i64 => 1, else => 2} == 1;
+var _10 = @static_assert((0...0) != (0...=0));
+var _11 = @static_assert((0...=100) == (0...101));
+
+struct Foo<Range::i32 a> {}
+
+compt var foo_incl = @type_id Foo::(0...=100);
+compt var foo_excl = @type_id Foo::(0...101);
+compt var foo_other = @type_id Foo::(0...100);
+
+var _12 = @static_assert foo_incl == foo_excl;
+var _13 = @static_assert foo_incl != foo_other;
