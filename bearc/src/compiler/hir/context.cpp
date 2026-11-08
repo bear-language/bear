@@ -4044,6 +4044,13 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
         [this](const ExecCompoundAssignment& d) -> OptId<TypeId> {
             return infer_type_from_exec(d.lhs);
         },
+        [this](const ExecUnary& d) -> OptId<TypeId> {
+            if (d.op == unary_op::bool_not) {
+                return emplace_type(TypeBuiltin{.type = builtin_type::boolean}, Span::generated(),
+                                    false);
+            }
+            return infer_type_from_exec(d.operand);
+        },
         // these are ctrl and do not yield values
         [](const ExecMatch&) -> OptId<TypeId> { return {}; },
         [](const ExecMatchBranch&) -> OptId<TypeId> { return {}; },
@@ -4136,6 +4143,7 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
         [](const ExecFnCall&) -> bool { return false; },
         [](const ExecAssignment&) -> bool { return false; },
         [](const ExecBinary&) -> bool { return false; },
+        [](const ExecUnary&) -> bool { return false; },
         // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
         // no

@@ -341,6 +341,13 @@ template <equivalence E> bool equivalent_exec_impl(const Context& ctx, ExecId ei
                    && equivalent_exec_impl<E>(ctx, t.lhs, o.lhs)
                    && equivalent_exec_impl<E>(ctx, t.rhs, o.rhs);
         },
+        [&ctx, &other](const ExecUnary& t) -> bool {
+            if (!other.holds<ExecUnary>()) {
+                return false;
+            }
+            const auto o = other.as<ExecUnary>();
+            return t.op == o.op && equivalent_exec_impl<E>(ctx, t.operand, o.operand);
+        },
     };
 
     return ctx.exec(eid1).visit(vs);
@@ -404,6 +411,7 @@ template <equivalence E> size_t hash_exec_impl(const Context& ctx, ExecId eid) {
         [](const ExecMatch&) -> size_t { return {}; },
         [](const ExecMatchBranch&) -> size_t { return {}; },
         [](const ExecCompoundAssignment&) -> size_t { return {}; },
+        [](const ExecUnary&) -> size_t { return {}; },
         [](const ExecFnPtr& t) -> size_t { return mix(t.func_def_id.raw()); },
         [&ctx](const ExecVariantFieldInit& t) -> size_t {
             size_t h = t.variant_field_def_id.raw();
@@ -571,6 +579,7 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecMatch&) -> bool { return false; },
         [](const ExecMatchBranch&) -> bool { return false; },
         [](const ExecCompoundAssignment&) -> bool { return false; },
+        [](const ExecUnary&) -> bool { return false; },
     };
 
     return e1.visit(vs);
@@ -616,6 +625,7 @@ bool definitely_returns_yields_impl(const Context& ctx, ExecId eid) {
         [](const ExecVariantFieldInit&) -> bool { return {}; },
         [](const ExecRange&) -> bool { return {}; },
         [](const ExecCompoundAssignment&) -> bool { return {}; },
+        [](const ExecUnary&) -> bool { return {}; },
     };
 
     return ctx.exec(eid).visit(vs);

@@ -536,6 +536,12 @@ struct ExecCompoundAssignment {
     bool yield_old;
 };
 
+/// runtime pre-unary +, -, !, ~ (++/-- are ExecCompoundAssignment, compt operands fold to constants)
+struct ExecUnary {
+    ExecId operand;
+    unary_op op;
+};
+
 // ^^^^^^ struct impls ^^^^^^^^
 
 /// main exec variant
@@ -547,7 +553,7 @@ using ExecValue = std::variant<
     ExecUnionInit, ExecVariantInit, ExecStructInit, ExecVariable, ExecComptConstant,
     ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
     ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecFnPtr,
-    ExecVariantFieldInit, ExecRange, ExecCompoundAssignment>;
+    ExecVariantFieldInit, ExecRange, ExecCompoundAssignment, ExecUnary>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {

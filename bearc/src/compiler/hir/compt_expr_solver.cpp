@@ -1610,6 +1610,12 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
         inner_val = maybe_converted.value();
     }
 
+    if (op == unary_op::minus && is_unsigned_builtin(inner_val.type_builtin())) {
+        diag_unsigned_negation(context, Span::combine(op_span, inner_exec.span),
+                               inner_val.type_builtin());
+        return std::nullopt;
+    }
+
     std::optional<ExecConst> maybe_value{};
 
     switch (op) {

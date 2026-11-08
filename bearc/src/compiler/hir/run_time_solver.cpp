@@ -883,6 +883,17 @@ namespace {
     }
     return std::nullopt;
 }
+
+/// error at the operator + linked note with the operand's type
+void diag_invalid_unary_operand(Context& context, Span op_span, Span operand_span,
+                                TypeId operand_tid) {
+    auto d0 = context.emplace_diagnostic(op_span, diag_code::invalid_operand_for_unary_expression,
+                                         diag_type::error);
+    auto d1 = context.emplace_diagnostic_with_message_value(
+        operand_span, diag_code::value_is_of_type, diag_type::note,
+        DiagnosticTypeAfterMessage{.tid = operand_tid});
+    context.link_diagnostic(d0, d1);
+}
 } // namespace
 
 OptId<ExecId> RuntimeSolver::handle_preunary(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
@@ -913,14 +924,42 @@ OptId<ExecId> RuntimeSolver::handle_preunary(FileId fid, LexicalCtx lctx, const 
         return {};
     }
 
+    const ExecId inner_eid = maybe_inner_eid.as_id();
+
     // fold constants thru the compt solver
-    if (context.exec(maybe_inner_eid.as_id()).holds<ExecConst>()) {
-        return ComptExprSolver{def_visitor}.solve_preunary_exec(op, op_span,
-                                                                maybe_inner_eid.as_id());
+    if (context.exec(inner_eid).holds<ExecConst>()) {
+        return ComptExprSolver{def_visitor}.solve_preunary_exec(op, op_span, inner_eid);
     }
 
-    // TODO: runtime +, -, !, ~ (needs either an ExecUnary or lowering to ExecBinary)
-    return {};
+    const auto maybe_inner_tid = context.infer_type_from_exec(inner_eid);
+    if (maybe_inner_tid.empty()) {
+        return {};
+    }
+    const TypeId inner_tid = maybe_inner_tid.as_id();
+
+    bool viable{};
+    std::optional<builtin_type> maybe_unsigned_bt{};
+    {
+        const Type& ty = context.type(inner_tid);
+        if (ty.holds<TypeBuiltin>()) {
+            const builtin_type bt = ty.as<TypeBuiltin>().type;
+            viable = builtin_type_has_unary_op(bt, op);
+            if (op == unary_op::minus && is_unsigned_builtin(bt)) {
+                maybe_unsigned_bt = bt;
+            }
+        }
+    }
+    if (maybe_unsigned_bt.has_value()) {
+        diag_unsigned_negation(context, Span{context, fid, expr}, maybe_unsigned_bt.value());
+        return {};
+    }
+    if (!viable) {
+        diag_invalid_unary_operand(context, op_span, context.exec(inner_eid).span, inner_tid);
+        return {};
+    }
+
+    return context.emplace_exec(ExecUnary{.operand = inner_eid, .op = op},
+                                Span{context, fid, expr});
 }
 
 OptId<ExecId> RuntimeSolver::handle_postunary(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
@@ -972,14 +1011,8 @@ OptId<ExecId> RuntimeSolver::handle_deref(FileId fid, LexicalCtx lctx, const ast
     }
 
     if (!ptr_viable) {
-        const Span inner_span = context.exec(inner_eid).span;
-        auto d0 = context.emplace_diagnostic(Span{context, fid, expr->expr.unary.op},
-                                             diag_code::invalid_operand_for_unary_expression,
-                                             diag_type::error);
-        auto d1 = context.emplace_diagnostic_with_message_value(
-            inner_span, diag_code::value_is_of_type, diag_type::note,
-            DiagnosticTypeAfterMessage{.tid = inner_tid});
-        context.link_diagnostic(d0, d1);
+        diag_invalid_unary_operand(context, Span{context, fid, expr->expr.unary.op},
+                                   context.exec(inner_eid).span, inner_tid);
         return {};
     }
 
@@ -1020,20 +1053,15 @@ OptId<ExecId> RuntimeSolver::handle_inc_dec(FileId fid, LexicalCtx lctx, const a
         lhs_mut = ty.mut;
         if (ty.holds<TypeBuiltin>()) {
             maybe_one = inc_dec_one_for(ty.as<TypeBuiltin>().type);
-        } else if (ty.is_pointer_type()) {
+        } else if (ty.is_pointer_type() && !ty.holds<TypeFnPtr>()) { // fn ptrs aren't viable
             // TODO: match whatever index type runtime pointer arithmetic uses in future
             maybe_one = ConstantValue{int64_t{1}};
         }
     }
 
     if (!maybe_one.has_value()) {
-        auto d0 = context.emplace_diagnostic(Span{context, fid, expr->expr.unary.op},
-                                             diag_code::invalid_operand_for_unary_expression,
-                                             diag_type::error);
-        auto d1 = context.emplace_diagnostic_with_message_value(
-            lhs_span, diag_code::value_is_of_type, diag_type::note,
-            DiagnosticTypeAfterMessage{.tid = lhs_tid});
-        context.link_diagnostic(d0, d1);
+        diag_invalid_unary_operand(context, Span{context, fid, expr->expr.unary.op}, lhs_span,
+                                   lhs_tid);
         return {};
     }
 

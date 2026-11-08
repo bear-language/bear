@@ -1001,6 +1001,7 @@ bool Exec::can_be_compt() {
         [](const ExecMatch&) -> bool { return false; },
         [](const ExecMatchBranch&) -> bool { return false; },
         [](const ExecCompoundAssignment&) -> bool { return false; },
+        [](const ExecUnary&) -> bool { return false; },
     };
     return visit(vs);
 }
@@ -2327,6 +2328,9 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             str += ' ';
             str += exec_to_string(ctx, t.rhs);
             return str;
+        },
+        [&ctx](const ExecUnary& t) -> std::string {
+            return unary_op_to_cstr(t.op) + exec_to_string(ctx, t.operand);
         },
 
     };

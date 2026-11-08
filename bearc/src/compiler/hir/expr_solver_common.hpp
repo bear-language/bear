@@ -721,6 +721,23 @@ template <class Solver>
                                 Span{context, fid, expr}, should_be_compt || all_compt);
 }
 
+/// true when bt is an unsigned integral type (u8, u16, u32, u64)
+[[nodiscard]] inline bool is_unsigned_builtin(builtin_type bt) {
+    return bt == builtin_type::u8 || bt == builtin_type::u16 || bt == builtin_type::u32
+           || bt == builtin_type::u64;
+}
+
+/// unary minus on an unsigned type is always illegal (compt or runtime), like rust; issues an
+/// error naming the unsigned type + a help for how to get wrapping negation
+inline void diag_unsigned_negation(Context& context, Span span, builtin_type bt) {
+    auto d0 = context.emplace_diagnostic_with_message_value(
+        span, diag_code::cannot_negate_value_of_unsigned_type, diag_type::error,
+        DiagnosticSymbolAfterMessage{.sid = context.symbol_id(builtin_type_to_cstr(bt))});
+    auto d1 = context.emplace_diagnostic(
+        span, diag_code::for_wrapping_negation_subtract_from_zero_instead, diag_type::help);
+    context.link_diagnostic(d0, d1);
+}
+
 } // namespace hir
 
 #endif

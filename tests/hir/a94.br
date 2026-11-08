@@ -1,6 +1,6 @@
 // tests/hir/a94.br
 
-// testing pre/post ++ and --, and pointer deref
+// testing pre/post ++ and --, pointer deref, and runtime pre-unary ops
 
 struct Foo {
     i32 x = 0;
@@ -12,7 +12,7 @@ fn fine(mut i32 p, mut f64 f, mut char c) {
     --a;
     mut i32 b = a++;
     mut i32 d = --b;
-    f++;
+    f++; // floats and chars are fine
     --c;
     p--;
     mut Foo foo = Foo{};
@@ -42,4 +42,19 @@ fn deref(*mut i32 pm, *i32 p, *void pv, &i32 r) {
     p.*--; // oops, pointee is immutable
     var c = pv.*; // oops, *void
     var d = r.*; // oops, refs are auto-dereferenced
+}
+
+fn ptr_inc(*mut i32 pm, mut *fn(i32)->i32 fp) {
+    pm++;
+    fp++; // oops, fn ptrs aren't viable
+}
+
+fn unary(i32 a, u32 u, f64 x, bool b) {
+    i32 n = -a;
+    i32 k = ~a;
+    f64 y = -(-x);
+    bool nb = !b;
+    var e0 = -u; // oops, unsigned vals can't be negated
+    var e1 = !a; // oops
+    var e2 = ~x; // oops
 }

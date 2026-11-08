@@ -246,6 +246,8 @@ enum class diag_code : uint8_t {
     cannot_take_a_mutable_reference_to_immutable_value_of_type,
     cannot_borrow_temporary_value,
     cannot_assign_to_temporary_value,
+    cannot_negate_value_of_unsigned_type,
+    for_wrapping_negation_subtract_from_zero_instead,
 
     count, // this must be last,
 

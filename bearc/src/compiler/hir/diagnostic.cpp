@@ -487,6 +487,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot borrow temporary value";
     case diag_code::cannot_assign_to_temporary_value:
         return "cannot assign to temporary value";
+    case diag_code::cannot_negate_value_of_unsigned_type:
+        return "cannot negate value of unsigned type";
+    case diag_code::for_wrapping_negation_subtract_from_zero_instead:
+        return "for wrapping negation, subtract from zero instead";
     }
 
     std::unreachable();

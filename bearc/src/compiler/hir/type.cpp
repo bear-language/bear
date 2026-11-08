@@ -138,8 +138,8 @@ template <ConsiderMut C> size_t TypeHasher<C>::operator()(const Type& t1) const 
             return mix(0x02uz ^ static_cast<size_t>(t.def_id.raw()));
         },
         [&](const TypeDeftype&) -> size_t {
-            std::cout << ("tried to directly hash a deftype, do not use `as_mentioned` invocations "
-                          "when hashing!")
+            std::cout << "tried to directly hash a deftype, do not use `as_mentioned` invocations "
+                         "when hashing!"
                       << '\n';
             std::unreachable();
             return 0uz;
@@ -214,7 +214,7 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
                     }
                 }
 
-                str += ")";
+                str += ')';
             } else {
                 str += context.symbol_id_to_cstr(context.def(t.def_id).name);
                 if (t.gen_args_slice.has_value()) {
@@ -337,7 +337,7 @@ Type TypeTransformer<F>::get_type_as_mentioned(TypeId tid) const noexcept {
 };
 
 template <TypeTransformerFunctor F>
-typename F::value_type TypeTransformer<F>::invoke(TypeId tid, auto get_type_functor) {
+F::value_type TypeTransformer<F>::invoke(TypeId tid, auto get_type_functor) {
     auto t = get_type_functor(tid);
 
     const auto invoker = F{context};
@@ -361,7 +361,7 @@ typename F::value_type TypeTransformer<F>::invoke(TypeId tid, auto get_type_func
 }
 
 template <TypeTransformerFunctor F>
-typename F::value_type TypeTransformer<F>::invoke(TypeId tid1, TypeId tid2, auto get_type_functor) {
+F::value_type TypeTransformer<F>::invoke(TypeId tid1, TypeId tid2, auto get_type_functor) {
 
     Type t1 = get_type_functor(tid1);
     Type t2 = get_type_functor(tid2);
@@ -398,21 +398,21 @@ typename F::value_type TypeTransformer<F>::invoke(TypeId tid1, TypeId tid2, auto
 }
 
 template <TypeTransformerFunctor F>
-typename F::value_type TypeTransformer<F>::operator()(TypeId tid1, TypeId tid2) {
+F::value_type TypeTransformer<F>::operator()(TypeId tid1, TypeId tid2) {
     return invoke(tid1, tid2, [this](TypeId tid) { return get_type(tid); });
 }
-template <TypeTransformerFunctor F>
-typename F::value_type TypeTransformer<F>::operator()(TypeId tid) {
+
+template <TypeTransformerFunctor F> F::value_type TypeTransformer<F>::operator()(TypeId tid) {
     return invoke(tid, [this](TypeId tid) { return get_type(tid); });
 }
 
 template <TypeTransformerFunctor F>
-typename F::value_type TypeTransformer<F>::invoke_as_mentioned(TypeId tid) {
+F::value_type TypeTransformer<F>::invoke_as_mentioned(TypeId tid) {
     return invoke(tid, [this](TypeId tid) { return get_type_as_mentioned(tid); });
 }
 
 template <TypeTransformerFunctor F>
-typename F::value_type TypeTransformer<F>::invoke_as_mentioned(TypeId tid1, TypeId tid2) {
+F::value_type TypeTransformer<F>::invoke_as_mentioned(TypeId tid1, TypeId tid2) {
     return invoke(tid1, tid2, [this](TypeId tid) { return get_type_as_mentioned(tid); });
 }
 
@@ -867,7 +867,7 @@ bool builtin_type_has_unary_op(builtin_type type, unary_op op) {
 
     // char
     case builtin_type::charr:
-        return false;
+        return op == unary_op::inc || op == unary_op::dec;
     // f32
     case builtin_type::f32:
     // f64
@@ -875,9 +875,9 @@ bool builtin_type_has_unary_op(builtin_type type, unary_op op) {
         switch (op) {
         case unary_op::plus:
         case unary_op::minus:
-            return true;
         case unary_op::inc:
         case unary_op::dec:
+            return true;
         case unary_op::bool_not:
         case unary_op::bit_not:
             return false;

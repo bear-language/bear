@@ -28,5 +28,7 @@ compt u32 g = 3 as u32 - 5 as u32;
 var _1 = @static_assert(g == 4294967294 as u32);
 compt u16 o = 65535 as u16 * 65535 as u16;
 var _2 = @static_assert(o == 1 as u16);
-compt u64 p = -(1 as u64);
+compt u64 p = 0 as u64 - 1 as u64;
 var _3 = @static_assert(p == 18446744073709551615 as u64);
+
+compt u64 q = -(1 as u64); // oops, unsigned vals can't be negated (use 0 - x to wrap)
