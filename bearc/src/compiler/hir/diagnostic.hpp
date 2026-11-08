@@ -450,11 +450,11 @@ struct Diagnostic : NodeWithVariantValue<Diagnostic> {
     void set_next(DiagnosticId next) { this->next = next; }
     void set_prev(DiagnosticId prev) { this->prev = prev; }
     [[nodiscard]] std::string message_string(Context& ctx) const;
+    [[nodiscard]] static const char* message_for_code(enum diag_code c);
 
   private:
     [[nodiscard]] bool has_complex_message() const;
     void build_complex_message(Context& ctx, std::string& message_str) const;
-    [[nodiscard]] static const char* message_for_code(enum diag_code c);
     [[nodiscard]] static const char* name_for_type(enum diag_type t);
     [[nodiscard]] static const char* accent_color_for_type(enum diag_type t);
     void print_info_value(Context& context, HirSize min_width, bool more_than_one_line) const;
