@@ -36,6 +36,8 @@ fn oops() {
     *i32 _k = 5; // oops, but not an lvalue so addr of is not recommended
     
     &i32 _l = 5; // oops, but not an lvalue borrow of is not recommended
+
+    &mut i32 _m = a; // oops
     
 }
 

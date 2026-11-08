@@ -160,6 +160,9 @@ namespace hir {
 
             const Exec& exec = context.exec(maybe_eid.as_id());
             std::string replacement_str{'&'};
+            if (into_ty.mut) {
+                replacement_str += "mut ";
+            }
             replacement_str += context.symbol(context.symbol_id(exec.span));
 
             context.force_link_diagnostic(context.emplace_diagnostic_with_message_value(
