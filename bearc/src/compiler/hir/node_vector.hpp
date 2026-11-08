@@ -10,8 +10,10 @@
 #define COMPILER_HIR_NODE_VECTOR_HPP
 
 #include "compiler/hir/indexing.hpp"
+#include "utils/data_arena.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include <cassert>
+#include <type_traits>
 #include <utility>
 #include <vector>
 namespace hir {
@@ -60,11 +62,11 @@ template <hir::IsId I, typename V, typename VectorType> class IdVecMapBase {
     using value_type = V;
     using reference = V&;
     using const_reference = const V&;
-    using iterator = typename VectorType::iterator;
-    using const_iterator = typename VectorType::const_iterator;
-    using reverse_iterator = typename VectorType::reverse_iterator;
-    using const_reverse_iterator = typename VectorType::const_reverse_iterator;
-    using size_type = typename VectorType::size_type;
+    using iterator = VectorType::iterator;
+    using const_iterator = VectorType::const_iterator;
+    using reverse_iterator = VectorType::reverse_iterator;
+    using const_reverse_iterator = VectorType::const_reverse_iterator;
+    using size_type = VectorType::size_type;
 
     [[nodiscard]] iterator begin() noexcept { return vec.begin(); }
     [[nodiscard]] const_iterator begin() const noexcept { return vec.begin(); }
@@ -91,10 +93,83 @@ template <hir::IsId I, typename V> class IdVecMap : public IdVecMapBase<I, V, st
     explicit IdVecMap(HirSize capacity) : IdVecMapBase<I, V, std::vector<V>>(capacity) {}
 };
 
-/// Models a vector of an hir::Node
-template <Node T> class NodeVector : public IdVecMap<typename T::id_type, T> {
+/// Maps an hir::Id to any type, like IdVecMap, but with stable element addresses
+/// - slightly (~3-5%) slower than IdVecMap
+template <hir::IsId I, typename V> class StableIdVecMap {
+    static_assert(alignof(V) <= 8, "DataArena only guarantees 8-byte alignment");
+    static constexpr HirId OFFSET = 1;
+    static constexpr HirSize CHUNK_SHIFT = 12;
+    static constexpr HirSize CHUNK_SIZE = HirSize{1} << CHUNK_SHIFT;
+    static constexpr HirSize CHUNK_MASK = CHUNK_SIZE - 1;
+
+    DataArena arena;
+    std::vector<V*> chunks;
+    HirSize len = 0;
+
+    [[nodiscard]] V& slot(HirSize idx) { return chunks[idx >> CHUNK_SHIFT][idx & CHUNK_MASK]; }
+    [[nodiscard]] const V& slot(HirSize idx) const {
+        return chunks[idx >> CHUNK_SHIFT][idx & CHUNK_MASK];
+    }
+
   public:
-    explicit NodeVector(HirSize capacity) : IdVecMap<typename T::id_type, T>(capacity) {}
+    explicit StableIdVecMap(HirSize) : arena{CHUNK_SIZE * sizeof(V)} {}
+    ~StableIdVecMap() {
+        if constexpr (!std::is_trivially_destructible_v<V>) {
+            for (HirSize i = 0; i < len; i++) {
+                slot(i).~V();
+            }
+        }
+    }
+    StableIdVecMap(const StableIdVecMap&) = delete;
+    StableIdVecMap& operator=(const StableIdVecMap&) = delete;
+    StableIdVecMap(StableIdVecMap&&) = delete;
+    StableIdVecMap& operator=(StableIdVecMap&&) = delete;
+
+    void reserve(HirSize) {}
+
+    [[nodiscard]] V& at(I id) {
+        assert(id.raw() != HIR_ID_NONE
+               && "[hir::StableIdVecMap::at] asked for an id of HIR_ID_NONE\n");
+        return slot(id.raw() - OFFSET);
+    }
+    [[nodiscard]] const V& at(I id) const {
+        assert(id.raw() != HIR_ID_NONE
+               && "[hir::StableIdVecMap::at] asked for an id of HIR_ID_NONE\n");
+        return slot(id.raw() - OFFSET);
+    }
+
+    template <typename... Args>
+    [[nodiscard("Id must be fetched or emplaced node is dead.")]] I
+    emplace_and_get_id(Args&&... args) {
+        return bump(std::forward<Args>(args)...);
+    }
+    template <typename... Args> I bump(Args&&... args) {
+        if ((len & CHUNK_MASK) == 0) {
+            chunks.push_back(arena.alloc_as<V*>(CHUNK_SIZE * sizeof(V)));
+        }
+        ::new (&slot(len)) V(std::forward<Args>(args)...);
+        len++;
+        return I{static_cast<HirId>(len - 1 + OFFSET)};
+    }
+
+    [[nodiscard]] I begin_id() const { return I{1}; }
+    [[nodiscard]] I end_id() const { return I{static_cast<HirId>(len + OFFSET)}; }
+    [[nodiscard]] I rbegin_id() const { return I{static_cast<HirId>(len + OFFSET - 1)}; }
+    [[nodiscard]] I rend_id() const { return I{0}; }
+
+    using value_type = V;
+    using reference = V&;
+    using const_reference = const V&;
+    using size_type = HirSize;
+
+    [[nodiscard]] bool empty() const noexcept { return len == 0; }
+    [[nodiscard]] size_type size() const noexcept { return len; }
+};
+
+/// Models a vector of an hir::Node (with stable element addresses)
+template <Node T> class NodeVector : public StableIdVecMap<typename T::id_type, T> {
+  public:
+    explicit NodeVector(HirSize capacity) : StableIdVecMap<typename T::id_type, T>(capacity) {}
 };
 
 template <hir::IsId I, typename V>

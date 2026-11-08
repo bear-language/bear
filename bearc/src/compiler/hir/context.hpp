@@ -981,11 +981,11 @@ class Context {
 
     /// FileId -> IdSlice<FileId> since all importees are always known when lowering a given
     /// file
-    IdVecMap<FileId, IdSlice<FileId>> importer_to_importees;
+    StableIdVecMap<FileId, IdSlice<FileId>> importer_to_importees;
     /// FileId -> llvm::SmallVector<FileId> since this will be updated less predictably
-    IdVecMap<FileId, llvm::SmallVector<FileId>> importee_to_importers;
+    StableIdVecMap<FileId, llvm::SmallVector<FileId>> importee_to_importers;
     // maps a FileId to a list of diagnostics
-    IdVecMap<FileId, llvm::SmallVector<DiagnosticId>> file_to_diagnostics;
+    StableIdVecMap<FileId, llvm::SmallVector<DiagnosticId>> file_to_diagnostics;
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // for tracking all functions (which are rather important)
@@ -1008,7 +1008,7 @@ class Context {
 
     IdVector<ExecId> exec_ids;
     NodeVector<Exec> execs;
-    IdVecMap<ExecIdSliceId, IdSlice<ExecId>> exec_slices;
+    StableIdVecMap<ExecIdSliceId, IdSlice<ExecId>> exec_slices;
 
     NodeVector<Block> blocks;
 
@@ -1047,7 +1047,7 @@ class Context {
     DataArena struct_did_to_contract_set_id_arena;
     IdHashMap<DefId, ContractSetId> struct_did_to_contract_set_id;
     DataArena contract_set_arena;
-    IdVecMap<ContractSetId, ContractSet> contract_sets;
+    StableIdVecMap<ContractSetId, ContractSet> contract_sets;
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // types ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1070,12 +1070,12 @@ class Context {
 
     // for getting the concrete defs from generic args (routed thru an unspecialized generic
     // defs that has a map to it's child concrete defs)
-    IdVecMap<CanonicalGenericArgsIdMapId, IdHashMap<CanonicalGenericArgsId, DefId>>
+    StableIdVecMap<CanonicalGenericArgsIdMapId, IdHashMap<CanonicalGenericArgsId, DefId>>
         canonical_generic_args_id_to_def_id_map;
 
     DataArena compt_args_arena;
 
-    IdVecMap<CanonicalGenericArgsIdMapId, IdHashMap<CanonicalGenericArgsId, ExecId>>
+    StableIdVecMap<CanonicalGenericArgsIdMapId, IdHashMap<CanonicalGenericArgsId, ExecId>>
         canonical_compt_args_id_to_exec_id_map;
 
     // for structurally reverse engineering canonical args
@@ -1107,21 +1107,21 @@ class Context {
     DataArena canon_type_ids_to_layout_ids_arena;
     IdHashMap<CanonicalTypeId, LayoutId> canon_type_ids_to_layout_ids;
     IdVector<Offset> offsets;
-    IdVecMap<OffsetSliceId, IdSlice<Offset>> offset_slices;
+    StableIdVecMap<OffsetSliceId, IdSlice<Offset>> offset_slices;
     DataArena def_id_to_offset_slice_arena;
     IdHashMap<DefId, OffsetSliceId> def_id_to_offset_slice;
     DataArena canon_tid_to_offset_slice_arena;
     IdHashMap<CanonicalTypeId, OffsetSliceId> canon_tid_to_offset_slice;
 
     // for getting the scope for a given
-    IdVecMap<FileId, std::vector<SpanScopePair>> file_to_spans_to_scopes;
+    StableIdVecMap<FileId, std::vector<SpanScopePair>> file_to_spans_to_scopes;
     /// file_to_spans_to_scopes is (lazily) sorted by scope_for_span, registration invalidates it
     bool spans_to_scopes_sorted{false};
 
     // for storing generic deduction steps
     NodeVector<DeductionStep> deduction_steps;
     IdVector<DeductionStepId> deduction_step_ids;
-    IdVecMap<DeductionGuideId, IdSlice<DeductionStepId>> deduction_guides;
+    StableIdVecMap<DeductionGuideId, IdSlice<DeductionStepId>> deduction_guides;
     DataArena def_to_deduction_guides_arena;
     IdHashMap<DefId, DeductionGuideId> def_to_deduction_guides;
 
@@ -1140,7 +1140,7 @@ class Context {
 
     // error tracking ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NodeVector<Diagnostic> diagnostics;
-    IdVecMap<DiagnosticId, uint8_t> diagnostics_used;
+    StableIdVecMap<DiagnosticId, uint8_t> diagnostics_used;
     HirSize warning_cnt{};
     HirSize note_cnt{};
     HirSize help_cnt{};

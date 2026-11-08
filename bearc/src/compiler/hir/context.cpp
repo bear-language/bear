@@ -214,12 +214,13 @@ Context::Context(const bearc_args_t& args, instances instances,
     DefVisitor def_vis{*this};
     def_vis.resolve_top_level_definitions();
     // ensure all functions are lowered
-    for (const DefId did : all_function_dids) {
-        def_vis.visit_as_independent(did);
+    for (size_t i = 0; i < all_function_dids.size(); i++) {
+        def_vis.visit_as_independent(all_function_dids[i]);
     }
 
     // ensure all static struct member dids are lowered, these are predominately generic
-    for (const DefId did : static_struct_member_dids) {
+    for (size_t i = 0; i < static_struct_member_dids.size(); i++) {
+        const DefId did = static_struct_member_dids[i];
         const auto prior_diag_cnt = diagnostic_count();
         def_vis.visit_as_independent(did);
         if (prior_diag_cnt < diagnostic_count()) {

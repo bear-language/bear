@@ -9,7 +9,6 @@
 // a vector-backed list that doesn't allow removal
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/node_vector.hpp"
-#include <optional>
 
 namespace hir {
 
