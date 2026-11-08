@@ -409,6 +409,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "overlapping range pattern";
     case diag_code::existing_pattern_with_overlapping_range_here:
         return "existing pattern with overlapping range here";
+    case diag_code::pattern_exceeds_range_of_matched_type:
+        return "pattern exceeds the range of the matched value's type";
+    case diag_code::empty_range_pattern:
+        return "range pattern is empty and can never match";
     case diag_code::overlapping_pattern:
         return "overlapping pattern";
     case diag_code::variadic_type_not_allowed_here:

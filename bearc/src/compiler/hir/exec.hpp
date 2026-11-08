@@ -438,8 +438,8 @@ struct ExecListLiteral {
 
 struct ExecRange {
     ExecId start;
-    // non-inclusive end
     ExecId end;
+    bool inclusive;
 };
 
 struct ExecAssignment {

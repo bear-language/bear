@@ -10,8 +10,54 @@
 #define BEARC_COMPILER_HIR_EXEC_PROVING_HPP
 
 #include "compiler/hir/context.hpp"
+#include "compiler/hir/exec.hpp"
 #include "compiler/hir/indexing.hpp"
+#include <cstdint>
+#include <limits>
+#include <optional>
 namespace hir {
+
+inline constexpr uint64_t INTEGRAL_KEY_SIGN_BIT = uint64_t{1} << 63;
+
+inline std::optional<uint64_t> try_integral_key(ExecConst c, bool is_signed) {
+    if (!c.is_integral()) {
+        return {};
+    }
+    if (is_signed) {
+        int64_t v{};
+        if (c.is_signed_integral()) {
+            v = c.to_i64();
+        } else {
+            const uint64_t u = c.to_size();
+            if (u > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+                return {};
+            }
+            v = static_cast<int64_t>(u);
+        }
+        return static_cast<uint64_t>(v) ^ INTEGRAL_KEY_SIGN_BIT;
+    }
+    if (c.is_signed_integral()) {
+        const int64_t v = c.to_i64();
+        if (v < 0) {
+            return {};
+        }
+        return static_cast<uint64_t>(v);
+    }
+    return c.to_size();
+}
+
+struct CanonicalIntegralRange {
+    uint64_t start;
+    uint64_t last;
+    bool empty;
+    bool is_signed;
+
+    friend bool operator==(const CanonicalIntegralRange&, const CanonicalIntegralRange&) = default;
+};
+
+std::optional<CanonicalIntegralRange> try_canonical_integral_range(const Context& ctx,
+                                                                   const ExecRange& range);
+
 
 /// checks whether two Execs are equivalent
 /// - fully checks compt values

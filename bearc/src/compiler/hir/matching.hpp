@@ -16,12 +16,17 @@
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/exec_proving.hpp"
 #include "compiler/hir/expr_solver.hpp"
-#include "compiler/hir/fast_list.hpp"
 #include "compiler/hir/id_set.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "utils/data_arena.hpp"
+#include "llvm/ADT/SmallVector.h"
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <optional>
+#include <string>
 
 namespace hir {
 
@@ -181,133 +186,231 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId containing_scope,
     return valid;
 }
 
-/// only ExecId's corresponds to ExecRanges should be provided
-class RangeList {
-    FastList<ExecId> list{};
-    const Context& ctx;
+inline std::string integral_key_to_string(uint64_t key, bool is_signed) {
+    return is_signed ? std::to_string(static_cast<int64_t>(key ^ INTEGRAL_KEY_SIGN_BIT))
+                     : std::to_string(key);
+}
 
-  public:
-    RangeList(const Context& ctx) : ctx{ctx} {}
-    /// only ExecId's corresponds to ExecRanges should be provided
-    void put(ExecId elem) { list.put_head(elem); }
+struct IntegralInterval {
+    uint64_t lo;
+    uint64_t hi;
+};
 
-    static bool less_than_or_eq(bool is_signed, ExecConst l, ExecConst r) {
-        return (is_signed) ? l.less_than_or_equal_signed(r) : l.less_than_or_equal_unsigned(r);
-    };
-
-    static bool greater_than_or_eq(bool is_signed, ExecConst l, ExecConst r) {
-        return (is_signed) ? l.greater_than_or_equal_signed(r)
-                           : l.greater_than_or_equal_unsigned(r);
-    };
-
-    OptId<ExecId> search_overlapping_list(ExecId eid) {
-
-        if (list.empty()) {
-            return {};
-        }
-
-        const Exec& range_exec = ctx.exec(eid);
-
-        assert(range_exec.holds<ExecRange>());
-
-        ExecId start = range_exec.as<ExecRange>().start;
-
-        ExecConst start_val = ctx.exec(start).as<ExecConst>();
-        ExecConst end_val = ctx.exec(range_exec.as<ExecRange>().end).as<ExecConst>();
-
-        bool is_signed = start_val.is_signed_integral();
-
-        for (const ExecId eid : list) {
-            const Exec& curr_range_exec = ctx.exec(eid);
-
-            assert(curr_range_exec.holds<ExecRange>());
-
-            ExecId curr_start = curr_range_exec.as<ExecRange>().start;
-            ExecId curr_end = curr_range_exec.as<ExecRange>().end;
-
-            ExecConst curr_start_val = ctx.exec(curr_start).as<ExecConst>();
-            ExecConst curr_end_val = ctx.exec(curr_end).as<ExecConst>();
-
-            // meaning overlapping
-            if ((less_than_or_eq(is_signed, start_val, curr_end_val)
-                 && less_than_or_eq(is_signed, curr_start_val, end_val))) {
-
-                // TODO this condition likely fails when end is less than start
-
-                return eid;
-            }
+inline std::optional<IntegralInterval> try_integral_interval_for_range(const Context& ctx,
+                                                                       ExecId range_eid,
+                                                                       bool is_signed) {
+    const Exec& range_exec = ctx.exec(range_eid);
+    assert(range_exec.holds<ExecRange>());
+    const ExecRange range = range_exec.as<ExecRange>();
+    const auto start = try_integral_key(ctx.exec(range.start).as<ExecConst>(), is_signed);
+    const ExecConst end_val = ctx.exec(range.end).as<ExecConst>();
+    const auto end = try_integral_key(end_val, is_signed);
+    if (!start.has_value()) {
+        return {};
+    }
+    if (!end.has_value()) {
+        if (!range.inclusive && !is_signed && end_val.is_signed_integral()
+            && end_val.to_i64() == -1) {
+            return IntegralInterval{.lo = 0, .hi = start.value()};
         }
         return {};
     }
+    if (range.inclusive) {
+        return IntegralInterval{.lo = std::min(start.value(), end.value()),
+                                .hi = std::max(start.value(), end.value())};
+    }
+    if (start.value() < end.value()) {
+        return IntegralInterval{.lo = start.value(), .hi = end.value() - 1};
+    }
+    if (start.value() > end.value()) {
+        return IntegralInterval{.lo = end.value() + 1, .hi = start.value()};
+    }
+    return {};
+}
 
-    OptId<ExecId> search_overlapping_value(ExecId eid) {
+struct IntegralDomain {
+    IntegralInterval keys;
+    bool is_signed;
+};
 
-        if (list.empty()) {
-            return {};
-        }
+inline std::optional<IntegralDomain> try_integral_domain(builtin_type type) {
+    auto signed_domain = [](int64_t lo, int64_t hi) {
+        return IntegralDomain{.keys = {.lo = static_cast<uint64_t>(lo) ^ INTEGRAL_KEY_SIGN_BIT,
+                                       .hi = static_cast<uint64_t>(hi) ^ INTEGRAL_KEY_SIGN_BIT},
+                              .is_signed = true};
+    };
+    auto unsigned_domain = [](uint64_t hi) {
+        return IntegralDomain{.keys = {.lo = 0, .hi = hi}, .is_signed = false};
+    };
+    switch (type) {
+    case builtin_type::i8:
+        return signed_domain(std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max());
+    case builtin_type::i16:
+        return signed_domain(std::numeric_limits<int16_t>::min(),
+                             std::numeric_limits<int16_t>::max());
+    case builtin_type::i32:
+        return signed_domain(std::numeric_limits<int32_t>::min(),
+                             std::numeric_limits<int32_t>::max());
+    case builtin_type::i64:
+        return signed_domain(std::numeric_limits<int64_t>::min(),
+                             std::numeric_limits<int64_t>::max());
+    case builtin_type::u8:
+        return unsigned_domain(std::numeric_limits<uint8_t>::max());
+    case builtin_type::u16:
+        return unsigned_domain(std::numeric_limits<uint16_t>::max());
+    case builtin_type::u32:
+        return unsigned_domain(std::numeric_limits<uint32_t>::max());
+    case builtin_type::u64:
+        return unsigned_domain(std::numeric_limits<uint64_t>::max());
+    case builtin_type::charr:
+    case builtin_type::f32:
+    case builtin_type::f64:
+    case builtin_type::voidd:
+    case builtin_type::str:
+    case builtin_type::nullpointer:
+    case builtin_type::boolean:
+        break;
+    }
+    return {};
+}
 
-        const Exec& const_exec = ctx.exec(eid);
+class RangeList {
+  public:
+    struct Overlap {
+        ExecId later;
+        ExecId earlier;
+        bool duplicate_value;
+        HirSize later_order;
+    };
 
-        assert(const_exec.holds<ExecConst>());
+  private:
+    struct Entry {
+        IntegralInterval interval;
+        ExecId eid;
+        HirSize order;
+        bool is_value;
+    };
+    llvm::SmallVector<Entry, 16> entries;
+    bool sorted = false;
 
-        ExecConst val = const_exec.as<ExecConst>();
+  public:
+    void put(IntegralInterval interval, ExecId eid, bool is_value) {
+        assert(!sorted);
+        entries.push_back(Entry{.interval = interval,
+                                .eid = eid,
+                                .order = static_cast<HirSize>(entries.size()),
+                                .is_value = is_value});
+    }
 
-        if (!val.is_integral()) {
-            return {};
-        }
+    [[nodiscard]] bool empty() const noexcept { return entries.empty(); }
 
-        bool is_signed = val.is_signed_integral();
+    void sort() {
+        std::ranges::sort(entries, [](const Entry& a, const Entry& b) {
+            return a.interval.lo != b.interval.lo ? a.interval.lo < b.interval.lo
+                                                  : a.order < b.order;
+        });
+        sorted = true;
+    }
 
-        for (const ExecId eid : list) {
-            const Exec& curr_range_exec = ctx.exec(eid);
+    void find_overlaps(llvm::SmallVectorImpl<Overlap>& overlaps) const {
+        assert(sorted);
+        static constexpr size_t NONE = std::numeric_limits<size_t>::max();
+        const size_t n = entries.size();
+        llvm::SmallVector<size_t, 16> earlier(n, NONE);
+        llvm::SmallVector<bool, 16> duplicate(n, false);
 
-            assert(curr_range_exec.holds<ExecRange>());
-
-            ExecId curr_start = curr_range_exec.as<ExecRange>().start;
-            ExecId curr_end = curr_range_exec.as<ExecRange>().end;
-
-            ExecConst curr_start_val = ctx.exec(curr_start).as<ExecConst>();
-            ExecConst curr_end_val = ctx.exec(curr_end).as<ExecConst>();
-
-            // meaning overlapping
-            if ((greater_than_or_eq(is_signed, val, curr_start_val)
-                 && (less_than_or_eq(is_signed, val, curr_end_val)))
-                || (less_than_or_eq(is_signed, val, curr_start_val)
-                    && (greater_than_or_eq(is_signed, val, curr_end_val)))
-
-            ) {
-                return eid;
+        for (size_t i = 1; i < n; ++i) {
+            if (entries[i].is_value && entries[i - 1].is_value
+                && entries[i].interval.lo == entries[i - 1].interval.lo) {
+                earlier[i] = i - 1;
+                duplicate[i] = true;
             }
         }
-        return {};
+
+        llvm::SmallVector<size_t, 16> tree(n + 1, NONE);
+        auto sweep = [&](auto&& better, auto&& overlaps_with, bool forward) {
+            std::fill(tree.begin(), tree.end(), NONE);
+            for (size_t step = 0; step < n; ++step) {
+                const size_t i = forward ? step : n - 1 - step;
+                if (earlier[i] == NONE) {
+                    size_t best = NONE;
+                    for (size_t k = entries[i].order; k > 0; k -= k & (~k + 1)) {
+                        best = better(best, tree[k]);
+                    }
+                    if (best != NONE && overlaps_with(best, i)) {
+                        earlier[i] = best;
+                    }
+                }
+                for (size_t k = entries[i].order + 1; k <= n; k += k & (~k + 1)) {
+                    tree[k] = better(tree[k], i);
+                }
+            }
+        };
+
+        sweep(
+            [&](size_t a, size_t b) {
+                if (a == NONE || b == NONE) {
+                    return a == NONE ? b : a;
+                }
+                return entries[a].interval.hi >= entries[b].interval.hi ? a : b;
+            },
+            [&](size_t prior, size_t i) { return entries[prior].interval.hi >= entries[i].interval.lo; },
+            true);
+        sweep(
+            [&](size_t a, size_t b) {
+                if (a == NONE || b == NONE) {
+                    return a == NONE ? b : a;
+                }
+                return entries[a].interval.lo <= entries[b].interval.lo ? a : b;
+            },
+            [&](size_t prior, size_t i) { return entries[prior].interval.lo <= entries[i].interval.hi; },
+            false);
+
+        for (size_t i = 0; i < n; ++i) {
+            if (earlier[i] != NONE) {
+                overlaps.push_back(Overlap{.later = entries[i].eid,
+                                           .earlier = entries[earlier[i]].eid,
+                                           .duplicate_value = duplicate[i],
+                                           .later_order = entries[i].order});
+            }
+        }
+        std::ranges::sort(overlaps, {}, &Overlap::later_order);
+    }
+
+    void find_gaps(IntegralInterval domain, llvm::SmallVectorImpl<IntegralInterval>& gaps) const {
+        assert(sorted);
+        uint64_t next = domain.lo;
+        for (const Entry& e : entries) {
+            if (e.interval.lo > domain.hi) {
+                break;
+            }
+            if (e.interval.hi < next) {
+                continue;
+            }
+            if (e.interval.lo > next) {
+                gaps.push_back(IntegralInterval{.lo = next, .hi = e.interval.lo - 1});
+            }
+            if (e.interval.hi >= domain.hi) {
+                return;
+            }
+            next = e.interval.hi + 1;
+        }
+        gaps.push_back(IntegralInterval{.lo = next, .hi = domain.hi});
     }
 };
 
 inline bool value_inside_range(const Context& ctx, ExecId range_eid, ExecId val_eid) {
-    const Exec& range_exec = ctx.exec(range_eid);
-
     const Exec& value_exec = ctx.exec(val_eid);
-
-    assert(range_exec.holds<ExecRange>());
     assert(value_exec.holds<ExecConst>());
-
-    ExecId start = range_exec.as<ExecRange>().start;
-
-    ExecConst start_val = ctx.exec(start).as<ExecConst>();
-
-    bool is_signed = start_val.is_signed_integral();
-
-    ExecId end = range_exec.as<ExecRange>().end;
-
-    ExecConst end_val = ctx.exec(end).as<ExecConst>();
-
-    ExecConst val = value_exec.as<ExecConst>();
-
-    // meaning overlapping
-    return ((RangeList::greater_than_or_eq(is_signed, val, start_val)
-             && (RangeList::less_than_or_eq(is_signed, val, end_val)))
-            || (RangeList::less_than_or_eq(is_signed, val, start_val)
-                && (RangeList::greater_than_or_eq(is_signed, val, end_val))));
+    const ExecConst val = value_exec.as<ExecConst>();
+    if (!val.is_integral()) {
+        return false;
+    }
+    const bool is_signed = val.is_signed_integral();
+    const auto key = try_integral_key(val, is_signed);
+    const auto interval = try_integral_interval_for_range(ctx, range_eid, is_signed);
+    return key.has_value() && interval.has_value() && interval->lo <= key.value()
+           && key.value() <= interval->hi;
 }
 
 template <IsExprSolver S>
@@ -362,8 +465,34 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
 
     ExecHashMap<ExecId, equivalence::implicit> exec_map{context, arena, 0x200};
 
-    // optional so we can lazy init
-    std::optional<RangeList> ranges{};
+    std::optional<IntegralDomain> domain{};
+    if (const OptId<TypeId> maybe_tid = solver.infer_type_from_exec(matched_eid);
+        maybe_tid.has_value()) {
+        const Type& matched_ty = context.type(context.try_decay(maybe_tid.as_id()));
+        if (matched_ty.holds<TypeBuiltin>()) {
+            domain = try_integral_domain(matched_ty.as<TypeBuiltin>().type);
+        }
+    }
+
+    RangeList ranges{};
+
+    auto report_pattern_type_mismatch = [&](ExecId pattern_eid, diag_code code) {
+        const Span pattern_span = context.exec(pattern_eid).span;
+        const Span matched_span = context.exec(matched_eid).span;
+        dl.link(context.emplace_diagnostic(pattern_span, code, diag_type::error));
+        if (const OptId<TypeId> maybe_tid = solver.infer_type_from_exec(pattern_eid);
+            maybe_tid.has_value()) {
+            dl.link(context.emplace_diagnostic_with_message_value(
+                pattern_span, diag_code::pattern_is_of_type, diag_type::note,
+                DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()}));
+        }
+        if (const OptId<TypeId> maybe_tid = solver.infer_type_from_exec(matched_eid);
+            maybe_tid.has_value()) {
+            dl.link(context.emplace_diagnostic_with_message_value(
+                matched_span, diag_code::matched_value_is_of_type, diag_type::note,
+                DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()}));
+        }
+    };
 
     for (size_t i = 0; i < branches.len; ++i) {
 
@@ -401,72 +530,47 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
                 continue;
             }
             const ExecId pattern_eid = maybe_pattern_eid.as_id();
-            Context& ctx = solver.get_context();
-            if (!possibly_equivalent_exec(ctx, matched_eid, pattern_eid)) {
-                const auto& matched = ctx.exec(matched_eid);
-                const auto& pattern = ctx.exec(pattern_eid);
-                dl.link(ctx.emplace_diagnostic(pattern.span,
-                                               diag_code::pattern_can_never_match_matched_value,
-                                               diag_type::error));
-                if (const OptId<TypeId> maybe_tid = solver.infer_type_from_exec(pattern_eid);
-                    maybe_tid.has_value()) {
-                    dl.link(ctx.emplace_diagnostic_with_message_value(
-                        pattern.span, diag_code::pattern_is_of_type, diag_type::note,
-                        DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()}));
-                }
-                if (const OptId<TypeId> maybe_tid = solver.infer_type_from_exec(matched_eid);
-                    maybe_tid.has_value()) {
-                    dl.link(ctx.emplace_diagnostic_with_message_value(
-                        matched.span, diag_code::matched_value_is_of_type, diag_type::note,
-                        DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()}));
-                }
+            if (!possibly_equivalent_exec(context, matched_eid, pattern_eid)) {
+                report_pattern_type_mismatch(pattern_eid,
+                                             diag_code::pattern_can_never_match_matched_value);
                 continue;
             }
-            if (context.exec(pattern_eid).holds<ExecRange>()) {
-                // lazy init
-                if (!ranges) {
-                    ranges.emplace(context);
-                }
-                const auto maybe_overlapping = ranges.value().search_overlapping_list(pattern_eid);
-                if (maybe_overlapping.has_value()) {
-                    dl.link(context.emplace_diagnostic(context.exec(pattern_eid).span,
-                                                       diag_code::overlapping_range_patern,
-                                                       diag_type::error));
+            const Exec& pattern_exec = context.exec(pattern_eid);
+            const bool is_range = pattern_exec.holds<ExecRange>();
+            const bool is_value
+                = pattern_exec.holds<ExecConst>() && pattern_exec.as<ExecConst>().is_integral();
+            if (is_range) {
+                if (const auto canon
+                    = try_canonical_integral_range(context, pattern_exec.as<ExecRange>());
+                    canon.has_value() && canon->empty) {
                     dl.link(context.emplace_diagnostic(
-                        context.exec(maybe_overlapping.as_id()).span,
-                        diag_code::existing_pattern_with_overlapping_range_here, diag_type::note));
-                } else {
-                    ranges->put(pattern_eid);
+                        pattern_exec.span, diag_code::empty_range_pattern, diag_type::warning));
+                    continue;
                 }
-                // iter thru each in exec_map and check if it overlaps
-                for (const ExecId existing_val_eid : exec_map) {
-                    if (value_inside_range(context, pattern_eid, existing_val_eid)) {
-                        dl.link(context.emplace_diagnostic(context.exec(pattern_eid).span,
-                                                           diag_code::overlapping_range_patern,
-                                                           diag_type::error));
-                        dl.link(context.emplace_diagnostic(
-                            context.exec(existing_val_eid).span,
-                            diag_code::existing_pattern_with_overlapping_range_here,
-                            diag_type::note));
-                        break;
-                    }
-                }
-                continue;
             }
-            if (context.exec(pattern_eid).holds<ExecConst>()
-                && context.exec(pattern_eid).as<ExecConst>().is_integral()) {
-                // lazy init
-                if (!ranges) {
-                    ranges.emplace(context);
+            if (is_range || is_value) {
+                const bool key_signed = domain.has_value() ? domain->is_signed : true;
+                std::optional<IntegralInterval> maybe_interval{};
+                if (is_range) {
+                    maybe_interval
+                        = try_integral_interval_for_range(context, pattern_eid, key_signed);
+                } else if (const auto key
+                           = try_integral_key(pattern_exec.as<ExecConst>(), key_signed);
+                           key.has_value()) {
+                    maybe_interval = IntegralInterval{.lo = key.value(), .hi = key.value()};
                 }
-                const auto maybe_overlapping = ranges.value().search_overlapping_value(pattern_eid);
-                if (maybe_overlapping.has_value()) {
-                    dl.link(context.emplace_diagnostic(context.exec(pattern_eid).span,
-                                                       diag_code::overlapping_range_patern,
-                                                       diag_type::error));
-                    dl.link(context.emplace_diagnostic(
-                        context.exec(maybe_overlapping.as_id()).span,
-                        diag_code::existing_pattern_with_overlapping_range_here, diag_type::note));
+                if (domain.has_value()
+                    && (!maybe_interval.has_value() || maybe_interval->lo < domain->keys.lo
+                        || maybe_interval->hi > domain->keys.hi)) {
+                    report_pattern_type_mismatch(pattern_eid,
+                                                 diag_code::pattern_exceeds_range_of_matched_type);
+                    continue;
+                }
+                if (maybe_interval.has_value()) {
+                    ranges.put(maybe_interval.value(), pattern_eid, is_value);
+                    continue;
+                }
+                if (is_range) {
                     continue;
                 }
             }
@@ -486,15 +590,59 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
         }
     }
 
-    if (!else_pattern) {
-        valid = false;
-        Span span{context, fid, match_expr};
-        const auto d0 = context.emplace_diagnostic(
-            span, diag_code::match_expression_may_not_be_exhaustive, diag_type::error);
-        const auto d1
-            = context.emplace_diagnostic(span, diag_code::add_an_else_branch, diag_type::help);
-        context.link_diagnostic(d0, d1);
+    ranges.sort();
+
+    llvm::SmallVector<RangeList::Overlap> overlaps{};
+    ranges.find_overlaps(overlaps);
+    for (const RangeList::Overlap& overlap : overlaps) {
+        dl.link(context.emplace_diagnostic(context.exec(overlap.later).span,
+                                           overlap.duplicate_value
+                                               ? diag_code::duplicate_match_pattern
+                                               : diag_code::overlapping_range_patern,
+                                           diag_type::error));
+        dl.link(context.emplace_diagnostic(
+            context.exec(overlap.earlier).span,
+            overlap.duplicate_value ? diag_code::existing_pattern_of_same_value_here
+                                    : diag_code::existing_pattern_with_overlapping_range_here,
+            diag_type::note));
     }
+
+    if (else_pattern) {
+        return valid;
+    }
+
+    Span span{context, fid, match_expr};
+
+    if (domain.has_value() && !ranges.empty()) {
+        llvm::SmallVector<IntegralInterval> gaps{};
+        ranges.find_gaps(domain->keys, gaps);
+        if (gaps.empty()) {
+            return valid;
+        }
+        valid = false;
+        dl.link(context.emplace_diagnostic(span, diag_code::match_expression_is_not_exhaustive,
+                                           diag_type::error));
+        for (const IntegralInterval& gap : gaps) {
+            std::string text = integral_key_to_string(gap.lo, domain->is_signed);
+            if (gap.hi != gap.lo) {
+                text += "...=" + integral_key_to_string(gap.hi, domain->is_signed);
+            }
+            dl.link(context.emplace_diagnostic(
+                span, diag_code::does_not_consider, diag_type::note,
+                DiagnosticSymbolAfterMessage{.sid = context.symbol_id(text)},
+                DiagnosticInfoNoPreview{}));
+        }
+        dl.link(
+            context.emplace_diagnostic(span, diag_code::add_an_else_branch, diag_type::help));
+        return valid;
+    }
+
+    valid = false;
+    const auto d0 = context.emplace_diagnostic(
+        span, diag_code::match_expression_may_not_be_exhaustive, diag_type::error);
+    const auto d1
+        = context.emplace_diagnostic(span, diag_code::add_an_else_branch, diag_type::help);
+    context.link_diagnostic(d0, d1);
 
     return valid;
 }

@@ -208,6 +208,8 @@ enum class diag_code : uint8_t {
     existing_pattern_of_same_value_here,
     overlapping_range_patern,
     existing_pattern_with_overlapping_range_here,
+    pattern_exceeds_range_of_matched_type,
+    empty_range_pattern,
     overlapping_pattern,
     variadic_type_not_allowed_here,
     variadic_types_are_only_allowed_in_the_last_paramter_of_a_function,

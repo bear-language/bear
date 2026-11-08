@@ -15,6 +15,36 @@
 
 namespace hir {
 
+std::optional<CanonicalIntegralRange> try_canonical_integral_range(const Context& ctx,
+                                                                   const ExecRange& range) {
+    const Exec& start_exec = ctx.exec(range.start);
+    const Exec& end_exec = ctx.exec(range.end);
+    if (!start_exec.holds<ExecConst>() || !end_exec.holds<ExecConst>()) {
+        return {};
+    }
+    for (const bool is_signed : {true, false}) {
+        const auto start = try_integral_key(start_exec.as<ExecConst>(), is_signed);
+        const auto end = try_integral_key(end_exec.as<ExecConst>(), is_signed);
+        if (!start.has_value() || !end.has_value()) {
+            continue;
+        }
+        CanonicalIntegralRange canon{
+            .start = start.value(), .last = end.value(), .empty = false, .is_signed = is_signed};
+        if (!range.inclusive) {
+            if (start.value() < end.value()) {
+                canon.last = end.value() - 1;
+            } else if (start.value() > end.value()) {
+                canon.last = end.value() + 1;
+            } else {
+                canon.last = start.value();
+                canon.empty = true;
+            }
+        }
+        return canon;
+    }
+    return {};
+}
+
 namespace {
 
 template <equivalence Kind> bool equivalent_exec_impl(const Context& ctx, ExecId eid1, ExecId eid2);
@@ -96,8 +126,15 @@ template <equivalence E> bool equivalent_exec_impl(const Context& ctx, ExecId ei
                 return false;
             }
 
-            return equivalent_exec_impl<E>(ctx, t.start, other.as<ExecRange>().start)
-                   && equivalent_exec_impl<E>(ctx, t.end, other.as<ExecRange>().end);
+            const ExecRange o = other.as<ExecRange>();
+            if (t.inclusive == o.inclusive) {
+                return equivalent_exec_impl<E>(ctx, t.start, o.start)
+                       && equivalent_exec_impl<E>(ctx, t.end, o.end);
+            }
+            const auto c1 = try_canonical_integral_range(ctx, t);
+            const auto c2 = try_canonical_integral_range(ctx, o);
+            return c1.has_value() && c2.has_value() && c1.value() == c2.value()
+                   && equivalent_exec_impl<E>(ctx, t.start, o.start);
         },
         [&other, &ctx](const ExecUnionInit& t) -> bool {
             if (!other.holds<ExecUnionInit>()) {
@@ -361,7 +398,12 @@ template <equivalence E> size_t hash_exec_impl(const Context& ctx, ExecId eid) {
         [](const ExecBranch&) -> size_t { return mix(5uz); },
         [](const ExecReturn&) -> size_t { return mix(7uz); },
         [&ctx](const ExecRange& t) -> size_t {
-            return transform(hash_exec_impl<E>(ctx, t.start), hash_exec_impl<E>(ctx, t.end));
+            if (const auto canon = try_canonical_integral_range(ctx, t); canon.has_value()) {
+                return transform(transform(canon->start, canon->last),
+                                 mix((canon->empty ? 1uz : 2uz) ^ (canon->is_signed ? 4uz : 8uz)));
+            }
+            return transform(hash_exec_impl<E>(ctx, t.start),
+                             hash_exec_impl<E>(ctx, t.end) ^ mix(t.inclusive ? 1uz : 2uz));
         },
         [&ctx](const ExecYield& t) -> size_t {
             return mix(8uz ^ t.yield_value.has_value()

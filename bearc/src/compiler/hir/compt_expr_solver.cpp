@@ -1446,75 +1446,9 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
         return {};
     }
 
-    if (op == binary_op::range_inclusive) {
-        switch (rhs_val.type_builtin()) {
-        case builtin_type::u8: {
-            auto diff = (lhs_val.as<u8>() - rhs_val.as<u8>() > 0) ? -1 : 1;
-            diff = lhs_val.as<u8>() - rhs_val.as<u8>() == 0 ? 0 : diff;
-            rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<u8>() + diff}, rhs.span);
-            break;
-        }
-
-        case builtin_type::i8: {
-            auto diff = (lhs_val.as<i8>() - rhs_val.as<i8>() > 0) ? -1 : 1;
-            diff = lhs_val.as<i8>() - rhs_val.as<i8>() == 0 ? 0 : diff;
-            rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<i8>() + diff}, rhs.span);
-            break;
-        }
-
-        case builtin_type::u16: {
-            auto diff = (lhs_val.as<u16>() - rhs_val.as<u16>() > 0) ? -1 : 1;
-            diff = lhs_val.as<u16>() - rhs_val.as<u16>() == 0 ? 0 : diff;
-            rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<u16>() + diff}, rhs.span);
-            break;
-        }
-
-        case builtin_type::i16: {
-            auto diff = (lhs_val.as<i16>() - rhs_val.as<i16>() > 0) ? -1 : 1;
-            diff = lhs_val.as<i16>() - rhs_val.as<i16>() == 0 ? 0 : diff;
-            rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<i16>() + diff}, rhs.span);
-            break;
-        }
-
-        case builtin_type::u32: {
-            auto diff = (lhs_val.as<u32>() - rhs_val.as<u32>() > 0) ? -1 : 1;
-            diff = lhs_val.as<u32>() - rhs_val.as<u32>() == 0 ? 0 : diff;
-            rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<u32>() + diff}, rhs.span);
-            break;
-        }
-
-        case builtin_type::i32: {
-            auto diff = (lhs_val.as<i32>() - rhs_val.as<i32>() > 0) ? -1 : 1;
-            diff = lhs_val.as<i32>() - rhs_val.as<i32>() == 0 ? 0 : diff;
-            rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<i32>() + diff}, rhs.span);
-            break;
-        }
-
-        case builtin_type::u64: {
-            auto diff = (lhs_val.as<u64>() - rhs_val.as<u64>() > 0) ? -1 : 1;
-            diff = lhs_val.as<u64>() - rhs_val.as<u64>() == 0 ? 0 : diff;
-            rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<u64>() + diff}, rhs.span);
-            break;
-        }
-
-        case builtin_type::i64: {
-            auto diff = (lhs_val.as<i64>() - rhs_val.as<i64>() > 0) ? -1 : 1;
-            diff = lhs_val.as<i64>() - rhs_val.as<i64>() == 0 ? 0 : diff;
-            rhs_eid = context.emplace_compt_exec(ExecConst{rhs_val.as<i64>() + diff}, rhs.span);
-            break;
-        }
-        case builtin_type::charr:
-        case builtin_type::f32:
-        case builtin_type::f64:
-        case builtin_type::voidd:
-        case builtin_type::str:
-        case builtin_type::nullpointer:
-        case builtin_type::boolean:
-            return {}; // not possible, but this handles it just in case
-        }
-    }
-
-    return context.emplace_compt_exec(ExecRange{.start = lhs_eid, .end = rhs_eid}, range_span);
+    return context.emplace_compt_exec(
+        ExecRange{.start = lhs_eid, .end = rhs_eid, .inclusive = op == binary_op::range_inclusive},
+        range_span);
 }
 
 [[nodiscard]] OptId<ExecId>

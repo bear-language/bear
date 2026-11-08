@@ -2318,7 +2318,8 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             return str;
         },
         [&ctx](const ExecRange t) -> std::string {
-            return exec_to_string(ctx, t.start) + "..." + exec_to_string(ctx, t.end);
+            return exec_to_string(ctx, t.start) + (t.inclusive ? "...=" : "...")
+                   + exec_to_string(ctx, t.end);
         },
         [&ctx](const ExecCompoundAssignment& t) -> std::string {
             std::string str;
