@@ -2711,12 +2711,12 @@ OptId<TypeId> Context::self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t*
         if (maybe_did.has_value() && this->def(maybe_did.as_id()).holds<DefDeftype>()) {
             auto def = this->def(maybe_did.as_id());
             TypeId self_tid = def.as<DefDeftype>().type;
-            const auto& ty = type(self_tid);
+            const Span self_span = type(self_tid).span;
             self_tid
                 = emplace_type(TypeDeftype{.true_type = self_tid, .definition = maybe_did.as_id()},
-                               ty.span, false);
+                               self_span, false);
             // make a reference
-            maybe_self_type = emplace_type(TypeRef{.inner = self_tid}, ty.span, fn_decl->is_mut);
+            maybe_self_type = emplace_type(TypeRef{.inner = self_tid}, self_span, fn_decl->is_mut);
         }
     }
 

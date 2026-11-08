@@ -2,8 +2,6 @@
 
 import "ansi_codes.br";
 
-mod note_printer_demo;
-
 // @COOL
 
 contract ToComptStr {
