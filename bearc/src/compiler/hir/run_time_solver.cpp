@@ -103,9 +103,13 @@ namespace hir {
     case AST_EXPR_BORROW:
         maybe_eid = handle_borrow(fid, lctx, expr);
         break;
-    case AST_EXPR_BINARY:
     case AST_EXPR_PRE_UNARY:
+        maybe_eid = handle_preunary(fid, lctx, expr);
+        break;
     case AST_EXPR_POST_UNARY:
+        maybe_eid = handle_postunary(fid, lctx, expr);
+        break;
+    case AST_EXPR_BINARY:
     case AST_EXPR_SUBSCRIPT:
     case AST_EXPR_FN_CALL:
     case AST_EXPR_TYPE:
@@ -700,9 +704,11 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return handle_tuple_init(fid, lctx, expr);
     case AST_EXPR_BORROW:
         return handle_borrow(fid, lctx, expr);
-    case AST_EXPR_BINARY:
     case AST_EXPR_PRE_UNARY:
+        return handle_preunary(fid, lctx, expr);
     case AST_EXPR_POST_UNARY:
+        return handle_postunary(fid, lctx, expr);
+    case AST_EXPR_BINARY:
     case AST_EXPR_SUBSCRIPT:
     case AST_EXPR_FN_CALL:
     case AST_EXPR_TYPE:
@@ -841,6 +847,219 @@ OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const as
 
     return context.emplace_exec(ExecBorrow{.borrowee = maybe_inner_eid.as_id(), .mut = mut_borrow},
                                 Span{context, fid, expr});
+}
+
+namespace {
+/// the constant `1` of the given builtin type, or none if ++/-- is not viable on that type
+[[nodiscard]] std::optional<ConstantValue> inc_dec_one_for(builtin_type bt) {
+    switch (bt) {
+    case builtin_type::u8:
+        return ConstantValue{uint8_t{1}};
+    case builtin_type::i8:
+        return ConstantValue{int8_t{1}};
+    case builtin_type::u16:
+        return ConstantValue{uint16_t{1}};
+    case builtin_type::i16:
+        return ConstantValue{int16_t{1}};
+    case builtin_type::u32:
+        return ConstantValue{uint32_t{1}};
+    case builtin_type::i32:
+        return ConstantValue{int32_t{1}};
+    case builtin_type::u64:
+        return ConstantValue{uint64_t{1}};
+    case builtin_type::i64:
+        return ConstantValue{int64_t{1}};
+    case builtin_type::charr:
+        return ConstantValue{char{1}};
+    case builtin_type::f32:
+        return ConstantValue{float{1}};
+    case builtin_type::f64:
+        return ConstantValue{double{1}};
+    case builtin_type::voidd:
+    case builtin_type::str:
+    case builtin_type::nullpointer:
+    case builtin_type::boolean:
+        break;
+    }
+    return std::nullopt;
+}
+} // namespace
+
+OptId<ExecId> RuntimeSolver::handle_preunary(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_PRE_UNARY);
+
+    const Span op_span{context, fid, expr->expr.unary.op};
+    const auto maybe_op = token_to_unary_op(expr->expr.unary.op);
+    if (!maybe_op.has_value()) {
+        context.emplace_diagnostic(op_span, diag_code::invalid_operand_for_unary_expression,
+                                   diag_type::error);
+        return {};
+    }
+    const unary_op op = maybe_op.value();
+
+    switch (op) {
+    case unary_op::inc:
+    case unary_op::dec:
+        return handle_inc_dec(fid, lctx, expr, op, /*post*/ false);
+    case unary_op::plus:
+    case unary_op::minus:
+    case unary_op::bool_not:
+    case unary_op::bit_not:
+        break;
+    }
+
+    const auto maybe_inner_eid = solve_expr(fid, lctx, expr->expr.unary.expr);
+    if (maybe_inner_eid.empty()) {
+        return {};
+    }
+
+    // fold constants thru the compt solver
+    if (context.exec(maybe_inner_eid.as_id()).holds<ExecConst>()) {
+        return ComptExprSolver{def_visitor}.solve_preunary_exec(op, op_span,
+                                                                maybe_inner_eid.as_id());
+    }
+
+    // TODO: runtime +, -, !, ~ (needs either an ExecUnary or lowering to ExecBinary)
+    return {};
+}
+
+OptId<ExecId> RuntimeSolver::handle_postunary(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_POST_UNARY);
+
+    switch (expr->expr.unary.op->type) {
+    case TOK_INC:
+        return handle_inc_dec(fid, lctx, expr, unary_op::inc, /*post*/ true);
+    case TOK_DEC:
+        return handle_inc_dec(fid, lctx, expr, unary_op::dec, /*post*/ true);
+    case TOK_DEREF:
+        return handle_deref(fid, lctx, expr);
+    default:
+        context.emplace_diagnostic(Span{context, fid, expr->expr.unary.op},
+                                   diag_code::invalid_operand_for_unary_expression,
+                                   diag_type::error);
+        return {};
+    }
+}
+
+OptId<ExecId> RuntimeSolver::handle_deref(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_POST_UNARY && expr->expr.unary.op->type == TOK_DEREF);
+
+    const auto maybe_inner_eid = solve_expr(fid, lctx, expr->expr.unary.expr);
+    if (maybe_inner_eid.empty()) {
+        return {};
+    }
+    const ExecId inner_eid = maybe_inner_eid.as_id();
+
+    const auto maybe_inner_tid = context.infer_type_from_exec(inner_eid);
+    if (maybe_inner_tid.empty()) {
+        return {};
+    }
+    const TypeId inner_tid = maybe_inner_tid.as_id();
+
+    // only typed pointers (not refs, which are auto-dereferenced, nor null or *void) can be
+    // dereferenced
+    bool ptr_viable{};
+    bool ptr_mut{};
+    {
+        const Type& ty = context.type(inner_tid);
+        if (ty.holds<TypePtr>()) {
+            const Type& pointee = context.type(ty.as<TypePtr>().inner);
+            ptr_viable = !pointee.holds<TypeBuiltin>()
+                         || pointee.as<TypeBuiltin>().type != builtin_type::voidd;
+            // pointer mutability lives on the pointer layer, like references
+            ptr_mut = ty.mut;
+        }
+    }
+
+    if (!ptr_viable) {
+        const Span inner_span = context.exec(inner_eid).span;
+        auto d0 = context.emplace_diagnostic(Span{context, fid, expr->expr.unary.op},
+                                             diag_code::invalid_operand_for_unary_expression,
+                                             diag_type::error);
+        auto d1 = context.emplace_diagnostic_with_message_value(
+            inner_span, diag_code::value_is_of_type, diag_type::note,
+            DiagnosticTypeAfterMessage{.tid = inner_tid});
+        context.link_diagnostic(d0, d1);
+        return {};
+    }
+
+    return context.emplace_exec(ExecDeref{.dereferenced = inner_eid, .mut = ptr_mut},
+                                Span{context, fid, expr});
+}
+
+OptId<ExecId> RuntimeSolver::handle_inc_dec(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                            unary_op op, bool post) {
+    assert(expr->type == AST_EXPR_PRE_UNARY || expr->type == AST_EXPR_POST_UNARY);
+    assert(op == unary_op::inc || op == unary_op::dec);
+
+    const auto maybe_lhs_eid = solve_expr(fid, lctx, expr->expr.unary.expr);
+    if (maybe_lhs_eid.empty()) {
+        return {};
+    }
+    const ExecId lhs_eid = maybe_lhs_eid.as_id();
+
+    const Span lhs_span = context.exec(lhs_eid).span;
+
+    if (!context.is_lvalue(lhs_eid)) {
+        context.emplace_diagnostic(lhs_span, diag_code::cannot_assign_to_temporary_value,
+                                   diag_type::error);
+        return {};
+    }
+
+    const auto maybe_lhs_tid = context.infer_type_from_exec(lhs_eid);
+    if (maybe_lhs_tid.empty()) {
+        return {};
+    }
+    const TypeId lhs_tid = maybe_lhs_tid.as_id();
+
+    // figure out the constant 1 to add/subtract
+    std::optional<ConstantValue> maybe_one{};
+    bool lhs_mut{};
+    {
+        const Type& ty = context.type(lhs_tid);
+        lhs_mut = ty.mut;
+        if (ty.holds<TypeBuiltin>()) {
+            maybe_one = inc_dec_one_for(ty.as<TypeBuiltin>().type);
+        } else if (ty.is_pointer_type()) {
+            // TODO: match whatever index type runtime pointer arithmetic uses in future
+            maybe_one = ConstantValue{int64_t{1}};
+        }
+    }
+
+    if (!maybe_one.has_value()) {
+        auto d0 = context.emplace_diagnostic(Span{context, fid, expr->expr.unary.op},
+                                             diag_code::invalid_operand_for_unary_expression,
+                                             diag_type::error);
+        auto d1 = context.emplace_diagnostic_with_message_value(
+            lhs_span, diag_code::value_is_of_type, diag_type::note,
+            DiagnosticTypeAfterMessage{.tid = lhs_tid});
+        context.link_diagnostic(d0, d1);
+        return {};
+    }
+
+    if (!lhs_mut) {
+        auto d0 = context.emplace_diagnostic(lhs_span, diag_code::immutable_value_is_not_assignable,
+                                             diag_type::error);
+        const auto maybe_did = context.try_def_for_exec(lhs_eid);
+        if (maybe_did.has_value()) {
+            const Def& def = context.def(maybe_did.as_id());
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                def.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = def.name});
+            context.link_diagnostic(d0, d1);
+        }
+        // like borrowing, this doesn't poison anything beyond this expr, so keep going
+    }
+
+    const Span op_span{context, fid, expr->expr.unary.op};
+    const ExecId one_eid = context.emplace_compt_exec(ExecConst{maybe_one.value()}, op_span);
+
+    return context.emplace_exec(
+        ExecCompoundAssignment{.lhs = lhs_eid,
+                               .rhs = one_eid,
+                               .op = (op == unary_op::inc) ? binary_op::plus : binary_op::minus,
+                               .yield_old = post},
+        Span{context, fid, expr});
 }
 
 } // namespace hir

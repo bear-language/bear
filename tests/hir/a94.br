@@ -1,0 +1,45 @@
+// tests/hir/a94.br
+
+// testing pre/post ++ and --, and pointer deref
+
+struct Foo {
+    i32 x = 0;
+}
+
+fn fine(mut i32 p, mut f64 f, mut char c) {
+    mut i32 a = 0;
+    a++;
+    --a;
+    mut i32 b = a++;
+    mut i32 d = --b;
+    f++;
+    --c;
+    p--;
+    mut Foo foo = Foo{};
+    foo.x++;
+    ++(++a); // pre ++ yields an lvalue
+}
+
+fn oops(i32 p) {
+    i32 a = 0;
+    a++; // oops, immutable
+    --p; // oops, immutable
+    mut bool t = true;
+    t++; // oops, not numeric
+    5++; // oops, temporary
+    mut i32 m = 0;
+    ++(m++); // oops, post ++ yields a temporary
+}
+
+fn deref(*mut i32 pm, *i32 p, *void pv, &i32 r) {
+    i32 a = pm.*;
+    i32 b = p.*;
+    pm.*++; // chained postfix ops
+    i32 e = pm.*--;
+    (pm.*)++;
+    --pm.*;
+    ++p.*; // oops, pointee is immutable
+    p.*--; // oops, pointee is immutable
+    var c = pv.*; // oops, *void
+    var d = r.*; // oops, refs are auto-dereferenced
+}

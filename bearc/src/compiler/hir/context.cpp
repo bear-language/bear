@@ -4123,10 +4123,11 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
 
 [[nodiscard]] bool Context::is_lvalue(ExecId eid) const {
     const auto vs = Ovld{
-        // yes
+        // possible / yes
         [](const ExecDeref&) -> bool { return true; },
         [](const ExecVariable&) -> bool { return true; },
-        [](const ExecCompoundAssignment&) -> bool { return true; },
+        // yielding old value is a temporary
+        [](const ExecCompoundAssignment& e) -> bool { return !e.yield_old; },
         [this](const ExecMemberAccess& e) -> bool { return is_lvalue(e.owner); },
         [this](const ExecBorrow& e) -> bool { return is_lvalue(e.borrowee); },
         [this](const ExecSubscript& e) -> bool { return is_lvalue(e.base); },

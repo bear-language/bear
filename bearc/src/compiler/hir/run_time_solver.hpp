@@ -169,6 +169,15 @@ class RuntimeSolver {
     [[nodiscard]] OptId<ExecId> handle_tuple_init(FileId fid, LexicalCtx lctx,
                                                   const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_borrow(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_preunary(FileId fid, LexicalCtx lctx,
+                                                const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_postunary(FileId fid, LexicalCtx lctx,
+                                                 const ast_expr_t* expr);
+    /// handles explicit pointer dereference, ptr.*
+    [[nodiscard]] OptId<ExecId> handle_deref(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+    /// lowers ++/-- (pre or post) into an ExecCompoundAssignment of the operand with a constant 1
+    [[nodiscard]] OptId<ExecId> handle_inc_dec(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                               unary_op op, bool post);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);

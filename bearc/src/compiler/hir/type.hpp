@@ -153,7 +153,7 @@ struct Type : NodeWithVariantValue<Type> {
             [](const TypeArr&) -> bool { return {}; },
             [](const TypeSlice&) -> bool { return {}; },
             [](const TypeRef&) -> bool { return {}; },
-            [](const TypePtr&) -> bool { return {}; },
+            [](const TypePtr&) -> bool { return true; },
             [](const TypeFnPtr&) -> bool { return true; },
             [](const TypeVar&) -> bool { return {}; },
         };

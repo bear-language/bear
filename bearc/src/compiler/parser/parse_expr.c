@@ -154,23 +154,20 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
         lhs = parse_expr_struct_init(p, lhs, NULL); // no generic args
     }
 
-    // postfix loop to parse thingsl ike foo[]()()[][]++
+    // postfix loop to parse things like foo[]()()[][]++ or ptr.*++ (one postfix op per iteration)
     while (lhs && is_postfix_op(parser_peek(p)->type)) {
         // if atom, try to parse postunary, since postunary prec > preunary prec
         if (is_postunary_op(parser_peek(p)->type)) {
             lhs = parse_postunary(p, lhs);
         }
-
         // try fn call or variant decomp too
-        if (parser_peek_match(p, TOK_LPAREN)) {
+        else if (parser_peek_match(p, TOK_LPAREN)) {
             lhs = parse_fn_call(p, lhs, NULL); // no gen args
         }
         // try subscript
-        if (parser_peek_match(p, TOK_LBRACK)) {
+        else if (parser_peek_match(p, TOK_LBRACK)) {
             lhs = parse_subscript(p, lhs);
-        }
-
-        else {
+        } else {
             break; // just in case (shouldn't be possible, but best to avoid inf loop here if the
                    // postfix things get changed)
         }

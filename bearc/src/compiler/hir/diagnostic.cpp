@@ -485,6 +485,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot take a mutable reference to immutable value of type";
     case diag_code::cannot_borrow_temporary_value:
         return "cannot borrow temporary value";
+    case diag_code::cannot_assign_to_temporary_value:
+        return "cannot assign to temporary value";
     }
 
     std::unreachable();
