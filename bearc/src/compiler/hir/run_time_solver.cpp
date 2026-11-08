@@ -1054,8 +1054,12 @@ OptId<ExecId> RuntimeSolver::handle_inc_dec(FileId fid, LexicalCtx lctx, const a
         if (ty.holds<TypeBuiltin>()) {
             maybe_one = inc_dec_one_for(ty.as<TypeBuiltin>().type);
         } else if (ty.is_pointer_type() && !ty.holds<TypeFnPtr>()) { // fn ptrs aren't viable
-            // TODO: match whatever index type runtime pointer arithmetic uses in future
-            maybe_one = ConstantValue{int64_t{1}};
+
+            // increment by the pointed to type's width
+            maybe_one = ConstantValue{
+                context.pointer_size_bytes() == 8
+                    ? static_cast<uint64_t>(context.layout_for_type(lhs_tid).width)
+                    : static_cast<uint32_t>(context.layout_for_type(lhs_tid).width)};
         }
     }
 
