@@ -465,15 +465,16 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a84", 10);
     ASSERT_EQ_ERR("hir/a85", 2);
     ASSERT_EQ_ERR("hir/a86", 6);
-    ASSERT_EQ_ERR("hir/a87", 6);
+    ASSERT_EQ_ERR("hir/a87", 8);
     ASSERT_EQ_ERR("hir/a88", 4);
     char* argsa89[] = {"bearc", "tests/hir/a89.br", "-I", "tests/lib"};
     ASSERT_EQ_ERR_FROM_ARGSN(argsa89, 13, 2);
     ASSERT_EQ_ERR("hir/a90", 5);
-    ASSERT_EQ_ERR("hir/a91", 30);
+    ASSERT_EQ_ERR("hir/a91", 32);
     ASSERT_EQ_ERR("hir/a92", 8);
     ASSERT_EQ_ERR("hir/a93", 10);
     ASSERT_EQ_ERR("hir/a94", 24);
+    ASSERT_EQ_ERR("hir/a95", 10);
 
     return TEST_RESULT;
 }

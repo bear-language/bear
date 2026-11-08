@@ -1308,6 +1308,14 @@ void Context::force_link_diagnostic(DiagnosticId diag) {
     diagnostics.at(diag).set_prev(DiagnosticId{prev_val});
 }
 
+Diagnostic* Context::prev_diagnostic() {
+    if (diagnostics.empty()) {
+        return {};
+    }
+    // diagnostics are 1-indexed, so the last one's id is size()
+    return &diagnostics.at(DiagnosticId{static_cast<HirId>(diagnostics.size())});
+}
+
 bool Context::last_diagnostic_chain_contains(diag_code code) {
     if (diagnostics.empty()) {
         return false;
@@ -4026,7 +4034,7 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             if (maybe_inner.empty()) {
                 return {};
             }
-            return emplace_type(TypePtr{.inner = maybe_inner.as_id()}, Span::generated(), false);
+            return emplace_type(TypePtr{.inner = maybe_inner.as_id()}, Span::generated(), d.mut);
         },
         [this](const ExecDeref& d) -> OptId<TypeId> {
             const auto maybe_tid = infer_type_from_exec(d.dereferenced);

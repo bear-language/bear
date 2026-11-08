@@ -461,6 +461,10 @@ class Context {
     // only use when this diagnostic is known to follow another diagnostic but the previous
     // diagnostic's id is unavailable
     void force_link_diagnostic(DiagnosticId diag);
+
+    /// can be nullptr if there is no previous diagnostic
+    [[nodiscard]] Diagnostic* prev_diagnostic();
+
     // try to chain custom diagnostics in a pretty way (link them only with each other)
     void try_link_custom_diagnostic(DiagnosticId diag);
     void print_diagnostic(DiagnosticId diag, bool print_file = true, bool force_print = false);

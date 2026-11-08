@@ -245,9 +245,12 @@ enum class diag_code : uint8_t {
     does_not_have_a_default_value_so_an_initial_value_is_needed,
     cannot_take_a_mutable_reference_to_immutable_value_of_type,
     cannot_borrow_temporary_value,
+    cannot_take_address_of_temporary_value,
     cannot_assign_to_temporary_value,
     cannot_negate_value_of_unsigned_type,
     for_wrapping_negation_subtract_from_zero_instead,
+    did_you_mean_to_borrow,
+    did_you_mean_to_take_the_address,
 
     count, // this must be last,
 

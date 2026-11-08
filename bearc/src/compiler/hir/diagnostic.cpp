@@ -491,6 +491,12 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot negate value of unsigned type";
     case diag_code::for_wrapping_negation_subtract_from_zero_instead:
         return "for wrapping negation, subtract from zero instead";
+    case diag_code::cannot_take_address_of_temporary_value:
+        return "cannot take address of temporary value";
+    case diag_code::did_you_mean_to_borrow:
+        return "did you mean to borrow?";
+    case diag_code::did_you_mean_to_take_the_address:
+        return "did you mean to take the address?";
     }
 
     std::unreachable();
@@ -638,8 +644,8 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
     }
 
     // if it's help, don't reshow the src buffer!, also if it's generated or NoInfo don't show!
-    if (type == diag_type::help || this->holds<DiagnosticInfoNoPreview>()
-        || this->span.is_generated()) {
+    if (type == diag_type::help && this->holds<DiagnosticNoOtherInfo>()
+        || this->holds<DiagnosticInfoNoPreview>() || this->span.is_generated()) {
         return;
     }
 

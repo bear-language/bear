@@ -485,6 +485,7 @@ struct ExecDeref {
 
 struct ExecAddrOf {
     ExecId addressed;
+    bool mut;
 };
 
 struct ExecUnionInit {
@@ -536,7 +537,8 @@ struct ExecCompoundAssignment {
     bool yield_old;
 };
 
-/// runtime pre-unary +, -, !, ~ (++/-- are ExecCompoundAssignment, compt operands fold to constants)
+/// runtime pre-unary +, -, !, ~ (++/-- are ExecCompoundAssignment, compt operands fold to
+/// constants)
 struct ExecUnary {
     ExecId operand;
     unary_op op;

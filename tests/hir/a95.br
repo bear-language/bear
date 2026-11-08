@@ -1,0 +1,42 @@
+// tests/hir/a94.br
+
+// testing address of operator (^) and some borrowing
+
+fn main() {
+    fine();
+    oops();
+}
+
+fn fine() {
+    i32 a;
+    var b = ^a;
+    *var _c = b;
+    *i32 d = b;
+    *i32 e = ^a;
+    &i32 _f = &e.*;
+}
+
+fn oops() {
+    i32 a;
+    i32 b = ^a; // oops
+    **i32 c = ^^b; // oops
+    *i32 d = c.*;
+    *i32 _e = ^d.*;
+    ***i32 f = ^c;
+    &***i32 _g = f; // oops
+    *i32 _h = a; // oops
+
+    *i32 mut _i = ^mut a; // oops, a is really not mut
+
+    mut i32 aa;
+    
+    *i32 mut _i = ^aa;
+    var mut _j = ^aa;
+
+    *i32 _k = 5; // oops, but not an lvalue so addr of is not recommended
+    
+    &i32 _l = 5; // oops, but not an lvalue borrow of is not recommended
+    
+}
+
+

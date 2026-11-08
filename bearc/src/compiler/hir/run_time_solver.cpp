@@ -109,11 +109,13 @@ namespace hir {
     case AST_EXPR_POST_UNARY:
         maybe_eid = handle_postunary(fid, lctx, expr);
         break;
+    case AST_EXPR_ADDR_OF:
+        maybe_eid = handle_addr_of(fid, lctx, expr);
+        break;
     case AST_EXPR_BINARY:
     case AST_EXPR_SUBSCRIPT:
     case AST_EXPR_FN_CALL:
     case AST_EXPR_TYPE:
-    case AST_EXPR_ADDR_OF:
     case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
     case AST_EXPR_TERNARY_IF:
@@ -145,6 +147,47 @@ namespace hir {
         context.emplace_diagnostic_with_message_value(
             Span{context, fid, expr}, diag_code::cannot_convert_value_of_type, diag_type::error,
             DiagnosticTypeToType{.from = maybe_tid.as_id(), .to = into_tid});
+        const Type& into_ty = context.type(into_tid);
+
+        // recommend a borrow
+        if (into_ty.holds<TypeRef>() && into_ty.try_inner().has_value()
+            && context.is_lvalue(maybe_eid.as_id())
+            && context.assignable_and_inferable_from_type_to(maybe_tid.as_id(),
+                                                             into_ty.try_inner().as_id())) {
+
+            context.prev_diagnostic()->value = DiagnosticInfoValue{
+                DiagnosticSubCode{.sub_code = diag_code::did_you_mean_to_borrow}};
+
+            const Exec& exec = context.exec(maybe_eid.as_id());
+            std::string replacement_str{'&'};
+            replacement_str += context.symbol(context.symbol_id(exec.span));
+
+            context.force_link_diagnostic(context.emplace_diagnostic_with_message_value(
+                exec.span, diag_code::replace_with, diag_type::help,
+                DiagnosticSymbolAfterMessage{
+                    .sid = context.symbol_id(replacement_str),
+                }));
+        }
+        // recommend an address of
+        if (into_ty.holds<TypePtr>() && into_ty.try_inner().has_value()
+            && context.is_lvalue(maybe_eid.as_id())
+            && context.assignable_and_inferable_from_type_to(maybe_tid.as_id(),
+                                                             into_ty.try_inner().as_id())) {
+
+            context.prev_diagnostic()->value = DiagnosticInfoValue{
+                DiagnosticSubCode{.sub_code = diag_code::did_you_mean_to_take_the_address}};
+
+            const Exec& exec = context.exec(maybe_eid.as_id());
+            std::string replacement_str{'^'};
+            replacement_str += context.symbol(context.symbol_id(exec.span));
+
+            context.force_link_diagnostic(context.emplace_diagnostic_with_message_value(
+                exec.span, diag_code::replace_with, diag_type::help,
+                DiagnosticSymbolAfterMessage{
+                    .sid = context.symbol_id(replacement_str),
+                }));
+        }
+
         return {};
     }
 
@@ -708,11 +751,12 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return handle_preunary(fid, lctx, expr);
     case AST_EXPR_POST_UNARY:
         return handle_postunary(fid, lctx, expr);
+    case AST_EXPR_ADDR_OF:
+        return handle_addr_of(fid, lctx, expr);
     case AST_EXPR_BINARY:
     case AST_EXPR_SUBSCRIPT:
     case AST_EXPR_FN_CALL:
     case AST_EXPR_TYPE:
-    case AST_EXPR_ADDR_OF:
     case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
     case AST_EXPR_TERNARY_IF:
@@ -847,6 +891,63 @@ OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const as
 
     return context.emplace_exec(ExecBorrow{.borrowee = maybe_inner_eid.as_id(), .mut = mut_borrow},
                                 Span{context, fid, expr});
+}
+
+OptId<ExecId> RuntimeSolver::handle_addr_of(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_ADDR_OF);
+
+    const auto maybe_inner_eid = solve_expr(fid, lctx, expr->expr.addr_of.inner);
+
+    if (maybe_inner_eid.empty()) {
+        return {};
+    }
+
+    const bool mut_addr_of = expr->expr.addr_of.mut;
+
+    // make sure either:
+    // - inner is an lvalue
+    // or:
+    // - inner is a promotable compt constant and this is an immut addr
+
+    const bool inner_is_lvalue = context.is_lvalue(maybe_inner_eid.as_id());
+    const bool inner_is_compt = context.exec(maybe_inner_eid.as_id()).compt;
+
+    if (!inner_is_lvalue && !inner_is_compt) {
+        const Exec& exec = context.exec(maybe_inner_eid.as_id());
+        context.emplace_diagnostic(exec.span, diag_code::cannot_take_address_of_temporary_value,
+                                   diag_type::error);
+        return {};
+    }
+
+    const auto maybe_inner_tid = context.infer_type_from_exec(maybe_inner_eid.as_id());
+    if (maybe_inner_tid.empty()) {
+        return {};
+    }
+
+    const Type& ty = context.type(maybe_inner_tid.as_id());
+
+    // cannot mutably addr immutable data
+    if (!ty.mut && mut_addr_of) {
+        auto d0 = context.emplace_diagnostic_with_message_value(
+            Span{context.exec(maybe_inner_eid.as_id()).span},
+            diag_code::cannot_take_a_mutable_reference_to_immutable_value_of_type, diag_type::error,
+            DiagnosticTypeAfterMessage{.tid = maybe_inner_tid.as_id()});
+        const auto maybe_did = context.try_def_for_exec(maybe_inner_eid.as_id());
+
+        if (maybe_did.has_value()) {
+            const Def& def = context.def(maybe_did.as_id());
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                def.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = def.name});
+            context.link_diagnostic(d0, d1);
+        }
+
+        return {}; // inner type matter a lot here so return early for less cascading
+    }
+
+    return context.emplace_exec(
+        ExecAddrOf{.addressed = maybe_inner_eid.as_id(), .mut = mut_addr_of},
+        Span{context, fid, expr});
 }
 
 namespace {
