@@ -1000,6 +1000,7 @@ bool Exec::can_be_compt() {
         [](const ExecAddrOf&) -> bool { return false; },
         [](const ExecMatch&) -> bool { return false; },
         [](const ExecMatchBranch&) -> bool { return false; },
+        [](const ExecCompoundAssignment&) -> bool { return false; },
     };
     return visit(vs);
 }
@@ -1166,9 +1167,9 @@ using EConst = ExecConst;
     return builtin_type_has_unary_op(type_builtin(), op);
 }
 
-// integer ops use the gcc/clang overflow builtins so that compt evaluation never hits UB; they always
-// store the result wrapped (mod 2^N), so unsigned overflow is well-defined (wraps), while signed
-// overflow emits a diagnostic and returns std::nullopt
+// integer ops use the gcc/clang overflow builtins so that compt evaluation never hits UB; they
+// always store the result wrapped (mod 2^N), so unsigned overflow is well-defined (wraps), while
+// signed overflow emits a diagnostic and returns std::nullopt
 
 static std::nullopt_t e_diag_overflow(Context& ctx, Span span, ExecConst r) {
     ctx.emplace_diagnostic_with_message_value(
@@ -2317,6 +2318,15 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         },
         [&ctx](const ExecRange t) -> std::string {
             return exec_to_string(ctx, t.start) + "..." + exec_to_string(ctx, t.end);
+        },
+        [&ctx](const ExecCompoundAssignment& t) -> std::string {
+            std::string str;
+            str += exec_to_string(ctx, t.lhs);
+            str += ' ';
+            str += binary_op_to_cstr(t.op);
+            str += ' ';
+            str += exec_to_string(ctx, t.rhs);
+            return str;
         },
 
     };

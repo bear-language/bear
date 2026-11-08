@@ -50,7 +50,7 @@ class InvalidOp {};
 
 const char* binary_op_to_cstr(binary_op op);
 
-const char* binary_op_to_cstr(unary_op op);
+const char* unary_op_to_cstr(unary_op op);
 
 const char* is_as_op_to_cstr(is_as_op op);
 

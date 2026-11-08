@@ -4041,6 +4041,9 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             }
             return inner_tid;
         },
+        [this](const ExecCompoundAssignment& d) -> OptId<TypeId> {
+            return infer_type_from_exec(d.lhs);
+        },
         // these are ctrl and do not yield values
         [](const ExecMatch&) -> OptId<TypeId> { return {}; },
         [](const ExecMatchBranch&) -> OptId<TypeId> { return {}; },
@@ -4123,6 +4126,7 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
         // yes
         [](const ExecDeref&) -> bool { return true; },
         [](const ExecVariable&) -> bool { return true; },
+        [](const ExecCompoundAssignment&) -> bool { return true; },
         [this](const ExecMemberAccess& e) -> bool { return is_lvalue(e.owner); },
         [this](const ExecBorrow& e) -> bool { return is_lvalue(e.borrowee); },
         [this](const ExecSubscript& e) -> bool { return is_lvalue(e.base); },

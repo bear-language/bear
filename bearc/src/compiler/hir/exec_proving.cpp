@@ -332,6 +332,15 @@ template <equivalence E> bool equivalent_exec_impl(const Context& ctx, ExecId ei
             return equivalent_exec_slice_impl<E>(ctx, t.patterns, o.patterns)
                    && equivalent_exec_impl<E>(ctx, t.body, o.body);
         },
+        [&ctx, &other](const ExecCompoundAssignment& t) -> bool {
+            if (!other.holds<ExecCompoundAssignment>()) {
+                return false;
+            }
+            const auto o = other.as<ExecCompoundAssignment>();
+            return t.yield_old == o.yield_old && t.op == o.op
+                   && equivalent_exec_impl<E>(ctx, t.lhs, o.lhs)
+                   && equivalent_exec_impl<E>(ctx, t.rhs, o.rhs);
+        },
     };
 
     return ctx.exec(eid1).visit(vs);
@@ -361,7 +370,7 @@ template <equivalence E> size_t hash_exec_impl(const Context& ctx, ExecId eid) {
                        ^ t.active_member_idx);
         },
         [&ctx](const ExecStructInit& t) -> size_t {
-            size_t h = (t.anonymous) ? 0 : t.struct_def_id.raw();
+            size_t h = t.anonymous ? 0 : t.struct_def_id.raw();
             for (auto eidx = t.member_inits.begin(); eidx != t.member_inits.end(); ++eidx) {
                 h = transform(h, hash_exec_impl<E>(ctx, ctx.exec_id(eidx)));
             }
@@ -394,6 +403,7 @@ template <equivalence E> size_t hash_exec_impl(const Context& ctx, ExecId eid) {
         [](const ExecDeref&) -> size_t { return {}; },
         [](const ExecMatch&) -> size_t { return {}; },
         [](const ExecMatchBranch&) -> size_t { return {}; },
+        [](const ExecCompoundAssignment&) -> size_t { return {}; },
         [](const ExecFnPtr& t) -> size_t { return mix(t.func_def_id.raw()); },
         [&ctx](const ExecVariantFieldInit& t) -> size_t {
             size_t h = t.variant_field_def_id.raw();
@@ -536,6 +546,18 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
 
             return t.variant_field_def_id == o.variant_field_def_id;
         },
+        [&e2, &ctx](const ExecFnPtr& e) -> bool {
+            if (!e2.holds<ExecFnPtr>()) {
+                return false;
+            }
+            if (e2.as<ExecFnPtr>().fn_ptr_tid.has_value() != e.fn_ptr_tid.has_value()) {
+                return false;
+            }
+            if (!e2.as<ExecFnPtr>().fn_ptr_tid.has_value() || !e.fn_ptr_tid.has_value()) {
+                return false;
+            }
+            return ctx.equivalent_type(e2.as<ExecFnPtr>().fn_ptr_tid.as_id(), e.fn_ptr_tid.as_id());
+        },
         [](const ExecAssignment&) -> bool { return false; },
         [](const ExecMemberAccess&) -> bool { return false; },
         [](const ExecBinary&) -> bool { return false; },
@@ -548,7 +570,7 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecDeref&) -> bool { return false; },
         [](const ExecMatch&) -> bool { return false; },
         [](const ExecMatchBranch&) -> bool { return false; },
-        [](const ExecFnPtr&) -> bool { return false; },
+        [](const ExecCompoundAssignment&) -> bool { return false; },
     };
 
     return e1.visit(vs);
@@ -593,6 +615,7 @@ bool definitely_returns_yields_impl(const Context& ctx, ExecId eid) {
         [](const ExecFnPtr&) -> bool { return {}; },
         [](const ExecVariantFieldInit&) -> bool { return {}; },
         [](const ExecRange&) -> bool { return {}; },
+        [](const ExecCompoundAssignment&) -> bool { return {}; },
     };
 
     return ctx.exec(eid).visit(vs);

@@ -130,7 +130,7 @@ const char* binary_op_to_cstr(binary_op op) {
     return nullptr;
 }
 
-const char* binary_op_to_cstr(unary_op op) {
+const char* unary_op_to_cstr(unary_op op) {
     switch (op) {
     case unary_op::inc:
         return "++";

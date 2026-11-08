@@ -527,6 +527,15 @@ struct ExecMatchBranch {
     ExecId body;
 };
 
+struct ExecCompoundAssignment {
+    /// mutable lvalue, evaluated exactly once
+    ExecId lhs;
+    ExecId rhs;
+    binary_op op;
+    /// true only for post ++/--
+    bool yield_old;
+};
+
 // ^^^^^^ struct impls ^^^^^^^^
 
 /// main exec variant
@@ -538,7 +547,7 @@ using ExecValue = std::variant<
     ExecUnionInit, ExecVariantInit, ExecStructInit, ExecVariable, ExecComptConstant,
     ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
     ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecFnPtr,
-    ExecVariantFieldInit, ExecRange>;
+    ExecVariantFieldInit, ExecRange, ExecCompoundAssignment>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {
