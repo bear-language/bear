@@ -1,0 +1,25 @@
+// tests/hir/a98.br
+
+fn main() {
+    okay();
+}
+
+fn okay() {
+    compt var doub = |var x| => x + x;
+    var _0 = @static_assert(doub(4) == 8);
+    var _1 = @static_assert((|i32 x| => x*x)(12) == 144);
+}
+
+fn oops() {
+    var _0 = @static_assert((|i32 x| => x*x)(12) == 141); // oops
+    var _1 = @static_assert((|i32 x| => x + x) == |i32 x| => x + x); // oops
+    compt var trip = |i32 x| => x*x*x;
+    var _2 = @static_assert trip == trip; 
+    var _3 = @static_assert trip == |i32 x| => x*x*x; // oops
+    var _2 = @static_assert (3.trip() == 27);
+    var _3 = @static_assert (3.trip().trip() == 27.trip());
+    var _4 = compt 3.trip().trip().trip(); // oops (overflow)
+    mut i32 a = compt 4.trip();
+    ++a;
+    a++;
+}
