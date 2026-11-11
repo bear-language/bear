@@ -1,7 +1,6 @@
 ### todos
 
 #### priority 
-- [ ] resolve TODO in token.c
 - [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (6 are failing as of 20261111)
     - mostly/entirely due to fn expr bodies now being resolved
 
