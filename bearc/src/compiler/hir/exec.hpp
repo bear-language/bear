@@ -447,6 +447,7 @@ struct ExecAssignment {
     ExecId rhs;
 };
 
+/// access struct member, union member, or variant field (aka payload)
 struct ExecMemberAccess {
     ExecId owner;
     DefId member;
@@ -544,6 +545,21 @@ struct ExecUnary {
     unary_op op;
 };
 
+/// access enum for builtin fields that don't have a DefId
+enum class builtin_access : uint8_t {
+    str_len,
+    str_ptr,
+    slice_len,
+    slice_ptr,
+    variant_discriminant,
+};
+
+/// access for builtin fields that don't have a DefId
+struct ExecBuiltinAccess {
+    ExecId from;
+    builtin_access kind;
+};
+
 // ^^^^^^ struct impls ^^^^^^^^
 
 /// main exec variant
@@ -555,7 +571,7 @@ using ExecValue = std::variant<
     ExecUnionInit, ExecVariantInit, ExecStructInit, ExecVariable, ExecComptConstant,
     ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
     ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecFnPtr,
-    ExecVariantFieldInit, ExecRange, ExecCompoundAssignment, ExecUnary>;
+    ExecVariantFieldInit, ExecRange, ExecCompoundAssignment, ExecUnary, ExecBuiltinAccess>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {

@@ -34,6 +34,7 @@
 #include "utils/stack.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -2019,8 +2020,7 @@ Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_
         link_diagnostic(d0, d1);
         return std::nullopt;
     }
-    if (!looked_up_on_local && !def.pub
-        && !scope_has_parent(local_scope, struct_scope)) {
+    if (!looked_up_on_local && !def.pub && !scope_has_parent(local_scope, struct_scope)) {
         auto d0 = emplace_diagnostic_with_message_value(
             id_span, diag_code::is_declared_hid, diag_type::error,
             DiagnosticSymbolBeforeMessage{.sid = symbol_id});
@@ -2071,8 +2071,7 @@ Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_
         link_diagnostic(d0, d1);
         return std::nullopt;
     }
-    if (!looked_up_on_local && !def.pub
-        && !scope_has_parent(local_scope, struct_scope)) {
+    if (!looked_up_on_local && !def.pub && !scope_has_parent(local_scope, struct_scope)) {
         auto d0 = emplace_diagnostic_with_message_value(
             id_span, diag_code::is_declared_hid, diag_type::error,
             DiagnosticSymbolBeforeMessage{.sid = symbol_id});
@@ -4066,6 +4065,42 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             }
             return infer_type_from_exec(d.operand);
         },
+        [this](const ExecBuiltinAccess& d) -> OptId<TypeId> {
+            switch (d.kind) {
+            case builtin_access::str_len:
+            case builtin_access::slice_len:
+                return usize_type();
+            case builtin_access::str_ptr: {
+                return emplace_type(TypePtr{.inner = type_for_builtin(builtin_type::charr)},
+                                    Span::generated(), false);
+            }
+            case builtin_access::slice_ptr: {
+                const auto maybe_from_tid = infer_type_from_exec(d.from);
+                if (maybe_from_tid.empty()) {
+                    return {};
+                }
+                const auto maybe_inner_tid = type(maybe_from_tid.as_id()).try_inner();
+                if (maybe_inner_tid.empty()) {
+                    return {};
+                }
+                return emplace_type(TypePtr{.inner = maybe_inner_tid.as_id()}, Span::generated(),
+                                    false);
+            }
+            case builtin_access::variant_discriminant: {
+                const auto maybe_from_tid = infer_type_from_exec(d.from);
+                if (maybe_from_tid.empty()) {
+                    return {};
+                }
+                const Type& from_ty = type(maybe_from_tid.as_id());
+                if (!from_ty.holds<TypeVariant>()) {
+                    return {};
+                }
+                const auto& variant = def(from_ty.as<TypeVariant>().def_id).as<DefVariant>();
+                return type_for_builtin(variant.type_of_discriminant());
+            }
+            }
+            return {};
+        },
         // these are ctrl and do not yield values
         [](const ExecMatch&) -> OptId<TypeId> { return {}; },
         [](const ExecMatchBranch&) -> OptId<TypeId> { return {}; },
@@ -4179,8 +4214,30 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
         [](const ExecFnPtr&) -> bool { return false; },
         [](const ExecVariantFieldInit&) -> bool { return false; },
         [](const ExecRange&) -> bool { return false; },
+        [](const ExecBuiltinAccess&) -> bool { return false; },
     };
     return exec(eid).visit(vs);
+}
+
+builtin_type Context::builtin_usize_type() const {
+    assert(pointer_size_bytes() == 8 || pointer_size_bytes() == 4);
+    return pointer_size_bytes() == 8 ? builtin_type::u64 : builtin_type::u32;
+}
+
+TypeId Context::usize_type() { return type_for_builtin(builtin_usize_type()); }
+
+TypeId Context::type_for_builtin(builtin_type type) {
+    static std::array<OptId<TypeId>, static_cast<size_t>(builtin_type::boolean) + 1> cache{};
+    const auto idx = static_cast<size_t>(type);
+    assert(idx < cache.size());
+    if (cache[idx].has_value()) {
+        return cache[idx].as_id();
+    }
+    const TypeId tid = emplace_type(TypeBuiltin{.type = type}, Span::generated(), false);
+    if (only_one_context_instance) {
+        cache[idx] = tid;
+    }
+    return tid;
 }
 
 } // namespace hir

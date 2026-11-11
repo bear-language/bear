@@ -1002,6 +1002,7 @@ bool Exec::can_be_compt() {
         [](const ExecMatchBranch&) -> bool { return false; },
         [](const ExecCompoundAssignment&) -> bool { return false; },
         [](const ExecUnary&) -> bool { return false; },
+        [](const ExecBuiltinAccess&) -> bool { return false; },
     };
     return visit(vs);
 }
@@ -2332,6 +2333,23 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         },
         [&ctx](const ExecUnary& t) -> std::string {
             return unary_op_to_cstr(t.op) + exec_to_string(ctx, t.operand);
+        },
+        [&ctx](const ExecBuiltinAccess& t) -> std::string {
+            std::string str = exec_to_string(ctx, t.from);
+            switch (t.kind) {
+            case builtin_access::str_len:
+            case builtin_access::slice_len:
+                str += ".len";
+                break;
+            case builtin_access::slice_ptr:
+            case builtin_access::str_ptr:
+                str += ".@ptr";
+                break;
+            case builtin_access::variant_discriminant:
+                str += ".@discriminant";
+                break;
+            }
+            return str;
         },
 
     };

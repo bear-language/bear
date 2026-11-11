@@ -104,6 +104,12 @@ class Context {
     /// gets the pointer size in bytes for the context
     [[nodiscard]] HirSize pointer_size_bytes() const noexcept { return pointer_size_bytes_; }
 
+    [[nodiscard]] builtin_type builtin_usize_type() const;
+
+    [[nodiscard]] TypeId usize_type();
+
+    [[nodiscard]] TypeId type_for_builtin(builtin_type type);
+
     // ----- accessors / emplacers --------
 
     /// gets the SymbolId for the (string span of) a token
