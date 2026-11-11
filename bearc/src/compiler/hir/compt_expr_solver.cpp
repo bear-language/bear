@@ -337,9 +337,7 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
         context.emplace_diagnostic_with_message_value(
             Span{context, fid, expr}, diag_code::cannot_convert_expression_to_type,
             diag_type::error,
-            DiagnosticTypeAfterMessage{
-                .tid = context.emplace_type(TypeBuiltin{.type = into_builtin.value()},
-                                            Span::generated(), false)});
+            DiagnosticTypeAfterMessage{.tid = context.type_for_builtin(into_builtin.value())});
         return std::nullopt;
     };
 
@@ -347,9 +345,7 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
         context.emplace_diagnostic_with_message_value(
             Span{context, fid, expr}, diag_code::cannot_convert_value_of_type, diag_type::error,
             DiagnosticTypeToType{.from = tid,
-                                 .to
-                                 = context.emplace_type(TypeBuiltin{.type = into_builtin.value()},
-                                                        Span::generated(), false)});
+                                 .to = context.type_for_builtin(into_builtin.value())});
         return std::nullopt;
     };
 
@@ -554,9 +550,7 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
             context.emplace_diagnostic_with_message_value(
                 Span{context, fid, expr}, diag_code::cannot_convert_expression_to_type,
                 diag_type::error,
-                DiagnosticTypeAfterMessage{
-                    .tid = context.emplace_type(TypeBuiltin{.type = into_builtin.value()},
-                                                Span::generated(), false)});
+                DiagnosticTypeAfterMessage{.tid = context.type_for_builtin(into_builtin.value())});
             return std::nullopt;
         }
         break;
@@ -649,12 +643,9 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
 
         if (!maybe_converted.has_value()) {
             auto from_builtin = maybe_value.value().type_builtin();
-            TypeId from
-                = context.emplace_type(TypeBuiltin{.type = from_builtin}, Span::generated(), false);
-            TypeId to = into_tid.has_value()
-                            ? into_tid.as_id()
-                            : context.emplace_type(TypeBuiltin{.type = into_builtin.value()},
-                                                   Span::generated(), false);
+            TypeId from = context.type_for_builtin(from_builtin);
+            TypeId to = into_tid.has_value() ? into_tid.as_id()
+                                             : context.type_for_builtin(into_builtin.value());
             context.emplace_diagnostic(
                 Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
                 diag_code::cannot_convert_value_of_type, diag_type::error,
@@ -1464,9 +1455,7 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
     auto do_no_bool = [this](const Exec& exec) {
         context.emplace_diagnostic_with_message_value(
             exec.span, diag_code::value_is_not_contextually_convertible_to, diag_type::error,
-            DiagnosticTypeAfterMessage{
-                .tid = context.emplace_type(TypeBuiltin{.type = builtin_type::boolean},
-                                            Span::generated(), false)});
+            DiagnosticTypeAfterMessage{.tid = context.type_for_builtin(builtin_type::boolean)});
     };
 
     // LHS cannot be bool
@@ -1536,9 +1525,7 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
             context.emplace_diagnostic_with_message_value(
                 inner_exec.span, diag_code::value_is_not_contextually_convertible_to,
                 diag_type::error,
-                DiagnosticTypeAfterMessage{
-                    .tid = context.emplace_type(TypeBuiltin{.type = builtin_type::boolean},
-                                                Span::generated(), false)});
+                DiagnosticTypeAfterMessage{.tid = context.type_for_builtin(builtin_type::boolean)});
             return std::nullopt;
         }
         inner_val = maybe_converted.value();
@@ -1585,9 +1572,8 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
     const auto* happy_expr = tern_expr->expr.ternary_if.happy_expr;
     const auto* cond_expr = tern_expr->expr.ternary_if.condition;
     const auto* else_expr = tern_expr->expr.ternary_if.else_expr;
-    auto maybe_cond_exec = solve_expr(
-        fid, scope, cond_expr,
-        context.emplace_type(TypeBuiltin{.type = builtin_type::boolean}, Span::generated(), false));
+    auto maybe_cond_exec
+        = solve_expr(fid, scope, cond_expr, context.type_for_builtin(builtin_type::boolean));
 
     if (maybe_cond_exec.empty()) {
         return std::nullopt;
@@ -1889,9 +1875,8 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
                                                                   const ast_expr_t* sass_expr) {
     assert(sass_expr->type == AST_EXPR_STATIC_ASSERT);
 
-    auto maybe_eid = solve_expr(
-        fid, scope, sass_expr->expr.static_assert_expr.inner,
-        context.emplace_type(TypeBuiltin{.type = builtin_type::boolean}, Span::generated(), false));
+    auto maybe_eid = solve_expr(fid, scope, sass_expr->expr.static_assert_expr.inner,
+                                context.type_for_builtin(builtin_type::boolean));
 
     if (maybe_eid.empty()) {
         return std::nullopt;
@@ -2730,9 +2715,8 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
 
     if (ordered_exec.holds<ExecListLiteral>()) {
         ExecListLiteral list = ordered_exec.as<ExecListLiteral>();
-        OptId<ExecId> maybe_idx = solve_expr(
-            fid, scope, expr->expr.subscript.subexpr,
-            context.emplace_type(TypeBuiltin{.type = builtin_type::u64}, Span::generated(), false));
+        OptId<ExecId> maybe_idx = solve_expr(fid, scope, expr->expr.subscript.subexpr,
+                                             context.type_for_builtin(builtin_type::u64));
         if (maybe_idx.empty()) {
             return std::nullopt; // poisoned
         }
@@ -2754,9 +2738,8 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
     }
     if (ordered_exec.holds<ExecConst>() && ordered_exec.as<ExecConst>().holds<SymbolId>()) {
         SymbolId sid = ordered_exec.as<ExecConst>().as<SymbolId>();
-        OptId<ExecId> maybe_idx = solve_expr(
-            fid, scope, expr->expr.subscript.subexpr,
-            context.emplace_type(TypeBuiltin{.type = builtin_type::u64}, Span::generated(), false));
+        OptId<ExecId> maybe_idx = solve_expr(fid, scope, expr->expr.subscript.subexpr,
+                                             context.type_for_builtin(builtin_type::u64));
         if (maybe_idx.empty()) {
             return std::nullopt; // poisoned
         }
@@ -3431,8 +3414,7 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         return {}; // poisoned (some other issue)
     }
 
-    const TypeId elem_tid
-        = context.emplace_type(TypeBuiltin{.type = builtin_type::str}, Span::generated(), false);
+    const TypeId elem_tid = context.type_for_builtin(builtin_type::str);
 
     const Type& ty = context.type(context.try_decay(maybe_tid.as_id()));
 
@@ -3475,8 +3457,7 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         return {}; // poisoned (some other issue)
     }
 
-    const TypeId elem_tid
-        = context.emplace_type(TypeBuiltin{.type = builtin_type::str}, Span::generated(), false);
+    const TypeId elem_tid = context.type_for_builtin(builtin_type::str);
 
     const Type& ty = context.type(context.try_decay(maybe_tid.as_id()));
 

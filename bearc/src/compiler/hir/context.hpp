@@ -30,6 +30,7 @@
 #include "compiler/token.h"
 #include "utils/data_arena.hpp"
 #include "llvm/ADT/SmallVector.h"
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -106,9 +107,9 @@ class Context {
 
     [[nodiscard]] builtin_type builtin_usize_type() const;
 
-    [[nodiscard]] TypeId usize_type();
+    [[nodiscard]] TypeId usize_type() const;
 
-    [[nodiscard]] TypeId type_for_builtin(builtin_type type);
+    [[nodiscard]] TypeId type_for_builtin(builtin_type type) const;
 
     // ----- accessors / emplacers --------
 
@@ -1162,6 +1163,9 @@ class Context {
     static std::atomic<bool> one_instance_status;
 
     const bool only_one_context_instance;
+
+    static constexpr size_t BUILTIN_TYPE_COUNT = static_cast<size_t>(builtin_type::boolean) + 1;
+    std::array<TypeId, BUILTIN_TYPE_COUNT> builtin_tids{};
     bool register_spans{false};
 
     bool compact_diagnostics{false};

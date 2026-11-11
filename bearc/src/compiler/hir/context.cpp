@@ -154,6 +154,11 @@ Context::Context(const bearc_args_t& args, instances instances,
 
     one_instance_status = false; // we exist now
 
+    for (size_t i = 0; i < BUILTIN_TYPE_COUNT; ++i) {
+        builtin_tids[i] = emplace_type(TypeBuiltin{.type = static_cast<builtin_type>(i)},
+                                       Span::generated(), false);
+    }
+
     // must be known before any file is read
     this->source_overlays.assign(source_overlays.begin(), source_overlays.end());
 
@@ -3947,7 +3952,7 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
         [](const ExecFnPtr& d) -> OptId<TypeId> { return d.fn_ptr_tid; },
         [this](const ExecComptConstant& d) -> OptId<TypeId> {
             auto bin_type = d.type_builtin();
-            return emplace_type(TypeBuiltin{.type = bin_type}, Span::generated(), false);
+            return type_for_builtin(bin_type);
         },
         [this, &exec](const ExecListLiteral& d) -> OptId<TypeId> {
             auto maybe_contained_type = d.elem_type_id;
@@ -4060,8 +4065,7 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
         },
         [this](const ExecUnary& d) -> OptId<TypeId> {
             if (d.op == unary_op::bool_not) {
-                return emplace_type(TypeBuiltin{.type = builtin_type::boolean}, Span::generated(),
-                                    false);
+                return type_for_builtin(builtin_type::boolean);
             }
             return infer_type_from_exec(d.operand);
         },
@@ -4224,20 +4228,12 @@ builtin_type Context::builtin_usize_type() const {
     return pointer_size_bytes() == 8 ? builtin_type::u64 : builtin_type::u32;
 }
 
-TypeId Context::usize_type() { return type_for_builtin(builtin_usize_type()); }
+TypeId Context::usize_type() const { return type_for_builtin(builtin_usize_type()); }
 
-TypeId Context::type_for_builtin(builtin_type type) {
-    static std::array<OptId<TypeId>, static_cast<size_t>(builtin_type::boolean) + 1> cache{};
+TypeId Context::type_for_builtin(builtin_type type) const {
     const auto idx = static_cast<size_t>(type);
-    assert(idx < cache.size());
-    if (cache[idx].has_value()) {
-        return cache[idx].as_id();
-    }
-    const TypeId tid = emplace_type(TypeBuiltin{.type = type}, Span::generated(), false);
-    if (only_one_context_instance) {
-        cache[idx] = tid;
-    }
-    return tid;
+    assert(idx < BUILTIN_TYPE_COUNT);
+    return builtin_tids[idx];
 }
 
 } // namespace hir
