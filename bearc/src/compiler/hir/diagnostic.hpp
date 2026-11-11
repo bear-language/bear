@@ -482,7 +482,7 @@ class DiagLinker {
     OptId<DiagnosticId> prev;
 
   public:
-    DiagLinker(Context& ctx) : ctx{ctx} {}
+    [[nodiscard]] DiagLinker(Context& ctx) : ctx{ctx} {}
     DiagLinker& link(DiagnosticId d);
     void link(OptId<DiagnosticId> d);
     void link(DiagRange range);

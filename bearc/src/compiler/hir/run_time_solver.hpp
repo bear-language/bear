@@ -183,10 +183,10 @@ class RuntimeSolver {
                                                unary_op op, bool post);
     [[nodiscard]] OptId<ExecId> handle_binary_expr(FileId fid, LexicalCtx lctx,
                                                    const ast_expr_t* expr);
-    [[nodiscard]] OptId<ExecId> handle_is(FileId fid, LexicalCtx lctx, ExecId eid,
-                                          const ast_expr_t* expr);
-    [[nodiscard]] OptId<ExecId> handle_as(FileId fid, LexicalCtx lctx, ExecId eid,
-                                          const ast_expr_t* expr);
+
+    [[nodiscard]] OptId<ExecId> handle_assign(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_is(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_as(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_access(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
                                               access_op op);
     [[nodiscard]] OptId<ExecId> handle_arithmetic_logical_or_bool_binary(FileId fid,

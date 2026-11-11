@@ -18,6 +18,7 @@
 #include "compiler/hir/expr_solver_common.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
+#include "compiler/hir/span.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/type_resolver.hpp"
 #include "utils/data_arena.hpp"
@@ -113,6 +114,8 @@ namespace hir {
         maybe_eid = handle_addr_of(fid, lctx, expr);
         break;
     case AST_EXPR_BINARY:
+        maybe_eid = handle_binary_expr(fid, lctx, expr);
+        break;
     case AST_EXPR_SUBSCRIPT:
     case AST_EXPR_FN_CALL:
     case AST_EXPR_TYPE:
@@ -757,6 +760,7 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_ADDR_OF:
         return handle_addr_of(fid, lctx, expr);
     case AST_EXPR_BINARY:
+        return handle_binary_expr(fid, lctx, expr);
     case AST_EXPR_SUBSCRIPT:
     case AST_EXPR_FN_CALL:
     case AST_EXPR_TYPE:
@@ -1183,54 +1187,119 @@ OptId<ExecId> RuntimeSolver::handle_binary_expr(FileId fid, LexicalCtx lctx,
                                                 const ast_expr_t* expr) {
     assert(expr->type == AST_EXPR_BINARY);
 
-    bool cooked = false;
-
     ComptBinaryOp maybe_bin_op{expr->expr.binary.op};
 
     if (maybe_bin_op.holds<InvalidOp>()) {
-        cooked = true;
-    } else if (maybe_bin_op.holds<assign_op>()) {
-        // TODO: handle assign
         return {};
-    } else if (maybe_bin_op.holds<is_as_op>()) {
-        OptId<ExecId> lhs = solve_expr(
-            fid, lctx, expr->expr.binary.lhs); // since we don't care about the type yet
-        if (!lhs.has_value()) {
-            cooked = true;
-        }
-        if (lhs.has_value()) {
-            if (maybe_bin_op.as<is_as_op>() == is_as_op::is) {
-                return handle_is(fid, lctx, lhs.as_id(), expr->expr.binary.rhs);
-            }
-            assert(maybe_bin_op.as<is_as_op>() == is_as_op::as);
-            return handle_as(fid, lctx, lhs.as_id(), expr->expr.binary.rhs);
-        }
-    } else if (maybe_bin_op.holds<access_op>()) {
+    }
+    if (maybe_bin_op.holds<assign_op>()) {
+        return handle_assign(fid, lctx, expr);
+    }
+    if (maybe_bin_op.holds<access_op>()) {
         return handle_access(fid, lctx, expr, maybe_bin_op.as<access_op>());
-
-    } else if (!cooked && maybe_bin_op.holds<binary_op>()) {
+    }
+    if (maybe_bin_op.holds<binary_op>()) {
         return handle_arithmetic_logical_or_bool_binary(fid, lctx, expr,
                                                         maybe_bin_op.as<binary_op>());
     }
-    return std::nullopt; // cooked / poisoned already, so just return since error
-                         // should've already been reported
+    if (maybe_bin_op.holds<is_as_op>()) {
+        if (maybe_bin_op.as<is_as_op>() == is_as_op::is) {
+            return handle_is(fid, lctx, expr);
+        }
+        assert(maybe_bin_op.as<is_as_op>() == is_as_op::as);
+        return handle_as(fid, lctx, expr);
+    }
+    return {};
 }
 
-OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, ExecId eid,
-                                       const ast_expr_t* expr) {
+OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_BINARY);
+
+    const auto maybe_lhs_eid = solve_expr(fid, lctx, expr->expr.binary.lhs);
+    if (maybe_lhs_eid.empty()) {
+        return {};
+    }
+    const auto maybe_lhs_tid = infer_type_from_exec(maybe_lhs_eid.as_id());
+    if (maybe_lhs_tid.empty()) {
+        return {};
+    }
+
+    const auto maybe_rhs_eid = solve_expr(fid, lctx, expr->expr.binary.rhs);
+    if (maybe_rhs_eid.empty()) {
+        return {};
+    }
+    const auto maybe_rhs_tid = infer_type_from_exec(maybe_rhs_eid.as_id());
+    if (maybe_rhs_tid.empty()) {
+        return {};
+    }
+
+    // lvalue check cuz ofc
+    if (!context.is_lvalue(maybe_lhs_eid.as_id())) {
+        context.emplace_diagnostic(Span{context, fid, expr->expr.binary.lhs},
+                                   diag_code::cannot_assign_to_temporary_value, diag_type::error);
+        return {};
+    }
+
+    // immut check
+    if (!context.type(maybe_lhs_tid.as_id()).mut) {
+        DiagLinker dl{context};
+        dl.link(context.emplace_diagnostic(Span{context, fid, expr->expr.binary.lhs},
+                                           diag_code::immutable_value_is_not_assignable,
+                                           diag_type::error));
+        const auto maybe_did = context.try_def_for_exec(maybe_lhs_eid.as_id());
+        if (maybe_did) {
+            const Def& d = context.def(maybe_did.as_id());
+            dl.link(context.emplace_diagnostic_with_message_value(
+                d.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = d.name}));
+        }
+        return {};
+    }
+
+    // direct type check
+    if (!context.assignable_from_type_to(maybe_rhs_tid.as_id(), maybe_lhs_tid.as_id())) {
+        DiagLinker dl{context};
+        dl.link(context.emplace_diagnostic_with_message_value(
+            Span{context, fid, expr}, diag_code::cannot_convert_value_of_type, diag_type::error,
+            DiagnosticTypeToType{.from = maybe_rhs_tid.as_id(), .to = maybe_lhs_tid.as_id()}));
+        const auto maybe_lhs_did = context.try_def_for_exec(maybe_lhs_eid.as_id());
+        if (maybe_lhs_did) {
+            const Def& d = context.def(maybe_lhs_did.as_id());
+            dl.link(context.emplace_diagnostic_with_message_value(
+                d.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolAfterMessage{.sid = d.name}));
+        }
+        const auto maybe_rhs_did = context.try_def_for_exec(maybe_rhs_eid.as_id());
+        if (maybe_rhs_did) {
+            const Def& d = context.def(maybe_rhs_did.as_id());
+            dl.link(context.emplace_diagnostic_with_message_value(
+                d.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolAfterMessage{.sid = d.name}));
+        }
+        return {};
+    }
+    return context.emplace_exec(
+        ExecAssignment{.lhs = maybe_lhs_eid.as_id(), .rhs = maybe_rhs_eid.as_id()},
+        Span{context, fid, expr});
+}
+
+OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
     // TODO
     return {};
 }
-OptId<ExecId> RuntimeSolver::handle_as(FileId fid, LexicalCtx lctx, ExecId eid,
-                                       const ast_expr_t* expr) {
-    // TODO
+OptId<ExecId> RuntimeSolver::handle_as(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_BINARY);
     return {};
 }
 
 OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
                                            access_op op) {
     assert(expr->type == AST_EXPR_BINARY);
-    // TODO
+
+    // !!!!!!!!!!!!!!!!!!!!!!
+    return {}; // TODO
+    // !!!!!!!!!!!!!!!!!!!!!!
+
     OptId<ExecId> maybe_lhs = solve_expr(fid, lctx, expr->expr.binary.lhs);
     if (!maybe_lhs.has_value()) {
         return {}; // poisoned
@@ -1476,7 +1545,7 @@ OptId<ExecId> RuntimeSolver::handle_arithmetic_logical_or_bool_binary(FileId fid
                                                                     Span{context, fid, expr});
     }
 
-    // TODO: actually create an ExecBinary
+    // TODO: actually create an ExecBinary, make a solve_binary_exec
     return {};
 }
 

@@ -99,9 +99,13 @@ template <compt_or_runtime C>
 [[nodiscard]] static inline OptId<ExecId>
 handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeId scope,
                    token_ptr_slice_t id_slice, OptId<GenericArgIdSliceId> maybe_gen_args) {
+
+    // TODO handle moves
+
     const auto sid_slice = context.symbol_slice(id_slice);
     const Span expr_span{context, fid, id_slice};
     OptId<DefId> maybe_did{};
+
     if (maybe_gen_args.empty()) {
         maybe_did = context.look_up_scoped_variable(scope, sid_slice, expr_span);
         // try to look up scoped type if needed so we can find variant fields
