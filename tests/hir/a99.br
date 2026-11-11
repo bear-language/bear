@@ -1,0 +1,16 @@
+// tests/hir/a99.br
+
+fn main() {
+    okay();
+}
+
+fn okay() {
+    i32 a;
+    a = 1; // oops
+    mut i32 b;
+    b = 2;
+    b = "5"; // oops
+    b = a;
+    a = b; // oops
+    5 = a; // oops
+}
