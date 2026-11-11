@@ -1179,4 +1179,305 @@ OptId<ExecId> RuntimeSolver::handle_inc_dec(FileId fid, LexicalCtx lctx, const a
         Span{context, fid, expr});
 }
 
+OptId<ExecId> RuntimeSolver::handle_binary_expr(FileId fid, LexicalCtx lctx,
+                                                const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_BINARY);
+
+    bool cooked = false;
+
+    ComptBinaryOp maybe_bin_op{expr->expr.binary.op};
+
+    if (maybe_bin_op.holds<InvalidOp>()) {
+        cooked = true;
+    } else if (maybe_bin_op.holds<assign_op>()) {
+        // TODO: handle assign
+        return {};
+    } else if (maybe_bin_op.holds<is_as_op>()) {
+        OptId<ExecId> lhs = solve_expr(
+            fid, lctx, expr->expr.binary.lhs); // since we don't care about the type yet
+        if (!lhs.has_value()) {
+            cooked = true;
+        }
+        if (lhs.has_value()) {
+            if (maybe_bin_op.as<is_as_op>() == is_as_op::is) {
+                return handle_is(fid, lctx, lhs.as_id(), expr->expr.binary.rhs);
+            }
+            assert(maybe_bin_op.as<is_as_op>() == is_as_op::as);
+            return handle_as(fid, lctx, lhs.as_id(), expr->expr.binary.rhs);
+        }
+    } else if (maybe_bin_op.holds<access_op>()) {
+        return handle_access(fid, lctx, expr, maybe_bin_op.as<access_op>());
+
+    } else if (!cooked && maybe_bin_op.holds<binary_op>()) {
+        return handle_arithmetic_logical_or_bool_binary(fid, lctx, expr,
+                                                        maybe_bin_op.as<binary_op>());
+    }
+    return std::nullopt; // cooked / poisoned already, so just return since error
+                         // should've already been reported
+}
+
+OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, ExecId eid,
+                                       const ast_expr_t* expr) {
+    // TODO
+    return {};
+}
+OptId<ExecId> RuntimeSolver::handle_as(FileId fid, LexicalCtx lctx, ExecId eid,
+                                       const ast_expr_t* expr) {
+    // TODO
+    return {};
+}
+
+OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                           access_op op) {
+    assert(expr->type == AST_EXPR_BINARY);
+    // TODO
+    OptId<ExecId> maybe_lhs = solve_expr(fid, lctx, expr->expr.binary.lhs);
+    if (!maybe_lhs.has_value()) {
+        return {}; // poisoned
+    }
+    const auto lhs_eid = maybe_lhs.as_id();
+    const Exec& lhs_exec = context.exec(lhs_eid);
+
+    if (op == access_op::rarrow) {
+        // TODO deref
+    }
+
+    const ast_expr_t* rhs = expr->expr.binary.rhs;
+
+    auto matches_len_builtin = [this](token_ptr_slice_t id_slice) {
+        return id_slice.len == 1
+               && context.symbol_id(id_slice.start[0]) == context.symbol_id<"len">();
+    };
+
+    if (lhs_exec.holds<ExecListLiteral>() && rhs->type == AST_EXPR_ID) {
+        const auto id_slice = rhs->expr.id.slice;
+        if (matches_len_builtin(id_slice)) {
+            // TODO
+            return {};
+        }
+    }
+
+    if (lhs_exec.holds<ExecConst>() && lhs_exec.as<ExecConst>().holds<SymbolId>()
+        && rhs->type == AST_EXPR_ID) {
+        const auto id_slice = rhs->expr.id.slice;
+        if (matches_len_builtin(id_slice)) {
+            // TODO
+            return {};
+        }
+    }
+
+    // TODO: use types instead of Exec checks for this
+    //
+    // be helpful if we do this:
+    // [1, 2, 3].len() => should be just `len`
+    // "123123123".len() => should be just `len`
+    if ((lhs_exec.holds<ExecListLiteral>()
+         || (lhs_exec.holds<ExecConst>() && lhs_exec.as<ExecConst>().holds<SymbolId>()))
+        && rhs->type == AST_EXPR_FN_CALL && rhs->expr.fn_call.left_expr->type == AST_EXPR_ID) {
+        const auto id_slice = rhs->expr.fn_call.left_expr->expr.id.slice;
+        if (matches_len_builtin(id_slice)) {
+            const auto sid = context.symbol_id<"len">();
+            auto d0 = context.emplace_diagnostic_with_message_value(
+                Span{context, fid, rhs}, diag_code::tried_to_call_property, diag_type::error,
+                DiagnosticSymbolAfterMessage{.sid = sid});
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                Span{context, fid, rhs}, diag_code::replace_with, diag_type::help,
+                DiagnosticSymbolAfterMessage{.sid = sid});
+            context.link_diagnostic(d0, d1);
+            return std::nullopt;
+        }
+    }
+
+    const ast_expr_t* rhs_expr = expr->expr.binary.rhs;
+    Span rhs_span{context, fid, rhs_expr};
+
+    // TODO: update to use types
+    if (lhs_exec.holds<ExecUnionInit>() && rhs_expr->type == AST_EXPR_ID) {
+        {
+            const Def& union_def = context.def(
+                def_visitor.visit_as_transparent(lhs_exec.as<ExecUnionInit>().union_def_id));
+            assert(union_def.holds<DefUnion>());
+        }
+        token_ptr_slice_t id_slice = rhs_expr->expr.id.slice;
+        if (id_slice.len > 1) {
+            context.emplace_diagnostic(rhs_span, diag_code::scoped_identifer_not_allowed_here,
+                                       diag_type::error);
+        }
+
+        auto maybe_mem_var = context.look_up_variable(
+            context.def(lhs_exec.as<ExecUnionInit>().union_def_id).template as<DefUnion>().scope,
+            context.symbol_id(id_slice.start[0]));
+
+        if (maybe_mem_var.empty()) {
+            const Def& union_def = context.def(lhs_exec.as<ExecUnionInit>().union_def_id);
+            Span spn{context, fid, id_slice};
+            auto d0 = context.emplace_diagnostic_with_message_value(
+                spn, diag_code::does_not_name_a_field_of_union, diag_type::error,
+                DiagnosticSymbolAfterMessage{.sid = union_def.name});
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                union_def.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = union_def.name});
+            context.link_diagnostic(d0, d1);
+            return {};
+        }
+
+        const Def& union_def = context.def(lhs_exec.as<ExecUnionInit>().union_def_id);
+        const Def& var_def = context.def(maybe_mem_var.as_id());
+        if (var_def.member_idx != lhs_exec.as<ExecUnionInit>().active_member_idx) {
+            const Def& curr_member = context.def(union_def.as<DefUnion>().ordered_members.get(
+                lhs_exec.as<ExecUnionInit>().active_member_idx));
+            DiagLinker dlinker{context};
+            dlinker.link(context.emplace_diagnostic_with_message_value(
+                Span{context, fid, id_slice}, diag_code::compt_union_does_not_hold_field,
+                diag_type::error, DiagnosticSymbolAfterMessage{var_def.name}));
+            dlinker.link(context.emplace_diagnostic_with_message_value(
+                Span{context, fid, id_slice}, diag_code::compt_union_holds_field, diag_type::note,
+                DiagnosticSymbolAfterMessage{curr_member.name}));
+            dlinker.link(context.emplace_diagnostic_with_message_value(
+                union_def.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = union_def.name}));
+            return {};
+        }
+
+        const Exec& mem_exec = context.exec(lhs_exec.as<ExecUnionInit>().member_init);
+
+        return context.emplace_exec(mem_exec.value, Span{context, fid, expr});
+    }
+
+    if (rhs_expr->type == AST_EXPR_FN_CALL) {
+        // return solve_fn_call(fid, lctx, rhs_expr, lhs_eid);
+        // TODO
+        return {};
+    }
+
+    // TODO use types / make this not compt-only
+    if (!lhs_exec.holds<ExecStructInit>()) {
+        auto d0
+            = context.emplace_diagnostic(Span{context, fid, expr->expr.binary.op},
+                                         diag_code::cannot_access_a_member_value, diag_type::error);
+        if (const auto maybe_tid = infer_type_from_exec(lhs_eid); maybe_tid.has_value()) {
+            auto d1 = context.emplace_diagnostic(
+                lhs_exec.span, diag_code::value_is_of_type, diag_type::note,
+                DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()},
+                DiagnosticSubCode{.sub_code = diag_code::is_not_a_struct});
+            context.link_diagnostic(d0, d1);
+        } else {
+            auto d1 = context.emplace_diagnostic(
+                lhs_exec.span, diag_code::value_not_a_struct, diag_type::note,
+                DiagnosticSubCode{.sub_code = diag_code::is_not_a_struct});
+
+            context.link_diagnostic(d0, d1);
+        }
+        return std::nullopt;
+    }
+    const Def& struct_def = context.def(lhs_exec.as<ExecStructInit>().struct_def_id);
+
+    if (rhs_expr->type == AST_EXPR_ID) {
+        assert(struct_def.holds<DefStruct>());
+        token_ptr_slice_t id_slice = rhs_expr->expr.id.slice;
+        if (id_slice.len > 1) {
+            context.emplace_diagnostic(rhs_span, diag_code::scoped_identifer_not_allowed_here,
+                                       diag_type::error);
+        }
+
+        auto maybe_mem_var = context.look_up_member_var_guarding_hid(
+            struct_def, context.symbol_id(id_slice.start[0]), rhs_span, lctx.scope);
+
+        if (maybe_mem_var.empty()) {
+            return std::nullopt; // posioned
+        }
+
+        const Def& var_def = context.def(maybe_mem_var.as_id());
+
+        const Exec& mem_exec
+            = context.exec(lhs_exec.as<ExecStructInit>().member_inits.get(var_def.member_idx));
+
+        return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
+    }
+
+    const auto prior_diag_cnt = context.diagnostic_count();
+
+    const ExecStructInit lhs_struct_init = lhs_exec.as<ExecStructInit>();
+
+    // try a member index look-up: foo.0, foo.1, etc
+    const auto maybe_rhs = ComptExprSolver{def_visitor}.solve_builtin_compt_expr(
+        fid, lctx.scope, rhs_expr, builtin_type::u32);
+
+    if (maybe_rhs.has_value()) {
+        const std::optional<HirSize> maybe_mem_idx
+            = context.try_member_index(lhs_struct_init.struct_def_id, maybe_rhs.as_id());
+        if (maybe_mem_idx.has_value()) {
+            const Exec& mem_exec
+                = context.exec(lhs_struct_init.member_inits.get(maybe_mem_idx.value()));
+
+            return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
+        }
+    }
+
+    // force link this if diagnostics were just emitted
+    if (context.diagnostic_count() > prior_diag_cnt) {
+        context.force_link_diagnostic(context.emplace_diagnostic(
+            Span{context, fid, rhs_expr}, diag_code::value_does_not_refer_to_a_member,
+            diag_type::note));
+    } else {
+        context.emplace_diagnostic(Span{context, fid, rhs_expr},
+                                   diag_code::value_does_not_refer_to_a_member, diag_type::error);
+    }
+
+    return {};
+}
+
+OptId<ExecId> RuntimeSolver::handle_arithmetic_logical_or_bool_binary(FileId fid, LexicalCtx lctx,
+                                                                      const ast_expr_t* expr,
+                                                                      binary_op op) {
+    assert(expr->type == AST_EXPR_BINARY);
+
+    bool cooked = false;
+
+    OptId<ExecId> lhs = solve_expr(fid, lctx, expr->expr.binary.lhs);
+    if (!lhs.has_value()) {
+        cooked = true;
+    }
+
+    // TODO: warn here for always true/always false
+    if (lhs.has_value() && (op == binary_op::bool_or || op == binary_op::bool_and)) {
+        const Exec& lhs_exec = context.exec(lhs.as_id());
+        if (lhs_exec.holds<ExecConst>()) {
+            const std::optional<ExecConst> econst
+                = lhs_exec.as<ExecConst>().try_safe_convert_to(context, builtin_type::boolean);
+            if (econst.has_value()) {
+                const bool bval = econst.value().as<bool>();
+                // false && ____ => always false
+                if ((op == binary_op::bool_and) && !bval) {
+                    // TODO: warn
+                    const auto _ = solve_expr(fid, lctx, expr->expr.binary.rhs);
+                    return context.emplace_compt_exec(ExecConst{false}, Span{context, fid, expr});
+                }
+                // true || ____ => always true
+                if ((op == binary_op::bool_or) && bval) {
+                    // TODO: warn
+                    const auto _ = solve_expr(fid, lctx, expr->expr.binary.rhs);
+                    return context.emplace_compt_exec(ExecConst{true}, Span{context, fid, expr});
+                }
+            }
+        }
+    }
+
+    OptId<ExecId> rhs = solve_expr(fid, lctx, expr->expr.binary.rhs);
+    if (!rhs.has_value()) {
+        cooked = true;
+    }
+    if (cooked) {
+        return std::nullopt; // already poisoned
+    }
+
+    if (context.exec(lhs.as_id()).compt && context.exec(rhs.as_id()).compt) {
+        return ComptExprSolver{def_visitor}.solve_binary_compt_exec(lhs.as_id(), op, rhs.as_id(),
+                                                                    Span{context, fid, expr});
+    }
+
+    // TODO: actually create an ExecBinary
+    return {};
+}
+
 } // namespace hir

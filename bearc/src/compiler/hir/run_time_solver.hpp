@@ -9,9 +9,11 @@
 #ifndef BEARC_COMPILER_HIR_RUN_TIME_EXPR_SOLVER_HPP
 #define BEARC_COMPILER_HIR_RUN_TIME_EXPR_SOLVER_HPP
 
+#include "compiler/ast/expr.h"
 #include "compiler/ast/stmt_slice.h"
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def_visitor.hpp"
+#include "compiler/hir/exec_ops.hpp"
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
@@ -179,6 +181,18 @@ class RuntimeSolver {
     /// lowers ++/-- (pre or post) into an ExecCompoundAssignment of the operand with a constant 1
     [[nodiscard]] OptId<ExecId> handle_inc_dec(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
                                                unary_op op, bool post);
+    [[nodiscard]] OptId<ExecId> handle_binary_expr(FileId fid, LexicalCtx lctx,
+                                                   const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_is(FileId fid, LexicalCtx lctx, ExecId eid,
+                                          const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_as(FileId fid, LexicalCtx lctx, ExecId eid,
+                                          const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_access(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                              access_op op);
+    [[nodiscard]] OptId<ExecId> handle_arithmetic_logical_or_bool_binary(FileId fid,
+                                                                         LexicalCtx lctx,
+                                                                         const ast_expr_t* expr,
+                                                                         binary_op op);
 };
 
 static_assert(IsExprSolver<RuntimeSolver>);

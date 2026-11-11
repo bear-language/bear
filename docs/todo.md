@@ -5,6 +5,7 @@
     - mostly/entirely due to fn expr bodies now being resolved
 - [ ] make deftype resolution not declaration order dependent
 - [ ] emit a diagnostic (e.g. `not yet implemented in a runtime context`) for unhandled expr kinds in `RuntimeSolver::solve_expr` versus returning empty w/o a diag
+- [ ] evaluate non-taken compt paths for basic validity 
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
