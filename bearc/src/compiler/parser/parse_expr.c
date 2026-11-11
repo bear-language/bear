@@ -95,6 +95,18 @@ static ast_slice_of_exprs_t parse_slice_of_exprs_call_call(parser_t* p, token_ty
 
 ast_expr_t* parser_alloc_expr(parser_t* p) { return arena_alloc(p->arena, sizeof(ast_expr_t)); }
 
+static ast_expr_t* parse_expr_oversized_literal(parser_t* p) {
+    ast_expr_t* expr = parser_alloc_expr(p);
+    expr->type = AST_EXPR_INVALID;
+    token_t* tok = parser_eat(p);
+    expr->first = tok;
+    expr->last = tok;
+
+    compiler_error_list_emplace(p->error_list, tok, ERR_OVERSIZED_INTEGER_LITERAL);
+
+    return expr;
+}
+
 static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
     token_t* first_tkn = parser_peek(p);
     token_type_e first_type = first_tkn->type;
@@ -145,6 +157,8 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
             lhs = parse_expr_closure(p);
         } else if (first_type == TOK_LBRACK) {
             lhs = parse_expr_list_literal(p);
+        } else if (first_type == TOK_OVERSIZED_INTEGER_LITERAL) {
+            lhs = parse_expr_oversized_literal(p);
         }
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

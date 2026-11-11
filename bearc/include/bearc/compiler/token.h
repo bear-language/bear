@@ -226,6 +226,8 @@ typedef enum token_type {
     // by syntax errors)
     TOK_LEX_ERROR_EMPTY_TOKEN,
 
+    TOK_OVERSIZED_INTEGER_LITERAL,
+
     // num token_type_e
     TOK__NUM,
 } token_type_e;

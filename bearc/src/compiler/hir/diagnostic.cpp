@@ -648,7 +648,7 @@ void Diagnostic::print_multiline(Context& context, bool print_file) const {
     }
 
     // if it's help, don't reshow the src buffer!, also if it's generated or NoInfo don't show!
-    if (type == diag_type::help && this->holds<DiagnosticNoOtherInfo>()
+    if ((type == diag_type::help && this->holds<DiagnosticNoOtherInfo>())
         || this->holds<DiagnosticInfoNoPreview>() || this->span.is_generated()) {
         return;
     }

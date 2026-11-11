@@ -68,7 +68,9 @@ static const char* error_messages[ERR__COUNT] = {
     = "move `use` outside of this scope since `use` is only allowed at the module-level and inside "
       "function bodies",
     [ERR_RETURN_TYPE_ARROW_NOT_ALLOWED_HERE] = "`->` is not allowed here in match branch",
+    [ERR_OVERSIZED_INTEGER_LITERAL] = "oversized integer literal",
     [HELP_REPLACE_WITH_EQ_ARROW] = "replace with `=>`"};
+
 const char* error_message_for_code(error_code_e error_code) { return error_messages[error_code]; }
 
 error_diag_type_e error_diagnostic_type(error_code_e error_code) { return diag_types[error_code]; }
