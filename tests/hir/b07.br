@@ -1,0 +1,5 @@
+// tests/hir/b07.br
+
+fn main() {
+    var x = []; // oops, cannot infer
+}

@@ -40,7 +40,20 @@ enum class binary_op : uint8_t {
 };
 enum class unary_op : uint8_t { inc, dec, plus, minus, bool_not, bit_not };
 
-enum class assign_op : uint8_t { assign_eq };
+enum class assign_op : uint8_t {
+    assign_eq,
+    assign_plus_eq,
+    assign_minus_eq,
+    assign_mult_eq,
+    assign_div_eq,
+    assign_mod_eq,
+    assign_and_eq,
+    assign_or_eq,
+    assign_xor_eq,
+    assign_lsh_eq,
+    assign_rshl_eq,
+    assign_rsha_eq,
+};
 
 enum class is_as_op : uint8_t { is, as };
 
@@ -83,18 +96,40 @@ struct ComptBinaryOp : NodeWithVariantValue<ComptBinaryOp> {
             value = access_op::rarrow;
             break;
         case TOK_ASSIGN_EQ:
-        case TOK_ASSIGN_PLUS_EQ:
-        case TOK_ASSIGN_MINUS_EQ:
-        case TOK_ASSIGN_MULT_EQ:
-        case TOK_ASSIGN_DIV_EQ:
-        case TOK_ASSIGN_MOD_EQ:
-        case TOK_ASSIGN_AND_EQ:
-        case TOK_ASSIGN_OR_EQ:
-        case TOK_ASSIGN_XOR_EQ:
-        case TOK_ASSIGN_LSH_EQ:
-        case TOK_ASSIGN_RSHL_EQ:
-        case TOK_ASSIGN_RSHA_EQ:
             value = assign_op::assign_eq;
+            break;
+        case TOK_ASSIGN_PLUS_EQ:
+            value = assign_op::assign_plus_eq;
+            break;
+        case TOK_ASSIGN_MINUS_EQ:
+            value = assign_op::assign_minus_eq;
+            break;
+        case TOK_ASSIGN_MULT_EQ:
+            value = assign_op::assign_mult_eq;
+            break;
+        case TOK_ASSIGN_DIV_EQ:
+            value = assign_op::assign_div_eq;
+            break;
+        case TOK_ASSIGN_MOD_EQ:
+            value = assign_op::assign_mod_eq;
+            break;
+        case TOK_ASSIGN_AND_EQ:
+            value = assign_op::assign_and_eq;
+            break;
+        case TOK_ASSIGN_OR_EQ:
+            value = assign_op::assign_or_eq;
+            break;
+        case TOK_ASSIGN_XOR_EQ:
+            value = assign_op::assign_xor_eq;
+            break;
+        case TOK_ASSIGN_LSH_EQ:
+            value = assign_op::assign_lsh_eq;
+            break;
+        case TOK_ASSIGN_RSHL_EQ:
+            value = assign_op::assign_rshl_eq;
+            break;
+        case TOK_ASSIGN_RSHA_EQ:
+            value = assign_op::assign_rsha_eq;
             break;
         default:
             value = InvalidOp{};

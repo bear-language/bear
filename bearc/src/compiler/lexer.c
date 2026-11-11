@@ -27,6 +27,8 @@ vector_t lexer_tokenize_src_buffer(const src_buffer_t* buf) {
     const char* end_of_buf = buf->data + buf->src_len;
     char c;  // cached curr char, pos[0]
     char n1; // cached next char for lookaheads, pos[1]
+    const char* lit_open;
+    const char* lit_esc;
 
     // maps
     const char* always_one_char_map = get_always_one_char_to_token_map();
@@ -52,6 +54,7 @@ vector_t lexer_tokenize_src_buffer(const src_buffer_t* buf) {
     } while (0)
 
 #define LEX_IN_LITERAL(D)                                                                          \
+    lit_open = pos;                                                                                \
     while (pos < end_of_buf) {                                                                     \
         c = *(++pos);                                                                              \
         ++len;                                                                                     \
@@ -64,12 +67,16 @@ vector_t lexer_tokenize_src_buffer(const src_buffer_t* buf) {
             start = pos;                                                                           \
             break;                                                                                 \
         }                                                                                          \
-        if (pos - 1 >= buf->data && c == (D)                                                       \
-            && (*(pos - 1) != '\\' || ((*(pos - 1) == '\\') && *(pos - 2) == '\\'))) {             \
+        lit_esc = pos - 1;                                                                         \
+        while (c == (D) && lit_esc > lit_open && *lit_esc == '\\') {                               \
+            --lit_esc;                                                                             \
+        }                                                                                          \
+        if (c == (D) && (pos - 1 - lit_esc) % 2 == 0) {                                            \
             ++len;                                                                                 \
             *((token_t*)vector_emplace_back(&tkn_vec)) = token_build(start, len, &loc);            \
             len = 0;                                                                               \
             ++pos;                                                                                 \
+            ++col;                                                                                 \
             start = pos;                                                                           \
             break;                                                                                 \
         }                                                                                          \
@@ -90,7 +97,7 @@ lex_start:
     if (first_char_in_multichar_operator_token_map[(unsigned char)c]) {
         goto lex_multichar_operator;
     };
-    if (c == ' ' || c == '\t') {
+    if (c == ' ' || c == '\t' || c == '\r') {
         goto lex_whitespace;
     }
     if (c == '\n') {

@@ -1,0 +1,10 @@
+// tests/hir/b04.br
+
+// regression test for escape lexing
+
+compt str _0 = "a\\\"b";
+compt str _1 = "a\\\\";
+compt char _2 = '\\';
+compt char _3 = '\'';
+compt str _4 = "\\\\\\\\";
+compt i32 _5 = "z"; // oops

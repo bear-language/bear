@@ -1,0 +1,17 @@
+// tests/hir/b02.br
+
+fn _0() -> i32 {
+    return "s"; // oops
+}
+
+fn _1() -> i32 {
+    return 1;
+}
+
+fn _2() -> str {
+    return 42; // oops
+}
+
+fn _3() -> str {
+    return "oops";
+}

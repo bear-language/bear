@@ -105,6 +105,20 @@ br_test_result_t test_context_db(void) {
     auto d3 = db44.query_canon_def_id({"Foo", "a"});
     TEST_ASSERT(d3.variable_id.has_value());
 
+    const char* args4[] = {"bearc", "tests/hir/b05.br"};
+    ContextDatabase db_b05{sizeof(args4) / sizeof(char*), args4};
+    auto assert_def_col = [&br_test_result](ContextDatabase& db, const char* name, uint32_t col) {
+        auto def = db.query_canon_def({name});
+        TEST_ASSERT(def.variable.has_value());
+        if (def.variable.has_value()) {
+            TEST_ASSERT_EQ(col, static_cast<uint32_t>(def.variable.value().span.col));
+        }
+    };
+    assert_def_col(db_b05, "after", 0);
+    assert_def_col(db_b05, "col", 23);
+    assert_def_col(db_b05, "col2", 44);
+    assert_def_col(db_b05, "ok", 66);
+
     return TEST_RESULT;
 }
 

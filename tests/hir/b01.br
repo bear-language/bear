@@ -1,0 +1,12 @@
+// tests/hir/b01.br
+
+compt i32 _0 = 3 == 3; // oops
+compt i32 _1 = 3 > 2; // oops
+compt i32 _2 = 3 < 2; // oops
+compt i32 _3 = 3 >= 2; // oops
+compt i32 _4 = 3 <= 2; // oops
+
+compt bool a = 3 > 2;
+compt bool b = 3 <= 2;
+var _5 = @static_assert(a);
+var _6 = @static_assert(!b);

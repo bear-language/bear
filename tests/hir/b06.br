@@ -1,0 +1,12 @@
+// tests/hir/b06.br
+
+compt i32 a = 010;
+var _0 = @static_assert(a == 10);
+compt i32 b = 09;
+var _1 = @static_assert(b == 9);
+compt i32 c = 0x1F;
+var _2 = @static_assert(c == 31);
+compt f64 _3 = 1.5;
+compt f64 _4 = 1e5;
+compt u64 _beeg = 99999999999999999999; // oops
+compt f64 _5 = 0x6g9; // oops

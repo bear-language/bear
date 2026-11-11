@@ -1,0 +1,13 @@
+// tests/hir/b00.br
+
+compt i64 x = 18446744073709551615; // oops
+compt u32 n = 0 - 1; // oops
+compt u32 a = 5;
+var _0 = @static_assert(a > -1); // oops
+
+compt u8 ok0 = 200;
+compt i8 _1 = 100;
+compt u64 _2 = 18446744073709551615;
+compt i64 _3 = 9223372036854775807;
+compt u32 ok = -1 as u32;
+var _4 = @static_assert(ok == 4294967295);

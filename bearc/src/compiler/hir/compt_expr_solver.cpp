@@ -1119,7 +1119,10 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     std::optional<ExecConst> maybe_converted
         = (into_builtin == builtin_type::str)
               ? ExecConst{from_constant.to_symbol_id(context)}
-              : from_constant.try_safe_convert_to(context, into_builtin);
+              : from_constant.try_up_convert_to(context, into_builtin)
+                    .or_else([from_constant, into_builtin] {
+                        return from_constant.try_down_convert_to(into_builtin);
+                    });
     if (!maybe_converted.has_value()) {
         context.emplace_diagnostic_with_message_value(
             exec.span, diag_code::cannot_convert_expression_to_type, diag_type::error,
@@ -2316,8 +2319,8 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
                         = lower_generic_args(fid, scope, expr->expr.fn_call.generic_args, false);
                         maybe_gen_arg_id.has_value()) {
                         maybe_func_did = context.look_up_generic_member_function_guarding_hid(
-                            def_visitor, context.def(struct_did),
-                            func_name, Span{context, fid, expr->expr.fn_call.left_expr}, scope,
+                            def_visitor, context.def(struct_did), func_name,
+                            Span{context, fid, expr->expr.fn_call.left_expr}, scope,
                             maybe_gen_arg_id.as_id());
                     }
                 } else {

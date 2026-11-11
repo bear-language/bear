@@ -21,6 +21,7 @@
 #include "compiler/hir/span.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/type_resolver.hpp"
+#include "compiler/token.h"
 #include "utils/data_arena.hpp"
 #include <bit>
 
@@ -142,6 +143,11 @@ namespace hir {
         return maybe_eid;
     }
 
+    if (context.exec(maybe_eid.as_id()).holds<ExecConst>()) {
+        if (const auto maybe_conv = context.try_convert_to(maybe_eid.as_id(), into_tid)) {
+            maybe_eid = maybe_conv;
+        }
+    }
     const auto maybe_tid = context.infer_type_from_exec(maybe_eid.as_id());
     if (maybe_tid.empty()) {
         return {};
@@ -331,9 +337,10 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, InProgre
                 context.type(this->return_tid.as_id()).span, diag_code::function_has_return_type,
                 diag_type::note, DiagnosticTypeAfterMessage{.tid = this->return_tid.as_id()}));
         } else {
-            const auto eid = context.emplace_exec(
-                ExecReturn{.return_value = solve_expr(fid, lctx, stmt->stmt.return_stmt.expr)},
-                Span{context, fid, stmt});
+            const auto maybe_value_eid
+                = solve_expr(fid, lctx, stmt->stmt.return_stmt.expr, this->return_tid);
+            const auto eid = context.emplace_exec(ExecReturn{.return_value = maybe_value_eid},
+                                                  Span{context, fid, stmt});
             block.push_back_exec(eid);
             return eid;
         }
@@ -594,9 +601,12 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
         if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())
             && maybe_runtime_eid.has_value()) {
             bool mut = context.type(maybe_tid.as_id()).mut;
-            maybe_tid = infer_type_from_exec(maybe_runtime_eid.as_id());
-            maybe_tid = context.emplace_type(context.type(maybe_tid.as_id()).value,
-                                             context.type(maybe_tid.as_id()).span, mut);
+            const auto maybe_inferred_tid = infer_type_from_exec(maybe_runtime_eid.as_id());
+            if (maybe_inferred_tid.has_value()) {
+                maybe_tid
+                    = context.emplace_type(context.type(maybe_inferred_tid.as_id()).value,
+                                           context.type(maybe_inferred_tid.as_id()).span, mut);
+            }
         }
     }
 
@@ -1276,6 +1286,10 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
                 d.span, diag_code::declared_here, diag_type::note,
                 DiagnosticSymbolAfterMessage{.sid = d.name}));
         }
+        return {};
+    }
+    if (expr->expr.binary.op->type != TOK_ASSIGN_EQ) {
+        // TODO: handle compound assignment
         return {};
     }
     return context.emplace_exec(

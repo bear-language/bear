@@ -23,7 +23,52 @@
 #include <utility>
 namespace hir {
 
+template <typename T> static bool integral_fits_in(T val, builtin_type type) {
+    switch (type) {
+    case builtin_type::i8:
+        return std::in_range<int8_t>(val);
+    case builtin_type::u8:
+        return std::in_range<uint8_t>(val);
+    case builtin_type::i16:
+        return std::in_range<int16_t>(val);
+    case builtin_type::u16:
+        return std::in_range<uint16_t>(val);
+    case builtin_type::i32:
+        return std::in_range<int32_t>(val);
+    case builtin_type::u32:
+        return std::in_range<uint32_t>(val);
+    case builtin_type::i64:
+        return std::in_range<int64_t>(val);
+    case builtin_type::u64:
+        return std::in_range<uint64_t>(val);
+    case builtin_type::charr:
+    case builtin_type::f32:
+    case builtin_type::f64:
+    case builtin_type::voidd:
+    case builtin_type::str:
+    case builtin_type::nullpointer:
+    case builtin_type::boolean:
+        break;
+    }
+    return true;
+}
+
 std::optional<ExecConst> ExecConst::try_safe_convert_to(Context& ctx, builtin_type type) const {
+    if (is_integral()) {
+        const bool fits = std::visit(
+            [type](auto val) {
+                using T = decltype(val);
+                if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>
+                              && !std::is_same_v<T, char>) {
+                    return integral_fits_in(val, type);
+                }
+                return true;
+            },
+            value);
+        if (!fits) {
+            return std::nullopt;
+        }
+    }
     auto maybe_up = try_up_convert_to(ctx, type);
     return maybe_up.has_value() ? maybe_up : try_down_convert_to(type);
 }
@@ -1287,16 +1332,16 @@ template <typename T> std::optional<EConst> e_rsha(Context& ctx, Span span, ECon
 }
 
 template <typename T> EConst e_greater_than(EConst l, EConst r) {
-    return EConst{static_cast<T>(l.as<T>() > r.as<T>())};
+    return EConst{static_cast<bool>(l.as<T>() > r.as<T>())};
 }
 template <typename T> EConst e_less_than(EConst l, EConst r) {
-    return EConst{static_cast<T>(l.as<T>() < r.as<T>())};
+    return EConst{static_cast<bool>(l.as<T>() < r.as<T>())};
 }
 template <typename T> EConst e_greater_than_or_equal(EConst l, EConst r) {
-    return EConst{static_cast<T>(l.as<T>() >= r.as<T>())};
+    return EConst{static_cast<bool>(l.as<T>() >= r.as<T>())};
 }
 template <typename T> EConst e_less_than_or_equal(EConst l, EConst r) {
-    return EConst{static_cast<T>(l.as<T>() <= r.as<T>())};
+    return EConst{static_cast<bool>(l.as<T>() <= r.as<T>())};
 }
 template <typename T> EConst e_equal(EConst l, EConst r) {
     return EConst{static_cast<bool>(l.as<T>() == r.as<T>())};

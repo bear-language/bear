@@ -605,35 +605,26 @@ void token_check_if_valid_literal_and_set_value(token_t* tkn) {
     errno = 0;
     char* endptr = NULL;
 
-    // INT, if needed
-    if (str[0] == '-') {
-
-        long long integral_val = strtoll(buf, &endptr, 0);
-        if (endptr != buf && errno == 0) {
-            while (isspace((unsigned char)*endptr)) {
-                endptr++;
-            }
-            if (*endptr == '\0') {
-                tkn->type = TOK_INT_LIT;
-                tkn->val.signed_integral = integral_val;
-                return;
-            }
+    // UINT
+    bool is_hex = len >= 2 && buf[0] == '0' && (buf[1] == 'x' || buf[1] == 'X');
+    bool is_decimal = true;
+    for (size_t i = 0; i < len; i++) {
+        if (buf[i] < '0' || buf[i] > '9') {
+            is_decimal = false;
+            break;
         }
     }
-
-    // UINT
-    errno = 0;
-    endptr = NULL;
-    unsigned long long uintegral_val = strtoull(buf, &endptr, 0);
-    if (endptr != buf && errno == 0) {
-        while (isspace((unsigned char)*endptr)) {
-            endptr++;
-        }
-        if (*endptr == '\0') {
+    if (is_hex || is_decimal) {
+        errno = 0;
+        endptr = NULL;
+        unsigned long long uintegral_val = strtoull(buf, &endptr, is_hex ? 16 : 10);
+        if (endptr != buf && errno == 0 && *endptr == '\0') {
             tkn->type = TOK_UINT_LIT;
             tkn->val.unsigned_integral = uintegral_val;
             return;
         }
+        tkn->type = TOK_INDETERMINATE;
+        return;
     }
 
     // FLOATING, default to double literal

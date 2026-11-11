@@ -1,0 +1,3 @@
+// tests/hir/b05.br
+
+compt i32 after = "x"; compt i32 col = "y"; compt i32 col2 = 'c'; compt str ok = "z"; // oops

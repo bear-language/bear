@@ -1,0 +1,24 @@
+// tests/hir/b03.br
+
+compt i32 a = 0;
+
+fn main() {
+    mut i32 x = 0;
+    x += 1;
+    x -= 2;
+    x *= 3;
+    x /= 4;
+    x %= 5;
+    x &= 6;
+    x |= 7;
+    x ^= 8;
+    x <<= 9;
+    x >>= 10;
+    x >>>= 11;
+    i32 y = 12;
+    y += 1; // oops
+    x += "s"; // oops
+    5 += x; // oops
+}
+
+compt i32 b = a += 1; // oops
