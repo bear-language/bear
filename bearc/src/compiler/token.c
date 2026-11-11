@@ -514,7 +514,8 @@ token_type_e token_determine_token_type_for_fixed_symbols(const char* start, siz
                               // INDETERMINATE
 }
 
-#define CHAR_IS_HEX(c) ((c) >= 'A' && (c) <= 'F') || ((c) >= 'a' && (c) <= 'f')
+#define CHAR_IS_HEX(c)                                                                             \
+    (((c) >= 'A' && (c) <= 'F') || ((c) >= 'a' && (c) <= 'f') || ((c) >= '0' && (c) <= '9'))
 
 void token_check_if_valid_literal_and_set_value(token_t* tkn) {
     if (!tkn || tkn->len == 0) {
@@ -610,19 +611,21 @@ void token_check_if_valid_literal_and_set_value(token_t* tkn) {
     // UINT
     bool is_hex = len >= 2 && buf[0] == '0' && (buf[1] == 'x' || buf[1] == 'X');
     bool is_decimal = true;
-    for (size_t i = 0; i < len; i++) {
-        if ((buf[i] < '0' || buf[i] > '9')) {
-
+    if (is_hex) {
+        for (size_t i = 2; i < len; i++) {
             if (i > 1 && !CHAR_IS_HEX(buf[i])) {
                 is_hex = false;
+                break;
+            }
+        }
+    } else {
+        for (size_t i = 0; i < len; i++) {
+            if ((buf[i] < '0' || buf[i] > '9')) {
                 is_decimal = false;
                 break;
             }
-
-            is_decimal = false;
         }
     }
-    // TODO: be smarter about looping here (make seperate hex/dec loops w/ earlier breaks)
 
     if (is_hex || is_decimal) {
         errno = 0;
