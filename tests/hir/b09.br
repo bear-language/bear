@@ -1,0 +1,65 @@
+// tests/hir/b09.br
+
+// testing runtime compound assignment
+
+struct Foo {
+    i32 a;
+}
+
+fn main() {
+    mut i32 x = 0;
+    x += 1;
+    x -= 2;
+    x *= 3;
+    x /= 4;
+    x %= 5;
+    x &= 6;
+    x |= 7;
+    x ^= 8;
+    x <<= 1;
+    x >>>= 1;
+    x >>= 1; // oops
+
+    mut u32 u = 0;
+    u += 1;
+    u <<= 2;
+    u >>= 1;
+    u &= x; // oops
+
+    mut f64 f = 1.0;
+    f += 1.5;
+    f -= 0.5;
+    f *= 2.0;
+    f /= 3.0;
+    f += 1;
+    f |= 1.0; // oops
+    f <<= 1; // oops
+
+    mut char c = 'a';
+    c += 1; // oops
+
+    mut bool b = true;
+    b += true; // oops
+
+    mut str s = "a";
+    s += "b"; // oops
+
+    mut i32 arr = 0;
+    var mut p = ^mut arr;
+    p += 2;
+    p -= 1;
+    mut u64 n = 3;
+    p += n;
+    p -= n;
+    p *= 2; // oops
+    p += 1.5; // oops
+    p += -1; // oops
+
+    mut Foo foo = Foo{.a = 1};
+    foo.a += 2;
+    foo += 1; // oops
+
+    i32 y = 1;
+    y += 1; // oops
+    5 += x; // oops
+}

@@ -971,12 +971,11 @@ namespace {
         return ConstantValue{uint64_t{1}};
     case builtin_type::i64:
         return ConstantValue{int64_t{1}};
-    case builtin_type::charr:
-        return ConstantValue{char{1}};
     case builtin_type::f32:
         return ConstantValue{float{1}};
     case builtin_type::f64:
         return ConstantValue{double{1}};
+    case builtin_type::charr:
     case builtin_type::voidd:
     case builtin_type::str:
     case builtin_type::nullpointer:
@@ -1225,6 +1224,38 @@ OptId<ExecId> RuntimeSolver::handle_binary_expr(FileId fid, LexicalCtx lctx,
     return {};
 }
 
+namespace {
+[[nodiscard]] std::optional<binary_op> compound_assign_op_to_binary_op(assign_op op) {
+    switch (op) {
+    case assign_op::assign_eq:
+        return std::nullopt;
+    case assign_op::assign_plus_eq:
+        return binary_op::plus;
+    case assign_op::assign_minus_eq:
+        return binary_op::minus;
+    case assign_op::assign_mult_eq:
+        return binary_op::multiply;
+    case assign_op::assign_div_eq:
+        return binary_op::divide;
+    case assign_op::assign_mod_eq:
+        return binary_op::modulo;
+    case assign_op::assign_and_eq:
+        return binary_op::bit_and;
+    case assign_op::assign_or_eq:
+        return binary_op::bit_or;
+    case assign_op::assign_xor_eq:
+        return binary_op::bit_xor;
+    case assign_op::assign_lsh_eq:
+        return binary_op::left_bitshift;
+    case assign_op::assign_rshl_eq:
+        return binary_op::right_shift_logical;
+    case assign_op::assign_rsha_eq:
+        return binary_op::right_shift_arithmetic;
+    }
+    std::unreachable();
+}
+} // namespace
+
 OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
     assert(expr->type == AST_EXPR_BINARY);
 
@@ -1237,12 +1268,44 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
         return {};
     }
 
-    const auto maybe_rhs_eid = solve_expr(fid, lctx, expr->expr.binary.rhs);
+    const auto maybe_compound_op
+        = compound_assign_op_to_binary_op(ComptBinaryOp{expr->expr.binary.op}.as<assign_op>());
+
+    const bool ptr_arith = maybe_compound_op.has_value()
+                           && (maybe_compound_op.value() == binary_op::plus
+                               || maybe_compound_op.value() == binary_op::minus)
+                           && context.type(maybe_lhs_tid.as_id()).holds<TypePtr>();
+
+    const bool compound_op_viable = [&] {
+        if (!maybe_compound_op.has_value() || ptr_arith) {
+            return true;
+        }
+        const Type& lhs_ty = context.type(maybe_lhs_tid.as_id());
+        return lhs_ty.holds<TypeBuiltin>() && lhs_ty.as<TypeBuiltin>().type != builtin_type::str
+               && builtin_type_has_binary_op(lhs_ty.as<TypeBuiltin>().type,
+                                             maybe_compound_op.value());
+    }();
+
+    const TypeId rhs_target_tid = ptr_arith ? context.usize_type() : maybe_lhs_tid.as_id();
+
+    const auto maybe_rhs_eid = compound_op_viable
+                                   ? solve_expr(fid, lctx, expr->expr.binary.rhs, rhs_target_tid)
+                                   : solve_expr(fid, lctx, expr->expr.binary.rhs);
     if (maybe_rhs_eid.empty()) {
         return {};
     }
     const auto maybe_rhs_tid = infer_type_from_exec(maybe_rhs_eid.as_id());
     if (maybe_rhs_tid.empty()) {
+        return {};
+    }
+
+    if (!compound_op_viable) {
+        context.emplace_diagnostic_with_message_value(
+            Span{context, fid, expr}, diag_code::incompatible_types_for_binary_operator_colon,
+            diag_type::error,
+            DiagnosticTypeAndTypeForBinaryOp{.lhs_tid = maybe_lhs_tid.as_id(),
+                                             .rhs_tid = maybe_rhs_tid.as_id(),
+                                             .op = maybe_compound_op.value()});
         return {};
     }
 
@@ -1270,11 +1333,11 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
     }
 
     // direct type check
-    if (!context.assignable_from_type_to(maybe_rhs_tid.as_id(), maybe_lhs_tid.as_id())) {
+    if (!context.assignable_from_type_to(maybe_rhs_tid.as_id(), rhs_target_tid)) {
         DiagLinker dl{context};
         dl.link(context.emplace_diagnostic_with_message_value(
             Span{context, fid, expr}, diag_code::cannot_convert_value_of_type, diag_type::error,
-            DiagnosticTypeToType{.from = maybe_rhs_tid.as_id(), .to = maybe_lhs_tid.as_id()}));
+            DiagnosticTypeToType{.from = maybe_rhs_tid.as_id(), .to = rhs_target_tid}));
         const auto maybe_lhs_did = context.try_def_for_exec(maybe_lhs_eid.as_id());
         if (maybe_lhs_did) {
             const Def& d = context.def(maybe_lhs_did.as_id());
@@ -1291,10 +1354,43 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
         }
         return {};
     }
-    if (expr->expr.binary.op->type != TOK_ASSIGN_EQ) {
-        // TODO: handle compound assignment
-
-        return {};
+    if (ptr_arith) {
+        const Span rhs_span = context.exec(maybe_rhs_eid.as_id()).span;
+        const LayoutSize width
+            = context.layout_for_type(context.type(maybe_lhs_tid.as_id()).try_inner().as_id())
+                  .width;
+        OptId<ExecId> maybe_scaled_eid = maybe_rhs_eid;
+        if (width != 1) {
+            const ExecId width_eid = context.emplace_compt_exec(
+                ExecConst{context.pointer_size_bytes() == 8
+                              ? ConstantValue{static_cast<uint64_t>(width)}
+                              : ConstantValue{static_cast<uint32_t>(width)}},
+                rhs_span);
+            if (context.exec(maybe_rhs_eid.as_id()).compt) {
+                maybe_scaled_eid = ComptExprSolver{def_visitor}.solve_binary_compt_exec(
+                    maybe_rhs_eid.as_id(), binary_op::multiply, width_eid, rhs_span);
+            } else {
+                maybe_scaled_eid = context.emplace_exec(ExecBinary{.lhs = maybe_rhs_eid.as_id(),
+                                                                   .rhs = width_eid,
+                                                                   .op = binary_op::multiply},
+                                                        rhs_span);
+            }
+        }
+        if (maybe_scaled_eid.empty()) {
+            return {};
+        }
+        return context.emplace_exec(ExecCompoundAssignment{.lhs = maybe_lhs_eid.as_id(),
+                                                           .rhs = maybe_scaled_eid.as_id(),
+                                                           .op = maybe_compound_op.value(),
+                                                           .yield_old = false},
+                                    Span{context, fid, expr});
+    }
+    if (maybe_compound_op.has_value()) {
+        return context.emplace_exec(ExecCompoundAssignment{.lhs = maybe_lhs_eid.as_id(),
+                                                           .rhs = maybe_rhs_eid.as_id(),
+                                                           .op = maybe_compound_op.value(),
+                                                           .yield_old = false},
+                                    Span{context, fid, expr});
     }
     return context.emplace_exec(
         ExecAssignment{.lhs = maybe_lhs_eid.as_id(), .rhs = maybe_rhs_eid.as_id()},

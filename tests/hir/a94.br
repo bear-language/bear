@@ -12,8 +12,8 @@ fn fine(mut i32 p, mut f64 f, mut char c) {
     --a;
     mut i32 b = a++;
     mut i32 d = --b;
-    f++; // floats and chars are fine
-    --c;
+    f++; // floats are fine
+    --c; // oops, chars aren't numeric
     p--;
     mut Foo foo = Foo{};
     foo.x++;
