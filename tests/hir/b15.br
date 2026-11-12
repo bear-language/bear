@@ -1,0 +1,35 @@
+// tests/hir/b15.br
+
+// testing compt folding of runtime subscripts into compt list literals and compt strs
+
+deftype usize = u64;
+
+compt usize TWO = 2;
+compt str HELLO = "hello";
+
+fn fine(i32 x, usize i) {
+    i32 _0 = [1, 2, 3][1]; // folded
+    i32 _1 = [1, 2, 3][TWO]; // folded thru a compt var
+    i32 _2 = [[1, 2], [3, 4]][1][0]; // folded twice
+    i32 _3 = [1, 2, 3][i]; // runtime idx, not folded
+    i32 _4 = [x, 2, 3][0]; // runtime elem, not folded
+    char _6 = ['a', 'b'][1 + 0]; // folded compt idx expr
+    char _7 = "abc"[2]; // folded str
+    char _8 = HELLO[TWO + 2]; // folded thru compt vars
+    char _9 = ["ab", "cd"][1][0]; // folded list then str
+    char _10 = "abc"[i]; // runtime idx, not folded
+}
+
+fn oops(usize i, i32 si) {
+    var _0 = [1, 2, 3][3]; // oops, out of bounds
+    var _1 = [[1, 2], [3, 4]][1][2]; // oops, out of bounds on the inner folded list
+    var _2 = [[1, 2], [3, 4]][2][0]; // oops, out of bounds on the outer list
+    var _3 = [1, 2, 3][-1]; // oops, idx must be unsigned
+    var _4 = [1, 2, 3][si]; // oops, idx needs a cast to usize
+    var _5 = [1, 2, 3][TWO + 1]; // oops, out of bounds
+    var _6 = "abc"[3]; // oops, out of bounds
+    var _7 = HELLO[5]; // oops, out of bounds
+    var _8 = ["ab", "cd"][0][2]; // oops, out of bounds on the folded str
+    var _9 = "abc"[si]; // oops, idx needs a cast to usize
+    var _10 = [si, 2, 3][7]; // oops, not folded (runtime elem), but still a statically sized array
+}
