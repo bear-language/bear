@@ -4002,7 +4002,17 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
         },
         [this](const ExecAssignment& d) -> OptId<TypeId> { return infer_type_from_exec(d.lhs); },
         [this](const ExecMemberAccess& d) -> OptId<TypeId> {
-            return def(d.member).as<DefVariable>().type_id;
+            const auto maybe_owner_tid = infer_type_from_exec(d.owner);
+            if (maybe_owner_tid.empty()) {
+                return {};
+            }
+            const bool owner_mut = type(maybe_owner_tid.as_id()).mut;
+            const TypeId member_tid = def(d.member).as<DefVariable>().type_id;
+            const Type& member_ty = type(member_tid);
+            if (member_ty.mut == owner_mut) {
+                return member_tid;
+            }
+            return emplace_type(member_ty.value, member_ty.span, owner_mut);
         },
         [this](const ExecBinary& d) -> OptId<TypeId> { return infer_type_from_exec(d.lhs); },
         [](const ExecCast& d) -> OptId<TypeId> { return d.target_tid; },

@@ -501,6 +501,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "did you mean to borrow?";
     case diag_code::did_you_mean_to_take_the_address:
         return "did you mean to take the address?";
+    case diag_code::cannot_dereference_value_of_type:
+        return "cannot dereference value of type";
+    case diag_code::void_pointers_cannot_be_dereferenced:
+        return "void pointers cannot be dereferenced";
     }
 
     std::unreachable();

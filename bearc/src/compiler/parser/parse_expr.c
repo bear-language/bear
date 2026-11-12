@@ -107,7 +107,8 @@ static ast_expr_t* parse_expr_oversized_literal(parser_t* p) {
     return expr;
 }
 
-static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
+static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom,
+                                           bool allow_postunary) {
     token_t* first_tkn = parser_peek(p);
     token_type_e first_type = first_tkn->type;
     ast_expr_t* lhs = opt_atom;
@@ -172,6 +173,9 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
     while (lhs && is_postfix_op(parser_peek(p)->type)) {
         // if atom, try to parse postunary, since postunary prec > preunary prec
         if (is_postunary_op(parser_peek(p)->type)) {
+            if (!allow_postunary) {
+                break;
+            }
             lhs = parse_postunary(p, lhs);
         }
         // try fn call or variant decomp too
@@ -199,10 +203,10 @@ static ast_expr_t* parse_primary_expr_impl(parser_t* p, ast_expr_t* opt_atom) {
     return parser_sync_expr(p);
 }
 
-ast_expr_t* parse_primary_expr(parser_t* p) { return parse_primary_expr_impl(p, NULL); }
+ast_expr_t* parse_primary_expr(parser_t* p) { return parse_primary_expr_impl(p, NULL, true); }
 
 ast_expr_t* parse_expr(parser_t* p) {
-    ast_expr_t* lhs = parse_primary_expr_impl(p, NULL);
+    ast_expr_t* lhs = parse_primary_expr_impl(p, NULL, true);
     return parse_expr_prec(p, lhs, PREC_INIT);
 }
 
@@ -436,7 +440,7 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
     }
     // all others like ++x, --x
     else {
-        middle_expr = parse_primary_expr_impl(p, NULL);
+        middle_expr = parse_primary_expr_impl(p, NULL, true);
 
         const uint8_t init_prec = prec_preunary(op->type);
 
@@ -693,7 +697,7 @@ ast_expr_t* parse_expr_from_id_slice(parser_t* p, token_ptr_slice_t id_slice) {
     id_expr->type = AST_EXPR_ID;
     id_expr->first = id_expr->expr.id.slice.start[0];
     id_expr->last = id_expr->expr.id.slice.start[id_expr->expr.id.slice.len - 1];
-    ast_expr_t* lhs = parse_primary_expr_impl(p, id_expr);
+    ast_expr_t* lhs = parse_primary_expr_impl(p, id_expr, true);
     return parse_expr_prec(p, lhs, PREC_INIT);
 }
 
@@ -724,7 +728,8 @@ ast_expr_t* parse_binary(parser_t* p, ast_expr_t* lhs, uint8_t max_prec) {
     } else if (op_tkn->type == TOK_IS) {
         middle_expr = parse_expr_variant_decomp(p);
     } else {
-        middle_expr = parse_primary_expr_impl(p, NULL);
+        const bool is_access = op_tkn->type == TOK_DOT || op_tkn->type == TOK_RARROW;
+        middle_expr = parse_primary_expr_impl(p, NULL, !is_access);
     }
     token_type_e curr_op = op_tkn->type;
     token_type_e next_op = parser_peek(p)->type;
@@ -737,6 +742,12 @@ ast_expr_t* parse_binary(parser_t* p, ast_expr_t* lhs, uint8_t max_prec) {
     binary_expr->expr.binary.rhs = middle_expr;
     binary_expr->first = binary_expr->expr.binary.lhs->first;
     binary_expr->last = binary_expr->expr.binary.rhs->last;
+
+    if (op_tkn->type == TOK_DOT || op_tkn->type == TOK_RARROW) {
+        while (is_postunary_op(parser_peek(p)->type)) {
+            binary_expr = parse_postunary(p, binary_expr);
+        }
+    }
 
     if (is_legal_binary_op(p, parser_peek(p)->type)
         && prec_binary(parser_peek(p)->type) < max_prec) {
@@ -964,7 +975,7 @@ ast_expr_t* parse_expr_borrow(parser_t* p) {
         return parser_sync_expr(p);
     }
     s->expr.borrow.mut = parser_match_token(p, TOK_MUT);
-    ast_expr_t* middle_expr = parse_primary_expr_impl(p, NULL);
+    ast_expr_t* middle_expr = parse_primary_expr_impl(p, NULL, true);
     const uint8_t init_prec = prec_preunary(TOK_AMPER);
     if (is_binary_op(parser_peek(p)->type) && prec_binary(parser_peek(p)->type) < init_prec) {
         middle_expr = parse_binary(p, middle_expr, prec_preunary(TOK_AMPER));
@@ -983,7 +994,7 @@ ast_expr_t* parse_expr_addr_of(parser_t* p) {
         return parser_sync_expr(p);
     }
     s->expr.addr_of.mut = parser_match_token(p, TOK_MUT);
-    ast_expr_t* middle_expr = parse_primary_expr_impl(p, NULL);
+    ast_expr_t* middle_expr = parse_primary_expr_impl(p, NULL, true);
     const uint8_t init_prec = prec_preunary(TOK_CARET);
     if (is_binary_op(parser_peek(p)->type) && prec_binary(parser_peek(p)->type) < init_prec) {
         middle_expr = parse_binary(p, middle_expr, prec_preunary(TOK_CARET));

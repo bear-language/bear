@@ -15,6 +15,7 @@
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
+#include "compiler/hir/exec_ops.hpp"
 #include "compiler/hir/expr_solver_common.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
@@ -1526,121 +1527,147 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
                                            access_op op) {
     assert(expr->type == AST_EXPR_BINARY);
 
-    // !!!!!!!!!!!!!!!!!!!!!!
-    return {}; // TODO
-    // !!!!!!!!!!!!!!!!!!!!!!
-
     OptId<ExecId> maybe_lhs = solve_expr(fid, lctx, expr->expr.binary.lhs);
     if (!maybe_lhs.has_value()) {
         return {}; // poisoned
     }
-    const auto lhs_eid = maybe_lhs.as_id();
-    const Exec& lhs_exec = context.exec(lhs_eid);
+    ExecId lhs_eid = maybe_lhs.as_id();
 
     if (op == access_op::rarrow) {
-        // TODO deref
+        const auto maybe_lhs_tid = infer_type_from_exec(lhs_eid);
+        if (maybe_lhs_tid.empty()) {
+            return {};
+        }
+        bool ptr_viable{};
+        bool ptr_mut{};
+        bool void_ptr{};
+        {
+            const Type& ty = context.type(maybe_lhs_tid.as_id());
+            if (ty.holds<TypePtr>()) {
+                const Type& pointee = context.type(ty.as<TypePtr>().inner);
+                void_ptr = pointee.holds<TypeBuiltin>()
+                           && pointee.as<TypeBuiltin>().type == builtin_type::voidd;
+                ptr_viable = !pointee.holds<TypeBuiltin>() || !void_ptr;
+                ptr_mut = ty.mut;
+            }
+        }
+        const Span lhs_span = context.exec(lhs_eid).span;
+        if (!ptr_viable) {
+            context.emplace_diagnostic(
+                lhs_span, diag_code::cannot_dereference_value_of_type, diag_type::error,
+                DiagnosticTypeAfterMessage{.tid = maybe_lhs_tid.as_id()},
+                DiagnosticSubCode{.sub_code = void_ptr
+                                                  ? diag_code::void_pointers_cannot_be_dereferenced
+                                                  : diag_code::value_is_not_a_pointer});
+            return {};
+        }
+        op = access_op::dot;
+        lhs_eid
+            = context.emplace_exec(ExecDeref{.dereferenced = lhs_eid, .mut = ptr_mut}, lhs_span);
     }
 
-    const ast_expr_t* rhs = expr->expr.binary.rhs;
+    const ast_expr_t* rhs_expr = expr->expr.binary.rhs;
+    const Span rhs_span{context, fid, rhs_expr};
 
     auto matches_len_builtin = [this](token_ptr_slice_t id_slice) {
         return id_slice.len == 1
                && context.symbol_id(id_slice.start[0]) == context.symbol_id<"len">();
     };
 
-    if (lhs_exec.holds<ExecListLiteral>() && rhs->type == AST_EXPR_ID) {
-        const auto id_slice = rhs->expr.id.slice;
-        if (matches_len_builtin(id_slice)) {
-            // TODO
-            return {};
-        }
-    }
+    const Exec lhs_exec = context.exec(lhs_eid);
 
-    if (lhs_exec.holds<ExecConst>() && lhs_exec.as<ExecConst>().holds<SymbolId>()
-        && rhs->type == AST_EXPR_ID) {
-        const auto id_slice = rhs->expr.id.slice;
-        if (matches_len_builtin(id_slice)) {
-            // TODO
-            return {};
-        }
-    }
-
-    // TODO: use types instead of Exec checks for this
-    //
-    // be helpful if we do this:
-    // [1, 2, 3].len() => should be just `len`
-    // "123123123".len() => should be just `len`
-    if ((lhs_exec.holds<ExecListLiteral>()
-         || (lhs_exec.holds<ExecConst>() && lhs_exec.as<ExecConst>().holds<SymbolId>()))
-        && rhs->type == AST_EXPR_FN_CALL && rhs->expr.fn_call.left_expr->type == AST_EXPR_ID) {
-        const auto id_slice = rhs->expr.fn_call.left_expr->expr.id.slice;
-        if (matches_len_builtin(id_slice)) {
-            const auto sid = context.symbol_id<"len">();
-            auto d0 = context.emplace_diagnostic_with_message_value(
-                Span{context, fid, rhs}, diag_code::tried_to_call_property, diag_type::error,
-                DiagnosticSymbolAfterMessage{.sid = sid});
-            auto d1 = context.emplace_diagnostic_with_message_value(
-                Span{context, fid, rhs}, diag_code::replace_with, diag_type::help,
-                DiagnosticSymbolAfterMessage{.sid = sid});
-            context.link_diagnostic(d0, d1);
-            return std::nullopt;
-        }
-    }
-
-    const ast_expr_t* rhs_expr = expr->expr.binary.rhs;
-    Span rhs_span{context, fid, rhs_expr};
-
-    // TODO: update to use types
-    if (lhs_exec.holds<ExecUnionInit>() && rhs_expr->type == AST_EXPR_ID) {
-        {
-            const Def& union_def = context.def(
-                def_visitor.visit_as_transparent(lhs_exec.as<ExecUnionInit>().union_def_id));
-            assert(union_def.holds<DefUnion>());
-        }
-        token_ptr_slice_t id_slice = rhs_expr->expr.id.slice;
-        if (id_slice.len > 1) {
-            context.emplace_diagnostic(rhs_span, diag_code::scoped_identifer_not_allowed_here,
-                                       diag_type::error);
+    if (lhs_exec.compt) {
+        if (lhs_exec.holds<ExecListLiteral>() && rhs_expr->type == AST_EXPR_ID
+            && matches_len_builtin(rhs_expr->expr.id.slice)) {
+            return context.emplace_compt_exec(ExecConst{lhs_exec.as<ExecListLiteral>().len()},
+                                              Span{context, fid, expr});
         }
 
-        auto maybe_mem_var = context.look_up_variable(
-            context.def(lhs_exec.as<ExecUnionInit>().union_def_id).template as<DefUnion>().scope,
-            context.symbol_id(id_slice.start[0]));
+        if (lhs_exec.holds<ExecConst>() && lhs_exec.as<ExecConst>().holds<SymbolId>()
+            && rhs_expr->type == AST_EXPR_ID && matches_len_builtin(rhs_expr->expr.id.slice)) {
+            return context.emplace_compt_exec(
+                ExecConst{context.symbol(lhs_exec.as<ExecConst>().as<SymbolId>()).size()},
+                Span{context, fid, expr});
+        }
 
-        if (maybe_mem_var.empty()) {
+        if (lhs_exec.holds<ExecUnionInit>() && rhs_expr->type == AST_EXPR_ID) {
+            {
+                const Def& union_def = context.def(
+                    def_visitor.visit_as_transparent(lhs_exec.as<ExecUnionInit>().union_def_id));
+                assert(union_def.holds<DefUnion>());
+            }
+            token_ptr_slice_t id_slice = rhs_expr->expr.id.slice;
+            if (id_slice.len > 1) {
+                context.emplace_diagnostic(rhs_span, diag_code::scoped_identifer_not_allowed_here,
+                                           diag_type::error);
+            }
+
+            auto maybe_mem_var
+                = context.look_up_variable(context.def(lhs_exec.as<ExecUnionInit>().union_def_id)
+                                               .template as<DefUnion>()
+                                               .scope,
+                                           context.symbol_id(id_slice.start[0]));
+
+            if (maybe_mem_var.empty()) {
+                const Def& union_def = context.def(lhs_exec.as<ExecUnionInit>().union_def_id);
+                Span spn{context, fid, id_slice};
+                auto d0 = context.emplace_diagnostic_with_message_value(
+                    spn, diag_code::does_not_name_a_field_of_union, diag_type::error,
+                    DiagnosticSymbolAfterMessage{.sid = union_def.name});
+                auto d1 = context.emplace_diagnostic_with_message_value(
+                    union_def.span, diag_code::declared_here, diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = union_def.name});
+                context.link_diagnostic(d0, d1);
+                return {};
+            }
+
             const Def& union_def = context.def(lhs_exec.as<ExecUnionInit>().union_def_id);
-            Span spn{context, fid, id_slice};
-            auto d0 = context.emplace_diagnostic_with_message_value(
-                spn, diag_code::does_not_name_a_field_of_union, diag_type::error,
-                DiagnosticSymbolAfterMessage{.sid = union_def.name});
-            auto d1 = context.emplace_diagnostic_with_message_value(
-                union_def.span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = union_def.name});
-            context.link_diagnostic(d0, d1);
-            return {};
+            const Def& var_def = context.def(maybe_mem_var.as_id());
+            if (var_def.member_idx != lhs_exec.as<ExecUnionInit>().active_member_idx) {
+                const Def& curr_member = context.def(union_def.as<DefUnion>().ordered_members.get(
+                    lhs_exec.as<ExecUnionInit>().active_member_idx));
+                DiagLinker dlinker{context};
+                dlinker.link(context.emplace_diagnostic_with_message_value(
+                    Span{context, fid, id_slice}, diag_code::compt_union_does_not_hold_field,
+                    diag_type::error, DiagnosticSymbolAfterMessage{var_def.name}));
+                dlinker.link(context.emplace_diagnostic_with_message_value(
+                    Span{context, fid, id_slice}, diag_code::compt_union_holds_field,
+                    diag_type::note, DiagnosticSymbolAfterMessage{curr_member.name}));
+                dlinker.link(context.emplace_diagnostic_with_message_value(
+                    union_def.span, diag_code::declared_here, diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = union_def.name}));
+                return {};
+            }
+
+            const Exec& mem_exec = context.exec(lhs_exec.as<ExecUnionInit>().member_init);
+
+            return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
         }
+    }
 
-        const Def& union_def = context.def(lhs_exec.as<ExecUnionInit>().union_def_id);
-        const Def& var_def = context.def(maybe_mem_var.as_id());
-        if (var_def.member_idx != lhs_exec.as<ExecUnionInit>().active_member_idx) {
-            const Def& curr_member = context.def(union_def.as<DefUnion>().ordered_members.get(
-                lhs_exec.as<ExecUnionInit>().active_member_idx));
-            DiagLinker dlinker{context};
-            dlinker.link(context.emplace_diagnostic_with_message_value(
-                Span{context, fid, id_slice}, diag_code::compt_union_does_not_hold_field,
-                diag_type::error, DiagnosticSymbolAfterMessage{var_def.name}));
-            dlinker.link(context.emplace_diagnostic_with_message_value(
-                Span{context, fid, id_slice}, diag_code::compt_union_holds_field, diag_type::note,
-                DiagnosticSymbolAfterMessage{curr_member.name}));
-            dlinker.link(context.emplace_diagnostic_with_message_value(
-                union_def.span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = union_def.name}));
-            return {};
-        }
+    const auto maybe_lhs_tid = infer_type_from_exec(lhs_eid);
+    if (maybe_lhs_tid.empty()) {
+        return {};
+    }
+    const TypeId lhs_tid = maybe_lhs_tid.as_id();
+    const Type lhs_ty = context.type(lhs_tid);
 
-        const Exec& mem_exec = context.exec(lhs_exec.as<ExecUnionInit>().member_init);
+    const bool lhs_has_len
+        = lhs_ty.holds<TypeSlice>() || lhs_ty.holds<TypeArr>()
+          || (lhs_ty.holds<TypeBuiltin>() && lhs_ty.as<TypeBuiltin>().type == builtin_type::str);
 
-        return context.emplace_exec(mem_exec.value, Span{context, fid, expr});
+    if (lhs_has_len && rhs_expr->type == AST_EXPR_FN_CALL
+        && rhs_expr->expr.fn_call.left_expr->type == AST_EXPR_ID
+        && matches_len_builtin(rhs_expr->expr.fn_call.left_expr->expr.id.slice)) {
+        const auto sid = context.symbol_id<"len">();
+        auto d0 = context.emplace_diagnostic_with_message_value(
+            rhs_span, diag_code::tried_to_call_property, diag_type::error,
+            DiagnosticSymbolAfterMessage{.sid = sid});
+        auto d1 = context.emplace_diagnostic_with_message_value(
+            rhs_span, diag_code::replace_with, diag_type::help,
+            DiagnosticSymbolAfterMessage{.sid = sid});
+        context.link_diagnostic(d0, d1);
+        return {};
     }
 
     if (rhs_expr->type == AST_EXPR_FN_CALL) {
@@ -1649,54 +1676,88 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
         return {};
     }
 
-    // TODO use types / make this not compt-only
-    if (!lhs_exec.holds<ExecStructInit>()) {
+    if (lhs_has_len && rhs_expr->type == AST_EXPR_ID
+        && matches_len_builtin(rhs_expr->expr.id.slice)) {
+        if (lhs_ty.holds<TypeArr>()) {
+            const size_t size = lhs_ty.as<TypeArr>().canonical_size;
+            return context.emplace_compt_exec(
+                ExecConst{context.pointer_size_bytes() == 8
+                              ? ConstantValue{static_cast<uint64_t>(size)}
+                              : ConstantValue{static_cast<uint32_t>(size)}},
+                Span{context, fid, expr});
+        }
+        return context.emplace_exec(ExecBuiltinAccess{.from = lhs_eid,
+                                                      .kind = lhs_ty.holds<TypeSlice>()
+                                                                  ? builtin_access::slice_len
+                                                                  : builtin_access::str_len},
+                                    Span{context, fid, expr});
+    }
+
+    if (lhs_ty.holds<TypeUnion>() && rhs_expr->type == AST_EXPR_ID) {
+        const DefId union_did = def_visitor.visit_as_independent(lhs_ty.as<TypeUnion>().def_id);
+        token_ptr_slice_t id_slice = rhs_expr->expr.id.slice;
+        if (id_slice.len > 1) {
+            context.emplace_diagnostic(rhs_span, diag_code::scoped_identifer_not_allowed_here,
+                                       diag_type::error);
+        }
+        const auto maybe_mem_var = context.look_up_variable(
+            context.def(union_did).as<DefUnion>().scope, context.symbol_id(id_slice.start[0]));
+        if (maybe_mem_var.empty()) {
+            const Def& union_def = context.def(union_did);
+            auto d0 = context.emplace_diagnostic_with_message_value(
+                Span{context, fid, id_slice}, diag_code::does_not_name_a_field_of_union,
+                diag_type::error, DiagnosticSymbolAfterMessage{.sid = union_def.name});
+            auto d1 = context.emplace_diagnostic_with_message_value(
+                union_def.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = union_def.name});
+            context.link_diagnostic(d0, d1);
+            return {};
+        }
+        return context.emplace_exec(
+            ExecMemberAccess{.owner = lhs_eid, .member = maybe_mem_var.as_id()},
+            Span{context, fid, expr});
+    }
+
+    if (!lhs_ty.holds<TypeStruct>()) {
         auto d0
             = context.emplace_diagnostic(Span{context, fid, expr->expr.binary.op},
                                          diag_code::cannot_access_a_member_value, diag_type::error);
-        if (const auto maybe_tid = infer_type_from_exec(lhs_eid); maybe_tid.has_value()) {
-            auto d1 = context.emplace_diagnostic(
-                lhs_exec.span, diag_code::value_is_of_type, diag_type::note,
-                DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()},
-                DiagnosticSubCode{.sub_code = diag_code::is_not_a_struct});
-            context.link_diagnostic(d0, d1);
-        } else {
-            auto d1 = context.emplace_diagnostic(
-                lhs_exec.span, diag_code::value_not_a_struct, diag_type::note,
-                DiagnosticSubCode{.sub_code = diag_code::is_not_a_struct});
-
-            context.link_diagnostic(d0, d1);
-        }
-        return std::nullopt;
+        auto d1 = context.emplace_diagnostic(
+            lhs_exec.span, diag_code::value_is_of_type, diag_type::note,
+            DiagnosticTypeAfterMessage{.tid = lhs_tid},
+            DiagnosticSubCode{.sub_code = diag_code::is_not_a_struct});
+        context.link_diagnostic(d0, d1);
+        return {};
     }
-    const Def& struct_def = context.def(lhs_exec.as<ExecStructInit>().struct_def_id);
+
+    const DefId struct_did = def_visitor.visit_as_independent(lhs_ty.as<TypeStruct>().def_id);
 
     if (rhs_expr->type == AST_EXPR_ID) {
-        assert(struct_def.holds<DefStruct>());
         token_ptr_slice_t id_slice = rhs_expr->expr.id.slice;
         if (id_slice.len > 1) {
             context.emplace_diagnostic(rhs_span, diag_code::scoped_identifer_not_allowed_here,
                                        diag_type::error);
         }
 
-        auto maybe_mem_var = context.look_up_member_var_guarding_hid(
-            struct_def, context.symbol_id(id_slice.start[0]), rhs_span, lctx.scope);
-
+        const auto maybe_mem_var = context.look_up_member_var_guarding_hid(
+            context.def(struct_did), context.symbol_id(id_slice.start[0]), rhs_span, lctx.scope);
         if (maybe_mem_var.empty()) {
-            return std::nullopt; // posioned
+            return {}; // poisoned
         }
 
-        const Def& var_def = context.def(maybe_mem_var.as_id());
+        if (lhs_exec.compt && lhs_exec.holds<ExecStructInit>()) {
+            const HirSize idx = context.def(maybe_mem_var.as_id()).member_idx;
+            const Exec& mem_exec
+                = context.exec(lhs_exec.as<ExecStructInit>().member_inits.get(idx));
+            return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
+        }
 
-        const Exec& mem_exec
-            = context.exec(lhs_exec.as<ExecStructInit>().member_inits.get(var_def.member_idx));
-
-        return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
+        return context.emplace_exec(
+            ExecMemberAccess{.owner = lhs_eid, .member = maybe_mem_var.as_id()},
+            Span{context, fid, expr});
     }
 
     const auto prior_diag_cnt = context.diagnostic_count();
-
-    const ExecStructInit lhs_struct_init = lhs_exec.as<ExecStructInit>();
 
     // try a member index look-up: foo.0, foo.1, etc
     const auto maybe_rhs = ComptExprSolver{def_visitor}.solve_builtin_compt_expr(
@@ -1704,23 +1765,27 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
 
     if (maybe_rhs.has_value()) {
         const std::optional<HirSize> maybe_mem_idx
-            = context.try_member_index(lhs_struct_init.struct_def_id, maybe_rhs.as_id());
+            = context.try_member_index(struct_did, maybe_rhs.as_id());
         if (maybe_mem_idx.has_value()) {
-            const Exec& mem_exec
-                = context.exec(lhs_struct_init.member_inits.get(maybe_mem_idx.value()));
-
-            return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
+            if (lhs_exec.compt && lhs_exec.holds<ExecStructInit>()) {
+                const Exec& mem_exec = context.exec(
+                    lhs_exec.as<ExecStructInit>().member_inits.get(maybe_mem_idx.value()));
+                return context.emplace_compt_exec(mem_exec.value, Span{context, fid, expr});
+            }
+            const DefId member_did = context.def_id(
+                context.def(struct_did).as<DefStruct>().ordered_members.get(maybe_mem_idx.value()));
+            return context.emplace_exec(ExecMemberAccess{.owner = lhs_eid, .member = member_did},
+                                        Span{context, fid, expr});
         }
     }
 
     // force link this if diagnostics were just emitted
     if (context.diagnostic_count() > prior_diag_cnt) {
         context.force_link_diagnostic(context.emplace_diagnostic(
-            Span{context, fid, rhs_expr}, diag_code::value_does_not_refer_to_a_member,
-            diag_type::note));
+            rhs_span, diag_code::value_does_not_refer_to_a_member, diag_type::note));
     } else {
-        context.emplace_diagnostic(Span{context, fid, rhs_expr},
-                                   diag_code::value_does_not_refer_to_a_member, diag_type::error);
+        context.emplace_diagnostic(rhs_span, diag_code::value_does_not_refer_to_a_member,
+                                   diag_type::error);
     }
 
     return {};

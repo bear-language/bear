@@ -533,7 +533,9 @@ DefId DefVisitor::resolve_def(DefId did) {
                                                .takes_self = takes_self,
                                                .posioned = params_res.poisoned});
 
-        resolve_fn_body(fid, did);
+        if (!context.def(did).compt) {
+            resolve_fn_body(fid, did);
+        }
 
         break;
     }

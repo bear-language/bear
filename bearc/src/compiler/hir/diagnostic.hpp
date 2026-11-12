@@ -253,6 +253,8 @@ enum class diag_code : uint8_t {
     for_wrapping_negation_subtract_from_zero_instead,
     did_you_mean_to_borrow,
     did_you_mean_to_take_the_address,
+    cannot_dereference_value_of_type,
+    void_pointers_cannot_be_dereferenced,
 
     count, // this must be last,
 

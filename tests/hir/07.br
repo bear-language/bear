@@ -5,5 +5,5 @@ mt Foo..do_work(i32 a) -> i32 {
     if a <= 0 {
         return self.a + self.b;
     }
-    return self.(a - 1);
+    return self.do_work(a - 1);
 }

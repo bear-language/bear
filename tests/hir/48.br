@@ -42,7 +42,7 @@ struct Nest {
         f32 b;
     }
     compt mt get_flt() => self.nested.b
-    compt fn get_a() -> i32 => self.a // oops, trying to get a thru non-existent self
+    compt fn get_a() -> i32 => self.a // not reported, compt fn bodies are only resolved when evaluated
 }
 
 use Nest..Nested;

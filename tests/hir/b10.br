@@ -1,0 +1,51 @@
+// tests/hir/b10.br
+
+// testing runtime member access (`.`, `->`, member indices) and member mutability
+
+struct Inner {
+    i32 v;
+}
+
+struct Foo {
+    i32 a;
+    Inner inner;
+    mt get_a() -> i32 => self.a
+    mt set_a(i32 a) => self.a = a // oops, self is immutable
+}
+
+union U {
+    i32 i;
+    f32 f;
+}
+
+fn fine(mut Foo foo, Foo cfoo, *mut Foo pf, *Foo cpf, mut U u) {
+    i32 a = foo.a;
+    foo.a = 1;
+    foo.a += 2;
+    foo.inner.v = 3;
+    foo.inner.v -= 1;
+    i32 b = cfoo.inner.v;
+    i32 c = foo.0;
+    i32 d = foo.1.v;
+    pf->a = 4;
+    pf->inner.v += 5;
+    i32 e = cpf->a;
+    i32 f = cpf->inner.v;
+    u.i = 1;
+    f32 g = u.f;
+}
+
+fn oops(Foo cfoo, *Foo cpf, U cu, i32 x, *void pv, u32 i) {
+    cfoo.a = 1; // oops, immutable
+    cfoo.inner.v = 1; // oops, immutable
+    cpf->a = 2; // oops, pointee is immutable
+    cu.i = 3; // oops, immutable
+    var z = cfoo.nope; // oops, no such member
+    var y = x.a; // oops, not a struct
+    var w = cfoo->a; // oops, not a pointer
+    var q = pv->a; // oops, *void
+    var t = cfoo.2; // oops, out of bounds
+    var s = cfoo.(i); // oops, index isn't compt
+    var r = cu.nope; // oops, no such member
+    bool n = cfoo.a; // oops, wrong type
+}
