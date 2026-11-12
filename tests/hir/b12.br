@@ -1,0 +1,57 @@
+// tests/hir/b12.br
+
+// testing valid runtime binary + compt operands converging to the runtime type
+
+struct Foo {
+    i32 a;
+}
+
+fn arith(i32 a, i32 b, u8 c, f64 x, mut i32 m) {
+    i32 _0 = a + b;
+    i32 _1 = a * 2 - b / 3 % 4;
+    u8 _2 = c + 1;
+    u8 _3 = 1 + c;
+    f64 _4 = x * 2.0 + 1;
+    i32 _5 = m + a;
+    i32 _6 = a & b | a ^ b;
+    i32 _7 = a << 2 >>> 1;
+    u8 _8 = c >> 1;
+    u8 _9 = c + 'a' as u8;
+}
+
+fn cmp(i32 a, i32 b, bool p, bool q, str s, str t, *i32 pa, *mut i32 pb, Foo f, &Foo g) {
+    bool _0 = a < b;
+    bool _1 = a >= 3;
+    bool _2 = a == 3 && p || !q;
+    bool _3 = true && p;
+    bool _4 = s == t;
+    bool _5 = s != "abc";
+    bool _6 = pa == pb;
+    bool _7 = pa != null;
+    bool _8 = null == pb;
+    bool _9 = f == g;
+    bool _10 = f != Foo{.a = 1};
+    bool _11 = p || 1;
+}
+
+fn ptr_arith(*i32 p, *u8 q, *mut i32 pm, u64 n) {
+    *i32 _0 = p + 2;
+    *i32 _1 = p - n;
+    *u8 _2 = q + n;
+    *i32 _3 = p + n * 2;
+    *mut i32 _4 = pm + 1;
+}
+
+fn compt_operands(i32 a, u8 c, f64 x) {
+    i32 _0 = a / 2;
+    i32 _1 = a % 3;
+    f64 _2 = x / 0.0;
+    i32 _3 = a << 31;
+    u8 _4 = c >> 7;
+    i32 _5 = a >>> 0;
+}
+
+fn ranges(i32 a, u64 n) {
+    var _0 = a...10;
+    var _1 = 0...=n;
+}

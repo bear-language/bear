@@ -1,0 +1,38 @@
+// tests/hir/b13.br
+
+// testing invalid runtime binary expressions (mismatched runtime types need explicit casts)
+
+struct Foo {
+    i32 a;
+}
+
+struct Bar {
+    i32 a;
+}
+
+fn oops(i32 a, u32 u, u8 c, f64 x, bool p, str s, *i32 pa, *f64 pf, Foo f, Bar b, *void pv) {
+    var _0 = a + u; // oops, needs a cast
+    var _1 = a + x; // oops, needs a cast
+    var _2 = c + 300; // oops, 300 doesn't fit in u8
+    var _3 = c + -1; // oops, -1 doesn't fit in u8
+    var _4 = a && p; // oops, i32 isn't bool
+    var _6 = s + s; // oops, runtime strs can't be concatenated
+    var _7 = pa == pf; // oops, different pointee types
+    var _8 = p + p; // oops, bools aren't numeric
+    var _9 = x % 2.0; // oops, no float modulo
+    var _10 = a >> 1; // oops, logical shift on signed
+    var _11 = pa + u; // oops, offset needs a cast to u64
+    var _12 = f == b; // oops, different structs
+    var _13 = f < f; // oops, structs are only _quality comparable
+    var _14 = a...u; // oops, needs a cast
+    i32 _15 = a < a; // oops, bool isn't i32
+    var _16 = pa * 2; // oops, only + and - for pointers
+    var _17 = 2 + pa; // oops, pointer must be on the lhs
+    var _18 = pv + 1; // oops, *void has no _lement size
+    var _19 = pa + -1; // oops, offsets are unsigned
+    var _20 = a / 0; // oops, dividing by zero
+    var _21 = a % 0; // oops, dividing by zero
+    var _22 = a << 32; // oops, shift amount too large
+    var _23 = c >> 8; // oops, shift amount too large
+    var _24 = a >>> -1; // oops, negative shift amount
+}
