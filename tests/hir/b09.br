@@ -19,6 +19,9 @@ fn main() {
     x <<= 1;
     x >>>= 1;
     x >>= 1; // oops
+    x /= 0; // oops, dividing by zero
+    x %= 0; // oops, dividing by zero
+    x <<= 32; // oops, shift amount too large
 
     mut u32 u = 0;
     u += 1;

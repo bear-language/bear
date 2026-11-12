@@ -255,6 +255,8 @@ enum class diag_code : uint8_t {
     did_you_mean_to_take_the_address,
     cannot_dereference_value_of_type,
     void_pointers_cannot_be_dereferenced,
+    add_an_explicit_cast_to,
+    dividing_by_zero,
 
     count, // this must be last,
 

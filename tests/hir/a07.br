@@ -43,7 +43,7 @@ struct NumChecker<T> {
 
 struct Bar has Numeric {
     i32 a = 1;
-    fn add(Self lhs, Self rhs) -> Self => lhs.a + rhs.a
+    fn add(Self lhs, Self rhs) -> Self => Self{.a = lhs.a + rhs.a}
 }
 
 struct Boo has Numeric {

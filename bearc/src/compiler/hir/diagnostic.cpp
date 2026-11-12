@@ -505,6 +505,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot dereference value of type";
     case diag_code::void_pointers_cannot_be_dereferenced:
         return "void pointers cannot be dereferenced";
+    case diag_code::add_an_explicit_cast_to:
+        return "add an explicit cast to";
+    case diag_code::dividing_by_zero:
+        return "dividing by zero";
     }
 
     std::unreachable();

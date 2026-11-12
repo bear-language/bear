@@ -55,10 +55,10 @@ struct NumWrapper<T>
 has Plus + Minus + Multiply + Divide + Arithmetic<NumWrapper<T>> // oops, circular instant/definition
 {
     T val = 0 if is_num::<T>() else @err("`" + @type_to_str(decay T) + "` is not a numeric type so instatiation of " + @type_to_str(decay Self) + " is invalid") as T; // default value
-    fn plus(Self lhs, Self rhs) -> Self => lhs.val + rhs.val 
-    fn minus(Self lhs, Self rhs) -> Self => lhs.val - rhs.val
-    fn multiply(Self lhs, Self rhs) -> Self => lhs.val * rhs.val
-    fn divide(Self lhs, Self rhs) -> Self => lhs.val / rhs.val
+    fn plus(Self lhs, Self rhs) -> Self => Self{.val = lhs.val + rhs.val} 
+    fn minus(Self lhs, Self rhs) -> Self => Self{.val = lhs.val - rhs.val}
+    fn multiply(Self lhs, Self rhs) -> Self => Self{.val = lhs.val * rhs.val}
+    fn divide(Self lhs, Self rhs) -> Self => Self{.val = lhs.val / rhs.val}
 
 }
 
@@ -108,9 +108,9 @@ var _8 = @static_assert e != f;
 
 var _9 = @static_assert e == f; // oops
 
-compt NumWrapper::bool g = {};
+compt NumWrapper::bool g = {}; // oops, bool isn't numeric so the arithmetic methods fail
 
-compt NumWrapper::str h = {};
+compt NumWrapper::str h = {}; // oops, str isn't numeric so the arithmetic methods fail
 
 compt var _10 = @static_assert is_num::<i32>();
 

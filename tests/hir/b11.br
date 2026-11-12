@@ -7,23 +7,23 @@ struct HasLen {
 }
 
 fn fine(str s, [&]i32 sl, [4]i32 arr, HasLen h, *HasLen ph) {
-    u64 l0 = s.len;
-    u64 l1 = sl.len;
-    u64 l2 = arr.len;
-    u64 l3 = "abc".len;
-    u64 l4 = [1, 2, 3].len;
-    u64 l5 = h.len;
-    u64 l6 = ph->len;
+    u64 _0 = s.len;
+    u64 _1 = sl.len;
+    u64 _2 = arr.len;
+    u64 _3 = "abc".len;
+    u64 _4 = [1, 2, 3].len;
+    u64 _5 = h.len;
+    u64 _6 = ph->len;
     compt [3]i32 carr = [1, 2, 3];
     var _0 = @static_assert carr.len == 3;
 }
 
 fn oops(str s, [&]i32 sl, [4]i32 arr, i32 x) {
-    var l0 = s.len(); // oops, len is a property
-    var l1 = sl.len(); // oops, len is a property
-    var l2 = arr.len(); // oops, len is a property
-    var l3 = x.len; // oops, not a struct
-    var l4 = s.size; // oops, not a struct
+    var _0 = s.len(); // oops, _en is a property
+    var _1 = sl.len(); // oops, _en is a property
+    var _2 = arr.len(); // oops, _en is a property
+    var _3 = x.len; // oops, not a struct
+    var _4 = s.size; // oops, not a struct
     s.len = 4; // oops, not assignable
-    i32 l5 = s.len; // oops, u64 doesn't narrow to i32
+    i32 _5 = s.len; // oops, u64 doesn't narrow to i32
 }

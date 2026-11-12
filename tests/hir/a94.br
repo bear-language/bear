@@ -44,9 +44,11 @@ fn deref(*mut i32 pm, *i32 p, *void pv, &i32 r) {
     var d = r.*; // oops, refs are auto-dereferenced
 }
 
-fn ptr_inc(*mut i32 pm, mut *fn(i32)->i32 fp) {
+fn ptr_inc(*mut i32 pm, mut *fn(i32)->i32 fp, mut *void pv) {
     pm++;
     fp++; // oops, fn ptrs aren't viable
+    pv++; // oops, *void has no element size
+    --pv; // oops, *void has no element size
 }
 
 fn unary(i32 a, u32 u, f64 x, bool b) {

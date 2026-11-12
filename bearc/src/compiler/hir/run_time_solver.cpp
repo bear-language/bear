@@ -779,15 +779,17 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return handle_binary_expr(fid, lctx, expr);
     case AST_EXPR_SUBSCRIPT:
     case AST_EXPR_FN_CALL:
-    case AST_EXPR_TYPE:
-    case AST_EXPR_STRUCT_MEMBER_INIT:
-    case AST_EXPR_CLOSURE:
-    case AST_EXPR_TERNARY_IF:
-    case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_MATCH:
+    case AST_EXPR_CLOSURE:
+    case AST_EXPR_TERNARY_IF:
+
+    // the are malformed to end up here:
+    case AST_EXPR_TYPE:
     case AST_EXPR_ELSE_MATCH_PATTERN:
+    case AST_EXPR_STRUCT_MEMBER_INIT:
+    case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_INVALID:
         break;
     }
@@ -1156,12 +1158,19 @@ OptId<ExecId> RuntimeSolver::handle_inc_dec(FileId fid, LexicalCtx lctx, const a
         if (ty.holds<TypeBuiltin>()) {
             maybe_one = inc_dec_one_for(ty.as<TypeBuiltin>().type);
         } else if (ty.holds<TypePtr>()) { // fn ptrs aren't viable
-            // increment by the pointed to type's width
-            maybe_one = ConstantValue{
-                context.pointer_size_bytes() == 8
-                    // try_inner safe here cuz TypePtr
-                    ? static_cast<uint64_t>(context.layout_for_type(ty.try_inner().as_id()).width)
-                    : static_cast<uint32_t>(context.layout_for_type(ty.try_inner().as_id()).width)};
+            const Type& pointee = context.type(ty.as<TypePtr>().inner);
+            const bool void_pointee = pointee.holds<TypeBuiltin>()
+                                      && pointee.as<TypeBuiltin>().type == builtin_type::voidd;
+            if (!void_pointee) {
+                // increment by the pointed to type's width
+                maybe_one = ConstantValue{
+                    context.pointer_size_bytes() == 8
+                        // try_inner safe here cuz TypePtr
+                        ? static_cast<uint64_t>(
+                              context.layout_for_type(ty.try_inner().as_id()).width)
+                        : static_cast<uint32_t>(
+                              context.layout_for_type(ty.try_inner().as_id()).width)};
+            }
         }
     }
 
@@ -1356,27 +1365,18 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
         return {};
     }
     if (ptr_arith) {
-        const Span rhs_span = context.exec(maybe_rhs_eid.as_id()).span;
-        const LayoutSize width
-            = context.layout_for_type(context.type(maybe_lhs_tid.as_id()).try_inner().as_id())
-                  .width;
-        OptId<ExecId> maybe_scaled_eid = maybe_rhs_eid;
-        if (width != 1) {
-            const ExecId width_eid = context.emplace_compt_exec(
-                ExecConst{context.pointer_size_bytes() == 8
-                              ? ConstantValue{static_cast<uint64_t>(width)}
-                              : ConstantValue{static_cast<uint32_t>(width)}},
-                rhs_span);
-            if (context.exec(maybe_rhs_eid.as_id()).compt) {
-                maybe_scaled_eid = ComptExprSolver{def_visitor}.solve_binary_compt_exec(
-                    maybe_rhs_eid.as_id(), binary_op::multiply, width_eid, rhs_span);
-            } else {
-                maybe_scaled_eid = context.emplace_exec(ExecBinary{.lhs = maybe_rhs_eid.as_id(),
-                                                                   .rhs = width_eid,
-                                                                   .op = binary_op::multiply},
-                                                        rhs_span);
-            }
+        const Type& pointee = context.type(context.type(maybe_lhs_tid.as_id()).as<TypePtr>().inner);
+        if (pointee.holds<TypeBuiltin>() && pointee.as<TypeBuiltin>().type == builtin_type::voidd) {
+            context.emplace_diagnostic_with_message_value(
+                Span{context, fid, expr}, diag_code::incompatible_types_for_binary_operator_colon,
+                diag_type::error,
+                DiagnosticTypeAndTypeForBinaryOp{.lhs_tid = maybe_lhs_tid.as_id(),
+                                                 .rhs_tid = maybe_rhs_tid.as_id(),
+                                                 .op = maybe_compound_op.value()});
+            return {};
         }
+        const auto maybe_scaled_eid
+            = scale_ptr_offset(maybe_lhs_tid.as_id(), maybe_rhs_eid.as_id());
         if (maybe_scaled_eid.empty()) {
             return {};
         }
@@ -1387,6 +1387,10 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
                                     Span{context, fid, expr});
     }
     if (maybe_compound_op.has_value()) {
+        if (guard_compt_rhs_operand(context.type(maybe_lhs_tid.as_id()).as<TypeBuiltin>().type,
+                                    maybe_compound_op.value(), maybe_rhs_eid.as_id())) {
+            return {};
+        }
         return context.emplace_exec(ExecCompoundAssignment{.lhs = maybe_lhs_eid.as_id(),
                                                            .rhs = maybe_rhs_eid.as_id(),
                                                            .op = maybe_compound_op.value(),
@@ -1840,8 +1844,232 @@ OptId<ExecId> RuntimeSolver::handle_arithmetic_logical_or_bool_binary(FileId fid
                                                                     Span{context, fid, expr});
     }
 
-    // TODO: actually create an ExecBinary, make a solve_binary_exec
-    return {};
+    return solve_binary_exec(lhs.as_id(), op, rhs.as_id(), Span{context, fid, expr});
+}
+
+OptId<ExecId> RuntimeSolver::scale_ptr_offset(TypeId ptr_tid, ExecId offset_eid) {
+    const LayoutSize width
+        = context.layout_for_type(context.type(ptr_tid).as<TypePtr>().inner).width;
+    if (width == 1) {
+        return offset_eid;
+    }
+    const Span span = context.exec(offset_eid).span;
+    const ExecId width_eid = context.emplace_compt_exec(
+        ExecConst{context.pointer_size_bytes() == 8 ? ConstantValue{static_cast<uint64_t>(width)}
+                                                    : ConstantValue{static_cast<uint32_t>(width)}},
+        span);
+    if (context.exec(offset_eid).compt) {
+        return ComptExprSolver{def_visitor}.solve_binary_compt_exec(offset_eid, binary_op::multiply,
+                                                                    width_eid, span);
+    }
+    return context.emplace_exec(
+        ExecBinary{.lhs = offset_eid, .rhs = width_eid, .op = binary_op::multiply}, span);
+}
+
+bool RuntimeSolver::guard_compt_rhs_operand(builtin_type lhs_bt, binary_op op, ExecId rhs_eid) {
+    const Exec& rhs = context.exec(rhs_eid);
+    if (!rhs.compt || !rhs.holds<ExecConst>()) {
+        return false;
+    }
+    const ExecConst rhs_val = rhs.as<ExecConst>();
+    const bool integral = builtin_type_has_binary_op(lhs_bt, binary_op::bit_and);
+
+    if ((op == binary_op::divide || op == binary_op::modulo) && integral && rhs_val.equals_zero()) {
+        context.emplace_diagnostic(rhs.span, diag_code::dividing_by_zero, diag_type::error);
+        return true;
+    }
+
+    if (op == binary_op::left_bitshift || op == binary_op::right_shift_logical
+        || op == binary_op::right_shift_arithmetic) {
+        const HirSize bits = context.layout_for_type(context.type_for_builtin(lhs_bt)).width * 8;
+        const auto maybe_amount = rhs_val.try_safe_convert_to(context, builtin_type::i64);
+        if (!maybe_amount.has_value() || maybe_amount.value().as<int64_t>() < 0
+            || std::cmp_greater_equal(maybe_amount.value().as<int64_t>(), bits)) {
+            context.emplace_diagnostic_with_message_value(
+                rhs.span, diag_code::shift_amount_out_of_range_at_compt_is_illegal_for_type,
+                diag_type::error,
+                DiagnosticSymbolAfterMessage{.sid
+                                             = context.symbol_id(builtin_type_to_cstr(lhs_bt))});
+            return true;
+        }
+    }
+    return false;
+}
+
+OptId<ExecId> RuntimeSolver::solve_binary_exec(ExecId lhs_eid, binary_op op, ExecId rhs_eid,
+                                               Span span) {
+    const bool is_bool_conj = op == binary_op::bool_and || op == binary_op::bool_or;
+    const bool is_range = op == binary_op::range_exclusive || op == binary_op::range_inclusive;
+
+    const auto try_coerce_compt = [this](ExecId eid, TypeId target_tid) -> ExecId {
+        const Exec& exec = context.exec(eid);
+        const Type& target = context.type(target_tid);
+        if (!exec.compt || !exec.holds<ExecConst>() || !target.holds<TypeBuiltin>()) {
+            return eid;
+        }
+        const auto maybe_converted
+            = exec.as<ExecConst>().try_safe_convert_to(context, target.as<TypeBuiltin>().type);
+        if (!maybe_converted.has_value()) {
+            return eid;
+        }
+        return context.emplace_compt_exec(maybe_converted.value(), exec.span);
+    };
+
+    {
+        const auto maybe_lhs_tid = infer_type_from_exec(lhs_eid);
+        const auto maybe_rhs_tid = infer_type_from_exec(rhs_eid);
+        if (maybe_lhs_tid.empty() || maybe_rhs_tid.empty()) {
+            return {};
+        }
+        if (is_bool_conj) {
+            const TypeId bool_tid = context.type_for_builtin(builtin_type::boolean);
+            lhs_eid = try_coerce_compt(lhs_eid, bool_tid);
+            rhs_eid = try_coerce_compt(rhs_eid, bool_tid);
+        } else if (context.exec(lhs_eid).compt) {
+            lhs_eid = try_coerce_compt(lhs_eid, maybe_rhs_tid.as_id());
+        } else if (context.exec(rhs_eid).compt) {
+            rhs_eid = try_coerce_compt(rhs_eid, maybe_lhs_tid.as_id());
+        }
+    }
+
+    const auto maybe_lhs_tid = infer_type_from_exec(lhs_eid);
+    const auto maybe_rhs_tid = infer_type_from_exec(rhs_eid);
+    if (maybe_lhs_tid.empty() || maybe_rhs_tid.empty()) {
+        return {};
+    }
+    const TypeId lhs_tid = maybe_lhs_tid.as_id();
+    const TypeId rhs_tid = maybe_rhs_tid.as_id();
+    const Type lhs_ty = context.type(lhs_tid);
+    const Type rhs_ty = context.type(rhs_tid);
+
+    const auto is_builtin = +[](const Type& ty, builtin_type bt) {
+        return ty.holds<TypeBuiltin>() && ty.as<TypeBuiltin>().type == bt;
+    };
+
+    const auto link_cast_help = [this](DiagLinker& dl, ExecId eid, TypeId target_tid) {
+        if (!context.exec(eid).compt) {
+            dl.link(context.emplace_diagnostic_with_message_value(
+                context.exec(eid).span, diag_code::add_an_explicit_cast_to, diag_type::help,
+                DiagnosticTypeAfterMessage{.tid = target_tid}));
+            std::string str{context.exec(eid).span.as_sv(context)};
+            str += " as ";
+            str += type_to_string(context, target_tid);
+            dl.link(context.emplace_diagnostic_with_message_value(
+                context.exec(eid).span, diag_code::replace_with, diag_type::help,
+                DiagnosticSymbolAfterMessage{.sid = context.symbol_id(str)}));
+        }
+    };
+
+    if (is_bool_conj) {
+        bool cooked = false;
+        for (const auto& [eid, ty] : {std::pair{lhs_eid, lhs_ty}, std::pair{rhs_eid, rhs_ty}}) {
+            if (!is_builtin(ty, builtin_type::boolean)) {
+                context.emplace_diagnostic_with_message_value(
+                    context.exec(eid).span, diag_code::value_is_not_contextually_convertible_to,
+                    diag_type::error,
+                    DiagnosticTypeAfterMessage{.tid
+                                               = context.type_for_builtin(builtin_type::boolean)});
+                cooked = true;
+            }
+        }
+        if (cooked) {
+            return {};
+        }
+        return context.emplace_exec(ExecBinary{.lhs = lhs_eid, .rhs = rhs_eid, .op = op}, span);
+    }
+
+    const auto diag_op_not_viable = [&]() {
+        context.emplace_diagnostic_with_message_value(
+            span, diag_code::incompatible_types_for_binary_operator_colon, diag_type::error,
+            DiagnosticTypeAndTypeForBinaryOp{.lhs_tid = lhs_tid, .rhs_tid = rhs_tid, .op = op});
+    };
+
+    if ((op == binary_op::plus || op == binary_op::minus) && lhs_ty.holds<TypePtr>()) {
+        const Type& pointee = context.type(lhs_ty.as<TypePtr>().inner);
+        if (is_builtin(pointee, builtin_type::voidd)) {
+            diag_op_not_viable();
+            return {};
+        }
+        const TypeId usize_tid = context.usize_type();
+        rhs_eid = try_coerce_compt(rhs_eid, usize_tid);
+        const auto maybe_offset_tid = infer_type_from_exec(rhs_eid);
+        if (maybe_offset_tid.empty()) {
+            return {};
+        }
+        const Type& offset_ty = context.type(maybe_offset_tid.as_id());
+        if (!is_builtin(offset_ty, context.builtin_usize_type())) {
+            DiagLinker dl{context};
+            dl.link(context.emplace_diagnostic_with_message_value(
+                span, diag_code::incompatible_types_for_binary_expression, diag_type::error,
+                DiagnosticTypeAndType{.lhs_tid = lhs_tid, .rhs_tid = maybe_offset_tid.as_id()}));
+            if (offset_ty.holds<TypeBuiltin>()
+                && builtin_type_has_binary_op(offset_ty.as<TypeBuiltin>().type,
+                                              binary_op::bit_and)) {
+                link_cast_help(dl, rhs_eid, usize_tid);
+            }
+            return {};
+        }
+        const auto maybe_scaled_eid = scale_ptr_offset(lhs_tid, rhs_eid);
+        if (maybe_scaled_eid.empty()) {
+            return {};
+        }
+        return context.emplace_exec(
+            ExecBinary{.lhs = lhs_eid, .rhs = maybe_scaled_eid.as_id(), .op = op}, span);
+    }
+
+    if (bin_op_is_eq_neq(op) && (lhs_ty.holds<TypePtr>() || rhs_ty.holds<TypePtr>())) {
+        const bool viable
+            = (lhs_ty.holds<TypePtr>() && rhs_ty.holds<TypePtr>()
+               && context.equivalent_type(lhs_ty.as<TypePtr>().inner, rhs_ty.as<TypePtr>().inner))
+              || (lhs_ty.holds<TypePtr>() && is_builtin(rhs_ty, builtin_type::nullpointer))
+              || (rhs_ty.holds<TypePtr>() && is_builtin(lhs_ty, builtin_type::nullpointer));
+        if (!viable) {
+            diag_op_not_viable();
+            return {};
+        }
+        return context.emplace_exec(ExecBinary{.lhs = lhs_eid, .rhs = rhs_eid, .op = op}, span);
+    }
+
+    if (!lhs_ty.holds<TypeBuiltin>() || !rhs_ty.holds<TypeBuiltin>()) {
+        if (bin_op_is_eq_neq(op)
+            && (context.assignable_from_type_to(rhs_tid, lhs_tid)
+                || context.assignable_from_type_to(lhs_tid, rhs_tid))) {
+            return context.emplace_exec(ExecBinary{.lhs = lhs_eid, .rhs = rhs_eid, .op = op}, span);
+        }
+        diag_op_not_viable();
+        return {};
+    }
+
+    const builtin_type lhs_bt = lhs_ty.as<TypeBuiltin>().type;
+    const builtin_type rhs_bt = rhs_ty.as<TypeBuiltin>().type;
+
+    if (lhs_bt != rhs_bt) {
+        DiagLinker dl{context};
+        dl.link(context.emplace_diagnostic_with_message_value(
+            span, diag_code::incompatible_types_for_binary_expression, diag_type::error,
+            DiagnosticTypeAndType{.lhs_tid = lhs_tid, .rhs_tid = rhs_tid}));
+        link_cast_help(dl, rhs_eid, context.type_for_builtin(lhs_bt));
+        return {};
+    }
+
+    if (!builtin_type_has_binary_op(lhs_bt, op)
+        || (lhs_bt == builtin_type::str && op == binary_op::plus)) {
+        diag_op_not_viable();
+        return {};
+    }
+
+    if (guard_compt_rhs_operand(lhs_bt, op, rhs_eid)) {
+        return {};
+    }
+
+    if (is_range) {
+        return context.emplace_exec(ExecRange{.start = lhs_eid,
+                                              .end = rhs_eid,
+                                              .inclusive = op == binary_op::range_inclusive},
+                                    span);
+    }
+
+    return context.emplace_exec(ExecBinary{.lhs = lhs_eid, .rhs = rhs_eid, .op = op}, span);
 }
 
 } // namespace hir

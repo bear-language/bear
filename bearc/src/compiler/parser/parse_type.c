@@ -150,6 +150,8 @@ static void parser_shed_rparens(parser_t* p, int* cnt) {
     }
 }
 
+static ast_type_t* parse_type_ptr_with_leading_mut(parser_t* p);
+
 static ast_type_t* parse_type_impl(parser_t* p, token_ptr_slice_t leading_id, bool has_leading_id) {
     int paren_count = 0;
     while (parser_match_token(p, TOK_LPAREN)) {
@@ -180,6 +182,8 @@ static ast_type_t* parse_type_impl(parser_t* p, token_ptr_slice_t leading_id, bo
         // try function ptr (effectively a special case)
         if (t1 == TOK_STAR && t2 == TOK_FN) {
             inner = parse_type_fn_ptr(p);
+        } else if (t1 == TOK_STAR) {
+            inner = parse_type_ptr_with_leading_mut(p);
         } else {
             inner = parse_type_base_with_leading_mut(p);
         }
@@ -265,6 +269,26 @@ ast_type_t* parse_type_ref_ptr(parser_t* p) {
                                     ERR_MULTILEVEL_REF);
         outer->type.ptr_ref.inner->tag = AST_TYPE_INVALID;
     }
+    return outer;
+}
+
+static ast_type_t* parse_type_ptr_with_leading_mut(parser_t* p) {
+    token_t* mut_tkn = parser_expect_token(p, TOK_MUT);
+    if (!mut_tkn) {
+        return parser_sync_type(p);
+    }
+    token_t* redundant_mut_tkn
+        = parser_peek_n(p, 1)->type == TOK_MUT ? parser_peek_n(p, 1) : NULL;
+    ast_type_t* outer = parse_type_ref_ptr(p);
+    if (outer->tag != AST_TYPE_REF_PTR) {
+        return outer;
+    }
+    if (redundant_mut_tkn) {
+        compiler_error_list_emplace(p->error_list, redundant_mut_tkn, ERR_REDUNDANT_MUT);
+        compiler_error_list_emplace(p->error_list, redundant_mut_tkn, HELP_REMOVE);
+    }
+    outer->type.ptr_ref.mut = true;
+    outer->first = mut_tkn;
     return outer;
 }
 

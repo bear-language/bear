@@ -191,6 +191,10 @@ class RuntimeSolver {
     [[nodiscard]] OptId<ExecId> handle_as(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_access(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
                                               access_op op);
+    [[nodiscard]] OptId<ExecId> scale_ptr_offset(TypeId ptr_tid, ExecId offset_eid);
+    [[nodiscard]] bool guard_compt_rhs_operand(builtin_type lhs_bt, binary_op op, ExecId rhs_eid);
+    [[nodiscard]] OptId<ExecId> solve_binary_exec(ExecId lhs_eid, binary_op op, ExecId rhs_eid,
+                                                  Span span);
     [[nodiscard]] OptId<ExecId> handle_arithmetic_logical_or_bool_binary(FileId fid,
                                                                          LexicalCtx lctx,
                                                                          const ast_expr_t* expr,

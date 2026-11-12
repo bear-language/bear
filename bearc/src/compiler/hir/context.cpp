@@ -25,6 +25,7 @@
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/span.hpp"
 #include "compiler/hir/type.hpp"
+#include "compiler/hir/type_resolver.hpp"
 #include "compiler/hir/variant_helpers.hpp"
 #include "compiler/parser/token_eaters.h"
 #include "compiler/token.h"
@@ -2396,7 +2397,7 @@ template <equivalence E>
 }
 
 [[nodiscard]] bool Context::equivalent_type_ignoring_mut(TypeId tid1, TypeId tid2) {
-    return TypeTransformer<TypeComparator<DoConsiderMut>>{*this}(tid1, tid2);
+    return TypeTransformer<TypeComparator<DoNotConsiderMut>>{*this}(tid1, tid2);
 }
 
 bool Context::type_inferable_as(TypeId tid1, TypeId tid2) {
@@ -3980,9 +3981,18 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
         },
         [this](const ExecRange& d) -> OptId<TypeId> {
             DefVisitor def_visitor{*this};
+            const auto maybe_start_tid = infer_type_from_exec(d.start);
+            if (maybe_start_tid.empty()) {
+                return {};
+            }
+            const auto maybe_decayed_tid
+                = TypeResolver{*this, def_visitor}.decay_type(maybe_start_tid.as_id());
+            if (maybe_decayed_tid.empty()) {
+                return {};
+            }
             const GenericArgIdSliceId gargs
                 = emplace_generic_arg_id_slice(freeze_id_vec(llvm::SmallVector<GenericArgId, 1>{
-                    emplace_generic_arg(infer_type_from_exec(d.start).as_id())}));
+                    emplace_generic_arg(maybe_decayed_tid.as_id())}));
 
             const OptId<DefId> range_def_id
                 = look_up_scoped_type_generic(def_visitor, root_scope(),
@@ -4014,7 +4024,30 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             }
             return emplace_type(member_ty.value, member_ty.span, owner_mut);
         },
-        [this](const ExecBinary& d) -> OptId<TypeId> { return infer_type_from_exec(d.lhs); },
+        [this](const ExecBinary& d) -> OptId<TypeId> {
+            switch (d.op) {
+            case binary_op::greater_than:
+            case binary_op::less_than:
+            case binary_op::greater_than_or_equal:
+            case binary_op::less_than_or_equal:
+            case binary_op::bool_equal:
+            case binary_op::bool_not_equal:
+            case binary_op::bool_or:
+            case binary_op::bool_and:
+                return type_for_builtin(builtin_type::boolean);
+            default:
+                break;
+            }
+            const auto maybe_lhs_tid = infer_type_from_exec(d.lhs);
+            if (maybe_lhs_tid.empty()) {
+                return {};
+            }
+            const Type& lhs_ty = type(maybe_lhs_tid.as_id());
+            if (!lhs_ty.mut) {
+                return maybe_lhs_tid;
+            }
+            return emplace_type(lhs_ty.value, lhs_ty.span, false);
+        },
         [](const ExecCast& d) -> OptId<TypeId> { return d.target_tid; },
         [this](const ExecSubscript& d) -> OptId<TypeId> {
             const auto maybe_tid = infer_type_from_exec(d.base);
