@@ -53,6 +53,8 @@ class RuntimeSolver {
 
     void reset_return_type() { this->return_tid = {}; }
 
+    [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, LexicalCtx lctx, const ast_type_t* type);
+
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr,
                                            TypeId into_tid);
 

@@ -633,6 +633,8 @@ class Context {
 
     [[nodiscard]] bool equivalent_type_slice(IdSlice<TypeId> s1, IdSlice<TypeId> s2) const;
 
+    [[nodiscard]] bool type_castable_to(TypeId from, TypeId to) const;
+
     [[nodiscard]] bool compatible_contract_params(IdSlice<TypeId> s1, IdSlice<TypeId> s2,
                                                   DefId struct_id);
 

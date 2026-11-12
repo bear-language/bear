@@ -955,6 +955,49 @@ template <ConsiderMut C> bool TypeInferer<C>::operator()(const Type& t1, const T
     return t1.visit(vs);
 }
 
+bool builtin_castable_to(builtin_type from, builtin_type to) {
+    switch (from) {
+    case builtin_type::u8:
+    case builtin_type::i8:
+    case builtin_type::u16:
+    case builtin_type::i16:
+    case builtin_type::u32:
+    case builtin_type::i32:
+    case builtin_type::u64:
+    case builtin_type::i64:
+    case builtin_type::charr:
+    case builtin_type::f32:
+    case builtin_type::f64:
+    case builtin_type::boolean:
+        switch (to) {
+        case builtin_type::u8:
+        case builtin_type::i8:
+        case builtin_type::u16:
+        case builtin_type::i16:
+        case builtin_type::u32:
+        case builtin_type::i32:
+        case builtin_type::u64:
+        case builtin_type::i64:
+        case builtin_type::charr:
+        case builtin_type::f32:
+        case builtin_type::f64:
+        case builtin_type::boolean:
+            return true;
+            break;
+        case builtin_type::voidd:
+        case builtin_type::str:
+        case builtin_type::nullpointer:
+            return false;
+        }
+        break;
+    case builtin_type::voidd:
+    case builtin_type::nullpointer:
+    case builtin_type::str:
+        return from == to;
+    }
+    return false;
+}
+
 // explicit instatiantiations for the TypeTransformer
 template class TypeTransformer<TypeHasher<DoConsiderMut>>;
 template class TypeTransformer<TypeHasher<DoNotConsiderMut>>;

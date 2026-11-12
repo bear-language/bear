@@ -41,10 +41,10 @@ class ComptExprSolver {
     // enough (and import worker threads may have much smaller stacks than the main thread)
     static constexpr std::size_t MIN_NATIVE_STACK_BYTES = 256uz * 1024;
 
-    ComptExprSolver(Context& ctx, DefVisitor& def_visitor)
+    [[nodiscard]] ComptExprSolver(Context& ctx, DefVisitor& def_visitor)
         : context{ctx}, def_visitor{def_visitor} {}
 
-    ComptExprSolver(DefVisitor& def_visitor)
+    [[nodiscard]] explicit ComptExprSolver(DefVisitor& def_visitor)
         : context{def_visitor.get_context()}, def_visitor{def_visitor} {}
 
     [[nodiscard]] Context& get_context() { return this->context; }

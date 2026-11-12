@@ -2419,6 +2419,13 @@ bool Context::equivalent_type_slice(IdSlice<TypeId> s1, IdSlice<TypeId> s2) cons
     return true;
 }
 
+bool Context::type_castable_to(TypeId from, TypeId to) const {
+    if (equivalent_type(from, to)) {
+        return true;
+    }
+    return type(from).castable_to(type(to));
+}
+
 bool Context::compatible_contract_params(IdSlice<TypeId> s1, IdSlice<TypeId> s2, DefId struct_id) {
     if (s1.len() != s2.len()) {
         return false;

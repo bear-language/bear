@@ -53,6 +53,11 @@ namespace hir {
     return solve_expr(fid, lctx, expr);
 }
 
+[[nodiscard]] OptId<TypeId> RuntimeSolver::resolve_type(FileId fid, LexicalCtx lctx,
+                                                        const ast_type_t* type) {
+    return TypeResolver{context, def_visitor}.resolve_type(fid, lctx.scope, type);
+}
+
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr, TypeId into_tid) {
     if (context.type(into_tid).holds<TypeVar>()) {
@@ -941,8 +946,6 @@ OptId<ExecId> RuntimeSolver::handle_addr_of(FileId fid, LexicalCtx lctx, const a
         return {};
     }
 
-    const Type& ty = context.type(maybe_inner_tid.as_id());
-
     return context.emplace_exec(
         ExecAddrOf{.addressed = maybe_inner_eid.as_id(), .mut = mut_addr_of},
         Span{context, fid, expr});
@@ -1290,6 +1293,7 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
     }
     if (expr->expr.binary.op->type != TOK_ASSIGN_EQ) {
         // TODO: handle compound assignment
+
         return {};
     }
     return context.emplace_exec(
@@ -1298,12 +1302,128 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
 }
 
 OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
-    // TODO
-    return {};
+    assert(expr->type == AST_EXPR_BINARY);
+
+    const auto maybe_lhs_eid = solve_expr(fid, lctx, expr->expr.binary.lhs);
+    if (maybe_lhs_eid.empty()) {
+        return {};
+    }
+
+    const auto maybe_lhs_tid = infer_type_from_exec(maybe_lhs_eid.as_id());
+    if (maybe_lhs_tid.empty()) {
+        return {};
+    }
+
+    const Exec& lhs_exec = context.exec(maybe_lhs_eid.as_id());
+    const Type& ty = context.type(maybe_lhs_tid.as_id());
+
+    if (!ty.holds<TypeVariant>()) {
+        const auto d0 = context.emplace_diagnostic(
+            lhs_exec.span, diag_code::cannot_use_is_for_non_variant_values, diag_type::error,
+            DiagnosticSubCode{.sub_code = diag_code::not_a_variant});
+        const auto d1 = context.emplace_diagnostic_with_message_value(
+            lhs_exec.span, diag_code::value_is_of_type, diag_type::note,
+            DiagnosticTypeAfterMessage{.tid = maybe_lhs_tid.as_id()});
+        context.link_diagnostic(d0, d1);
+        return {};
+    }
+    const auto* pattern_expr = expr->expr.binary.rhs;
+    if (pattern_expr->type != AST_EXPR_VARIANT_DECOMP) {
+        return {}; // poisoned
+    }
+    const auto sid_slice = context.symbol_slice(pattern_expr->expr.variant_decomp.id);
+    const auto scope = context.def(ty.as<TypeVariant>().def_id).template as<DefVariant>().scope;
+    const auto maybe_var_field
+        = context.look_up_scoped_type(scope, sid_slice, Span{context, fid, pattern_expr});
+    if (maybe_var_field.empty()) {
+        context.emplace_diagnostic(
+            Span{context, fid, pattern_expr}, diag_code::identifer_does_not_name_a_valid_pattern,
+            diag_type::error, DiagnosticSubCode{.sub_code = diag_code::not_a_variant_field});
+        return {};
+    }
+
+    const DefId hopefully_var_field = maybe_var_field.as_id();
+
+    if (!context.def(hopefully_var_field).template holds<DefVariantField>()) {
+        context.emplace_diagnostic(
+            Span{context, fid, pattern_expr}, diag_code::identifer_does_not_name_a_valid_pattern,
+            diag_type::error, DiagnosticSubCode{.sub_code = diag_code::not_a_variant_field});
+        return {};
+    }
+
+    DiagLinker dl{context};
+
+    // TODO: handle variant decomp properly, although this is reasonable behavior for a while
+    if (pattern_expr->expr.variant_decomp.vars.len != 0) {
+        Span span{context, fid, pattern_expr};
+        dl.link(context.emplace_diagnostic(span, diag_code::variant_decomposition_not_allowed_here,
+                                           diag_type::error));
+        dl.link(context.emplace_diagnostic_with_message_value(
+            span, diag_code::replace_with, diag_type::help,
+            DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice}));
+        // don't return here, since we can safely just move on here
+    }
+
+    if (!context.check_variant_field_has_parent(dl, hopefully_var_field,
+                                                ty.as<TypeVariant>().def_id,
+                                                Span{context, fid, pattern_expr})) {
+        return {};
+    }
+
+    ExecId discrim_eid
+        = context.emplace_exec(ExecBuiltinAccess{.from = maybe_lhs_eid.as_id(),
+                                                 .kind = builtin_access::variant_discriminant},
+                               lhs_exec.span);
+    const Def& variant_def = context.def(ty.as<TypeVariant>().def_id);
+    ExecId field_value_eid = context.emplace_exec(
+        ExecConst{context.def(hopefully_var_field).member_idx}
+            .try_down_convert_to(variant_def.as<DefVariant>().type_of_discriminant())
+            .value(),
+        lhs_exec.span);
+
+    return context.emplace_exec(
+        ExecBinary{.lhs = discrim_eid, .rhs = field_value_eid, .op = binary_op::bool_equal},
+        Span{context, fid, expr});
 }
 OptId<ExecId> RuntimeSolver::handle_as(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
     assert(expr->type == AST_EXPR_BINARY);
-    return {};
+
+    const auto maybe_lhs_eid = solve_expr(fid, lctx, expr->expr.binary.lhs);
+    if (maybe_lhs_eid.empty()) {
+        return {};
+    }
+
+    const ast_expr_t* rhs_expr = expr->expr.binary.rhs;
+    if (rhs_expr->type != AST_EXPR_TYPE) {
+        return {}; // poisoned
+    }
+
+    const auto maybe_into_tid = resolve_type(fid, lctx, rhs_expr->expr.type_expr.type);
+    if (maybe_into_tid.empty()) {
+        return {};
+    }
+
+    const auto maybe_lhs_tid = infer_type_from_exec(maybe_lhs_eid.as_id());
+    if (maybe_lhs_tid.empty()) {
+        return {};
+    }
+
+    // try constant fold
+    if (context.exec(maybe_lhs_eid.as_id()).compt) {
+        return ComptExprSolver{def_visitor}.solve_builtin_cast(maybe_lhs_eid.as_id(),
+                                                               maybe_into_tid.as_id());
+    }
+
+    Span span{context, fid, expr};
+    if (!context.type_castable_to(maybe_lhs_tid.as_id(), maybe_into_tid.as_id())) {
+        context.emplace_diagnostic_with_message_value(
+            span, diag_code::cannot_convert_value_of_type, diag_type::error,
+            DiagnosticTypeToType{.from = maybe_lhs_tid.as_id(), .to = maybe_into_tid.as_id()});
+        return {};
+    }
+
+    return context.emplace_exec(
+        ExecCast{.exec = maybe_lhs_eid.as_id(), .target_tid = maybe_into_tid.as_id()}, span);
 }
 
 OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,

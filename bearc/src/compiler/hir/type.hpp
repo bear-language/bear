@@ -48,8 +48,12 @@ enum class builtin_type : uint8_t {
     boolean = 14,
 };
 
-const char* builtin_type_to_cstr(builtin_type t);
-std::optional<builtin_type> id_tkn_slice_to_maybe_builtin(token_ptr_slice_t tkn_slice);
+[[nodiscard]] const char* builtin_type_to_cstr(builtin_type t);
+
+[[nodiscard]] std::optional<builtin_type>
+id_tkn_slice_to_maybe_builtin(token_ptr_slice_t tkn_slice);
+
+[[nodiscard]] bool builtin_castable_to(builtin_type from, builtin_type to);
 
 struct TypeVar {};
 
@@ -157,7 +161,29 @@ struct Type : NodeWithVariantValue<Type> {
             [](const TypeFnPtr&) -> bool { return true; },
             [](const TypeVar&) -> bool { return {}; },
         };
-        return visit_exhaustive(vs, value);
+        return visit(vs);
+    }
+
+    /// assume cannonical type of this != cannonical type of other
+    constexpr bool castable_to(const Type& other) const {
+        auto vs = Ovld{
+            [&other](const TypeBuiltin& t) -> bool {
+                return other.holds<TypeBuiltin>()
+                       && builtin_castable_to(t.type, other.as<TypeBuiltin>().type);
+            },
+            [&other](const TypePtr&) -> bool { return other.holds<TypePtr>(); },
+            [](const TypeStruct&) -> bool { return {}; },
+            [](const TypeVariant&) -> bool { return {}; },
+            [](const TypeUnion&) -> bool { return {}; },
+            [](const TypeDeftype&) -> bool { return {}; },
+            [](const TypeArr&) -> bool { return {}; },
+            [](const TypeSlice&) -> bool { return {}; },
+            [](const TypeRef&) -> bool { return {}; },
+            [](const TypeFnPtr&) -> bool { return {}; },
+            [](const TypeVar&) -> bool { return {}; },
+        };
+
+        return visit(vs);
     }
 };
 
@@ -338,29 +364,28 @@ class CanonicalTypeTable {
 };
 
 // function to determine whether a type contains mut
-bool contains_mut(Context& ctx, TypeId tid);
+[[nodiscard]] bool contains_mut(Context& ctx, TypeId tid);
 
-bool contains_deftype(Context& ctx, TypeId tid);
-
-// converts a TypeId to a string
-std::string type_to_string_with_akas(Context& ctx, TypeId tid);
-// converts a TypeId to a string without any muts
-std::string type_to_string_with_akas_without_muts(Context& ctx, TypeId tid);
+[[nodiscard]] bool contains_deftype(Context& ctx, TypeId tid);
 
 // converts a TypeId to a string
-std::string type_to_string(Context& ctx, TypeId tid);
+[[nodiscard]] std::string type_to_string_with_akas(Context& ctx, TypeId tid);
 // converts a TypeId to a string without any muts
-std::string type_to_string_without_muts(Context& ctx, TypeId tid);
+[[nodiscard]] std::string type_to_string_with_akas_without_muts(Context& ctx, TypeId tid);
 
 // converts a TypeId to a string
-std::string type_to_string_as_mentioned(Context& ctx, TypeId tid);
+[[nodiscard]] std::string type_to_string(Context& ctx, TypeId tid);
 // converts a TypeId to a string without any muts
-std::string type_to_string_as_mentioned_without_muts(Context& ctx, TypeId tid);
+[[nodiscard]] std::string type_to_string_without_muts(Context& ctx, TypeId tid);
 
-bool builtin_type_has_binary_op(builtin_type type, binary_op op);
+// converts a TypeId to a string
+[[nodiscard]] std::string type_to_string_as_mentioned(Context& ctx, TypeId tid);
+// converts a TypeId to a string without any muts
+[[nodiscard]] std::string type_to_string_as_mentioned_without_muts(Context& ctx, TypeId tid);
 
-bool builtin_type_has_unary_op(builtin_type type, unary_op op);
+[[nodiscard]] bool builtin_type_has_binary_op(builtin_type type, binary_op op);
 
+[[nodiscard]] bool builtin_type_has_unary_op(builtin_type type, unary_op op);
 } // namespace hir
 
 #endif

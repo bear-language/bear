@@ -282,8 +282,8 @@ struct ExecComptConstant : NodeWithVariantValue<ExecComptConstant> {
         case builtin_type::u16:
         case builtin_type::u32:
         case builtin_type::u64:
-            return true;
         case builtin_type::charr:
+            return true;
         case builtin_type::f32:
         case builtin_type::f64:
         case builtin_type::voidd:
@@ -377,6 +377,13 @@ struct ExecComptConstant : NodeWithVariantValue<ExecComptConstant> {
     // returns none if conversion fails, diagnostics must be reported outside of this method
     [[nodiscard]] std::optional<ExecComptConstant> try_safe_convert_to(Context& ctx,
                                                                        builtin_type type) const;
+
+    // conversion for explicit `as` casts
+    // - superset of try_safe_convert_to: also allows conversions that must never happen implicitly
+    // (e.g. bool -> integral)
+    // - returns none if conversion fails (emits no diagnostics)
+    [[nodiscard]] std::optional<ExecComptConstant> try_cast_to(Context& ctx,
+                                                               builtin_type type) const;
 
     ExecComptConstant(ConstantValue constval) : value{constval} {}
 

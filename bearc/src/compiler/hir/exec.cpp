@@ -42,6 +42,7 @@ template <typename T> static bool integral_fits_in(T val, builtin_type type) {
     case builtin_type::u64:
         return std::in_range<uint64_t>(val);
     case builtin_type::charr:
+        return std::in_range<int8_t>(val);
     case builtin_type::f32:
     case builtin_type::f64:
     case builtin_type::voidd:
@@ -58,8 +59,10 @@ std::optional<ExecConst> ExecConst::try_safe_convert_to(Context& ctx, builtin_ty
         const bool fits = std::visit(
             [type](auto val) {
                 using T = decltype(val);
-                if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>
-                              && !std::is_same_v<T, char>) {
+                if constexpr (std::is_same_v<T, char>) {
+                    // bear chars are signed 8 bit integers (std::in_range rejects char itself)
+                    return integral_fits_in(static_cast<int8_t>(val), type);
+                } else if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>) {
                     return integral_fits_in(val, type);
                 }
                 return true;
@@ -68,6 +71,21 @@ std::optional<ExecConst> ExecConst::try_safe_convert_to(Context& ctx, builtin_ty
         if (!fits) {
             return std::nullopt;
         }
+    }
+    auto maybe_up = try_up_convert_to(ctx, type);
+    return maybe_up.has_value() ? maybe_up : try_down_convert_to(type);
+}
+
+std::optional<ExecConst> ExecConst::try_cast_to(Context& ctx, builtin_type type) const {
+    // allow string casts by converting to symbol id
+    if (type == builtin_type::str) {
+        return ExecConst{to_symbol_id(ctx)};
+    }
+    // bool -> numeric/char is explicit only, so it is not part of the up/down conversions (which
+    // back implicit conversions). go thru u8 since 0/1 fits in every numeric type
+    if (holds<bool>() && type != builtin_type::boolean) {
+        return ExecConst{ConstantValue{static_cast<uint8_t>(as<bool>())}}.try_up_convert_to(ctx,
+                                                                                            type);
     }
     auto maybe_up = try_up_convert_to(ctx, type);
     return maybe_up.has_value() ? maybe_up : try_down_convert_to(type);
@@ -519,6 +537,77 @@ std::optional<ExecConst> ExecConst::try_up_convert_to(Context& ctx, builtin_type
     }
     return OptConst{};
 }
+
+/// down converts a floating point constant (f32 constants are promoted to double first)
+static std::optional<ExecConst> down_convert_float(double v, builtin_type type) {
+    using OptConst = std::optional<ExecConst>;
+    auto to_optconst = [](ConstantValue cv) -> OptConst { return OptConst{ExecConst{cv}}; };
+
+    // [lo, hi) is half-open so that the 64 bit bounds (2^63, 2^64) are exactly representable
+    //  - NaN and +-inf fail the floor check or the range check
+    auto whole_in = [v](double lo, double hi) { return std::floor(v) == v && v >= lo && v < hi; };
+
+    switch (type) {
+    case builtin_type::i8:
+    case builtin_type::charr:
+        if (whole_in(INT8_MIN, INT8_MAX + 1.0)) {
+            const auto i = static_cast<int8_t>(v);
+            return type == builtin_type::i8 ? to_optconst(ConstantValue{i})
+                                            : to_optconst(ConstantValue{static_cast<char>(i)});
+        }
+        return std::nullopt;
+    case builtin_type::u8:
+        if (whole_in(0, UINT8_MAX + 1.0)) {
+            return to_optconst(ConstantValue{static_cast<uint8_t>(v)});
+        }
+        return std::nullopt;
+    case builtin_type::i16:
+        if (whole_in(INT16_MIN, INT16_MAX + 1.0)) {
+            return to_optconst(ConstantValue{static_cast<int16_t>(v)});
+        }
+        return std::nullopt;
+    case builtin_type::u16:
+        if (whole_in(0, UINT16_MAX + 1.0)) {
+            return to_optconst(ConstantValue{static_cast<uint16_t>(v)});
+        }
+        return std::nullopt;
+    case builtin_type::i32:
+        if (whole_in(INT32_MIN, INT32_MAX + 1.0)) {
+            return to_optconst(ConstantValue{static_cast<int32_t>(v)});
+        }
+        return std::nullopt;
+    case builtin_type::u32:
+        if (whole_in(0, UINT32_MAX + 1.0)) {
+            return to_optconst(ConstantValue{static_cast<uint32_t>(v)});
+        }
+        return std::nullopt;
+    case builtin_type::i64:
+        if (whole_in(-0x1p63, 0x1p63)) {
+            return to_optconst(ConstantValue{static_cast<int64_t>(v)});
+        }
+        return std::nullopt;
+    case builtin_type::u64:
+        if (whole_in(0, 0x1p64)) {
+            return to_optconst(ConstantValue{static_cast<uint64_t>(v)});
+        }
+        return std::nullopt;
+    case builtin_type::f32:
+        if (std::isfinite(v) && std::fabs(v) > std::numeric_limits<float>::max()) {
+            return std::nullopt;
+        }
+        return to_optconst(ConstantValue{static_cast<float>(v)});
+    case builtin_type::f64:
+        return to_optconst(ConstantValue{v});
+    case builtin_type::boolean:
+        return to_optconst(ConstantValue{static_cast<bool>(v)});
+    case builtin_type::voidd:
+    case builtin_type::str:
+    case builtin_type::nullpointer:
+        return std::nullopt;
+    }
+    return std::nullopt;
+}
+
 std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const {
 
     using OptConst = std::optional<ExecConst>;
@@ -530,8 +619,6 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
     auto fits_signed = [](int64_t v, int64_t lo, int64_t hi) { return v >= lo && v <= hi; };
 
     auto fits_unsigned = [](uint64_t v, uint64_t hi) { return v <= hi; };
-
-    auto fits_float_int = [](double v) { return std::floor(v) == v; };
 
     switch (value.index()) {
         // i8
@@ -573,6 +660,8 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
             return to_optconst(ConstantValue{static_cast<double>(v)});
         case builtin_type::boolean:
             return to_optconst(ConstantValue{static_cast<bool>(v)});
+        case builtin_type::charr:
+            return to_optconst(ConstantValue{static_cast<char>(v)});
         default:
             return none();
         }
@@ -608,6 +697,11 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
             return to_optconst(ConstantValue{static_cast<double>(v)});
         case builtin_type::boolean:
             return to_optconst(ConstantValue{static_cast<bool>(v)});
+        case builtin_type::charr:
+            if (v <= INT8_MAX) {
+                return to_optconst(ConstantValue{static_cast<char>(v)});
+            }
+            return none();
         default:
             return none();
         }
@@ -655,6 +749,11 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
             return to_optconst(ConstantValue{static_cast<double>(v)});
         case builtin_type::boolean:
             return to_optconst(ConstantValue{static_cast<bool>(v)});
+        case builtin_type::charr:
+            if (fits_signed(v, INT8_MIN, INT8_MAX)) {
+                return to_optconst(ConstantValue{static_cast<char>(v)});
+            }
+            return none();
         default:
             return none();
         }
@@ -696,6 +795,11 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
             return to_optconst(ConstantValue{static_cast<double>(v)});
         case builtin_type::boolean:
             return to_optconst(ConstantValue{static_cast<bool>(v)});
+        case builtin_type::charr:
+            if (v <= INT8_MAX) {
+                return to_optconst(ConstantValue{static_cast<char>(v)});
+            }
+            return none();
         default:
             return none();
         }
@@ -746,7 +850,14 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
             return to_optconst(ConstantValue{static_cast<double>(v)});
         case builtin_type::boolean:
             return to_optconst(ConstantValue{static_cast<bool>(v)});
-        default:
+        case builtin_type::charr:
+            if (fits_signed(v, INT8_MIN, INT8_MAX)) {
+                return to_optconst(ConstantValue{static_cast<char>(v)});
+            }
+            return none();
+        case builtin_type::voidd:
+        case builtin_type::str:
+        case builtin_type::nullpointer:
             return none();
         }
     }
@@ -793,6 +904,11 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
             return to_optconst(ConstantValue{static_cast<double>(v)});
         case builtin_type::boolean:
             return to_optconst(ConstantValue{static_cast<bool>(v)});
+        case builtin_type::charr:
+            if (v <= INT8_MAX) {
+                return to_optconst(ConstantValue{static_cast<char>(v)});
+            }
+            return none();
         default:
             return none();
         }
@@ -855,6 +971,12 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
 
         case builtin_type::boolean:
             return to_optconst(ConstantValue{static_cast<bool>(v)});
+
+        case builtin_type::charr:
+            if (fits_signed(v, INT8_MIN, INT8_MAX)) {
+                return to_optconst(ConstantValue{static_cast<char>(v)});
+            }
+            return none();
 
         default:
             return none();
@@ -921,53 +1043,80 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
         case builtin_type::boolean:
             return to_optconst(ConstantValue{static_cast<bool>(v)});
 
+        case builtin_type::charr:
+            if (v <= INT8_MAX) {
+                return to_optconst(ConstantValue{static_cast<char>(v)});
+            }
+            return none();
+
         default:
             return none();
         }
     }
 
-    // f64
-    case 11: {
-        double v = as<double>();
+    // char (treated as a signed 8 bit integer, see integral_fits_in)
+    case 9: {
+        const auto v = static_cast<int8_t>(as<char>());
 
         switch (type) {
-
+        case builtin_type::charr:
+            return *this;
+        case builtin_type::i8:
+            return to_optconst(ConstantValue{v});
+        case builtin_type::u8:
+            if (v >= 0) {
+                return to_optconst(ConstantValue{static_cast<uint8_t>(v)});
+            }
+            return none();
+        case builtin_type::i16:
+            return to_optconst(ConstantValue{static_cast<int16_t>(v)});
+        case builtin_type::u16:
+            if (v >= 0) {
+                return to_optconst(ConstantValue{static_cast<uint16_t>(v)});
+            }
+            return none();
+        case builtin_type::i32:
+            return to_optconst(ConstantValue{static_cast<int32_t>(v)});
         case builtin_type::u32:
-            if (fits_float_int(v) && v >= 0 && v <= UINT32_MAX) {
+            if (v >= 0) {
                 return to_optconst(ConstantValue{static_cast<uint32_t>(v)});
             }
             return none();
-
+        case builtin_type::i64:
+            return to_optconst(ConstantValue{static_cast<int64_t>(v)});
         case builtin_type::u64:
-            if (fits_float_int(v) && v >= 0 && v <= UINT64_MAX) {
+            if (v >= 0) {
                 return to_optconst(ConstantValue{static_cast<uint64_t>(v)});
             }
             return none();
-
-        case builtin_type::i32:
-            if (fits_float_int(v) && v >= INT32_MIN && v <= INT32_MAX) {
-                return to_optconst(ConstantValue{static_cast<int32_t>(v)});
-            }
-            return none();
-
-        case builtin_type::i64:
-            if (fits_float_int(v) && v >= INT64_MIN && v <= INT64_MAX) {
-                return to_optconst(ConstantValue{static_cast<int64_t>(v)});
-            }
-            return none();
-
         case builtin_type::f32:
             return to_optconst(ConstantValue{static_cast<float>(v)});
-
         case builtin_type::f64:
-            return *this;
-
+            return to_optconst(ConstantValue{static_cast<double>(v)});
         case builtin_type::boolean:
             return to_optconst(ConstantValue{static_cast<bool>(v)});
-
-        default:
+        case builtin_type::voidd:
+        case builtin_type::str:
+        case builtin_type::nullpointer:
             return none();
         }
+        break;
+    }
+
+    // f32
+    case 10: {
+        if (type == builtin_type::f32) {
+            return *this;
+        }
+        return down_convert_float(as<float>(), type);
+    }
+
+    // f64
+    case 11: {
+        if (type == builtin_type::f64) {
+            return *this;
+        }
+        return down_convert_float(as<double>(), type);
     }
     // nullptr
     case 12: {
@@ -2129,7 +2278,6 @@ std::optional<ExecConst> ExecConst::preunary_bit_not(ExecConst ec) {
 static std::string exec_id_str(ExecId eid) {
     return std::string{"Exec#"} + std::to_string(eid.raw());
 }
-static std::string def_id_str(DefId did) { return std::string{"Def#"} + std::to_string(did.raw()); }
 
 static std::string slice_of_execs_to_str(Context& ctx, IdSlice<ExecId> elems) {
     std::string str{};

@@ -1115,14 +1115,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     auto into_builtin = type.as<TypeBuiltin>().type;
     auto from_constant = exec.as<ExecConst>();
 
-    // allow string casts by converting to symbol id
-    std::optional<ExecConst> maybe_converted
-        = (into_builtin == builtin_type::str)
-              ? ExecConst{from_constant.to_symbol_id(context)}
-              : from_constant.try_up_convert_to(context, into_builtin)
-                    .or_else([from_constant, into_builtin] {
-                        return from_constant.try_down_convert_to(into_builtin);
-                    });
+    std::optional<ExecConst> maybe_converted = from_constant.try_cast_to(context, into_builtin);
     if (!maybe_converted.has_value()) {
         context.emplace_diagnostic_with_message_value(
             exec.span, diag_code::cannot_convert_expression_to_type, diag_type::error,
