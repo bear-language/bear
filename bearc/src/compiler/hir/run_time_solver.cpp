@@ -1951,9 +1951,11 @@ OptId<ExecId> RuntimeSolver::solve_binary_exec(ExecId lhs_eid, binary_op op, Exe
             dl.link(context.emplace_diagnostic_with_message_value(
                 context.exec(eid).span, diag_code::add_an_explicit_cast_to, diag_type::help,
                 DiagnosticTypeAfterMessage{.tid = target_tid}));
-            std::string str{context.exec(eid).span.as_sv(context)};
+            std::string str{'('};
+            str += context.exec(eid).span.as_sv(context);
             str += " as ";
             str += type_to_string(context, target_tid);
+            str += ')';
             dl.link(context.emplace_diagnostic_with_message_value(
                 context.exec(eid).span, diag_code::replace_with, diag_type::help,
                 DiagnosticSymbolAfterMessage{.sid = context.symbol_id(str)}));
