@@ -725,6 +725,52 @@ template <class Solver>
                                 Span{context, fid, expr}, should_be_compt || all_compt);
 }
 
+/// reads a solved compt subscript index (u64, or u32 on 32-bit targets)
+[[nodiscard]] inline usize compt_subscript_idx(Context& context, ExecId idx_eid) {
+    const ExecConst& idx_const = context.exec(idx_eid).as<ExecConst>();
+    assert(idx_const.holds<u64>() || idx_const.holds<u32>());
+    return idx_const.holds<u32>() ? usize{idx_const.as<u32>()} : idx_const.as<usize>();
+}
+
+/// issues an out of bounds error for a compt subscript, returns whether idx was out of bounds
+[[nodiscard]] inline bool diag_if_compt_subscript_out_of_bounds(Context& context, usize idx,
+                                                                size_t len, Span idx_span) {
+    if (idx < len) {
+        return false;
+    }
+    context.emplace_diagnostic_with_message_value(
+        idx_span, diag_code::only_message_value_is_meaningful, diag_type::error,
+        DiagnosticIdxOutOfBounds{.idx_sid = context.symbol_id(std::to_string(idx)),
+                                 .length_sid = context.symbol_id(std::to_string(len))});
+    return true;
+}
+
+/// folds a subscript into a compt list literal
+[[nodiscard]] inline OptId<ExecId> fold_compt_list_subscript(Context& context, ExecId list_eid,
+                                                             ExecId idx_eid, Span idx_span,
+                                                             Span expr_span) {
+    const ExecListLiteral list = context.exec(list_eid).as<ExecListLiteral>();
+    const usize idx = compt_subscript_idx(context, idx_eid);
+    if (diag_if_compt_subscript_out_of_bounds(context, idx, list.len(), idx_span)) {
+        return {};
+    }
+    const Exec& elem_exec = context.exec(list.elems.get(idx));
+    return context.emplace_exec(elem_exec.value, expr_span, true);
+}
+
+/// folds a subscript into a compt list literal for values of type str
+[[nodiscard]] inline OptId<ExecId> fold_compt_str_subscript(Context& context, ExecId str_eid,
+                                                            ExecId idx_eid, Span idx_span,
+                                                            Span expr_span) {
+    const SymbolId sid = context.exec(str_eid).as<ExecConst>().as<SymbolId>();
+    const usize idx = compt_subscript_idx(context, idx_eid);
+    const std::string_view sv = context.symbol(sid);
+    if (diag_if_compt_subscript_out_of_bounds(context, idx, sv.size(), idx_span)) {
+        return {};
+    }
+    return context.emplace_exec(ExecConst{sv.at(idx)}, expr_span, true);
+}
+
 /// true when bt is an unsigned integral type (u8, u16, u32, u64)
 [[nodiscard]] inline bool is_unsigned_builtin(builtin_type bt) {
     return bt == builtin_type::u8 || bt == builtin_type::u16 || bt == builtin_type::u32

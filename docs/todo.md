@@ -45,6 +45,9 @@
 - [ ] tighten up mention/mutation tracking 
     - improve/fix `unused variable: foo` diagnostics (for non top-levels)
     - add `foo is never mutated, consider not declaring as mutable`
+
+- [ ] handle debug-build dependent panicking on array/slice out-of-bounds
+
 - [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
 
 - [ ] just find main thru top-level scope; only require it in non-lib builds 

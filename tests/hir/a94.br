@@ -31,7 +31,7 @@ fn oops(i32 p) {
     ++(m++); // oops, post ++ yields a temporary
 }
 
-fn deref(*mut i32 pm, *i32 p, *void pv, &i32 r) {
+fn deref(*i32 mut pm, *i32 p, *void pv, &i32 r) {
     i32 a = pm.*;
     i32 b = p.*;
     pm.*++; // chained postfix ops

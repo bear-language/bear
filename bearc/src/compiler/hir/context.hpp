@@ -971,9 +971,9 @@ class Context {
                                                                 = string_preview_mode::ticks_bear);
 
     /// indicates if a value semantically (could have)/has an address, or is not temporary
-    [[nodiscard]] bool is_lvalue(ExecId eid) const;
+    [[nodiscard]] bool is_lvalue(ExecId eid);
 
-    [[nodiscard]] bool is_rvalue(ExecId eid) const { return !is_lvalue(eid); }
+    [[nodiscard]] bool is_rvalue(ExecId eid) { return !is_lvalue(eid); }
 
   private:
     // containers:

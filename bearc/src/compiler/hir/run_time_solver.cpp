@@ -124,6 +124,8 @@ namespace hir {
         maybe_eid = handle_binary_expr(fid, lctx, expr);
         break;
     case AST_EXPR_SUBSCRIPT:
+        maybe_eid = handle_subscript(fid, lctx, expr);
+        break;
     case AST_EXPR_FN_CALL:
     case AST_EXPR_TYPE:
     case AST_EXPR_STRUCT_MEMBER_INIT:
@@ -778,6 +780,7 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_BINARY:
         return handle_binary_expr(fid, lctx, expr);
     case AST_EXPR_SUBSCRIPT:
+        return handle_subscript(fid, lctx, expr);
     case AST_EXPR_FN_CALL:
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
@@ -1102,15 +1105,12 @@ OptId<ExecId> RuntimeSolver::handle_deref(FileId fid, LexicalCtx lctx, const ast
     // only typed pointers (not refs, which are auto-dereferenced, nor null or *void) can be
     // dereferenced
     bool ptr_viable{};
-    bool ptr_mut{};
     {
         const Type& ty = context.type(inner_tid);
         if (ty.holds<TypePtr>()) {
             const Type& pointee = context.type(ty.as<TypePtr>().inner);
             ptr_viable = !pointee.holds<TypeBuiltin>()
                          || pointee.as<TypeBuiltin>().type != builtin_type::voidd;
-            // pointer mutability lives on the pointer layer, like references
-            ptr_mut = ty.mut;
         }
     }
 
@@ -1120,7 +1120,9 @@ OptId<ExecId> RuntimeSolver::handle_deref(FileId fid, LexicalCtx lctx, const ast
         return {};
     }
 
-    return context.emplace_exec(ExecDeref{.dereferenced = inner_eid, .mut = ptr_mut},
+    // unlike refs, top level ptr mut only means the ptr is rebindable, so the pointee type
+    // carries its own mutability
+    return context.emplace_exec(ExecDeref{.dereferenced = inner_eid, .mut = false},
                                 Span{context, fid, expr});
 }
 
@@ -1527,6 +1529,89 @@ OptId<ExecId> RuntimeSolver::handle_as(FileId fid, LexicalCtx lctx, const ast_ex
         ExecCast{.exec = maybe_lhs_eid.as_id(), .target_tid = maybe_into_tid.as_id()}, span);
 }
 
+OptId<ExecId> RuntimeSolver::handle_subscript(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_SUBSCRIPT);
+
+    const auto maybe_base_eid = solve_expr(fid, lctx, expr->expr.subscript.lhs);
+    if (maybe_base_eid.empty()) {
+        return {}; // poisoned
+    }
+    const ExecId base_eid = maybe_base_eid.as_id();
+
+    const auto maybe_base_tid = infer_type_from_exec(base_eid);
+    if (maybe_base_tid.empty()) {
+        return {};
+    }
+    const TypeId base_tid = maybe_base_tid.as_id();
+
+    bool indexable{};
+    bool void_ptr{};
+    {
+        const Type& ty = context.type(base_tid);
+        if (ty.holds_any_of<TypeSlice, TypeArr>()
+            || (ty.holds<TypeBuiltin>() && ty.as<TypeBuiltin>().type == builtin_type::str)) {
+            indexable = true;
+        } else if (ty.holds<TypePtr>()) {
+            const Type& pointee = context.type(ty.as<TypePtr>().inner);
+            void_ptr = pointee.holds<TypeBuiltin>()
+                       && pointee.as<TypeBuiltin>().type == builtin_type::voidd;
+            indexable = !void_ptr;
+        }
+    }
+
+    const Span base_span = context.exec(base_eid).span;
+    if (!indexable) {
+        if (void_ptr) {
+            context.emplace_diagnostic(
+                base_span, diag_code::cannot_dereference_value_of_type, diag_type::error,
+                DiagnosticTypeAfterMessage{.tid = base_tid},
+                DiagnosticSubCode{.sub_code = diag_code::void_pointers_cannot_be_dereferenced});
+            return {};
+        }
+        auto d0 = context.emplace_diagnostic(base_span, diag_code::value_is_not_indexable,
+                                             diag_type::error);
+        auto d1 = context.emplace_diagnostic_with_message_value(
+            base_span, diag_code::value_is_of_type, diag_type::note,
+            DiagnosticTypeAfterMessage{.tid = base_tid});
+        context.link_diagnostic(d0, d1);
+        return {};
+    }
+
+    // solve_expr w/ an into type emits the conversion diagnostic itself
+    const auto maybe_idx_eid
+        = solve_expr(fid, lctx, expr->expr.subscript.subexpr, context.usize_type());
+    if (maybe_idx_eid.empty()) {
+        return {};
+    }
+
+    // fold when both the base (a list literal or str) and the index are compt
+    if (const Exec& idx_exec = context.exec(maybe_idx_eid.as_id());
+        idx_exec.compt && idx_exec.holds<ExecConst>()) {
+        const Exec& base_exec = context.exec(base_eid);
+        const Span idx_span{context, fid, expr->expr.subscript.subexpr};
+        const Span expr_span{context, fid, expr};
+        if (base_exec.compt && base_exec.holds<ExecListLiteral>()) {
+            return fold_compt_list_subscript(context, base_eid, maybe_idx_eid.as_id(), idx_span,
+                                             expr_span);
+        }
+        if (base_exec.compt && base_exec.holds<ExecConst>()
+            && base_exec.as<ExecConst>().holds<SymbolId>()) {
+            return fold_compt_str_subscript(context, base_eid, maybe_idx_eid.as_id(), idx_span,
+                                            expr_span);
+        }
+        // runtime arrays still have a statically known size, so bounds check compt indices
+        if (const Type& base_ty = context.type(base_tid); base_ty.holds<TypeArr>()
+            && diag_if_compt_subscript_out_of_bounds(
+                context, compt_subscript_idx(context, maybe_idx_eid.as_id()),
+                base_ty.as<TypeArr>().canonical_size, idx_span)) {
+            return {};
+        }
+    }
+
+    return context.emplace_exec(ExecSubscript{.base = base_eid, .index = maybe_idx_eid.as_id()},
+                                Span{context, fid, expr});
+}
+
 OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
                                            access_op op) {
     assert(expr->type == AST_EXPR_BINARY);
@@ -1543,7 +1628,6 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
             return {};
         }
         bool ptr_viable{};
-        bool ptr_mut{};
         bool void_ptr{};
         {
             const Type& ty = context.type(maybe_lhs_tid.as_id());
@@ -1552,7 +1636,6 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
                 void_ptr = pointee.holds<TypeBuiltin>()
                            && pointee.as<TypeBuiltin>().type == builtin_type::voidd;
                 ptr_viable = !pointee.holds<TypeBuiltin>() || !void_ptr;
-                ptr_mut = ty.mut;
             }
         }
         const Span lhs_span = context.exec(lhs_eid).span;
@@ -1566,8 +1649,8 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
             return {};
         }
         op = access_op::dot;
-        lhs_eid
-            = context.emplace_exec(ExecDeref{.dereferenced = lhs_eid, .mut = ptr_mut}, lhs_span);
+        // pointee type carries its own mutability (top level ptr mut only means rebindable)
+        lhs_eid = context.emplace_exec(ExecDeref{.dereferenced = lhs_eid, .mut = false}, lhs_span);
     }
 
     const ast_expr_t* rhs_expr = expr->expr.binary.rhs;

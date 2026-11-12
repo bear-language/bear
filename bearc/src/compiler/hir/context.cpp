@@ -2981,6 +2981,7 @@ OptId<DefId> Context::try_def_for_exec(ExecId eid) const {
         [](const ExecVariable& e) -> OptId<DefId> { return e.def_id; },
         [this](const ExecDeref& e) -> OptId<DefId> { return try_def_for_exec(e.dereferenced); },
         [this](const ExecMemberAccess& e) -> OptId<DefId> { return try_def_for_exec(e.owner); },
+        [this](const ExecSubscript& e) -> OptId<DefId> { return try_def_for_exec(e.base); },
         OvldDefault<OptId<DefId>>{},
     };
     return exec(eid).visit(vs);
@@ -4055,8 +4056,26 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
                 return {};
             }
             // since the ExecSubscript is already type checked, we know LHS must either be a
-            // ptr, an array, or a slice, for all of which this works (getting the inner type)
-            return type(maybe_tid.as_id()).try_inner();
+            // ptr, an array, a slice, or a str
+            const Type& base_ty = type(maybe_tid.as_id());
+            // str data is never mutable thru subscripting
+            if (base_ty.holds<TypeBuiltin>()
+                && base_ty.as<TypeBuiltin>().type == builtin_type::str) {
+                return type_for_builtin(builtin_type::charr);
+            }
+            const TypeId elem_tid = base_ty.try_inner().as_id();
+            // arrays and ptrs carry element mutability on their inner type, so take it as-is (top
+            // level ptr mut only means the ptr is rebindable)
+            if (base_ty.holds_any_of<TypeArr, TypePtr>()) {
+                return elem_tid;
+            }
+            // slices carry element mutability on their own layer, [&mut]T
+            const bool base_mut = base_ty.mut;
+            const Type& elem_ty = type(elem_tid);
+            if (elem_ty.mut == base_mut) {
+                return elem_tid;
+            }
+            return emplace_type(elem_ty.value, elem_ty.span, base_mut);
         },
         [this](const ExecFnCall& d) -> OptId<TypeId> {
             const auto maybe_tid = infer_type_from_exec(d.callee);
@@ -4232,7 +4251,7 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
     return def_to_pretty_string_preview(*this, did, preview_mode);
 }
 
-[[nodiscard]] bool Context::is_lvalue(ExecId eid) const {
+[[nodiscard]] bool Context::is_lvalue(ExecId eid) {
     const auto vs = Ovld{
         // possible / yes
         [](const ExecDeref&) -> bool { return true; },
@@ -4241,7 +4260,15 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
         [](const ExecCompoundAssignment& e) -> bool { return !e.yield_old; },
         [this](const ExecMemberAccess& e) -> bool { return is_lvalue(e.owner); },
         [this](const ExecBorrow& e) -> bool { return is_lvalue(e.borrowee); },
-        [this](const ExecSubscript& e) -> bool { return is_lvalue(e.base); },
+        [this](const ExecSubscript& e) -> bool {
+            // ptrs, slices, and strs refer to memory elsewhere, so their elements are always
+            // lvalues, but array elements live inside the array itself (value-based)
+            const auto maybe_base_tid = infer_type_from_exec(e.base);
+            if (maybe_base_tid.has_value() && !type(maybe_base_tid.as_id()).holds<TypeArr>()) {
+                return true;
+            }
+            return is_lvalue(e.base);
+        },
         // TODO: these *should* be handled by auto-dereferencing of reference types, otherwise
         // handle specially
         [](const ExecFnCall&) -> bool { return false; },

@@ -2710,51 +2710,24 @@ ComptExprSolver::try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_e
     const Exec& ordered_exec = context.exec(maybe_lhs_eid.as_id());
 
     if (ordered_exec.holds<ExecListLiteral>()) {
-        ExecListLiteral list = ordered_exec.as<ExecListLiteral>();
         OptId<ExecId> maybe_idx = solve_expr(fid, scope, expr->expr.subscript.subexpr,
                                              context.type_for_builtin(builtin_type::u64));
         if (maybe_idx.empty()) {
             return std::nullopt; // poisoned
         }
-        const auto idx_eid = maybe_idx.as_id();
-        const Exec& idx_exec = context.exec(idx_eid);
-        const usize idx = idx_exec.as<ExecConst>().as<usize>();
-
-        if (idx >= list.len()) {
-            context.emplace_diagnostic_with_message_value(
-                Span{context, fid, expr->expr.subscript.subexpr},
-                diag_code::only_message_value_is_meaningful, diag_type::error,
-                DiagnosticIdxOutOfBounds{.idx_sid = context.symbol_id(std::to_string(idx)),
-                                         .length_sid
-                                         = context.symbol_id(std::to_string(list.len()))});
-            return std::nullopt;
-        }
-        const Exec& exec = context.exec(list.elems.get(idx));
-        return context.emplace_exec(exec.value, Span{context, fid, expr}, true);
+        return fold_compt_list_subscript(context, lhs_eid, maybe_idx.as_id(),
+                                         Span{context, fid, expr->expr.subscript.subexpr},
+                                         Span{context, fid, expr});
     }
     if (ordered_exec.holds<ExecConst>() && ordered_exec.as<ExecConst>().holds<SymbolId>()) {
-        SymbolId sid = ordered_exec.as<ExecConst>().as<SymbolId>();
         OptId<ExecId> maybe_idx = solve_expr(fid, scope, expr->expr.subscript.subexpr,
                                              context.type_for_builtin(builtin_type::u64));
         if (maybe_idx.empty()) {
             return std::nullopt; // poisoned
         }
-        const auto idx_eid = maybe_idx.as_id();
-        const Exec& idx_exec = context.exec(idx_eid);
-        const usize idx = idx_exec.as<ExecConst>().as<usize>();
-
-        const std::string_view sv = context.symbol(sid);
-
-        if (idx >= sv.size()) {
-            context.emplace_diagnostic_with_message_value(
-                Span{context, fid, expr->expr.subscript.subexpr},
-                diag_code::only_message_value_is_meaningful, diag_type::error,
-                DiagnosticIdxOutOfBounds{.idx_sid = context.symbol_id(std::to_string(idx)),
-                                         .length_sid
-                                         = context.symbol_id(std::to_string(sv.size()))});
-            return std::nullopt;
-        }
-        return context.emplace_exec(ExecConst{sv.at(idx)}, Span{context, fid, expr}, true);
+        return fold_compt_str_subscript(context, lhs_eid, maybe_idx.as_id(),
+                                        Span{context, fid, expr->expr.subscript.subexpr},
+                                        Span{context, fid, expr});
     }
 
     OptId<TypeId> maybe_tid = infer_type_from_exec(lhs_eid);

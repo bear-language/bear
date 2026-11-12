@@ -18,7 +18,7 @@ union U {
     f32 f;
 }
 
-fn fine(mut Foo foo, Foo cfoo, *mut Foo pf, *Foo cpf, mut U u) {
+fn fine(mut Foo foo, Foo cfoo, *Foo mut pf, *Foo cpf, mut U u) {
     i32 a = foo.a;
     foo.a = 1;
     foo.a += 2;

@@ -189,6 +189,8 @@ class RuntimeSolver {
     [[nodiscard]] OptId<ExecId> handle_assign(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_is(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_as(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_subscript(FileId fid, LexicalCtx lctx,
+                                                 const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_access(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
                                               access_op op);
     [[nodiscard]] OptId<ExecId> scale_ptr_offset(TypeId ptr_tid, ExecId offset_eid);
