@@ -15,22 +15,22 @@
             - [ ] actually record moves (needs a copy vs. move rule per type first)
     - [ ] finish impl `RunTimeSolver`
         - [x] method calls (receiver auto-borrows to the `self` param's reference type)
+        - [ ] ternary `a if c else b`
         - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
             - [ ] `if`/`else` (incl. else-if chains)
             - [ ] `while` and C-style `for` (`break`/`continue` plumbing already exists)
             - [ ] `yield` in nested positions inside match branch blocks (only top-level yields are handled)
             - [ ] `is` w/ variant decomposition, bindings scoped to the `if`'s then-branch
             - [ ] `for in` (blocked on an iteration protocol/contract + `std::Range`)
-        - [ ] ternary `a if c else b`
-        - [ ] closures (capture semantics TBD)
+        - [ ] closures (rust-like capture semantics)
         - [ ] warn on unused expression statements (fine for assignments/mutations/discardable or void fns)
         - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee); either convert them in HIR or cast when lowering the `switch`
-        - [ ] use deduction guides for functions/(variants/structs?)
-        - [x] assignments:
-            - [x] make sure to auto-dereferences and reference-typed Execs on the LHS 
+        - [ ] use deduction guides for 
+            -  [x] functions
+            -  [ ] variants/structs?
     - [ ] fix mut semantics on struct members 
         - [ ] warn on `mut` declared members
-        - [ ] make it so the struct instance's mutability entirely determines the member mutability
+        - [x] make it so the struct instance's mutability entirely determines the member mutability
     - [ ] drop/destructor flags, tracked by block/lexical scope (always emit, LLVM folds the unconditional ones)
         - blocked on recording moves
     - [ ] static variable guard variables (thread safe, ideally or eventually)
@@ -53,8 +53,8 @@
         - [x] null -> *T (don't forget)
 
 - [ ] reference stuff:
-    - [ ] strictly ban returning a reference to a local variable directly out of a function
-    - [ ] remember: run-time values that are immutable references and have compile-time initializers can just reference static variables that store that compile-time value
+    - [x] strictly ban returning a reference to a local variable directly out of a function
+    - [x] remember: run-time values that are immutable references and have compile-time initializers can just reference static variables that store that compile-time value, this is handled in HIR, but codegen needs to be aware so it can promote
 
 - [ ] tighten up mention/mutation tracking 
     - improve/fix `unused variable: foo` diagnostics (for non top-levels)

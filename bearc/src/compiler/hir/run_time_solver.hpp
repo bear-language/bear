@@ -27,6 +27,7 @@ class RuntimeSolver {
     Context& context;
     llvm::SmallVector<DefId> locals;
     OptId<TypeId> return_tid{};
+    IdSlice<DefId> params{};
     OptId<ExecId> current_loop_block_eid{};
     /// used for jumping to the update exec for a for loop
     OptId<ExecId> current_loop_update_eid{};
@@ -52,6 +53,10 @@ class RuntimeSolver {
     void set_return_type(OptId<TypeId> maybe_tid) { this->return_tid = maybe_tid; }
 
     void reset_return_type() { this->return_tid = {}; }
+
+    void set_params(IdSlice<DefId> params) { this->params = params; }
+
+    void ban_returning_ref_to_local(ExecId returnee_eid);
 
     [[nodiscard]] OptId<TypeId> resolve_type(FileId fid, LexicalCtx lctx, const ast_type_t* type);
 

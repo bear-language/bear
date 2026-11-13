@@ -24,6 +24,7 @@
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/type_resolver.hpp"
 #include "compiler/token.h"
+#include <algorithm>
 #include <bit>
 
 namespace hir {
@@ -363,6 +364,67 @@ OptId<ExecId> RuntimeSolver::handle_use(FileId fid, LexicalCtx lctx, const ast_s
     return {};
 }
 
+void RuntimeSolver::ban_returning_ref_to_local(ExecId returnee_eid) {
+    ExecId eid = returnee_eid;
+    while (context.exec(eid).holds<ExecCast>()) {
+        eid = context.exec(eid).as<ExecCast>().exec;
+    }
+    if (!context.exec(eid).holds<ExecBorrow>()) {
+        return;
+    }
+
+    const ExecId borrowee_eid = context.exec(eid).as<ExecBorrow>().borrowee;
+    // only flag borrows whose storage lives in the variable itself: walk members & array
+    // subscripts down to the root variable
+    //
+    // - bail on derefs and slice subscripts since those point at storage owned
+    // elsewhere
+    for (ExecId curr = borrowee_eid;;) {
+        const Exec& e = context.exec(curr);
+        if (e.holds<ExecMemberAccess>()) {
+            curr = e.as<ExecMemberAccess>().owner;
+        } else if (e.holds<ExecSubscript>()) {
+            curr = e.as<ExecSubscript>().base;
+            const auto maybe_base_tid = context.infer_type_from_exec(curr);
+            if (maybe_base_tid.empty() || !context.type(maybe_base_tid.as_id()).holds<TypeArr>()) {
+                return;
+            }
+        } else if (e.holds<ExecVariable>()) {
+            break;
+        } else {
+            return;
+        }
+    }
+
+    const auto maybe_did = context.try_def_for_exec(borrowee_eid);
+    if (maybe_did.empty()) {
+        return;
+    }
+    const DefId did = maybe_did.as_id();
+    auto* const it = std::lower_bound(locals.begin(), locals.end(), did,
+                                      [](DefId a, DefId b) { return a.raw() < b.raw(); });
+    const bool is_local = it != locals.end() && *it == did;
+    bool is_param = false;
+    for (const auto param_didx : params) {
+        if (context.def_id(param_didx) == did) {
+            is_param = true;
+            break;
+        }
+    }
+    if (!is_local && !is_param) {
+        return;
+    }
+
+    DiagLinker dl{context};
+    dl.link(context.emplace_diagnostic(context.exec(returnee_eid).span,
+                                       diag_code::cannot_return_a_reference_to_a_local_variable,
+                                       diag_type::error));
+    const Def& def = context.def(did);
+    dl.link(context.emplace_diagnostic_with_message_value(
+        def.span, diag_code::declared_here, diag_type::note,
+        DiagnosticSymbolBeforeMessage{.sid = def.name}));
+}
+
 OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                            const ast_stmt_t* stmt) {
     assert(stmt->type == AST_STMT_RETURN);
@@ -380,6 +442,9 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, InProgre
         } else {
             const auto maybe_value_eid
                 = solve_expr(fid, lctx, stmt->stmt.return_stmt.expr, this->return_tid);
+            if (maybe_value_eid.has_value()) {
+                ban_returning_ref_to_local(maybe_value_eid.as_id());
+            }
             const auto eid = context.emplace_exec(ExecReturn{.return_value = maybe_value_eid},
                                                   Span{context, fid, stmt});
             block.push_back_exec(eid);

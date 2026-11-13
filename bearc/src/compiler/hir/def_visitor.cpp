@@ -836,12 +836,15 @@ void DefVisitor::resolve_fn_body_expr(FileId fid, DefId func_did) {
     const auto return_tid = context.def(func_did).as<DefFunction>().return_type;
 
     solver.set_return_type(return_tid);
+    solver.set_params(context.def(func_did).as<DefFunction>().params);
 
     const auto maybe_returnee_eid = solver.solve_expr(fid, lctx, expr, return_tid);
 
     if (!maybe_returnee_eid) {
         return;
     }
+
+    solver.ban_returning_ref_to_local(maybe_returnee_eid.as_id());
 
     const ExecId returner_eid
         = context.emplace_exec(ExecReturn{.return_value = maybe_returnee_eid}, span);
@@ -872,6 +875,7 @@ void DefVisitor::resolve_fn_body_block(FileId fid, DefId func_did) {
     RuntimeSolver solver{context, *this};
 
     solver.set_return_type(func.return_type);
+    solver.set_params(func.params);
 
     // this body will now be a deeper scope, so params live in a parent scope to the all remaining
     // defs inside the function body

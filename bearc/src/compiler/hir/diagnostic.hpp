@@ -262,6 +262,7 @@ enum class diag_code : uint8_t {
     not_yet_implemented_in_a_runtime_context,
     expression_always_evaluates_to,
     right_hand_side_is_never_evaluated,
+    cannot_return_a_reference_to_a_local_variable,
 
     count, // this must be last,
 

@@ -2373,8 +2373,8 @@ template <equivalence E>
         return false;
     }
 
-    if ((from_ty.holds<TypePtr>() || from_ty.holds<TypeSlice>())
-        && ctx.type(from_inner.as_id()).mut && !ctx.type(to_inner.as_id()).mut) {
+    if ((from_ty.holds<TypePtr>() || from_ty.holds<TypeSlice>()) && ctx.type(from_inner.as_id()).mut
+        && !ctx.type(to_inner.as_id()).mut) {
         return assignable_from_type_to_impl<E>(ctx, from_inner.as_id(), to_inner.as_id());
     }
 
@@ -2994,6 +2994,7 @@ OptId<DefId> Context::try_def_for_exec(ExecId eid) const {
     const auto vs = Ovld{
         [](const ExecVariable& e) -> OptId<DefId> { return e.def_id; },
         [this](const ExecDeref& e) -> OptId<DefId> { return try_def_for_exec(e.dereferenced); },
+        [this](const ExecBorrow& e) -> OptId<DefId> { return try_def_for_exec(e.borrowee); },
         [this](const ExecMemberAccess& e) -> OptId<DefId> { return try_def_for_exec(e.owner); },
         [this](const ExecSubscript& e) -> OptId<DefId> { return try_def_for_exec(e.base); },
         OvldDefault<OptId<DefId>>{},
