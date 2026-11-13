@@ -3006,14 +3006,7 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         return def.as<DefVariable>().compt_value;
     }
     if (def.holds<DefFunction>()) {
-        const DefFunction& func_def = def.as<DefFunction>();
-        return context.emplace_compt_exec(
-            ExecFnPtr{.func_def_id = did,
-                      .fn_ptr_tid
-                      = context.emplace_type(TypeFnPtr{.param_types = func_def.param_types,
-                                                       .return_type = func_def.return_type},
-                                             Span::generated(), false)},
-            span);
+        return emplace_fn_ptr_exec(context, did, span);
     }
     context.emplace_diagnostic_with_message_value(span, diag_code::is_not_a_compile_time_constant,
                                                   diag_type::error,
@@ -3089,14 +3082,8 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         return def.as<DefVariable>().compt_value;
     }
     if (def.holds<DefFunction>()) {
-        const DefFunction& func_def = def.as<DefFunction>();
-        return context.emplace_compt_exec(
-            ExecFnPtr{.func_def_id = maybe_existing_did.as_id(),
-                      .fn_ptr_tid
-                      = context.emplace_type(TypeFnPtr{.param_types = func_def.param_types,
-                                                       .return_type = func_def.return_type},
-                                             Span::generated(), false)},
-            Span{context, fid, expr->expr.reflected_scoped_id.reflected_id});
+        return emplace_fn_ptr_exec(context, maybe_existing_did.as_id(),
+                                   Span{context, fid, expr->expr.reflected_scoped_id.reflected_id});
     }
     context.emplace_diagnostic_with_message_value(
         Span{context, fid, expr->expr.reflected_scoped_id.reflected_id},
@@ -3188,12 +3175,7 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
     context.insert_expr_for_def(fn_did, expr->expr.closure.body);
     context.record_function_def(fn_did);
 
-    return context.emplace_compt_exec(
-        ExecFnPtr{.func_def_id = fn_did,
-                  .fn_ptr_tid = context.emplace_type(
-                      TypeFnPtr{.param_types = param_types, .return_type = return_type},
-                      Span::generated(), false)},
-        Span{context, fid, expr});
+    return emplace_fn_ptr_exec(context, fn_did, Span{context, fid, expr});
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::solve_tuple_init(FileId fid, ScopeId scope,

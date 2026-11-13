@@ -45,6 +45,7 @@ struct DefFunction {
     OptId<CanonicalComptArgsIdMapId> maybe_compt_args_map_id{};
     // canonical compt args whose evaluation already failed (and was diagnosed); used as a set
     OptId<CanonicalComptArgsIdMapId> maybe_compt_failed_args_map_id{};
+    OptId<TypeId> maybe_cached_fn_ptr_tid{};
     bool discardable = false;
     bool takes_self = false;
     bool posioned = false;
