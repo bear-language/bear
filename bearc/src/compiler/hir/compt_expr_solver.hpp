@@ -221,30 +221,6 @@ class ComptExprSolver {
                                  ExecVariantInit>();
     }
 
-    struct FuncLookUp {
-        DefId func_did;
-        OptId<ExecId> maybe_variant_init_res;
-        bool needs_generic_deduction{false};
-        bool did_variant_initializer{false};
-    };
-
-    /// tries to look up a function from an expression, and optionally a "self" value, if it exists
-    ///
-    /// self values are just the the left side of this: self.do_something()
-    [[nodiscard]] std::optional<FuncLookUp>
-    try_fn_look_up_from_expr(FileId fid, ScopeId scope, const ast_expr_t* expr,
-                             OptId<ExecId> maybe_self_val = std::nullopt);
-
-    /// mutates out_args and func_did as needed
-    ///
-    /// - func_did is mutated only if we use the args to deduce generic arguments and thus update
-    /// the func_did from a raw DefGenericFunction to a concrete, instantiated DefFunction
-    ///
-    /// returns true on success, else false
-    [[nodiscard]] bool try_fn_args_from_expr_and_preliminary_function_def_id(
-        FileId fid, ScopeId scope, const ast_expr_t* expr, OptId<ExecId> maybe_self_val,
-        DefId& func_did, bool needs_generic_deduction, llvm::SmallVectorImpl<ExecId>& out_args);
-
     [[nodiscard]] OptId<ExecId> solve_fn_call(FileId fid, ScopeId scope, const ast_expr_t* expr,
                                               OptId<ExecId> maybe_self_val = std::nullopt);
 
@@ -290,10 +266,6 @@ class ComptExprSolver {
 
     [[nodiscard]] OptId<ExecId> handle_has_contract(FileId fid, ScopeId scope,
                                                     const ast_expr_t* expr);
-
-    [[nodiscard]] OptId<ExecId> handle_variant_init(FileId fid, ScopeId scope,
-                                                    const ast_expr_t* fn_call_expr,
-                                                    DefId variant_field_did);
 
     [[nodiscard]] OptId<ExecId> solve_is(FileId fid, ScopeId scope, ExecId eid,
                                          const ast_expr_t* pattern_expr);

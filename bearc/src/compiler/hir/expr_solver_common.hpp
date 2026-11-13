@@ -12,6 +12,7 @@
 #include "compiler/ast/expr.h"
 #include "compiler/hir/compt_expr_solver.hpp"
 #include "compiler/hir/context.hpp"
+#include "compiler/hir/deduction.hpp"
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
@@ -93,6 +94,16 @@ solve_expr_literal(Context& ctx, FileId fid, const ast_expr_t* expr) {
     }
 
     return maybe_value;
+}
+
+[[nodiscard]] inline ExecId emplace_fn_ptr_exec(Context& context, DefId func_did, Span span) {
+    const DefFunction& func_def = context.def(func_did).as<DefFunction>();
+    const TypeId fn_ptr_tid
+        = context.emplace_type(TypeFnPtr{.param_types = func_def.param_types,
+                                         .return_type = func_def.return_type},
+                               Span::generated(), false);
+    return context.emplace_compt_exec(ExecFnPtr{.func_def_id = func_did, .fn_ptr_tid = fn_ptr_tid},
+                                      span);
 }
 
 template <compt_or_runtime C>
@@ -202,14 +213,7 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
     // we hit a def corresponding to a function, so a compt function pointer is quite
     // helpful here.
     if (def.holds<DefFunction>()) {
-        const DefFunction& func_def = def.as<DefFunction>();
-        return context.emplace_compt_exec(
-            ExecFnPtr{.func_def_id = did,
-                      .fn_ptr_tid
-                      = context.emplace_type(TypeFnPtr{.param_types = func_def.param_types,
-                                                       .return_type = func_def.return_type},
-                                             Span::generated(), false)},
-            expr_span);
+        return emplace_fn_ptr_exec(context, did, expr_span);
     }
 
     if (def.holds<DefVariantField>()) {
@@ -723,6 +727,629 @@ template <class Solver>
                                                .struct_def_id = ty.as<TypeStruct>().def_id,
                                                .anonymous = true},
                                 Span{context, fid, expr}, should_be_compt || all_compt);
+}
+
+struct FuncLookUp {
+    OptId<DefId> func_did{};
+    OptId<ExecId> maybe_variant_init_res{};
+    OptId<ExecId> maybe_indirect_callee{};
+    bool needs_generic_deduction{false};
+    bool did_variant_initializer{false};
+};
+
+[[nodiscard]] inline OptId<DefId> struct_did_for_self_val(Context& context, ExecId self_eid) {
+    const Exec& exec = context.exec(self_eid);
+    if (exec.holds<ExecStructInit>()) {
+        return exec.as<ExecStructInit>().struct_def_id;
+    }
+    const auto maybe_tid = context.infer_type_from_exec(self_eid);
+    if (maybe_tid.has_value() && context.type(maybe_tid.as_id()).holds<TypeStruct>()) {
+        return context.type(maybe_tid.as_id()).as<TypeStruct>().def_id;
+    }
+    return {};
+}
+
+template <IsExprSolver Solver>
+[[nodiscard]] OptId<ExecId> solve_variant_init_impl(Solver& solver, FileId fid, ScopeId scope,
+                                                    OptId<MoveMapId> maybe_move_map,
+                                                    const ast_expr_t* fn_call_expr,
+                                                    DefId variant_field_did) {
+    assert(fn_call_expr->type == AST_EXPR_FN_CALL);
+
+    static constexpr bool is_compt_eval = std::same_as<Solver, ComptExprSolver>;
+    Context& context = solver.get_context();
+
+    const ast_expr_t* called_expr = fn_call_expr->expr.fn_call.left_expr;
+    const Def& def = context.def(variant_field_did);
+    if (!def.holds<DefVariantField>()) {
+        context.emplace_diagnostic(Span{context, fid, called_expr},
+                                   diag_code::value_is_not_callable, diag_type::error,
+                                   DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+        return {};
+    }
+    const DefVariantField var_field_def = def.as<DefVariantField>();
+    const ast_slice_of_exprs_t args = fn_call_expr->expr.fn_call.args;
+    if (args.len != var_field_def.members.len()) {
+        const auto d0 = context.emplace_diagnostic_with_message_value(
+            Span{context, fid, fn_call_expr}, diag_code::only_message_value_is_meaningful,
+            diag_type::error,
+            DiagnosticVariantInitExpectedButGotNumArgs{
+                .variant_field_name = def.name,
+                .expected_sid = context.symbol_id(std::to_string(var_field_def.members.len())),
+                .got_sid = context.symbol_id(std::to_string(args.len))});
+        const auto d1 = context.emplace_diagnostic_with_message_value(
+            context.def(variant_field_did).span, diag_code::declared_here, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = context.def(variant_field_did).name});
+        context.link_diagnostic(d0, d1);
+        return {};
+    }
+    bool cooked = false;
+    bool all_compt = true;
+    llvm::SmallVector<ExecId> member_init_vec;
+    for (size_t i = 0; i < args.len; i++) {
+        const ast_expr_t* arg = args.start[i];
+        const TypeId tid = context.def(var_field_def.members.get(i)).as<DefVariable>().type_id;
+        const OptId<ExecId> maybe_eid
+            = solve_expr_helper(solver, fid, scope, maybe_move_map, arg, tid);
+        if (maybe_eid.empty()) {
+            cooked = true;
+            continue; // poisoned
+        }
+        all_compt &= context.exec(maybe_eid.as_id()).compt;
+        member_init_vec.push_back(maybe_eid.as_id());
+    }
+    if (cooked) {
+        const Def& field_def = context.def(variant_field_did);
+        context.force_link_diagnostic(context.emplace_diagnostic_with_message_value(
+            field_def.span, diag_code::declared_here, diag_type::note,
+            DiagnosticSymbolBeforeMessage{.sid = field_def.name}));
+        return {};
+    }
+    const bool should_be_compt = is_compt_eval || all_compt;
+    const auto member_inits = context.freeze_id_vec(member_init_vec);
+    const Span span{context, fid, fn_call_expr};
+    const ExecId field_init = context.emplace_exec(
+        ExecVariantFieldInit{.member_inits = member_inits,
+                             .variant_field_def_id = variant_field_did},
+        span, should_be_compt);
+
+    return context.emplace_exec(
+        ExecVariantInit{.payload_init = field_init,
+                        .variant_def_id = context.def(variant_field_did).parent.as_id(),
+                        .active_member_idx = context.def(variant_field_did).member_idx},
+        span, should_be_compt);
+}
+
+/// tries to look up a function from an expression, and optionally a "self" value, if it exists
+///
+/// self values are just the the left side of this: self.do_something()
+template <IsExprSolver Solver>
+[[nodiscard]] std::optional<FuncLookUp>
+try_indirect_fn_look_up(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> maybe_move_map,
+                        const ast_expr_t* called, OptId<ExecId> maybe_callee_eid = std::nullopt) {
+    Context& context = solver.get_context();
+    if (maybe_callee_eid.empty()) {
+        maybe_callee_eid = solve_expr_helper(solver, fid, scope, maybe_move_map, called);
+        if (maybe_callee_eid.empty()) {
+            return {}; // poisoned
+        }
+    }
+    const auto maybe_tid = context.infer_type_from_exec(maybe_callee_eid.as_id());
+    if (maybe_tid.empty()) {
+        return {}; // poisoned
+    }
+    if (!context.type(maybe_tid.as_id()).holds<TypeFnPtr>()) {
+        context.emplace_diagnostic(Span{context, fid, called}, diag_code::value_is_not_callable,
+                                   diag_type::error,
+                                   DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+        return {};
+    }
+    return FuncLookUp{.maybe_indirect_callee = maybe_callee_eid};
+}
+
+template <IsExprSolver Solver>
+[[nodiscard]] std::optional<FuncLookUp>
+try_fn_look_up_from_expr_impl(Solver& solver, FileId fid, ScopeId scope,
+                              OptId<MoveMapId> maybe_move_map, const ast_expr_t* expr,
+                              OptId<ExecId> maybe_self_val) {
+    static constexpr bool is_compt_eval = std::same_as<Solver, ComptExprSolver>;
+    Context& context = solver.get_context();
+    DefVisitor& def_visitor = solver.get_def_visitor();
+
+    OptId<DefId> maybe_func_did{};
+    bool needs_generic_deduction{false};
+    OptId<ExecId> maybe_res{};
+
+    if (maybe_self_val.has_value()) {
+        const ast_expr_t* called = expr->expr.fn_call.left_expr;
+        if (called->type == AST_EXPR_ID) {
+
+            token_ptr_slice_t id_slice = called->expr.id.slice;
+            if (id_slice.len > 1) {
+                context.emplace_diagnostic(Span{context, fid, called},
+                                           diag_code::scoped_identifer_not_allowed_here,
+                                           diag_type::error);
+            }
+            const token_t* id_tok = id_slice.start[0];
+            const SymbolId func_name = context.symbol_id(id_tok);
+            const Span fn_name_span{context, fid, id_tok};
+
+            // structs have special look up rules cuz we need to look into their member
+            // functions
+            if (const auto maybe_struct_did
+                = struct_did_for_self_val(context, maybe_self_val.as_id());
+                maybe_struct_did.has_value()) {
+                const DefId struct_did = maybe_struct_did.as_id();
+                if (expr->expr.fn_call.is_generic) {
+                    if (const auto maybe_gen_arg_id = solver.lower_generic_args(
+                            fid, scope, expr->expr.fn_call.generic_args, false);
+                        maybe_gen_arg_id.has_value()) {
+                        maybe_func_did = context.look_up_generic_member_function_guarding_hid(
+                            def_visitor, context.def(struct_did), func_name,
+                            Span{context, fid, expr->expr.fn_call.left_expr}, scope,
+                            maybe_gen_arg_id.as_id());
+                    }
+                } else {
+                    maybe_func_did = context.look_up_member_function_guarding_hid(
+                        def_visitor, context.def(struct_did), func_name, fn_name_span, scope);
+                }
+            } else {
+                if (expr->expr.fn_call.is_generic) {
+                    if (const auto maybe_gen_arg_id = solver.lower_generic_args(
+                            fid, scope, expr->expr.fn_call.generic_args, false);
+                        maybe_gen_arg_id.has_value()) {
+                        maybe_func_did = context.look_up_scoped_variable_generic(
+                            def_visitor, scope,
+                            context.freeze_id_vec(llvm::SmallVector<SymbolId, 1>{func_name}),
+                            Span{context, fid, expr->expr.fn_call.left_expr},
+                            maybe_gen_arg_id.as_id());
+                    }
+                    if (maybe_func_did.has_value()) {
+                        maybe_func_did = context.try_func_did(maybe_func_did.as_id());
+                    }
+                } else {
+                    maybe_func_did = context.look_up_variable(scope, func_name);
+                    if (maybe_func_did.has_value()) {
+                        maybe_func_did = context.try_func_did(maybe_func_did.as_id());
+                    }
+                }
+            }
+
+            if (maybe_func_did.empty()) {
+                context.emplace_diagnostic(
+                    Span{context, fid, expr->expr.fn_call.left_expr},
+                    diag_code::use_of_undeclared_identifier, diag_type::error,
+                    DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
+                return std::nullopt;
+            }
+        } else {
+            const auto maybe_callable_eid
+                = solve_expr_helper(solver, fid, scope, maybe_move_map, called);
+            if (maybe_callable_eid.empty()) {
+                return {}; // posioned
+            }
+            const Exec& e = context.exec(maybe_callable_eid.as_id());
+            if (!e.holds<ExecFnPtr>()) {
+                context.emplace_diagnostic(
+                    e.span, diag_code::value_is_not_callable, diag_type::error,
+                    DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+                return {};
+            }
+            maybe_func_did = e.as<ExecFnPtr>().func_def_id;
+        }
+
+        maybe_func_did
+            = context.try_func_did(def_visitor.visit_and_resolve_if_needed(maybe_func_did.as_id()));
+        const Def& func_def = context.def(maybe_func_did.as_id());
+
+        if (!func_def.holds<DefFunction>()) {
+            if (func_def.holds<DefGenericFunction>()) {
+                needs_generic_deduction = true;
+            } else {
+                context.emplace_diagnostic(
+                    Span{context, fid, called}, diag_code::value_is_not_callable, diag_type::error,
+                    DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+                return {};
+            }
+        }
+        if (func_def.holds<DefFunction>() && func_def.as<DefFunction>().poisoned()) {
+            return {};
+        }
+
+    } else {
+        const ast_expr_t* called = expr->expr.fn_call.left_expr;
+        if (called->type == AST_EXPR_ID) {
+            token_ptr_slice_t id_slice = called->expr.id.slice;
+
+            const Span called_span{context, fid, id_slice};
+
+            const auto sid_slice = context.symbol_slice(id_slice);
+
+            const auto prior_diag_cnt = context.diagnostic_count();
+
+            if (expr->expr.fn_call.is_generic) {
+                if (const auto maybe_gen_arg_id = solver.lower_generic_args(
+                        fid, scope, expr->expr.fn_call.generic_args, false);
+                    maybe_gen_arg_id.has_value()) {
+                    maybe_func_did = context.look_up_scoped_variable_generic(
+                        def_visitor, scope, sid_slice, called_span, maybe_gen_arg_id.as_id());
+                }
+            } else {
+                maybe_func_did = context.look_up_scoped_variable(scope, sid_slice, called_span);
+            }
+
+            if (maybe_func_did.empty()) {
+
+                // try as variant init, since they take the form of function calls but live in
+                // the "type" namespace
+                if (expr->expr.fn_call.is_generic) {
+                    if (const auto maybe_gen_arg_id = solver.lower_generic_args(
+                            fid, scope, expr->expr.fn_call.generic_args, false);
+                        maybe_gen_arg_id.has_value()) {
+                        maybe_func_did = context.look_up_scoped_type_generic(
+                            def_visitor, scope, sid_slice, called_span, maybe_gen_arg_id.as_id());
+                    }
+                } else {
+                    maybe_func_did = context.look_up_scoped_type(scope, sid_slice, called_span);
+                }
+
+                if (maybe_func_did.has_value()) {
+                    maybe_res = solve_variant_init_impl(solver, fid, scope, maybe_move_map, expr,
+                                                        maybe_func_did.as_id());
+                    return FuncLookUp{.func_did = maybe_func_did.as_id(),
+                                      .maybe_variant_init_res = maybe_res,
+                                      .needs_generic_deduction = needs_generic_deduction,
+                                      .did_variant_initializer = true};
+                }
+
+                // no corresponding variant either, so this is just the
+                // use_of_undeclared_identifier
+                if (prior_diag_cnt == context.diagnostic_count()) {
+                    context.emplace_diagnostic(called_span, diag_code::use_of_undeclared_identifier,
+                                               diag_type::error);
+                }
+
+                return std::nullopt;
+            }
+        } else {
+            const auto maybe_callable_eid
+                = solve_expr_helper(solver, fid, scope, maybe_move_map, called);
+            if (maybe_callable_eid.empty()) {
+                return {}; // posioned
+            }
+            const Exec& e = context.exec(maybe_callable_eid.as_id());
+            if (!e.holds<ExecFnPtr>()) {
+                if constexpr (!is_compt_eval) {
+                    return try_indirect_fn_look_up(solver, fid, scope, maybe_move_map, called,
+                                                   maybe_callable_eid);
+                }
+                context.emplace_diagnostic(
+                    e.span, diag_code::value_is_not_callable, diag_type::error,
+                    DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+                return {};
+            }
+            maybe_func_did = e.as<ExecFnPtr>().func_def_id;
+        }
+
+        maybe_func_did
+            = context.try_func_did(def_visitor.visit_and_resolve_if_needed(maybe_func_did.as_id()));
+
+        const Def& called_def = context.def(def_visitor.visit_as_dependent(maybe_func_did.as_id()));
+        if (!called_def.holds<DefFunction>()) {
+            if (called_def.holds<DefGenericFunction>()) {
+                needs_generic_deduction = true;
+            } else if (!is_compt_eval && called_def.holds<DefVariable>()) {
+                return try_indirect_fn_look_up(solver, fid, scope, maybe_move_map, called);
+            } else {
+                context.emplace_diagnostic(
+                    Span{context, fid, called}, diag_code::value_is_not_callable, diag_type::error,
+                    DiagnosticSubCode{.sub_code = diag_code::not_a_function});
+                return {};
+            }
+        }
+    }
+    if (maybe_func_did.has_value()) {
+        return FuncLookUp{.func_did = maybe_func_did.as_id(),
+                          .maybe_variant_init_res = maybe_res,
+                          .needs_generic_deduction = needs_generic_deduction,
+                          .did_variant_initializer
+                          = false}; // we early return in that case (see above)
+    }
+    return {};
+}
+
+/// mutates out_args and func_did as needed
+///
+/// - func_did is mutated only if we use the args to deduce generic arguments and thus update
+/// the func_did from a raw DefGenericFunction to a concrete, instantiated DefFunction
+///
+/// returns true on success, else false
+template <IsExprSolver Solver>
+[[nodiscard]] bool try_fn_args_from_expr_and_preliminary_function_def_id_impl(
+    Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> maybe_move_map,
+    const ast_expr_t* expr, OptId<ExecId> maybe_self_val, DefId& func_did,
+    const bool needs_generic_deduction, llvm::SmallVectorImpl<ExecId>& out_args) {
+    Context& context = solver.get_context();
+
+    if (maybe_self_val.has_value()) {
+        out_args.push_back(maybe_self_val.as_id());
+    }
+
+    const auto prior_diag_cnt = context.diagnostic_count();
+
+    HirSize total_arg_cnt = 0;
+    bool issue = false;
+    const ast_slice_of_exprs_t exprs = expr->expr.fn_call.args;
+    IdSlice<DefId> params{};
+
+    const auto check_too_many_args = [&context](HirSize arg_cnt, HirSize param_cnt,
+                                                DefId func_did, OptId<ExecId> maybe_self_val,
+                                                FileId fid, const ast_expr_t* expr,
+                                                ast_slice_of_exprs_t exprs) {
+        auto adjusted_param_len = param_cnt - (maybe_self_val.has_value() ? 1 : 0);
+
+        if (arg_cnt != adjusted_param_len) {
+
+            if (param_cnt != 0) {
+                auto params_len_sym_id = ExecConst{adjusted_param_len}.to_symbol_id(context);
+                auto args_len_sym_id = ExecConst{arg_cnt}.to_symbol_id(context);
+
+                Span span_of_interest
+                    = ((arg_cnt < adjusted_param_len) || exprs.len == 0)
+                          ? Span{context, fid, expr->last}
+                          : Span::combine(Span{context, fid, exprs.start[0]->first},
+                                          Span{context, fid, exprs.start[exprs.len - 1]->last});
+
+                context.emplace_diagnostic_with_message_value(
+                    span_of_interest, diag_code::expected, diag_type::error,
+                    DiagnosticSymButGotSym{.leading = context.def(func_did).name,
+                                           .sid1 = params_len_sym_id,
+                                           .sid2 = args_len_sym_id});
+            } else if (maybe_self_val.has_value()) {
+                context.emplace_diagnostic(
+                    Span{context, fid, expr},
+                    diag_code::free_function_taking_zero_arguments_called_as_method,
+                    diag_type::error);
+            } else {
+                context.emplace_diagnostic_with_message_value(
+                    Span{context, fid, expr}, diag_code::takes_no_arguments, diag_type::error,
+                    DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
+            }
+            return true;
+        }
+        return false;
+    };
+
+    if (needs_generic_deduction) {
+        const auto maybe_deduction_guide = context.deduction_guide_for_def(func_did);
+        if (maybe_deduction_guide.empty()) {
+
+            // try to give the helpful possible diagnostics
+            if (const auto& gen_fn_def = context.def(func_did);
+                gen_fn_def.holds<DefGenericFunction>()
+                && check_too_many_args(exprs.len, gen_fn_def.as<DefGenericFunction>().param_cnt,
+                                       func_did, maybe_self_val, fid, expr, exprs)) {
+                return {};
+            }
+
+            const auto d0 = context.emplace_diagnostic_with_message_value(
+                Span{context, fid, expr}, diag_code::cannot_deduce_generic_paramters_for_function,
+                diag_type::error, DiagnosticSymbolAfterMessage{.sid = context.def(func_did).name});
+            const auto d1 = context.emplace_diagnostic_with_message_value(
+                context.name_span_for_def(func_did), diag_code::declared_here_as_generic,
+                diag_type::note, DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
+            context.link_diagnostic(d0, d1);
+            return {};
+        }
+        for (HirSize i = 0; i < exprs.len; i++) {
+            const ast_expr_t* arg = exprs.start[i];
+
+            OptId<ExecId> maybe_arg_eid = solve_expr_helper(solver, fid, scope, maybe_move_map, arg);
+            if (maybe_arg_eid.empty()) {
+                issue = true;
+            } else {
+                out_args.push_back(maybe_arg_eid.as_id());
+            }
+            total_arg_cnt++;
+        }
+        const auto maybe_gen_args
+            = try_generic_args_from_deduction_guide(solver, out_args, maybe_deduction_guide.as_id());
+        if (maybe_gen_args.empty()) {
+
+            // try to give the helpful possible diagnostics
+            if (const auto& gen_fn_def = context.def(func_did);
+                gen_fn_def.holds<DefGenericFunction>()
+                && check_too_many_args(exprs.len, gen_fn_def.as<DefGenericFunction>().param_cnt,
+                                       func_did, maybe_self_val, fid, expr, exprs)) {
+                return {};
+            }
+
+            const auto d0 = context.emplace_diagnostic_with_message_value(
+                Span{context, fid, expr}, diag_code::cannot_deduce_generic_paramters_for_function,
+                diag_type::error, DiagnosticSymbolAfterMessage{.sid = context.def(func_did).name});
+            const auto d1 = context.emplace_diagnostic_with_message_value(
+                context.name_span_for_def(func_did), diag_code::declared_here_as_generic,
+                diag_type::note, DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
+            context.link_diagnostic(d0, d1);
+            return {};
+        }
+
+        const OptId<DefId> maybe_gen_instant = context.try_generic_instantiation(
+            solver.get_def_visitor(), func_did, maybe_gen_args.as_id());
+        if (maybe_gen_instant.empty()) {
+            return {};
+        }
+        func_did = maybe_gen_instant.as_id();
+        params = context.def(maybe_gen_instant.as_id()).as<DefFunction>().params;
+    } else {
+
+        params = context.def(func_did).as<DefFunction>().params;
+
+        for (HirSize i = 0; i < exprs.len; i++) {
+            const ast_expr_t* arg = exprs.start[i];
+
+            const auto param_index = i + (maybe_self_val.has_value() ? 1 : 0);
+
+            OptId<TypeId> maybe_into_tid
+                = (param_index < params.len())
+                      ? OptId<TypeId>{context.def(params.get(param_index))
+                                          .as<DefVariable>()
+                                          .type_id}
+                      : std::nullopt;
+
+            OptId<ExecId> maybe_arg_eid
+                = solve_expr_helper(solver, fid, scope, maybe_move_map, arg, maybe_into_tid);
+            if (maybe_arg_eid.empty()) {
+                issue = true;
+            } else {
+                out_args.push_back(maybe_arg_eid.as_id());
+            }
+            total_arg_cnt++;
+        }
+    }
+
+    issue |= check_too_many_args(total_arg_cnt, params.len(), func_did, maybe_self_val, fid, expr,
+                                 exprs);
+
+    if (!context.def(func_did).as<DefFunction>().poisoned() && issue) {
+        if (context.diagnostic_count() > prior_diag_cnt) {
+            auto d = context.emplace_diagnostic_with_message_value(
+                context.name_span_for_def(func_did), diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = context.def(func_did).name});
+            context.force_link_diagnostic(d);
+        }
+    }
+
+    // final guard before forwarding params -> execs
+    if (issue || (out_args.size() != params.len())) {
+        return {}; // just in case
+    }
+
+    if (context.def(func_did).as<DefFunction>().posioned) {
+        return {}; // already posioned so don't even try it
+    }
+
+    return true;
+}
+
+template <IsExprSolver Solver>
+[[nodiscard]] OptId<ExecId> solve_indirect_fn_call_impl(Solver& solver, FileId fid, ScopeId scope,
+                                                        OptId<MoveMapId> maybe_move_map,
+                                                        const ast_expr_t* expr, ExecId callee_eid) {
+    Context& context = solver.get_context();
+    const TypeId fn_ptr_tid = context.infer_type_from_exec(callee_eid).as_id();
+    const IdSlice<TypeId> param_types = context.type(fn_ptr_tid).as<TypeFnPtr>().param_types;
+    const ast_slice_of_exprs_t exprs = expr->expr.fn_call.args;
+
+    bool issue = false;
+    llvm::SmallVector<ExecId> arg_vec{};
+    for (HirSize i = 0; i < exprs.len; i++) {
+        const OptId<TypeId> maybe_into_tid
+            = (i < param_types.len()) ? OptId<TypeId>{context.type_id(param_types.get(i))} : std::nullopt;
+        const OptId<ExecId> maybe_arg_eid
+            = solve_expr_helper(solver, fid, scope, maybe_move_map, exprs.start[i], maybe_into_tid);
+        if (maybe_arg_eid.empty()) {
+            issue = true;
+        } else {
+            arg_vec.push_back(maybe_arg_eid.as_id());
+        }
+    }
+
+    if (exprs.len != param_types.len()) {
+        const SymbolId callee_sid = context.symbol_id(context.exec(callee_eid).span);
+        if (param_types.len() == 0) {
+            context.emplace_diagnostic_with_message_value(
+                Span{context, fid, expr}, diag_code::takes_no_arguments, diag_type::error,
+                DiagnosticSymbolBeforeMessage{.sid = callee_sid});
+        } else {
+            const Span span_of_interest
+                = (exprs.len < param_types.len())
+                      ? Span{context, fid, expr->last}
+                      : Span::combine(Span{context, fid, exprs.start[0]->first},
+                                      Span{context, fid, exprs.start[exprs.len - 1]->last});
+            context.emplace_diagnostic_with_message_value(
+                span_of_interest, diag_code::expected, diag_type::error,
+                DiagnosticSymButGotSym{.leading = callee_sid,
+                                       .sid1 = ExecConst{param_types.len()}.to_symbol_id(context),
+                                       .sid2 = ExecConst{exprs.len}.to_symbol_id(context)});
+        }
+        return {};
+    }
+    if (issue) {
+        return {};
+    }
+
+    return context.emplace_exec(
+        ExecFnCall{.callee = callee_eid, .args = context.freeze_id_vec(arg_vec)},
+        Span{context, fid, expr});
+}
+
+template <IsExprSolver Solver>
+[[nodiscard]] OptId<ExecId> solve_fn_call_impl(Solver& solver, FileId fid, ScopeId scope,
+                                               OptId<MoveMapId> maybe_move_map,
+                                               const ast_expr_t* expr,
+                                               OptId<ExecId> maybe_self_val = std::nullopt) {
+    assert(expr->type == AST_EXPR_FN_CALL);
+
+    Context& context = solver.get_context();
+
+    // record this now so we know better if we've previously generated diagnostics. this is
+    // helpful for try_compt_fn_call(...)'s diagnostic propagation logic
+    [[maybe_unused]] const auto prior_diag_cnt = context.diagnostic_count();
+
+    // try to find our function, instantiated generic function, or raw generic function (in this
+    // case we must later deduce generic arguments)
+    const std::optional<FuncLookUp> look_up_res = try_fn_look_up_from_expr_impl(
+        solver, fid, scope, maybe_move_map, expr, maybe_self_val);
+
+    // failure, so propogate up
+    if (!look_up_res.has_value()) {
+        return {};
+    }
+
+    // the look-up internally solved a variant initialzier, so just return the result of that
+    if (look_up_res->did_variant_initializer) {
+        return look_up_res->maybe_variant_init_res;
+    }
+
+    if (look_up_res->maybe_indirect_callee.has_value()) {
+        return solve_indirect_fn_call_impl(solver, fid, scope, maybe_move_map, expr,
+                                           look_up_res->maybe_indirect_callee.as_id());
+    }
+
+    // our running func_did (this will only get updated henceforth if we deduce generic args for
+    // a raw generic function)
+    DefId func_did = look_up_res->func_did.as_id();
+
+    llvm::SmallVector<ExecId> arg_vec{};
+    const Span span{context, fid, expr};
+
+    if constexpr (!std::same_as<Solver, ComptExprSolver>) {
+        if (context.def(func_did).compt) {
+            ComptExprSolver compt_solver{solver.get_def_visitor()};
+            if (!try_fn_args_from_expr_and_preliminary_function_def_id_impl(
+                    compt_solver, fid, scope, {}, expr, maybe_self_val, /*&*/ func_did,
+                    look_up_res->needs_generic_deduction, /*&*/ arg_vec)) {
+                return {};
+            }
+            return compt_solver.try_compt_fn_call(func_did, arg_vec, prior_diag_cnt, span);
+        }
+    }
+
+    if (!try_fn_args_from_expr_and_preliminary_function_def_id_impl(
+            solver, fid, scope, maybe_move_map, expr, maybe_self_val, /*&*/ func_did,
+            look_up_res->needs_generic_deduction, /*&*/ arg_vec)) {
+        return {};
+    }
+
+    if constexpr (std::same_as<Solver, ComptExprSolver>) {
+        return solver.try_compt_fn_call(func_did, arg_vec, prior_diag_cnt, span);
+    } else {
+        const ExecId callee_eid = emplace_fn_ptr_exec(
+            context, func_did, Span{context, fid, expr->expr.fn_call.left_expr});
+        return context.emplace_exec(
+            ExecFnCall{.callee = callee_eid, .args = context.freeze_id_vec(arg_vec)}, span);
+    }
 }
 
 /// reads a solved compt subscript index (u64, or u32 on 32-bit targets)

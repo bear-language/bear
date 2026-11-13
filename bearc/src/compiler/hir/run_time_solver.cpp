@@ -127,6 +127,8 @@ namespace hir {
         maybe_eid = handle_subscript(fid, lctx, expr);
         break;
     case AST_EXPR_FN_CALL:
+        maybe_eid = handle_fn_call(fid, lctx, expr);
+        break;
     case AST_EXPR_TYPE:
     case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
@@ -782,6 +784,7 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_SUBSCRIPT:
         return handle_subscript(fid, lctx, expr);
     case AST_EXPR_FN_CALL:
+        return handle_fn_call(fid, lctx, expr);
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_MATCH:
@@ -862,6 +865,11 @@ OptId<ExecId> RuntimeSolver::handle_list_literal(FileId fid, LexicalCtx lctx,
 OptId<ExecId> RuntimeSolver::handle_tuple_init(FileId fid, LexicalCtx lctx,
                                                const ast_expr_t* expr) {
     return solve_tuple_init_impl(*this, fid, lctx.scope, lctx.map, expr);
+}
+
+OptId<ExecId> RuntimeSolver::handle_fn_call(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+    assert(expr->type == AST_EXPR_FN_CALL);
+    return solve_fn_call_impl(*this, fid, lctx.scope, lctx.map, expr);
 }
 
 OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
