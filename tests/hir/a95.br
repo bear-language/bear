@@ -35,7 +35,9 @@ fn oops() {
 
     *i32 _l = 5; // oops, but not an lvalue so addr of is not recommended
     
-    &i32 _m = 5; // oops, but not an lvalue borrow of is not recommended
+    &i32 _m = 5; // oops, borrow is recommended since compt values get promoted to static memory
+
+    &mut i32 _o = 5; // oops, but compt values can't be mut borrowed so borrow is not recommended
 
     &mut i32 _n = a; // oops
     

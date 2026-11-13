@@ -170,7 +170,8 @@ namespace hir {
 
         // recommend a borrow
         if (into_ty.holds<TypeRef>() && into_ty.try_inner().has_value()
-            && context.is_lvalue(maybe_eid.as_id())
+            && (context.is_lvalue(maybe_eid.as_id())
+                || (context.exec(maybe_eid.as_id()).compt && !into_ty.mut))
             && context.assignable_and_inferable_from_type_to(maybe_tid.as_id(),
                                                              into_ty.try_inner().as_id())) {
 
@@ -838,10 +839,7 @@ OptId<ExecId> RuntimeSolver::handle_literal(FileId fid, const ast_expr_t* expr, 
     }
     const Type& ty = context.type(into_tid);
     if (!ty.holds<TypeBuiltin>()) {
-        context.emplace_diagnostic_with_message_value(
-            Span{context, fid, expr}, diag_code::cannot_convert_expression_to_type,
-            diag_type::error, DiagnosticTypeAfterMessage{.tid = into_tid});
-        return {};
+        return context.emplace_compt_exec(maybe_value.value(), Span{context, fid, expr});
     }
     const auto bin_type = ty.as<TypeBuiltin>().type;
     const auto maybe_converted = maybe_value.value().try_down_convert_to(bin_type);

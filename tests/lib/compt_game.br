@@ -68,7 +68,7 @@ compt fn get_outcome(Result r) -> str => match(r) {
 compt fn new_state() -> str => (player..current_state + 1) as str
 
 
-fn greet() -> bool 
+compt fn greet() -> bool 
            =>  (@note "#   # ##### #     #     ######") &&
                (@note "#   # #     #     #     #    #") &&
                (@note "##### ##### #     #     #    #") &&
@@ -77,7 +77,7 @@ fn greet() -> bool
                (@note("new state to copy into your src code is: " + new_state())) &&
                (@note "make sure choice is set to one of Rock, Paper, Scissors, or ViewInstructions")
 
-fn gg() -> bool
+compt fn gg() -> bool
         =>     (@note "##### #####") &&
                (@note "#     #    ") &&
                (@note "# ### #  ##") &&
@@ -85,7 +85,7 @@ fn gg() -> bool
                (@note "##### #####") 
 
 
-fn play() -> bool => game_fine && match(player..current_state) {
+compt fn play() -> bool => game_fine && match(player..current_state) {
     0 => greet(),
     else => match(player..choice) {
         ViewInstructions => view_instr(),

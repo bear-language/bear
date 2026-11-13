@@ -1,0 +1,28 @@
+// tests/hir/b17.br
+
+// testing runtime variant inits (which share syntax w/ fn calls)
+
+variant Shape {
+    Circle(f32 r),
+    Rect(i32 w, i32 h),
+    Empty,
+}
+
+compt i32 TWO = 2;
+
+fn fine(i32 x) {
+    Shape _0 = Shape..Rect(1, 2); // all compt, so folded
+    Shape _1 = Shape..Rect(TWO, TWO + 1); // folded thru compt vars
+    Shape _2 = Shape..Rect(x, 2); // runtime arg, not folded
+    Shape _3 = Shape..Circle(1.5);
+    Shape _4 = Shape..Empty();
+    var _5 = Shape..Rect(x, x);
+}
+
+fn oops(i32 x, str s) {
+    var _0 = Shape..Rect(x); // oops, too few args
+    var _1 = Shape..Empty(x); // oops, too many args
+    var _2 = Shape..Rect(x, s); // oops, str isn't an i32
+    var _3 = Shape..Nope(x); // oops, not a field
+    i32 _4 = Shape..Rect(1, 2); // oops, a Shape isn't an i32
+}

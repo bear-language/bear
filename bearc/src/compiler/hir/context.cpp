@@ -2337,6 +2337,13 @@ template <equivalence E>
         return assignable_from_type_to_refs_impl<E>(ctx, from, to);
     }
 
+    if constexpr (E == equivalence::implicit) {
+        if (to_ty.holds<TypePtr>() && from_ty.holds<TypeBuiltin>()
+            && from_ty.as<TypeBuiltin>().type == builtin_type::nullpointer) {
+            return true;
+        }
+    }
+
     if constexpr (E == equivalence::exact) {
         TypeComparator<DoNotConsiderMut> equivalent_not_considering_mut_for_one_layer{ctx};
 

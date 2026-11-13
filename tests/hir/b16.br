@@ -1,0 +1,42 @@
+// tests/hir/b16.br
+
+// testing runtime function calls
+
+fn add(i32 a, i32 b) -> i32 => a + b
+
+fn zero() -> i32 => 0
+
+fn id<T>(T a) -> T => a
+
+compt fn csquare(i32 a) -> i32 => a * a
+
+compt fn square(var a) => a * a
+
+compt i32 TWO = 2;
+
+fn fine(i32 x, *fn(i32, i32)->i32 f) {
+    i32 _0 = add(x, 2);
+    i32 _1 = add(1, 2); // all compt args, but still not folded
+    i32 _2 = zero();
+    i32 _3 = f(x, 1); // thru a runtime fn ptr
+    i32 _4 = id(x); // deduced generic
+    i32 _5 = id::<i32>(x);
+    i32 _6 = add(add(x, 1), zero());
+    compt var g = add;
+    i32 _7 = g(x, x); // thru a compt fn ptr
+    i32 _8 = csquare(3); // compt fn, so folded
+    i32 _9 = square(TWO); // compt fn w/ var param, folded thru a compt var
+    i32 _10 = csquare(csquare(TWO)); // nested compt fns, folded
+}
+
+fn oops(i32 x, *fn(i32, i32)->i32 f, str s) {
+    var _0 = add(x); // oops, too few args
+    var _1 = add(x, 1, 2); // oops, too many args
+    var _2 = zero(x); // oops, takes no args
+    var _3 = f(x); // oops, too few args thru a fn ptr
+    var _4 = add(x, s); // oops, str isn't an i32
+    var _5 = x(1); // oops, i32 isn't callable
+    var _6 = nope(1); // oops, undeclared
+    var _7 = csquare(x); // oops, compt fn needs compt args
+    var _8 = square(x); // oops, compt fn needs compt args
+}
