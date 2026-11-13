@@ -744,6 +744,37 @@ struct FuncLookUp {
     bool did_variant_initializer{false};
 };
 
+[[nodiscard]] inline OptId<ExecId> try_checked_borrow(Context& context, ExecId inner_eid,
+                                                      bool mut_borrow, Span span) {
+    const Exec& inner = context.exec(inner_eid);
+    if (!context.is_lvalue(inner_eid) && !inner.compt) {
+        context.emplace_diagnostic(inner.span, diag_code::cannot_borrow_temporary_value,
+                                   diag_type::error);
+        return {};
+    }
+
+    const auto maybe_inner_tid = context.infer_type_from_exec(inner_eid);
+    if (maybe_inner_tid.empty()) {
+        return {};
+    }
+
+    if (mut_borrow && !context.type(maybe_inner_tid.as_id()).mut) {
+        DiagLinker dlinker{context};
+        dlinker.link(context.emplace_diagnostic_with_message_value(
+            context.exec(inner_eid).span,
+            diag_code::cannot_take_a_mutable_reference_to_immutable_value_of_type, diag_type::error,
+            DiagnosticTypeAfterMessage{.tid = maybe_inner_tid.as_id()}));
+        if (const auto maybe_did = context.try_def_for_exec(inner_eid); maybe_did.has_value()) {
+            const Def& def = context.def(maybe_did.as_id());
+            dlinker.link(context.emplace_diagnostic_with_message_value(
+                def.span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = def.name}));
+        }
+    }
+
+    return context.emplace_exec(ExecBorrow{.borrowee = inner_eid, .mut = mut_borrow}, span);
+}
+
 [[nodiscard]] inline OptId<DefId> struct_did_for_self_val(Context& context, ExecId self_eid) {
     const Exec& exec = context.exec(self_eid);
     if (exec.holds<ExecStructInit>()) {
@@ -879,6 +910,7 @@ try_fn_look_up_from_expr_impl(Solver& solver, FileId fid, ScopeId scope,
             const token_t* id_tok = id_slice.start[0];
             const SymbolId func_name = context.symbol_id(id_tok);
             const Span fn_name_span{context, fid, id_tok};
+            const auto prior_diag_cnt = context.diagnostic_count();
 
             // structs have special look up rules cuz we need to look into their member
             // functions
@@ -922,10 +954,12 @@ try_fn_look_up_from_expr_impl(Solver& solver, FileId fid, ScopeId scope,
             }
 
             if (maybe_func_did.empty()) {
-                context.emplace_diagnostic(
-                    Span{context, fid, expr->expr.fn_call.left_expr},
-                    diag_code::use_of_undeclared_identifier, diag_type::error,
-                    DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
+                if (context.diagnostic_count() == prior_diag_cnt) {
+                    context.emplace_diagnostic(
+                        Span{context, fid, expr->expr.fn_call.left_expr},
+                        diag_code::use_of_undeclared_identifier, diag_type::error,
+                        DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
+                }
                 return std::nullopt;
             }
         } else {
@@ -1215,6 +1249,23 @@ template <IsExprSolver Solver>
 
     issue |= check_too_many_args(total_arg_cnt, params.len(), func_did, maybe_self_val, fid, expr,
                                  exprs);
+
+    if constexpr (!std::same_as<Solver, ComptExprSolver>) {
+        if (maybe_self_val.has_value() && !issue && params.len() != 0) {
+            const Type& self_param_ty
+                = context.type(context.def(params.get(0)).as<DefVariable>().type_id);
+            if (self_param_ty.holds<TypeRef>()) {
+                const ExecId self_eid = out_args[0];
+                const auto maybe_borrow = try_checked_borrow(context, self_eid, self_param_ty.mut,
+                                                             context.exec(self_eid).span);
+                if (maybe_borrow.empty()) {
+                    issue = true;
+                } else {
+                    out_args[0] = maybe_borrow.as_id();
+                }
+            }
+        }
+    }
 
     if (!context.def(func_did).as<DefFunction>().poisoned() && issue) {
         if (context.diagnostic_count() > prior_diag_cnt) {

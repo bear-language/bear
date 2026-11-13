@@ -2460,7 +2460,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         },
         [&ctx](const ExecBorrow& t) -> std::string {
             std::string str{};
-            str += '&';
+            str += t.mut ? "&mut " : "&";
             str += exec_to_string(ctx, t.borrowee);
             return str;
         },

@@ -1,0 +1,43 @@
+// tests/hir/b19.br
+
+// testing runtime method calls (receiver auto-referencing)
+
+struct Counter {
+    i32 n;
+
+    mt get() -> i32 => self.n
+    mt mut bump() => self.n += 1
+    fn by_val(Self self) -> i32 => self.n
+    fn explicit_ref(&Self self) -> i32 => self.n
+    fn explicit_mut(&mut Self self) => self.n += 2
+    mt mut bump_twice() {
+        self.bump();
+        self.bump();
+    }
+}
+
+fn make() -> Counter => Counter{.n = 0}
+
+fn fine(&mut Counter r, &Counter cr) {
+    mut Counter c = Counter{.n = 0};
+    i32 _0 = c.get();
+    c.bump();
+    c.bump_twice();
+    c.explicit_mut();
+    i32 _1 = c.explicit_ref();
+    i32 _2 = c.by_val();
+    i32 _3 = r.get();
+    r.bump();
+    i32 _4 = cr.get();
+    i32 _5 = make().by_val();
+}
+
+fn oops(&Counter cr) {
+    Counter c = Counter{.n = 0};
+    i32 _0 = c.get();
+    c.bump(); // oops, c is immut
+    c.explicit_mut(); // oops, c is immut
+    cr.bump(); // oops, cr refs immut
+    var _1 = make().get(); // oops, borrows a temporary
+    c.nope(); // oops, no such method
+}

@@ -12,10 +12,10 @@ contract Get<T> {
     mt get() -> T;
 }
 
-struct Foo<T has Get<i32>> has Into<T> + From<T> + Get<i32> { 
+struct Foo<T has Get<i32>> has Into<T> + From<i32> + Get<i32> { 
     i32 val;
-    fn from(&T value) -> Self => Self{.val = value.get()};
-    mt into() -> T => T..from(self.get());
+    fn from(&i32 value) -> Self => Self{.val = value};
+    mt into() -> T => T..from(&self.val);
     mt get() -> i32 => self.val;
     fn new(i32 val) -> Self => Self{.val = val}
 }

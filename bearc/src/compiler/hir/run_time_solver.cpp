@@ -33,7 +33,7 @@ static void write_back_moves(Context& context, MoveMapId parent,
     llvm::SmallVector<std::pair<DefId, llvm::SmallVector<ExecId>>> moves{};
     for (const MoveMapId child : children) {
         context.move_map(child).for_each_local_move([&](DefId did, MoveResult res) {
-            auto it = std::ranges::find(moves, did, &decltype(moves)::value_type::first);
+            auto* it = std::ranges::find(moves, did, &decltype(moves)::value_type::first);
             if (it == moves.end()) {
                 it = &moves.emplace_back(did, llvm::SmallVector<ExecId>{});
             }
@@ -1154,52 +1154,8 @@ OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const as
         return {};
     }
 
-    const bool mut_borrow = expr->expr.borrow.mut;
-
-    // make sure either:
-    // - inner is an lvalue
-    // or:
-    // - inner is a promotable compt constant and this is an immut borrow
-
-    const bool inner_is_lvalue = context.is_lvalue(maybe_inner_eid.as_id());
-    const bool inner_is_compt = context.exec(maybe_inner_eid.as_id()).compt;
-
-    if (!inner_is_lvalue && !inner_is_compt) {
-        const Exec& exec = context.exec(maybe_inner_eid.as_id());
-        context.emplace_diagnostic(exec.span, diag_code::cannot_borrow_temporary_value,
-                                   diag_type::error);
-        return {};
-    }
-
-    const auto maybe_inner_tid = context.infer_type_from_exec(maybe_inner_eid.as_id());
-    if (maybe_inner_tid.empty()) {
-        return {};
-    }
-
-    const Type& ty = context.type(maybe_inner_tid.as_id());
-
-    // cannot mutably borrow immutable data
-    if (!ty.mut && mut_borrow) {
-        auto d0 = context.emplace_diagnostic_with_message_value(
-            Span{context.exec(maybe_inner_eid.as_id()).span},
-            diag_code::cannot_take_a_mutable_reference_to_immutable_value_of_type, diag_type::error,
-            DiagnosticTypeAfterMessage{.tid = maybe_inner_tid.as_id()});
-        const auto maybe_did = context.try_def_for_exec(maybe_inner_eid.as_id());
-
-        if (maybe_did.has_value()) {
-            const Def& def = context.def(maybe_did.as_id());
-            auto d1 = context.emplace_diagnostic_with_message_value(
-                def.span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = def.name});
-            context.link_diagnostic(d0, d1);
-        }
-
-        // don't return none since this isn't such a bad error that it really poisons context beyond
-        // the extent of this borrow
-    }
-
-    return context.emplace_exec(ExecBorrow{.borrowee = maybe_inner_eid.as_id(), .mut = mut_borrow},
-                                Span{context, fid, expr});
+    return try_checked_borrow(context, maybe_inner_eid.as_id(), expr->expr.borrow.mut,
+                              Span{context, fid, expr});
 }
 
 OptId<ExecId> RuntimeSolver::handle_addr_of(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
@@ -2040,9 +1996,7 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
     }
 
     if (rhs_expr->type == AST_EXPR_FN_CALL) {
-        // return solve_fn_call(fid, lctx, rhs_expr, lhs_eid);
-        // TODO
-        return {};
+        return solve_fn_call_impl(*this, fid, lctx.scope, lctx.map, rhs_expr, lhs_eid);
     }
 
     if (lhs_has_len && rhs_expr->type == AST_EXPR_ID

@@ -534,6 +534,7 @@ DefId DefVisitor::resolve_def(DefId did) {
                                                .posioned = params_res.poisoned});
 
         if (!context.def(did).compt) {
+            context.set_resol_state_of(did, Def::resol_state::resolved);
             resolve_fn_body(fid, did);
         }
 
