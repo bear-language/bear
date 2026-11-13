@@ -698,6 +698,7 @@ class Context {
     [[nodiscard]] const Scope& scope(ScopeId sid) const;
 
     [[nodiscard]] const MoveMap& move_map(MoveMapId mid) const;
+    [[nodiscard]] MoveMap& move_map(MoveMapId mid);
 
     /// makes a move map from a specified arena
     /// - note: make sure that the returned MoveMapId does not escape the liftime of the arena

@@ -1,9 +1,6 @@
 ### todos
 
 #### priority 
-- [ ] fix failing tests by finishing `RunTimeSolver::solve_expr` (6 are failing as of 20261111)
-    - mostly/entirely due to fn expr bodies now being resolved
-
 - [ ] make deftype resolution not declaration order dependent
 - [ ] emit a diagnostic (e.g. `not yet implemented in a runtime context`) for unhandled expr kinds in `RuntimeSolver::solve_expr` versus returning empty w/o a diag
 - [ ] evaluate non-taken compt paths for basic validity 
@@ -16,13 +13,14 @@
             - [x] tracks DefId -> ExecId and DefId -> ExecIdSliceId tracking where defs were moved (for good diagnostics)
             - [ ] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
     - [ ] finish impl `RunTimeSolver`
+        - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee); either convert them in HIR or cast when lowering the `switch`
         - [ ] use deduction guides for functions/(variants/structs?)
         - [ ] assignments:
             - [ ] make sure to auto-dereferences and reference-typed Execs on the LHS 
     - [ ] fix mut semantics on struct members 
         - [ ] warn on `mut` declared members
         - [ ] make it so the struct instance's mutability entirely determines the member mutability
-    - [ ] drop/destructor flags, tracked by block/lexical scope (only emit when a variable is conditionally dropped)
+    - [ ] drop/destructor flags, tracked by block/lexical scope (always emit, LLVM folds the unconditional ones)
     - [ ] static variable guard variables (thread safe, ideally or eventually)
         - only needed if LHS is not knowable at compt (in which case it can be an LLVM global w/ a constant initializer)
     

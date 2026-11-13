@@ -2605,7 +2605,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             *this, scope, maybe_pattern_scope.as_id(), fid, variant_did, match_expr);
     } else {
         valid_branches_and_exhaustive
-            = valid_exhaustive_match_for_non_variant(*this, scope, fid, match_expr);
+            = valid_exhaustive_match_for_non_variant(*this, scope, fid, match_expr, matched_eid);
     }
 
     if (!valid_branches_and_exhaustive) {
@@ -2730,14 +2730,7 @@ bool ComptExprSolver::try_variant_decomp(FileId fid, ScopeId pattern_scope, Scop
 
     const DefVariantField variant_field = variant_field_def.as<DefVariantField>();
 
-    if (decomp.vars.len > variant_field.members.len()) {
-        const auto d0 = context.emplace_diagnostic(
-            decomp_span, diag_code::too_many_decompositions_for_variant, diag_type::error);
-        const auto d1 = context.emplace_diagnostic(variant_field_def.span, diag_code::declared_here,
-                                                   diag_type::note);
-
-        context.link_diagnostic(d0, d1);
-
+    if (diag_if_too_many_decomps(context, decomp_span, variant_field_did, decomp.vars.len)) {
         return false;
     }
 
@@ -2755,25 +2748,12 @@ bool ComptExprSolver::try_variant_decomp(FileId fid, ScopeId pattern_scope, Scop
 
         const SymbolId name = context.symbol_id(decomped_var->name);
 
-        const DefVariable variants_field_variable
-            = context.def(variant_field.members.get(i)).template as<DefVariable>();
-
-        const TypeId needed_tid = variants_field_variable.type_id;
-
-        const bool type_matches = context.type_inferable_as(written_tid, needed_tid);
+        const DefId member_did = context.def_id(variant_field.members.get(i));
+        const TypeId needed_tid = context.def(member_did).template as<DefVariable>().type_id;
 
         Span span{context, fid, decomped_var->first, decomped_var->last};
 
-        if (!type_matches) {
-            const auto d0 = context.emplace_diagnostic_with_message_value(
-                context.type(written_tid).span,
-                diag_code::cannot_match_type_for_decomposed_variant_from, diag_type::error,
-                DiagnosticTypeToType{.from = written_tid, .to = needed_tid});
-            const auto member_did = context.def_id(variant_field.members.get(i));
-            const auto d1 = context.emplace_diagnostic_with_message_value(
-                context.def(member_did).span, diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = context.def(member_did).name});
-            context.link_diagnostic(d0, d1);
+        if (!decomp_type_matches(context, written_tid, member_did)) {
             continue;
         }
 

@@ -860,6 +860,7 @@ std::optional<ExecConst> ExecConst::try_down_convert_to(builtin_type type) const
         case builtin_type::nullpointer:
             return none();
         }
+        break;
     }
 
     // u32
@@ -2480,7 +2481,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         },
         [&ctx](const ExecMatchBranch& t) -> std::string {
             std::string str{};
-            str += slice_of_pattern_execs_to_str(ctx, t.patterns);
+            str += t.patterns.len() ? slice_of_pattern_execs_to_str(ctx, t.patterns) : "else";
             str += " => ";
             str += exec_to_string(ctx, t.body);
             return str;

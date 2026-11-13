@@ -670,8 +670,20 @@ bool definitely_returns_yields_impl(const Context& ctx, ExecId eid) {
         [](const ExecBorrow&) -> bool { return {}; },
         [](const ExecAddrOf&) -> bool { return {}; },
         [](const ExecDeref&) -> bool { return {}; },
-        [](const ExecMatch&) -> bool { return {}; },
-        [](const ExecMatchBranch&) -> bool { return {}; },
+        [&ctx](const ExecMatch& d) -> bool {
+            if constexpr (!std::same_as<T, ExecReturn>) {
+                return false;
+            }
+            for (auto idx = d.branches.begin(); idx != d.branches.end(); ++idx) {
+                if (!definitely_returns_yields_impl<T>(ctx, ctx.exec_id(idx))) {
+                    return false;
+                }
+            }
+            return d.branches.len() != 0;
+        },
+        [&ctx](const ExecMatchBranch& d) -> bool {
+            return definitely_returns_yields_impl<T>(ctx, d.body);
+        },
         [](const ExecFnPtr&) -> bool { return {}; },
         [](const ExecVariantFieldInit&) -> bool { return {}; },
         [](const ExecRange&) -> bool { return {}; },

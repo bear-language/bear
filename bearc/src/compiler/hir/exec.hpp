@@ -529,6 +529,8 @@ struct ExecFnPtr {
 struct ExecMatch {
     ExecId scrutinee;
     IdSlice<ExecId> branches;
+    OptId<DefId> scrutinee_tmp{};
+    OptId<TypeId> result_tid{};
 };
 
 struct ExecMatchBranch {

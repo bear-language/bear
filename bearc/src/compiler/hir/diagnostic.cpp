@@ -435,6 +435,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::function_may_not_return_a_value_in_all_control_flow_paths:
         return "function reaches end of execution without a return statement, so it may not return "
                "a value in all control flow paths";
+    case diag_code::match_branch_block_does_not_yield_a_value:
+        return "match branch block does not yield a value";
+    case diag_code::end_block_with_a_yield_statement:
+        return "end block with a yield statement";
     case diag_code::end_function_body_with_a_return_statement:
         return "end function with a return statement";
     case diag_code::function_has_return_type:

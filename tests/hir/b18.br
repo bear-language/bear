@@ -1,0 +1,116 @@
+// tests/hir/b18.br
+
+// testing runtime match expressions
+
+variant Shape {
+    Circle(f32 r),
+    Rect(i32 w, i32 h),
+    Empty,
+}
+
+fn make(i32 x) -> Shape => Shape..Rect(x, x)
+
+fn fine(Shape s, &Shape rs, i32 x) -> i32 {
+    i32 _0 = match (s) { // decomps read straight from s
+        Shape..Rect(i32 w, i32 h) => w * h,
+        Shape..Circle(f32 r) => r as i32,
+        Shape..Empty => 0,
+    };
+
+    i32 _1 = match (make(x)) { // decomp of a non-variable, so a hidden scrutinee temp is used
+        Shape..Rect(i32 w, i32 h) => w + h,
+        else => 0,
+    };
+    
+    i32 _2 = match (make(x)) { // no decomps, so no temp
+        Shape..Rect | Shape..Circle => 1,
+        Shape..Empty => 2,
+    };
+    
+    i32 _3 = match (rs) { // auto-deref'd ref, no temp
+        Shape..Rect(i32 w, i32 h) => w,
+        else => x,
+    };
+    
+    i32 _4 = match (x) {
+        0 => 1,
+        1...=10 => x,
+        else => 3,
+    };
+    
+    var _5 = match (x + 1) { // inferred from the branches
+        0 => x,
+        else => 2,
+    };
+    
+    i32 _6 = match (s) {
+        Shape..Rect(i32 w, i32 h) => { // block branch w/ its own locals
+            i32 area = w * h;
+            yield area + x;
+        },
+        Shape..Circle(f32 r) => {
+            return 7; // diverging branch doesn't need to yield
+        },
+        else => 0,
+    };
+    
+    return _0;
+}
+
+fn all_paths_return(i32 x) -> i32 {
+    match (x) { // every branch returns, so no missing return error
+        0 => { return 1; },
+        else => { return 2; },
+    };
+}
+
+fn floaty(f32 f) -> i32 => match (f) { // oops, warning for matching on floats
+    1.5 => 1,
+    else => 0,
+}
+
+fn oops(Shape s, i32 x, u8 b) {
+    var _0 = match (s) { // oops, not exhaustive
+        Shape..Rect(i32 w, i32 h) => w,
+    };
+    var _1 = match (s) {
+        Shape..Rect(f32 w, i32 h) => 1, // oops, w is an i32
+        else => 0,
+    };
+    var _2 = match (s) {
+        Shape..Rect(i32 w, i32 h, i32 z) => 1, // oops, too many decomps
+        else => 0,
+    };
+    var _3 = match (x) { // oops, not exhaustive
+        0 => 1,
+    };
+    var _4 = match (b) {
+        300 => 1, // oops, exceeds u8
+        else => 0,
+    };
+    var _5 = match (x) {
+        x => 1, // oops, patterns must be compt
+        else => 0,
+    };
+    var _6 = match (s) {
+        Shape..Rect => 1,
+        else => "no", // oops, branches must agree in type
+    };
+    var _7 = match (s) {
+        Shape..Rect(i32 w, i32 h) | Shape..Empty => w, // oops, w and h aren't bound for Empty
+        else => 0,
+    };
+    var _8 = match (x) {
+        0 => { // oops, doesn't yield
+            i32 y = 2;
+        },
+        else => 1,
+    };
+    var _9 = match (x) {
+        0 => {
+            yield 1;
+            i32 z = 3; // oops, unreachable
+        },
+        else => 1,
+    };
+}

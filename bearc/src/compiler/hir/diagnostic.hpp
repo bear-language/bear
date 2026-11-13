@@ -224,6 +224,8 @@ enum class diag_code : uint8_t {
     function_has_return_type,
     code_is_unreachable_following_a_block_terminating_statement,
     block_terminating_statement_here,
+    match_branch_block_does_not_yield_a_value,
+    end_block_with_a_yield_statement,
     function_expected_return_value,
     compt_vars_are_implicitly_static,
     aligning_a_compt_variable_does_nothing,

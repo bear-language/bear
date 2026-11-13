@@ -1678,6 +1678,8 @@ ExecId Context::exec_id(IdIdx<ExecId> id) const { return exec_ids.at(id); }
 
 [[nodiscard]] const MoveMap& Context::move_map(MoveMapId mid) const { return move_maps.at(mid); }
 
+[[nodiscard]] MoveMap& Context::move_map(MoveMapId mid) { return move_maps.at(mid); }
+
 [[nodiscard]] MoveMapId Context::make_move_map(OptId<MoveMapId> parent, DataArena& arena) {
     return move_maps.emplace_and_get_id(arena, parent);
 }
@@ -4182,7 +4184,7 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
             return {};
         },
         // these are ctrl and do not yield values
-        [](const ExecMatch&) -> OptId<TypeId> { return {}; },
+        [](const ExecMatch& d) -> OptId<TypeId> { return d.result_tid; },
         [](const ExecMatchBranch&) -> OptId<TypeId> { return {}; },
         [](const ExecVariantFieldInit&) -> OptId<TypeId> { return {}; },
         [](const ExecBlock&) -> OptId<TypeId> { return {}; },

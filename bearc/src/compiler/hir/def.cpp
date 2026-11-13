@@ -258,7 +258,7 @@ std::string def_to_string(Context& ctx, DefId did) {
 std::string def_to_pretty_string_preview(Context& ctx, DefId did,
                                          string_preview_mode preview_mode) {
     const auto vs = Ovld{
-        [&ctx, did](const DefModule& d) -> std::string {
+        [&ctx, did](const DefModule&) -> std::string {
             std::string str;
 
             str += "mod ";

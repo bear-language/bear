@@ -413,38 +413,47 @@ inline bool value_inside_range(const Context& ctx, ExecId range_eid, ExecId val_
            && key.value() <= interval->hi;
 }
 
+inline bool pattern_can_match(Context& ctx, ExecId matched_eid, ExecId pattern_eid) {
+    if (ctx.exec(matched_eid).compt) {
+        return possibly_equivalent_exec(ctx, matched_eid, pattern_eid);
+    }
+    const OptId<TypeId> maybe_tid = ctx.infer_type_from_exec(matched_eid);
+    if (maybe_tid.empty()) {
+        return false;
+    }
+    const TypeId matched_tid = ctx.try_decay(maybe_tid.as_id());
+    const Exec& pattern = ctx.exec(pattern_eid);
+    const ExecId probe_eid = pattern.holds<ExecRange>() ? pattern.as<ExecRange>().start : pattern_eid;
+    const Exec& probe = ctx.exec(probe_eid);
+    const Type& matched_ty = ctx.type(matched_tid);
+    if (probe.holds<ExecConst>() && probe.as<ExecConst>().is_integral()
+        && matched_ty.holds<TypeBuiltin>()
+        && try_integral_domain(matched_ty.as<TypeBuiltin>().type).has_value()) {
+        return true;
+    }
+    return ctx.try_convert_to(probe_eid, matched_tid).has_value();
+}
+
 template <IsExprSolver S>
 bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid,
-                                            const ast_expr_t* match_expr) {
+                                            const ast_expr_t* match_expr, ExecId matched_eid) {
     assert(match_expr->type == AST_EXPR_MATCH);
 
     Context& context = solver.get_context();
 
     const ast_slice_of_exprs_t branches = match_expr->expr.match_expr.branches;
 
-    const OptId<ExecId> maybe_matched_eid
-        = solver.solve_expr(fid, scope, match_expr->expr.match_expr.matched);
-
-    if (maybe_matched_eid.empty()) {
-        return false;
-    }
-
-    const auto matched_eid = maybe_matched_eid.as_id();
-
     {
-        const Exec& matched_exec = context.exec(matched_eid);
-        if (matched_exec.holds<ExecConst>()
-            && (matched_exec.as<ExecConst>().holds<f32>()
-                || matched_exec.as<ExecConst>().holds<f64>())) {
-
-            const auto maybe_matched_tid = solver.infer_type_from_exec(matched_eid);
-
-            if (maybe_matched_tid.empty()) {
-                return false;
-            }
-
-            const auto matched_tid = maybe_matched_tid.as_id();
-
+        const auto maybe_matched_tid = solver.infer_type_from_exec(matched_eid);
+        if (maybe_matched_tid.empty()) {
+            return false;
+        }
+        const auto matched_tid = maybe_matched_tid.as_id();
+        const Type& matched_ty = context.type(context.try_decay(matched_tid));
+        if (matched_ty.holds<TypeBuiltin>()
+            && (matched_ty.as<TypeBuiltin>().type == builtin_type::f32
+                || matched_ty.as<TypeBuiltin>().type == builtin_type::f64)) {
+            const Exec& matched_exec = context.exec(matched_eid);
             auto d0 = context.emplace_diagnostic(
                 matched_exec.span, diag_code::matching_on_floats_may_cause_unintended_behavior,
                 diag_type::warning);
@@ -527,10 +536,11 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
 
             const OptId<ExecId> maybe_pattern_eid = solver.solve_expr(fid, scope, pattern);
             if (maybe_pattern_eid.empty()) {
+                valid = false;
                 continue;
             }
             const ExecId pattern_eid = maybe_pattern_eid.as_id();
-            if (!possibly_equivalent_exec(context, matched_eid, pattern_eid)) {
+            if (!pattern_can_match(context, matched_eid, pattern_eid)) {
                 report_pattern_type_mismatch(pattern_eid,
                                              diag_code::pattern_can_never_match_matched_value);
                 continue;
@@ -650,6 +660,36 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
 // returns true on issue, else false
 bool check_for_multi_decomps_on_match_branch(Context& ctx, FileId fid,
                                              ast_expr_match_branch_t match_branch);
+
+// returns true on issue, else false
+inline bool diag_if_too_many_decomps(Context& ctx, Span decomp_span, DefId variant_field_did,
+                                     size_t decomp_cnt) {
+    const Def& field_def = ctx.def(variant_field_did);
+    if (decomp_cnt <= field_def.as<DefVariantField>().members.len()) {
+        return false;
+    }
+    const Span field_span = field_def.span;
+    const auto d0 = ctx.emplace_diagnostic(
+        decomp_span, diag_code::too_many_decompositions_for_variant, diag_type::error);
+    const auto d1 = ctx.emplace_diagnostic(field_span, diag_code::declared_here, diag_type::note);
+    ctx.link_diagnostic(d0, d1);
+    return true;
+}
+
+inline bool decomp_type_matches(Context& ctx, TypeId written_tid, DefId member_did) {
+    const TypeId needed_tid = ctx.def(member_did).as<DefVariable>().type_id;
+    if (ctx.type_inferable_as(written_tid, needed_tid)) {
+        return true;
+    }
+    const auto d0 = ctx.emplace_diagnostic_with_message_value(
+        ctx.type(written_tid).span, diag_code::cannot_match_type_for_decomposed_variant_from,
+        diag_type::error, DiagnosticTypeToType{.from = written_tid, .to = needed_tid});
+    const auto d1 = ctx.emplace_diagnostic_with_message_value(
+        ctx.def(member_did).span, diag_code::declared_here, diag_type::note,
+        DiagnosticSymbolBeforeMessage{.sid = ctx.def(member_did).name});
+    ctx.link_diagnostic(d0, d1);
+    return false;
+}
 
 } // namespace hir
 

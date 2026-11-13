@@ -48,6 +48,7 @@ class MoveMap {
           parent{parent} {}
     /// inserts a move for a given def to be moved at a given exec
     void insert(DefId did, ExecId eid) { defs_to_execs.insert(did, eid); }
+    void insert(DefId did, ExecIdSliceId esid) { defs_to_exec_slices.insert(did, esid); }
     /// check for a move in the current lexical scope for the given def
     [[nodiscard]] MoveResult local_move_for(DefId did) const {
         const auto maybe_eid = defs_to_execs.at(did);
@@ -59,6 +60,14 @@ class MoveMap {
             return maybe_s.as_id();
         }
         return {};
+    }
+    template <class F> void for_each_local_move(F&& f) const {
+        for (const auto entry : defs_to_execs) {
+            f(entry.key(), MoveResult{entry.val()});
+        }
+        for (const auto entry : defs_to_exec_slices) {
+            f(entry.key(), MoveResult{entry.val()});
+        }
     }
     /// check for a move in the current parents' lexical scope for the given def
     [[nodiscard]] MoveResult previous_move_for(const Context& ctx, DefId did) const;

@@ -18,15 +18,44 @@
 #include "compiler/hir/exec_ops.hpp"
 #include "compiler/hir/expr_solver_common.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "compiler/hir/matching.hpp"
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/span.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/hir/type_resolver.hpp"
 #include "compiler/token.h"
-#include "utils/data_arena.hpp"
 #include <bit>
 
 namespace hir {
+
+static void write_back_moves(Context& context, MoveMapId parent,
+                             llvm::ArrayRef<MoveMapId> children) {
+    llvm::SmallVector<std::pair<DefId, llvm::SmallVector<ExecId>>> moves{};
+    for (const MoveMapId child : children) {
+        context.move_map(child).for_each_local_move([&](DefId did, MoveResult res) {
+            auto it = std::ranges::find(moves, did, &decltype(moves)::value_type::first);
+            if (it == moves.end()) {
+                it = &moves.emplace_back(did, llvm::SmallVector<ExecId>{});
+            }
+            if (res.holds<ExecId>()) {
+                it->second.push_back(res.as<ExecId>());
+                return;
+            }
+            const IdSlice<ExecId> slice = context.exec_id_slice(res.as<ExecIdSliceId>());
+            for (auto idx = slice.begin(); idx != slice.end(); ++idx) {
+                it->second.push_back(context.exec_id(idx));
+            }
+        });
+    }
+    for (const auto& [did, eids] : moves) {
+        if (eids.size() == 1) {
+            context.move_map(parent).insert(did, eids.front());
+        } else {
+            const auto esid = context.emplace_exec_id_slice(context.freeze_id_vec(eids));
+            context.move_map(parent).insert(did, esid);
+        }
+    }
+}
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, ScopeId scope,
                                                       const ast_expr_t* expr, TypeId into_tid) {
@@ -129,6 +158,9 @@ namespace hir {
     case AST_EXPR_FN_CALL:
         maybe_eid = handle_fn_call(fid, lctx, expr);
         break;
+    case AST_EXPR_MATCH:
+        maybe_eid = handle_match(fid, lctx, expr, into_tid);
+        break;
     case AST_EXPR_TYPE:
     case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
@@ -136,7 +168,6 @@ namespace hir {
     case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
-    case AST_EXPR_MATCH:
     case AST_EXPR_ELSE_MATCH_PATTERN:
     case AST_EXPR_INVALID:
         break;
@@ -241,9 +272,7 @@ RuntimeSolver::lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generi
                                                        bool require_return) {
 
     InProgressBlock in_prog_block{};
-    DataArena move_arena{0x100}; // decently sized
 
-    // move map stays the same as parent, but lexical scope nests
     LexicalCtx curr_lctx{.scope = context.make_small_scope(parent_lctx.scope, block_span),
                          .map = parent_lctx.map};
 
@@ -786,9 +815,10 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return handle_subscript(fid, lctx, expr);
     case AST_EXPR_FN_CALL:
         return handle_fn_call(fid, lctx, expr);
+    case AST_EXPR_MATCH:
+        return handle_match(fid, lctx, expr, {});
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
-    case AST_EXPR_MATCH:
     case AST_EXPR_CLOSURE:
     case AST_EXPR_TERNARY_IF:
 
@@ -868,6 +898,251 @@ OptId<ExecId> RuntimeSolver::handle_tuple_init(FileId fid, LexicalCtx lctx,
 OptId<ExecId> RuntimeSolver::handle_fn_call(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
     assert(expr->type == AST_EXPR_FN_CALL);
     return solve_fn_call_impl(*this, fid, lctx.scope, lctx.map, expr);
+}
+
+OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                          OptId<TypeId> maybe_into_tid) {
+    assert(expr->type == AST_EXPR_MATCH);
+
+    const auto maybe_scrutinee_eid = solve_expr(fid, lctx, expr->expr.match_expr.matched);
+    if (maybe_scrutinee_eid.empty()) {
+        return {};
+    }
+    const ExecId scrutinee_eid = maybe_scrutinee_eid.as_id();
+    const auto maybe_scrutinee_tid = infer_type_from_exec(scrutinee_eid);
+    if (maybe_scrutinee_tid.empty()) {
+        return {};
+    }
+    const TypeId scrutinee_tid = maybe_scrutinee_tid.as_id();
+    const ast_slice_of_exprs_t branches = expr->expr.match_expr.branches;
+    const Span span{context, fid, expr};
+
+    ComptExprSolver compt_solver{def_visitor};
+    OptId<DefId> maybe_variant_did{};
+    if (const Type& ty = context.type(context.try_decay(scrutinee_tid)); ty.holds<TypeVariant>()) {
+        maybe_variant_did = ty.as<TypeVariant>().def_id;
+    }
+
+    if (maybe_variant_did.has_value()) {
+        if (!valid_exhaustive_match_for_variant(
+                *this, lctx.scope, context.def(maybe_variant_did.as_id()).as<DefVariant>().scope,
+                fid, maybe_variant_did.as_id(), expr)) {
+            return {};
+        }
+    } else if (!valid_exhaustive_match_for_non_variant(compt_solver, lctx.scope, fid, expr,
+                                                       scrutinee_eid)) {
+        return {};
+    }
+
+    const auto field_for_pattern = [&](const ast_expr_t* pattern) -> OptId<DefId> {
+        const token_ptr_slice_t id_slice = pattern->type == AST_EXPR_ID
+                                               ? pattern->expr.id.slice
+                                               : pattern->expr.variant_decomp.id;
+        const auto sid_slice = context.symbol_slice(id_slice);
+        const Span pattern_span{context, fid, pattern};
+        const ScopeId variant_scope = context.def(maybe_variant_did.as_id()).as<DefVariant>().scope;
+        for (const ScopeId scope : {variant_scope, lctx.scope}) {
+            if (const auto maybe_did
+                = context.look_up_scoped_type(scope, sid_slice, pattern_span)) {
+                return maybe_did;
+            }
+        }
+        return context.look_up_scoped_variable(lctx.scope, sid_slice, pattern_span);
+    };
+
+    const auto decomposes = +[](const ast_expr_t* pattern) {
+        return pattern->type == AST_EXPR_VARIANT_DECOMP && pattern->expr.variant_decomp.vars.len;
+    };
+
+    bool any_decomp = false;
+    for (size_t i = 0; i < branches.len; ++i) {
+        const ast_expr_match_branch_t branch = branches.start[i]->expr.match_branch;
+        if (check_for_multi_decomps_on_match_branch(context, fid, branch)) {
+            return {};
+        }
+        any_decomp |= std::any_of(branch.patterns.start,
+                                  branch.patterns.start + branch.patterns.len, decomposes);
+    }
+
+    const Exec& scrutinee_exec = context.exec(scrutinee_eid);
+    const bool plain_variable
+        = scrutinee_exec.holds<ExecVariable>()
+          || (scrutinee_exec.holds<ExecDeref>()
+              && context.exec(scrutinee_exec.as<ExecDeref>().dereferenced).holds<ExecVariable>());
+
+    OptId<DefId> maybe_tmp_did{};
+    ExecId scrutinee_ref_eid = scrutinee_eid;
+    if (any_decomp && !plain_variable) {
+        maybe_tmp_did = context.register_def(context.symbol_id<"match scrutinee">(), false, false,
+                                             0, scrutinee_exec.span, nullptr,
+                                             DefVariable{.type_id = scrutinee_tid});
+        locals.push_back(maybe_tmp_did.as_id());
+        scrutinee_ref_eid = context.emplace_exec(
+            ExecVariable{.def_id = maybe_tmp_did.as_id(), .type_id = scrutinee_tid},
+            scrutinee_exec.span);
+    }
+
+    OptId<TypeId> maybe_result_tid = maybe_into_tid;
+    bool poisoned = false;
+    llvm::SmallVector<ExecId> branch_eids{};
+    llvm::SmallVector<MoveMapId> branch_maps{};
+
+    for (size_t i = 0; i < branches.len; ++i) {
+        const ast_expr_t* branch_expr = branches.start[i];
+        const ast_expr_match_branch_t branch = branch_expr->expr.match_branch;
+        const Span branch_span{context, fid, branch_expr};
+        const LexicalCtx branch_lctx{.scope = context.make_small_scope(lctx.scope, branch_span),
+                                     .map = context.make_persistent_move_map(lctx.map)};
+        branch_maps.push_back(branch_lctx.map);
+        InProgressBlock block{};
+        llvm::SmallVector<ExecId> pattern_eids{};
+
+        for (size_t k = 0; k < branch.patterns.len; ++k) {
+            const ast_expr_t* pattern = branch.patterns.start[k];
+            if (pattern->type == AST_EXPR_ELSE_MATCH_PATTERN) {
+                continue;
+            }
+            if (maybe_variant_did.empty()) {
+                const auto maybe_pattern_eid = compt_solver.solve_expr(fid, lctx.scope, pattern);
+                if (maybe_pattern_eid.empty()) {
+                    return {};
+                }
+                pattern_eids.push_back(maybe_pattern_eid.as_id());
+                continue;
+            }
+            const auto maybe_field_did = field_for_pattern(pattern);
+            if (maybe_field_did.empty()) {
+                return {};
+            }
+            const DefId field_did = maybe_field_did.as_id();
+            pattern_eids.push_back(context.emplace_compt_exec(
+                ExecConst{context.def(field_did).member_idx}
+                    .try_down_convert_to(context.def(maybe_variant_did.as_id())
+                                             .as<DefVariant>()
+                                             .type_of_discriminant())
+                    .value(),
+                Span{context, fid, pattern}));
+            if (decomposes(pattern)
+                && !decompose_variant(fid, branch_lctx, block, pattern, field_did,
+                                      scrutinee_ref_eid)) {
+                poisoned = true;
+            }
+        }
+
+        OptId<ExecId> maybe_value_eid{};
+        bool diverges = false;
+        if (branch.value->type == AST_EXPR_BLOCK) {
+            const ast_slice_of_stmts_t stmts = branch.value->expr.block.stmts;
+            bool yielded = false;
+            for (size_t k = 0; k < stmts.len && !yielded && !diverges; ++k) {
+                const ast_stmt_t* stmt = stmts.start[k];
+                if (stmt->type == AST_STMT_YIELD) {
+                    yielded = true;
+                    maybe_value_eid = solve_expr(fid, branch_lctx, stmt->stmt.yield_stmt.expr,
+                                                 maybe_result_tid);
+                } else if (const auto maybe_eid = handle_stmt(fid, branch_lctx, block, stmt)) {
+                    diverges = definitely_returns(context, maybe_eid.as_id())
+                               || context.exec(maybe_eid.as_id()).holds<ExecJump>();
+                }
+                if ((yielded || diverges) && k + 1 < stmts.len) {
+                    DiagLinker dl{context};
+                    dl.link(context.emplace_diagnostic(
+                        Span{context, fid, stmts.start[k + 1]->first,
+                             stmts.start[stmts.len - 1]->last},
+                        diag_code::code_is_unreachable_following_a_block_terminating_statement,
+                        diag_type::error));
+                    dl.link(context.emplace_diagnostic(Span{context, fid, stmt},
+                                                       diag_code::block_terminating_statement_here,
+                                                       diag_type::note));
+                }
+            }
+            if (!yielded && !diverges) {
+                const Span block_span{context, fid, branch.value};
+                const auto d0 = context.emplace_diagnostic(
+                    block_span, diag_code::match_branch_block_does_not_yield_a_value,
+                    diag_type::error);
+                const auto d1 = context.emplace_diagnostic(
+                    block_span, diag_code::end_block_with_a_yield_statement, diag_type::help);
+                context.link_diagnostic(d0, d1);
+                poisoned = true;
+                continue;
+            }
+        } else {
+            maybe_value_eid = solve_expr(fid, branch_lctx, branch.value, maybe_result_tid);
+        }
+        if (!diverges) {
+            if (maybe_value_eid.empty()) {
+                poisoned = true;
+                continue;
+            }
+            if (maybe_result_tid.empty()) {
+                maybe_result_tid = infer_type_from_exec(maybe_value_eid.as_id());
+            }
+            block.push_back_exec(
+                context.emplace_exec(ExecYield{.yield_value = maybe_value_eid}, branch_span));
+        }
+        const ExecId body_eid = context.emplace_exec(
+            ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(block.execs),
+                                                  .defs = context.freeze_id_vec(block.defs),
+                                                  .lctx = branch_lctx})},
+            branch_span);
+        branch_eids.push_back(context.emplace_exec(
+            ExecMatchBranch{.patterns = context.freeze_id_vec(pattern_eids), .body = body_eid},
+            branch_span));
+    }
+
+    write_back_moves(context, lctx.map, branch_maps);
+
+    if (poisoned) {
+        return {};
+    }
+
+    return context.emplace_exec(ExecMatch{.scrutinee = scrutinee_eid,
+                                          .branches = context.freeze_id_vec(branch_eids),
+                                          .scrutinee_tmp = maybe_tmp_did,
+                                          .result_tid = maybe_result_tid},
+                                span);
+}
+
+bool RuntimeSolver::decompose_variant(FileId fid, LexicalCtx branch_lctx, InProgressBlock& block,
+                                      const ast_expr_t* decomp_expr, DefId variant_field_did,
+                                      ExecId variant_eid) {
+    const ast_expr_variant_decomp_t decomp = decomp_expr->expr.variant_decomp;
+    if (diag_if_too_many_decomps(context, Span{context, fid, decomp_expr}, variant_field_did,
+                                 decomp.vars.len)) {
+        return false;
+    }
+    const auto members = context.def(variant_field_did).as<DefVariantField>().members;
+    bool ok = true;
+    for (size_t i = 0; i < decomp.vars.len; ++i) {
+        const ast_param_t* var = decomp.vars.start[i];
+        if (!var->valid) {
+            ok = false;
+            continue;
+        }
+        const auto maybe_written_tid = resolve_type(fid, branch_lctx, var->type);
+        const DefId member_did = context.def_id(members.get(i));
+        if (maybe_written_tid.empty()
+            || !decomp_type_matches(context, maybe_written_tid.as_id(), member_did)) {
+            ok = false;
+            continue;
+        }
+        const TypeId tid = context.def(member_did).as<DefVariable>().type_id;
+        const SymbolId name = context.symbol_id(var->name);
+        const Span span{context, fid, var->first, var->last};
+        const DefId did = context.register_def(name, false, false, 0, span, nullptr,
+                                               DefVariable{.type_id = tid});
+        context.insert_variable(branch_lctx.scope, name, did);
+        block.push_back_def(did);
+        locals.push_back(did);
+        block.push_back_exec(context.emplace_exec(
+            ExecAssignment{
+                .lhs = context.emplace_exec(ExecVariable{.def_id = did, .type_id = tid}, span),
+                .rhs = context.emplace_exec(
+                    ExecMemberAccess{.owner = variant_eid, .member = member_did}, span)},
+            span));
+    }
+    return ok;
 }
 
 OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
@@ -1606,7 +1881,8 @@ OptId<ExecId> RuntimeSolver::handle_subscript(FileId fid, LexicalCtx lctx, const
                                             expr_span);
         }
         // runtime arrays still have a statically known size, so bounds check compt indices
-        if (const Type& base_ty = context.type(base_tid); base_ty.holds<TypeArr>()
+        if (const Type& base_ty = context.type(base_tid);
+            base_ty.holds<TypeArr>()
             && diag_if_compt_subscript_out_of_bounds(
                 context, compt_subscript_idx(context, maybe_idx_eid.as_id()),
                 base_ty.as<TypeArr>().canonical_size, idx_span)) {
