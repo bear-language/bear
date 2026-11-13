@@ -96,7 +96,6 @@ static void write_back_moves(Context& context, MoveMapId parent,
 
     OptId<ExecId> maybe_eid{};
 
-    // TODO
     switch (expr->type) {
         // ------------------ these are purely compt eval'd ------------------
     case AST_EXPR_COMPT:
@@ -161,12 +160,14 @@ static void write_back_moves(Context& context, MoveMapId parent,
     case AST_EXPR_MATCH:
         maybe_eid = handle_match(fid, lctx, expr, into_tid);
         break;
-    case AST_EXPR_TYPE:
-    case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_CLOSURE:
     case AST_EXPR_TERNARY_IF:
-    case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_BLOCK:
+        diag_not_yet_implemented(Span{context, fid, expr});
+        break;
+    case AST_EXPR_TYPE:
+    case AST_EXPR_STRUCT_MEMBER_INIT:
+    case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_ELSE_MATCH_PATTERN:
     case AST_EXPR_INVALID:
@@ -406,7 +407,6 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
                                          const ast_stmt_t* stmt, storage storage, compt compt,
                                          uint8_t align) {
 
-    // TODO, finish:
     switch (stmt->type) {
     case AST_STMT_USE:
         return handle_use(fid, lctx, stmt);
@@ -440,6 +440,8 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_FOR:
     case AST_STMT_FOR_IN:
     case AST_STMT_YIELD:
+        diag_not_yet_implemented(Span{context, fid, stmt});
+        break;
 
         // poisoned/malformed:
     case AST_STMT_VISIBILITY_MODIFIER:
@@ -767,7 +769,6 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                                  const ast_expr_t* expr) {
-    // TODO
     switch (expr->type) {
         // ------------------ these are purely compt eval'd ------------------
     case AST_EXPR_COMPT:
@@ -818,11 +819,13 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
     case AST_EXPR_MATCH:
         return handle_match(fid, lctx, expr, {});
     case AST_EXPR_BLOCK:
-    case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_CLOSURE:
     case AST_EXPR_TERNARY_IF:
+        diag_not_yet_implemented(Span{context, fid, expr});
+        break;
 
     // the are malformed to end up here:
+    case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_TYPE:
     case AST_EXPR_ELSE_MATCH_PATTERN:
     case AST_EXPR_STRUCT_MEMBER_INIT:
@@ -2114,6 +2117,22 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
     return {};
 }
 
+void RuntimeSolver::diag_not_yet_implemented(Span span) {
+    context.emplace_diagnostic(span, diag_code::not_yet_implemented_in_a_runtime_context,
+                               diag_type::error);
+}
+
+void RuntimeSolver::warn_short_circuit(FileId fid, const ast_expr_t* expr, bool always) {
+    DiagLinker dl{context};
+    dl.link(context.emplace_diagnostic_with_message_value(
+        Span{context, fid, expr}, diag_code::expression_always_evaluates_to, diag_type::warning,
+        DiagnosticSymbolAfterMessage{.sid = always ? context.symbol_id<"true">()
+                                                   : context.symbol_id<"false">()}));
+    dl.link(context.emplace_diagnostic(Span{context, fid, expr->expr.binary.rhs},
+                                       diag_code::right_hand_side_is_never_evaluated,
+                                       diag_type::note));
+}
+
 OptId<ExecId> RuntimeSolver::handle_arithmetic_logical_or_bool_binary(FileId fid, LexicalCtx lctx,
                                                                       const ast_expr_t* expr,
                                                                       binary_op op) {
@@ -2126,7 +2145,6 @@ OptId<ExecId> RuntimeSolver::handle_arithmetic_logical_or_bool_binary(FileId fid
         cooked = true;
     }
 
-    // TODO: warn here for always true/always false
     if (lhs.has_value() && (op == binary_op::bool_or || op == binary_op::bool_and)) {
         const Exec& lhs_exec = context.exec(lhs.as_id());
         if (lhs_exec.holds<ExecConst>()) {
@@ -2136,13 +2154,13 @@ OptId<ExecId> RuntimeSolver::handle_arithmetic_logical_or_bool_binary(FileId fid
                 const bool bval = econst.value().as<bool>();
                 // false && ____ => always false
                 if ((op == binary_op::bool_and) && !bval) {
-                    // TODO: warn
+                    warn_short_circuit(fid, expr, false);
                     const auto _ = solve_expr(fid, lctx, expr->expr.binary.rhs);
                     return context.emplace_compt_exec(ExecConst{false}, Span{context, fid, expr});
                 }
                 // true || ____ => always true
                 if ((op == binary_op::bool_or) && bval) {
-                    // TODO: warn
+                    warn_short_circuit(fid, expr, true);
                     const auto _ = solve_expr(fid, lctx, expr->expr.binary.rhs);
                     return context.emplace_compt_exec(ExecConst{true}, Span{context, fid, expr});
                 }

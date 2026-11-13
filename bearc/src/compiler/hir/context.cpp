@@ -2373,6 +2373,11 @@ template <equivalence E>
         return false;
     }
 
+    if ((from_ty.holds<TypePtr>() || from_ty.holds<TypeSlice>())
+        && ctx.type(from_inner.as_id()).mut && !ctx.type(to_inner.as_id()).mut) {
+        return assignable_from_type_to_impl<E>(ctx, from_inner.as_id(), to_inner.as_id());
+    }
+
     // make sure the inners are all the same
     return E == equivalence::exact ? ctx.equivalent_type(from_inner.as_id(), to_inner.as_id())
                                    : ctx.type_inferable_as(from_inner.as_id(), to_inner.as_id());

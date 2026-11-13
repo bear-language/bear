@@ -2,7 +2,7 @@
 
 #### priority 
 - [ ] make deftype resolution not declaration order dependent
-- [ ] emit a diagnostic (e.g. `not yet implemented in a runtime context`) for unhandled expr kinds in `RuntimeSolver::solve_expr` versus returning empty w/o a diag
+- [x] emit a diagnostic (e.g. `not yet implemented in a runtime context`) for unhandled expr kinds in `RuntimeSolver::solve_expr` versus returning empty w/o a diag
 - [ ] evaluate non-taken compt paths for basic validity 
 
 #### function body resolution / runtime eval:
@@ -11,30 +11,46 @@
         - [x] `ScopeId`: same as current impl, for symbol look-up
         - [ ] `MoveMapId`: same idea as a scope, but:
             - [x] tracks DefId -> ExecId and DefId -> ExecIdSliceId tracking where defs were moved (for good diagnostics)
-            - [ ] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
+            - [x] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
+            - [ ] actually record moves (needs a copy vs. move rule per type first)
     - [ ] finish impl `RunTimeSolver`
+        - [x] method calls (receiver auto-borrows to the `self` param's reference type)
+        - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
+            - [ ] `if`/`else` (incl. else-if chains)
+            - [ ] `while` and C-style `for` (`break`/`continue` plumbing already exists)
+            - [ ] `yield` in nested positions inside match branch blocks (only top-level yields are handled)
+            - [ ] `is` w/ variant decomposition, bindings scoped to the `if`'s then-branch
+            - [ ] `for in` (blocked on an iteration protocol/contract + `std::Range`)
+        - [ ] ternary `a if c else b`
+        - [ ] closures (capture semantics TBD)
+        - [ ] warn on unused expression statements (fine for assignments/mutations/discardable or void fns)
         - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee); either convert them in HIR or cast when lowering the `switch`
         - [ ] use deduction guides for functions/(variants/structs?)
-        - [ ] assignments:
-            - [ ] make sure to auto-dereferences and reference-typed Execs on the LHS 
+        - [x] assignments:
+            - [x] make sure to auto-dereferences and reference-typed Execs on the LHS 
     - [ ] fix mut semantics on struct members 
         - [ ] warn on `mut` declared members
         - [ ] make it so the struct instance's mutability entirely determines the member mutability
     - [ ] drop/destructor flags, tracked by block/lexical scope (always emit, LLVM folds the unconditional ones)
+        - blocked on recording moves
     - [ ] static variable guard variables (thread safe, ideally or eventually)
         - only needed if LHS is not knowable at compt (in which case it can be an LLVM global w/ a constant initializer)
     
 - [ ] note: (impl. detail) the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
-    - [ ] ensure these work:
-        - [ ] T       -> mut T
-        - [ ] mut T   -> T
-        - [ ] &T      -> &mut T         (fail)
-        - [ ] &mut T  -> &T 
-        - [ ] * T       -> *mut T       (fail)
-        - [ ] * mut T   -> *T        
-        - [ ] \[&]T      -> \[&] T mut  (fail)
-        - [ ] \[&] T mut -> \[&]T       
-        - [ ] null -> *T (don't forget)
+    - [x] ensure these work (see `tests/hir/b20.br`):
+        - [x] T       -> mut T
+        - [x] mut T   -> T
+        - [x] &T      -> &mut T         (fail)
+        - [x] &mut T  -> &T 
+        - [x] * T       -> * T mut      (fail)
+        - [x] * T mut   -> *T        
+        - [x] * T       -> *mut T       (fine, top-level `mut` is just rebindability)
+        - [x] \[&]T      -> \[&mut]T    (fine, `[&mut]` is just rebindability)
+        - [x] \[&mut]T   -> \[&]T       
+        - [x] \[&]T      -> \[&] T mut  (fail)
+        - [x] \[&] T mut -> \[&]T       
+        - [x] only the first pointee layer may drop `mut` (e.g. `**T mut -> **T` fails)
+        - [x] null -> *T (don't forget)
 
 - [ ] reference stuff:
     - [ ] strictly ban returning a reference to a local variable directly out of a function

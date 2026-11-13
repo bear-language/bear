@@ -513,6 +513,12 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "add an explicit cast to";
     case diag_code::dividing_by_zero:
         return "dividing by zero";
+    case diag_code::not_yet_implemented_in_a_runtime_context:
+        return "not yet implemented in a runtime context";
+    case diag_code::expression_always_evaluates_to:
+        return "expression always evaluates to";
+    case diag_code::right_hand_side_is_never_evaluated:
+        return "right-hand side is never evaluated";
     }
 
     std::unreachable();

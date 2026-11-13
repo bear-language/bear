@@ -1,0 +1,17 @@
+// tests/hir/b21.br
+
+// testing runtime short-circuit warnings and not-yet-implemented runtime constructs
+
+fn short_circuit(bool b) {
+    bool _0 = false && b; // always false
+    bool _1 = true || b; // always true
+    bool _2 = true && b;
+    bool _3 = false || b;
+    bool _4 = b && false;
+}
+
+fn unimplemented(bool b) {
+    if b {} // not yet implemented
+    while b {} // not yet implemented
+    var _0 = 1 if b else 2; // not yet implemented
+}

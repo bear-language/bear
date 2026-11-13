@@ -1,0 +1,23 @@
+// tests/hir/b20.br
+
+// testing runtime mutability conversions for values, references, pointers, and slices
+
+fn fine(i32 v, &mut i32 mr, *mut i32 mp, *i32 mut pm, [&mut]i32 ms, [&] mut i32 ims, [&]i32 s) {
+    mut i32 _0 = v;
+    i32 _1 = _0;
+    &i32 _2 = &mr;
+    &mut i32 _3 = &mut mr;
+    *i32 _4 = pm;
+    *i32 _5 = mp;
+    *mut i32 _6 = mp;
+    [&]i32 _7 = ms;
+    [&mut]i32 _8 = s; // rebindable
+    [&]i32 _9 = ims;
+}
+
+fn oops(&i32 r, *i32 p, [&]i32 s, **i32 mut ppm) {
+    &mut i32 _0 = &mut r; // oops, r refs immut
+    *i32 mut _1 = p; // oops, adds mut to the pointee
+    [&] mut i32 _2 = s; // oops, adds mut to the elements
+    **i32 _3 = ppm; // oops, only the first pointee layer may drop mut
+}

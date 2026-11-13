@@ -259,6 +259,9 @@ enum class diag_code : uint8_t {
     void_pointers_cannot_be_dereferenced,
     add_an_explicit_cast_to,
     dividing_by_zero,
+    not_yet_implemented_in_a_runtime_context,
+    expression_always_evaluates_to,
+    right_hand_side_is_never_evaluated,
 
     count, // this must be last,
 

@@ -179,6 +179,8 @@ class RuntimeSolver {
                                          const ast_expr_t* decomp_expr, DefId variant_field_did,
                                          ExecId variant_eid);
     [[nodiscard]] OptId<ExecId> handle_borrow(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+    void diag_not_yet_implemented(Span span);
+    void warn_short_circuit(FileId fid, const ast_expr_t* expr, bool always);
     [[nodiscard]] OptId<ExecId> handle_addr_of(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_preunary(FileId fid, LexicalCtx lctx,
                                                 const ast_expr_t* expr);
