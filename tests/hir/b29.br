@@ -1,0 +1,120 @@
+// tests/hir/b29.br
+
+// testing runtime c-style for loops
+
+fn main() {
+    sum_to(3);
+    no_init(3);
+    skip_odds(4);
+    nested(3);
+    early_return(3);
+    forever_returns(1);
+    oops_cond(1);
+    oops_init_scope(1);
+    oops_body_not_in_step(1);
+    oops_step(1);
+    oops_breaks(1);
+    oops_after_forever();
+}
+
+fn sum_to(i32 n) -> i32 {
+    mut i32 total = 0;
+    for (mut i32 i = 0; i < n; i++) {
+        total += i;
+    }
+    return total;
+}
+
+fn no_init(i32 n) -> i32 {
+    mut i32 i = 0;
+    for (; i < n; i++) {
+        i; // fine
+    }
+    return i;
+}
+
+fn skip_odds(i32 n) -> i32 {
+    mut i32 total = 0;
+    for (mut i32 i = 0; i < n; i++) {
+        if i % 2 == 1 {
+            continue; // fine, still runs the step
+        }
+        total += i;
+    }
+    return total;
+}
+
+fn nested(i32 n) -> i32 {
+    mut i32 total = 0;
+    for (mut i32 i = 0; i < n; i++) {
+        for (mut i32 j = 0; j < i; j++) {
+            if j == 2 {
+                break; // breaks the inner loop only
+            }
+            total += i * j;
+        }
+    }
+    for (mut i32 i = 0; i < n; i++) {
+        total += i; // fine, i is a fresh def in a sibling for scope
+    }
+    return total;
+}
+
+fn early_return(i32 n) -> i32 {
+    for (mut i32 i = 0; i < n; i++) {
+        if i == 2 {
+            return i;
+        }
+    }
+    return -1;
+}
+
+fn forever_returns(i32 n) -> i32 {
+    for (mut i32 i = 0; true; i++) {
+        if i > n {
+            return i; // fine, the loop never exits normally
+        }
+    }
+}
+
+fn oops_cond(u8 n) {
+    for (mut i32 i = 0; n; i++) { // oops, not bool
+        i32 _0 = true; // oops, still checked
+    }
+}
+
+fn oops_init_scope(i32 n) -> i32 {
+    for (mut i32 i = 0; i < n; i++) {
+        i; // fine
+    }
+    return i; // oops, i is scoped to the for
+}
+
+fn oops_body_not_in_step(i32 n) {
+    for (mut i32 i = 0; i < n; i += x) { // oops, x is a body local
+        i32 x = 1;
+    }
+}
+
+fn oops_step(i32 n) {
+    for (mut i32 i = 0; i < n; undeclared++) { // oops, undeclared
+        i32 _0 = true; // oops, still checked
+    }
+}
+
+fn oops_breaks(i32 n) -> i32 {
+    for (mut i32 i = 0; true; i++) {
+        if i > n {
+            break;
+        }
+    }
+} // oops, may not return since the loop can be broken out of
+
+fn foo() => 1
+
+fn oops_after_forever() {
+    for (mut i32 i = 0; true; i++) {
+        i; // fine
+    }
+    foo(); // oops, unreachable
+}
