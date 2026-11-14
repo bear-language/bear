@@ -1074,6 +1074,16 @@ ExecId Context::emplace_compt_exec(const ExecValue& value, Span span) {
     return execs.emplace_and_get_id(*this, value, span, true);
 }
 
+ExecId Context::reserve_exec(Span span) { return emplace_exec(ExecYield{}, span); }
+
+void Context::set_reserved_exec_value(ExecId eid, const ExecValue& value) {
+    Exec& exec = execs.at(eid);
+    assert(!exec.compt && "reserved execs must never be compt");
+    assert(exec.holds<ExecYield>() && !exec.as<ExecYield>().yield_value.has_value()
+           && "set_reserved_exec_value called on an exec that was not reserved or already set");
+    exec.value = value;
+}
+
 GenericArgId Context::emplace_generic_arg(GenericArgValue value) {
     return generic_args.emplace_and_get_id(value);
 }
@@ -4199,6 +4209,7 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
         [](const ExecReturn&) -> OptId<TypeId> { return {}; },
         [](const ExecYield&) -> OptId<TypeId> { return {}; },
         [](const ExecJump&) -> OptId<TypeId> { return {}; },
+        [](const ExecLoop&) -> OptId<TypeId> { return {}; },
     };
 
     return exec.visit(vs);
@@ -4299,6 +4310,7 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
         [](const ExecReturn&) -> bool { return false; },
         [](const ExecYield&) -> bool { return false; },
         [](const ExecJump&) -> bool { return false; },
+        [](const ExecLoop&) -> bool { return false; },
         [](const ExecUnionInit&) -> bool { return false; },
         [](const ExecVariantInit&) -> bool { return false; },
         [](const ExecStructInit&) -> bool { return false; },

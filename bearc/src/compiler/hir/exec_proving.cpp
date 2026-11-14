@@ -100,6 +100,21 @@ template <equivalence E> bool equivalent_exec_impl(const Context& ctx, ExecId ei
             const auto o = other.as<ExecJump>();
             return t.spot == o.spot && equivalent_exec_impl<E>(ctx, t.block, o.block);
         },
+        [&other, &ctx](const ExecLoop& t) -> bool {
+            if (!other.holds<ExecLoop>()) {
+                return false;
+            }
+            const auto o = other.as<ExecLoop>();
+            const auto opt_equivalent = [&ctx](OptId<ExecId> a, OptId<ExecId> b) {
+                if (a.has_value() != b.has_value()) {
+                    return false;
+                }
+                return a.empty() || equivalent_exec_impl<E>(ctx, a.as_id(), b.as_id());
+            };
+            return t.has_break == o.has_break && opt_equivalent(t.condition, o.condition)
+                   && opt_equivalent(t.update, o.update)
+                   && equivalent_exec_impl<E>(ctx, t.body, o.body);
+        },
         [&other, &ctx](const ExecReturn& t) -> bool {
             if (!other.holds<ExecReturn>()) {
                 return false;
@@ -416,6 +431,7 @@ template <equivalence E> size_t hash_exec_impl(const Context& ctx, ExecId eid) {
     auto vs = Ovld{
         [](const ExecBlock&) -> size_t { return mix(1uz); },
         [](const ExecJump&) -> size_t { return mix(3uz); },
+        [](const ExecLoop&) -> size_t { return {}; },
         [](const ExecBranch&) -> size_t { return mix(5uz); },
         [](const ExecReturn&) -> size_t { return mix(7uz); },
         [&ctx](const ExecRange& t) -> size_t {
@@ -528,6 +544,7 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
     auto vs = Ovld{
         [](const ExecBlock&) -> bool { return false; },
         [](const ExecJump&) -> bool { return false; },
+        [](const ExecLoop&) -> bool { return false; },
         [](const ExecBranch&) -> bool { return false; },
         [](const ExecReturn&) -> bool { return false; },
         [&e2, &ctx, eid2](const ExecRange t) -> bool {
@@ -672,6 +689,23 @@ bool definitely_returns_yields_impl(const Context& ctx, ExecId eid) {
         },
         [](const ExecYield&) -> bool { return std::same_as<T, ExecYield>; },
         [](const ExecJump&) -> bool { return {}; },
+        [&ctx](const ExecLoop& d) -> bool {
+            if constexpr (!std::same_as<T, ExecReturn>) {
+                return false;
+            }
+            if (d.has_break) {
+                return false;
+            }
+            if (d.condition.empty()) {
+                return true;
+            }
+            const Exec& cond = ctx.exec(d.condition.as_id());
+            if (!cond.holds<ExecConst>()) {
+                return false;
+            }
+            const auto maybe_bool = cond.as<ExecConst>().try_as<bool>();
+            return maybe_bool.has_value() && maybe_bool.value();
+        },
         [](const ExecUnionInit&) -> bool { return {}; },
         [](const ExecVariantInit&) -> bool { return {}; },
         [](const ExecStructInit&) -> bool { return {}; },

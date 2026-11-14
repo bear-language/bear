@@ -48,6 +48,13 @@ struct ExecJump {
     jump_spot spot;
 };
 
+struct ExecLoop {
+    OptId<ExecId> condition;
+    ExecId body;
+    OptId<ExecId> update;
+    bool has_break{};
+};
+
 struct ExecBranch {
     ExecId condition;
     ExecId then_block;
@@ -581,7 +588,7 @@ struct ExecBuiltinAccess {
 /// main exec variant
 using ExecValue = std::variant<
     // blocks / statements
-    ExecBlock, ExecBranch, ExecReturn, ExecYield, ExecJump,
+    ExecBlock, ExecBranch, ExecLoop, ExecReturn, ExecYield, ExecJump,
 
     // expressions
     ExecUnionInit, ExecVariantInit, ExecStructInit, ExecVariable, ExecComptConstant,

@@ -1179,6 +1179,7 @@ bool Exec::can_be_compt() {
         [](const ExecStructInit&) -> bool { return true; },
         [](const ExecBlock&) -> bool { return false; },
         [](const ExecJump&) -> bool { return false; },
+        [](const ExecLoop&) -> bool { return false; },
         [](const ExecBranch&) -> bool { return false; },
         [](const ExecReturn&) -> bool { return false; },
         [](const ExecYield&) -> bool { return false; },
@@ -2332,6 +2333,21 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             str += "jump to ";
             str += (t.spot == jump_spot::start) ? "start of " : "end of ";
             str += exec_id_str(t.block);
+            return str;
+        },
+        [&ctx, eid](const ExecLoop& t) -> std::string {
+            std::string str{exec_id_str(eid)};
+            str += ": loop";
+            if (t.condition.has_value()) {
+                str += " while ";
+                str += exec_to_string(ctx, t.condition.as_id());
+            }
+            if (t.update.has_value()) {
+                str += " update ";
+                str += exec_to_string(ctx, t.update.as_id());
+            }
+            str += ' ';
+            str += exec_to_string(ctx, t.body);
             return str;
         },
         [&ctx](const ExecBranch& t) -> std::string {

@@ -29,8 +29,12 @@ class RuntimeSolver {
     OptId<TypeId> return_tid{};
     IdSlice<DefId> params{};
     OptId<ExecId> current_loop_block_eid{};
-    /// used for jumping to the update exec for a for loop
-    OptId<ExecId> current_loop_update_eid{};
+    bool current_loop_has_break{};
+    /// TODO: check this when solving a move
+    /// - ban the move if this has a value (i.e. we're inside a loop body) and the
+    ///   moved def is defined inside of this scope (i.e. outside of the loop),
+    /// - defs not defined inside of this scope are local to the loop and fine to move
+    OptId<ScopeId> maybe_scope_containing_loop{};
     bool inside_match_branch{};
 
     struct InProgressBlock {
@@ -159,6 +163,14 @@ class RuntimeSolver {
     OptId<ExecId> handle_continue(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
     [[nodiscard]] std::optional<bool> solve_compt_condition(FileId fid, LexicalCtx lctx,
                                                             const ast_expr_t* cond);
+    /// solves a loop (condition, body, and optional update) and returns the ExecLoop's ExecId
+    /// without emplacing it into any block
+    OptId<ExecId> solve_loop(FileId fid, LexicalCtx lctx, Span span, const ast_expr_t* cond_expr,
+                             const ast_expr_t* update_expr, const ast_stmt_t* body_stmt);
+    OptId<ExecId> handle_while(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                               const ast_stmt_t* stmt);
+    OptId<ExecId> handle_for(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                             const ast_stmt_t* stmt);
     OptId<ExecId> handle_if(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                             const ast_stmt_t* stmt);
 

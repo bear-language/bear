@@ -315,7 +315,9 @@ RuntimeSolver::lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generi
         // code warning AND that function_may_not_return_a_value_in_all_control_flow_paths
         // diagnostic nor do we want to see this more than once after the first premature return)
         if (!hit_block_terminator && maybe_eid.has_value()
-            && context.exec(maybe_eid.as_id()).holds_any_of<ExecReturn, ExecJump>()) {
+            && (context.exec(maybe_eid.as_id()).holds_any_of<ExecReturn, ExecJump>()
+                || (context.exec(maybe_eid.as_id()).holds<ExecLoop>()
+                    && definitely_returns(context, maybe_eid.as_id())))) {
 
             hit_block_terminator = true;
 
@@ -504,7 +506,9 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_IF:
         return handle_if(fid, lctx, block, stmt);
     case AST_STMT_WHILE:
+        return handle_while(fid, lctx, block, stmt);
     case AST_STMT_FOR:
+        return handle_for(fid, lctx, block, stmt);
     case AST_STMT_FOR_IN:
     case AST_STMT_YIELD:
         diag_not_yet_implemented(Span{context, fid, stmt});
@@ -808,6 +812,7 @@ OptId<ExecId> RuntimeSolver::handle_break(FileId fid, InProgressBlock& block,
                                    diag_code::break_statement_outside_of_loop, diag_type::error);
         return {};
     }
+    current_loop_has_break = true;
     const auto eid = context.emplace_exec(
         ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::end},
         Span{context, fid, stmt});
@@ -824,15 +829,103 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return {};
     }
     const auto eid = context.emplace_exec(
-        // basically, if this is a for loop, we want to execute the update exec at the end of this
-        // iteration before continuing
-        current_loop_update_eid.has_value()
-            ? ExecJump{.block = current_loop_update_eid.as_id(), .spot = jump_spot::start}
-            : ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::start},
+        ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::start},
         Span{context, fid, stmt});
 
     block.push_back_exec(eid);
     return eid;
+}
+
+OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
+                                        const ast_expr_t* cond_expr, const ast_expr_t* update_expr,
+                                        const ast_stmt_t* body_stmt) {
+    bool cooked = false;
+
+    const auto maybe_cond_eid
+        = solve_expr(fid, lctx, cond_expr, context.type_for_builtin(builtin_type::boolean));
+    cooked |= maybe_cond_eid.empty();
+
+    const ExecId loop_eid = context.reserve_exec(span);
+
+    const OptId<ExecId> outer_loop_block_eid = current_loop_block_eid;
+    const bool outer_loop_has_break = current_loop_has_break;
+    const OptId<ScopeId> outer_scope_containing_loop = maybe_scope_containing_loop;
+    current_loop_block_eid = loop_eid;
+    current_loop_has_break = false;
+    maybe_scope_containing_loop = lctx.scope;
+
+    const LexicalCtx body_lctx{
+        .scope = context.make_small_scope(lctx.scope, Span{context, fid, body_stmt}),
+        .map = context.make_persistent_move_map(lctx.map)};
+    const auto maybe_body_eid = solve_block(fid, body_lctx, body_stmt);
+    cooked |= maybe_body_eid.empty();
+
+    const bool has_break = current_loop_has_break;
+    current_loop_block_eid = outer_loop_block_eid;
+    current_loop_has_break = outer_loop_has_break;
+    maybe_scope_containing_loop = outer_scope_containing_loop;
+
+    OptId<ExecId> maybe_update_eid{};
+    if (update_expr) {
+        maybe_update_eid
+            = solve_expr(fid, LexicalCtx{.scope = lctx.scope, .map = body_lctx.map}, update_expr);
+        cooked |= maybe_update_eid.empty();
+    }
+
+    write_back_moves(context, lctx.map, {body_lctx.map});
+
+    if (cooked) {
+        const ExecId empty_body_eid = context.emplace_exec(
+            ExecBlock{context.emplace_block(Block{.execs = {}, .defs = {}, .lctx = lctx})}, span);
+        context.set_reserved_exec_value(loop_eid, ExecLoop{.condition = {},
+                                                           .body = empty_body_eid,
+                                                           .update = {},
+                                                           .has_break = has_break});
+        return {};
+    }
+
+    context.set_reserved_exec_value(loop_eid, ExecLoop{.condition = maybe_cond_eid.as_id(),
+                                                       .body = maybe_body_eid.as_id(),
+                                                       .update = maybe_update_eid,
+                                                       .has_break = has_break});
+    return loop_eid;
+}
+
+OptId<ExecId> RuntimeSolver::handle_while(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                          const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_WHILE);
+    const ast_stmt_while_t while_stmt = stmt->stmt.while_stmt;
+    const auto maybe_loop_eid = solve_loop(fid, lctx, Span{context, fid, stmt},
+                                           while_stmt.condition, nullptr, while_stmt.body_stmt);
+    if (maybe_loop_eid.has_value()) {
+        block.push_back_exec(maybe_loop_eid.as_id());
+    }
+    return maybe_loop_eid;
+}
+
+OptId<ExecId> RuntimeSolver::handle_for(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                        const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_FOR);
+    const ast_stmt_for_t for_stmt = stmt->stmt.for_stmt;
+    const Span span{context, fid, stmt};
+
+    const LexicalCtx for_lctx{.scope = context.make_small_scope(lctx.scope, span), .map = lctx.map};
+    InProgressBlock for_block{};
+    handle_stmt(fid, for_lctx, for_block, for_stmt.init);
+
+    const auto maybe_loop_eid = solve_loop(fid, for_lctx, span, for_stmt.condition, for_stmt.step,
+                                           for_stmt.body_stmt);
+    if (maybe_loop_eid.empty()) {
+        return {};
+    }
+    for_block.push_back_exec(maybe_loop_eid.as_id());
+
+    block.push_back_exec(context.emplace_exec(
+        ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(for_block.execs),
+                                              .defs = context.freeze_id_vec(for_block.defs),
+                                              .lctx = for_lctx})},
+        span));
+    return maybe_loop_eid;
 }
 
 std::optional<bool> RuntimeSolver::solve_compt_condition(FileId fid, LexicalCtx lctx,

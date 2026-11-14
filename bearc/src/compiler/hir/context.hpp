@@ -554,6 +554,19 @@ class Context {
 
     [[nodiscard]] ExecId emplace_compt_exec(const ExecValue& value, Span span);
 
+    /// reserves a non-compt ExecId whose value is filled in later with set_reserved_exec_value
+    ///
+    /// - WARNING: only use this when an exec must be referenced before its value can be built
+    /// (e.g. a loop block targeted by break/continue jumps emitted while solving its body)
+    /// - WARNING: never use this for compt execs which need pure identities
+    /// - WARNING: only use this when the exec's lifetime is obvious and will not be inspected
+    [[nodiscard]] ExecId reserve_exec(Span span);
+
+    /// fills in an exec reserved with reserve_exec, see reserve_exec for the WARNINGs
+    ///
+    /// - WARNING: must be called exactly once per reserved exec and never on any other exec
+    void set_reserved_exec_value(ExecId eid, const ExecValue& value);
+
     [[nodiscard]] GenericArgId emplace_generic_arg(GenericArgValue value);
 
     [[nodiscard]] GenericArgIdSliceId emplace_generic_arg_id_slice(IdSlice<GenericArgId> value);

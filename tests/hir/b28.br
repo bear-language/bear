@@ -1,0 +1,161 @@
+// tests/hir/b28.br
+
+// testing runtime while loops
+
+fn main() {
+    sum_to(3);
+    first_multiple(2, 3);
+    skip_odds(4);
+    nested(5);
+    oops_cond(1, 1);
+    oops_scope(1);
+    oops_jumps();
+    oops_after_loop(1);
+    oops_dead_code(1);
+    forever_returns(1);
+    forever_match_return(1);
+    inner_break_only(1);
+    oops_breaks(1);
+    oops_match_break(1);
+    oops_runtime_cond(true);
+    oops_after_forever();
+}
+
+fn sum_to(i32 n) -> i32 {
+    mut i32 i = 0;
+    mut i32 total = 0;
+    while i < n {
+        total += i;
+        i++;
+    }
+    return total;
+}
+
+fn first_multiple(i32 n, i32 m) -> i32 {
+    mut i32 i = 1;
+    while true {
+        if i % m == 0 {
+            break;
+        }
+        i++;
+    }
+    return i * n;
+}
+
+fn skip_odds(i32 n) -> i32 {
+    mut i32 i = 0;
+    mut i32 total = 0;
+    while i < n {
+        i++;
+        if i % 2 == 1 {
+            continue;
+        }
+        total += i;
+    }
+    return total;
+}
+
+fn nested(i32 n) -> i32 {
+    mut i32 i = 0;
+    mut i32 total = 0;
+    while i < n {
+        mut i32 j = 0; // fine, scoped to the loop body
+        while j < i {
+            if j == 3 {
+                break; // breaks the inner loop only
+            }
+            total += j;
+            j++;
+        }
+        i++;
+    }
+    return total;
+}
+
+fn oops_cond(u8 n, i32 a) {
+    while n { // oops, not bool
+        i32 _0 = true; // oops, still checked
+    }
+}
+
+fn oops_scope(i32 n) -> i32 {
+    while n > 0 {
+        i32 x = n;
+        break;
+    }
+    return x; // oops, x is out of scope
+}
+
+fn oops_jumps() {
+    break; // oops, outside of loop
+    continue; // oops, outside of loop
+}
+
+fn oops_after_loop(i32 n) {
+    while n > 0 {
+        n; // fine
+    }
+    break; // oops, the loop has ended
+}
+
+fn oops_dead_code(i32 n) {
+    while n > 0 {
+        break;
+        n; // oops, unreachable
+    }
+}
+
+fn forever_returns(i32 n) -> i32 {
+    while true {
+        if n > 0 {
+            return n; // fine, the loop never exits normally
+        }
+    }
+}
+
+fn forever_match_return(i32 n) -> i32 {
+    while true {
+        match n {
+            0 => { return 1; },
+            else => { yield 2; },
+        };
+    }
+}
+
+fn inner_break_only(i32 n) -> i32 {
+    while true {
+        while n > 0 {
+            break; // fine, only breaks the inner loop
+        }
+        return n;
+    }
+}
+
+fn oops_breaks(i32 n) -> i32 {
+    while true {
+        if n > 0 {
+            break;
+        }
+        return n;
+    } // oops, may not return since the loop can be broken out of
+}
+
+fn oops_match_break(i32 n) -> i32 {
+    while true {
+        match n {
+            0 => { break; },
+            else => { yield 2; },
+        };
+    } // oops, may not return since the match can break
+}
+
+fn oops_runtime_cond(bool c) -> i32 {
+    while c {
+        return 1;
+    } // oops, may not return since c can be false
+}
+
+fn oops_after_forever() {
+    while true {}
+    1; // oops, unreachable
+}
