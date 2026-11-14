@@ -206,7 +206,8 @@ class RuntimeSolver {
                                          ExecId variant_eid);
     [[nodiscard]] OptId<ExecId> handle_borrow(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     void diag_not_yet_implemented(Span span);
-    void warn_short_circuit(FileId fid, const ast_expr_t* expr, bool always);
+    DiagRange warn_short_circuit(FileId fid, const ast_expr_t* expr, bool always);
+    std::optional<DiagRange> try_warn_suspicious_assignment_in_cond(ExecId eid);
     [[nodiscard]] OptId<ExecId> handle_addr_of(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_preunary(FileId fid, LexicalCtx lctx,
                                                 const ast_expr_t* expr);

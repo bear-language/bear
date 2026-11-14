@@ -857,6 +857,9 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
     inside_loop_header = true;
     const auto maybe_cond_eid
         = solve_expr(fid, lctx, cond_expr, context.type_for_builtin(builtin_type::boolean));
+    if (maybe_cond_eid.has_value()) {
+        try_warn_suspicious_assignment_in_cond(maybe_cond_eid.as_id());
+    }
     cooked |= maybe_cond_eid.empty();
 
     const ExecId loop_eid = context.reserve_exec(span);
@@ -1025,6 +1028,9 @@ OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBl
         cooked = true;
     } else {
         maybe_cond_eid = solve_expr(fid, lctx, if_stmt.condition, bool_tid);
+        if (maybe_cond_eid.has_value()) {
+            try_warn_suspicious_assignment_in_cond(maybe_cond_eid.as_id());
+        }
         cooked |= maybe_cond_eid.empty();
     }
 
@@ -1420,6 +1426,9 @@ OptId<ExecId> RuntimeSolver::handle_ternary_if(FileId fid, LexicalCtx lctx, cons
         }
     } else {
         maybe_cond_eid = solve_expr(fid, lctx, tif.condition, bool_tid);
+        if (maybe_cond_eid.has_value()) {
+            try_warn_suspicious_assignment_in_cond(maybe_cond_eid.as_id());
+        }
     }
 
     const LexicalCtx then_lctx{.scope = lctx.scope,
@@ -2512,7 +2521,7 @@ void RuntimeSolver::diag_not_yet_implemented(Span span) {
                                diag_type::error);
 }
 
-void RuntimeSolver::warn_short_circuit(FileId fid, const ast_expr_t* expr, bool always) {
+DiagRange RuntimeSolver::warn_short_circuit(FileId fid, const ast_expr_t* expr, bool always) {
     DiagLinker dl{context};
     dl.link(context.emplace_diagnostic_with_message_value(
         Span{context, fid, expr}, diag_code::expression_always_evaluates_to, diag_type::warning,
@@ -2521,6 +2530,27 @@ void RuntimeSolver::warn_short_circuit(FileId fid, const ast_expr_t* expr, bool 
     dl.link(context.emplace_diagnostic(Span{context, fid, expr->expr.binary.rhs},
                                        diag_code::right_hand_side_is_never_evaluated,
                                        diag_type::note));
+    return dl.range();
+}
+
+std::optional<DiagRange> RuntimeSolver::try_warn_suspicious_assignment_in_cond(ExecId eid) {
+    const Exec& e = context.exec(eid);
+    if (e.holds<ExecAssignment>()) {
+        DiagLinker dl{context};
+        dl.link(context.emplace_diagnostic(e.span, diag_code::suspicious_assignment_in_condition,
+                                           diag_type::warning));
+        const Exec& lhs = context.exec(e.as<ExecAssignment>().lhs);
+        const Exec& rhs = context.exec(e.as<ExecAssignment>().rhs);
+        std::string str{lhs.span.as_sv(context)};
+        str += " == ";
+        str += rhs.span.as_sv(context);
+        const SymbolId sid = context.symbol_id(str);
+        dl.link(context.emplace_diagnostic_with_message_value(
+            e.span, diag_code::replace_with, diag_type::help,
+            DiagnosticSymbolAfterMessage{.sid = sid}));
+        return dl.range();
+    }
+    return {};
 }
 
 OptId<ExecId> RuntimeSolver::handle_arithmetic_logical_or_bool_binary(FileId fid, LexicalCtx lctx,
