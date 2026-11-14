@@ -918,6 +918,9 @@ try_fn_look_up_from_expr_impl(Solver& solver, FileId fid, ScopeId scope,
                 = struct_did_for_self_val(context, maybe_self_val.as_id());
                 maybe_struct_did.has_value()) {
                 const DefId struct_did = maybe_struct_did.as_id();
+                if (!context.def(struct_did).template holds<DefStruct>()) {
+                    return std::nullopt;
+                }
                 if (expr->expr.fn_call.is_generic) {
                     if (const auto maybe_gen_arg_id = solver.lower_generic_args(
                             fid, scope, expr->expr.fn_call.generic_args, false);

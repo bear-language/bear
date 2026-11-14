@@ -2093,6 +2093,9 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
 
     if (lhs_ty.holds<TypeUnion>() && rhs_expr->type == AST_EXPR_ID) {
         const DefId union_did = def_visitor.visit_as_independent(lhs_ty.as<TypeUnion>().def_id);
+        if (!context.def(union_did).holds<DefUnion>()) {
+            return {};
+        }
         token_ptr_slice_t id_slice = rhs_expr->expr.id.slice;
         if (id_slice.len > 1) {
             context.emplace_diagnostic(rhs_span, diag_code::scoped_identifer_not_allowed_here,
@@ -2109,6 +2112,9 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
                 union_def.span, diag_code::declared_here, diag_type::note,
                 DiagnosticSymbolBeforeMessage{.sid = union_def.name});
             context.link_diagnostic(d0, d1);
+            return {};
+        }
+        if (!context.def(maybe_mem_var.as_id()).holds<DefVariable>()) {
             return {};
         }
         return context.emplace_exec(
@@ -2129,6 +2135,9 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
     }
 
     const DefId struct_did = def_visitor.visit_as_independent(lhs_ty.as<TypeStruct>().def_id);
+    if (!context.def(struct_did).holds<DefStruct>()) {
+        return {};
+    }
 
     if (rhs_expr->type == AST_EXPR_ID) {
         token_ptr_slice_t id_slice = rhs_expr->expr.id.slice;
@@ -2172,6 +2181,9 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
             }
             const DefId member_did = context.def_id(
                 context.def(struct_did).as<DefStruct>().ordered_members.get(maybe_mem_idx.value()));
+            if (!context.def(member_did).holds<DefVariable>()) {
+                return {};
+            }
             return context.emplace_exec(ExecMemberAccess{.owner = lhs_eid, .member = member_did},
                                         Span{context, fid, expr});
         }

@@ -1,0 +1,24 @@
+// tests/hir/b25.br
+
+// testing member access on members and structs that failed to resolve
+
+struct Foo {
+    i32 a;
+    Missing inner; // oops, undeclared type
+}
+
+union U {
+    32 i; // oops, not a type
+    f32 f;
+}
+
+fn access(mut Foo foo, mut U u) {
+    i32 a = foo.1;
+    u.i = 1;
+}
+
+compt fn square(var a) => a * a
+
+struct Bar {
+    mt a() -> i32 => self.a_
+var _0 = @static_assert square(a) > 100; //oops
