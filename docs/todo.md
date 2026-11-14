@@ -12,7 +12,6 @@
             - [x] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
             - [ ] actually record moves (needs a copy vs. move rule per type first)
     - [ ] finish impl `RunTimeSolver`
-        - [ ] ternary `a if c else b`
         - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
             - [ ] `if`/`else` (incl. else-if chains)
             - [ ] `while` and C-style `for` (`break`/`continue` plumbing already exists)
