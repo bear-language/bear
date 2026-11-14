@@ -4165,6 +4165,14 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
         },
         [this](const ExecBuiltinAccess& d) -> OptId<TypeId> {
             switch (d.kind) {
+            case builtin_access::range_start:
+            case builtin_access::range_end: {
+                const Exec& e = this->exec(d.from);
+                if (!e.holds<ExecRange>()) {
+                    return {};
+                }
+                return infer_type_from_exec(e.as<ExecRange>().start);
+            }
             case builtin_access::str_len:
             case builtin_access::slice_len:
                 return usize_type();

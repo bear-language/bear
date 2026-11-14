@@ -29,6 +29,8 @@
         - blocked on recording moves
     - [ ] static variable guard variables (thread safe, ideally or eventually)
         - only needed if LHS is not knowable at compt (in which case it can be an LLVM global w/ a constant initializer)
+    - [ ] `.start` / `.end` access for builtin ranges `...` & `...=`, figure out how to handle inclusivity here
+    - [ ] impl proper runtime Exec hashing so parallel match/if-else branches can be hashed and compared for duplicativity
 
 - [ ] tighten up mention/mutation tracking 
     - improve/fix `unused variable: foo` diagnostics (for non top-levels)

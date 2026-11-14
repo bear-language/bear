@@ -1,0 +1,23 @@
+// tests/hir/b30.br
+
+struct Counter {
+    i32 tally = 0;
+    i32 max = 1 << 12;
+}
+
+fn main() {
+    mut Counter cnt = {};
+}
+
+fn count(&mut Counter cnt) {
+    compt i32 START = 0;
+    mut Range::i32 r = 0...0;
+    for (mut i32 i = START; i < 128; ++i) {
+       cnt.tally++;
+    }
+    r = 0...cnt.tally;
+}
+
+fn range_oops() {
+    i32 a = 1...2; // oops
+}

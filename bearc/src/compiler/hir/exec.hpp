@@ -574,6 +574,8 @@ enum class builtin_access : uint8_t {
     str_ptr,
     slice_len,
     slice_ptr,
+    range_start,
+    range_end,
     variant_discriminant,
 };
 
@@ -593,8 +595,9 @@ using ExecValue = std::variant<
     // expressions
     ExecUnionInit, ExecVariantInit, ExecStructInit, ExecVariable, ExecComptConstant,
     ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
-    ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecTernaryIf, ExecFnPtr,
-    ExecVariantFieldInit, ExecRange, ExecCompoundAssignment, ExecUnary, ExecBuiltinAccess>;
+    ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecTernaryIf,
+    ExecFnPtr, ExecVariantFieldInit, ExecRange, ExecCompoundAssignment, ExecUnary,
+    ExecBuiltinAccess>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {

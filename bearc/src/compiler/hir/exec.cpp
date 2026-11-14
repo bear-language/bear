@@ -2572,6 +2572,12 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             case builtin_access::variant_discriminant:
                 str += ".@discriminant";
                 break;
+            case builtin_access::range_start:
+                str += ".start";
+                break;
+            case builtin_access::range_end:
+                str += ".end";
+                break;
             }
             return str;
         },
