@@ -538,6 +538,13 @@ struct ExecMatchBranch {
     ExecId body;
 };
 
+struct ExecTernaryIf {
+    ExecId condition;
+    ExecId then_value;
+    ExecId else_value;
+    OptId<TypeId> result_tid{};
+};
+
 struct ExecCompoundAssignment {
     /// mutable lvalue, evaluated exactly once
     ExecId lhs;
@@ -579,7 +586,7 @@ using ExecValue = std::variant<
     // expressions
     ExecUnionInit, ExecVariantInit, ExecStructInit, ExecVariable, ExecComptConstant,
     ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
-    ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecFnPtr,
+    ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecTernaryIf, ExecFnPtr,
     ExecVariantFieldInit, ExecRange, ExecCompoundAssignment, ExecUnary, ExecBuiltinAccess>;
 
 /// main exec structure, corresponds to an hir::ExecId

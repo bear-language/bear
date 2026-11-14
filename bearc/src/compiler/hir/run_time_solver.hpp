@@ -180,6 +180,9 @@ class RuntimeSolver {
     [[nodiscard]] OptId<ExecId> handle_fn_call(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_match(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
                                              OptId<TypeId> maybe_into_tid);
+    [[nodiscard]] OptId<ExecId> handle_ternary_if(FileId fid, LexicalCtx lctx,
+                                                  const ast_expr_t* expr,
+                                                  OptId<TypeId> maybe_into_tid);
     [[nodiscard]] bool decompose_variant(FileId fid, LexicalCtx branch_lctx, InProgressBlock& block,
                                          const ast_expr_t* decomp_expr, DefId variant_field_did,
                                          ExecId variant_eid);

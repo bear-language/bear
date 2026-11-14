@@ -433,7 +433,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a59", 8);
     char* args_a60[] = {"bearc", "tests/hir/a60.br", "-I", "tests/lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a60, 21);
-    ASSERT_EQ_ERR("hir/a61", 13);
+    ASSERT_EQ_ERR("hir/a61", 10);
     ASSERT_EQ_ERR("hir/a62", 4);
     ASSERT_EQ_ERR("hir/a63", 1);
     // this test is kinda dodgy and only exists because it accidently  found a spanning issue with
@@ -501,11 +501,12 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b18", 24);
     ASSERT_EQ_ERR("hir/b19", 10);
     ASSERT_EQ_ERR("hir/b20", 5);
-    ASSERT_EQ_ERR("hir/b21", 7);
+    ASSERT_EQ_ERR("hir/b21", 6);
     ASSERT_EQ_ERR("hir/b22", 12);
     ASSERT_EQ_ERR("hir/b23", 7);
     ASSERT_EQ_ERR("hir/b24", 0);
     ASSERT_EQ_ERR("hir/b25", 9);
+    ASSERT_EQ_ERR("hir/b26", 9);
 
     return TEST_RESULT;
 }

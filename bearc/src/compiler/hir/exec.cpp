@@ -1195,6 +1195,7 @@ bool Exec::can_be_compt() {
         [](const ExecAddrOf&) -> bool { return false; },
         [](const ExecMatch&) -> bool { return false; },
         [](const ExecMatchBranch&) -> bool { return false; },
+        [](const ExecTernaryIf&) -> bool { return false; },
         [](const ExecCompoundAssignment&) -> bool { return false; },
         [](const ExecUnary&) -> bool { return false; },
         [](const ExecBuiltinAccess&) -> bool { return false; },
@@ -2484,6 +2485,17 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             str += t.patterns.len() ? slice_of_pattern_execs_to_str(ctx, t.patterns) : "else";
             str += " => ";
             str += exec_to_string(ctx, t.body);
+            return str;
+        },
+        [&ctx](const ExecTernaryIf& t) -> std::string {
+            std::string str{};
+            str += '(';
+            str += exec_to_string(ctx, t.then_value);
+            str += " if ";
+            str += exec_to_string(ctx, t.condition);
+            str += " else ";
+            str += exec_to_string(ctx, t.else_value);
+            str += ')';
             return str;
         },
         [&ctx](const ExecAddrOf& t) -> std::string {

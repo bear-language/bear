@@ -369,6 +369,15 @@ template <equivalence E> bool equivalent_exec_impl(const Context& ctx, ExecId ei
             return equivalent_exec_slice_impl<E>(ctx, t.patterns, o.patterns)
                    && equivalent_exec_impl<E>(ctx, t.body, o.body);
         },
+        [&ctx, &other](const ExecTernaryIf& t) -> bool {
+            if (!other.holds<ExecTernaryIf>()) {
+                return false;
+            }
+            const auto o = other.as<ExecTernaryIf>();
+            return equivalent_exec_impl<E>(ctx, t.condition, o.condition)
+                   && equivalent_exec_impl<E>(ctx, t.then_value, o.then_value)
+                   && equivalent_exec_impl<E>(ctx, t.else_value, o.else_value);
+        },
         [&ctx, &other](const ExecCompoundAssignment& t) -> bool {
             if (!other.holds<ExecCompoundAssignment>()) {
                 return false;
@@ -459,6 +468,7 @@ template <equivalence E> size_t hash_exec_impl(const Context& ctx, ExecId eid) {
         [](const ExecDeref&) -> size_t { return {}; },
         [](const ExecMatch&) -> size_t { return {}; },
         [](const ExecMatchBranch&) -> size_t { return {}; },
+        [](const ExecTernaryIf&) -> size_t { return {}; },
         [](const ExecCompoundAssignment&) -> size_t { return {}; },
         [](const ExecUnary&) -> size_t { return {}; },
         [](const ExecBuiltinAccess&) -> size_t { return {}; },
@@ -628,6 +638,7 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecDeref&) -> bool { return false; },
         [](const ExecMatch&) -> bool { return false; },
         [](const ExecMatchBranch&) -> bool { return false; },
+        [](const ExecTernaryIf&) -> bool { return false; },
         [](const ExecCompoundAssignment&) -> bool { return false; },
         [](const ExecUnary&) -> bool { return false; },
         [](const ExecBuiltinAccess&) -> bool { return false; },
@@ -684,6 +695,7 @@ bool definitely_returns_yields_impl(const Context& ctx, ExecId eid) {
         [&ctx](const ExecMatchBranch& d) -> bool {
             return definitely_returns_yields_impl<T>(ctx, d.body);
         },
+        [](const ExecTernaryIf&) -> bool { return {}; },
         [](const ExecFnPtr&) -> bool { return {}; },
         [](const ExecVariantFieldInit&) -> bool { return {}; },
         [](const ExecRange&) -> bool { return {}; },

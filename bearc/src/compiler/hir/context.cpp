@@ -4192,6 +4192,7 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
         // these are ctrl and do not yield values
         [](const ExecMatch& d) -> OptId<TypeId> { return d.result_tid; },
         [](const ExecMatchBranch&) -> OptId<TypeId> { return {}; },
+        [](const ExecTernaryIf& d) -> OptId<TypeId> { return d.result_tid; },
         [](const ExecVariantFieldInit&) -> OptId<TypeId> { return {}; },
         [](const ExecBlock&) -> OptId<TypeId> { return {}; },
         [](const ExecBranch&) -> OptId<TypeId> { return {}; },
@@ -4307,6 +4308,7 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
         [](const ExecAddrOf&) -> bool { return false; },
         [](const ExecMatch&) -> bool { return false; },
         [](const ExecMatchBranch&) -> bool { return false; },
+        [](const ExecTernaryIf&) -> bool { return false; },
         [](const ExecFnPtr&) -> bool { return false; },
         [](const ExecVariantFieldInit&) -> bool { return false; },
         [](const ExecRange&) -> bool { return false; },

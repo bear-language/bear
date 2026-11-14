@@ -13,5 +13,5 @@ fn short_circuit(bool b) {
 fn unimplemented(bool b) {
     if b {} // not yet implemented
     while b {} // not yet implemented
-    var _0 = 1 if b else 2; // not yet implemented
+    var _0 = 1 if b else 2;
 }

@@ -161,8 +161,10 @@ static void write_back_moves(Context& context, MoveMapId parent,
     case AST_EXPR_MATCH:
         maybe_eid = handle_match(fid, lctx, expr, into_tid);
         break;
-    case AST_EXPR_CLOSURE:
     case AST_EXPR_TERNARY_IF:
+        maybe_eid = handle_ternary_if(fid, lctx, expr, into_tid);
+        break;
+    case AST_EXPR_CLOSURE:
     case AST_EXPR_BLOCK:
         diag_not_yet_implemented(Span{context, fid, expr});
         break;
@@ -883,9 +885,10 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
         return handle_fn_call(fid, lctx, expr);
     case AST_EXPR_MATCH:
         return handle_match(fid, lctx, expr, {});
+    case AST_EXPR_TERNARY_IF:
+        return handle_ternary_if(fid, lctx, expr, {});
     case AST_EXPR_BLOCK:
     case AST_EXPR_CLOSURE:
-    case AST_EXPR_TERNARY_IF:
         diag_not_yet_implemented(Span{context, fid, expr});
         break;
 
@@ -1173,6 +1176,91 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
                                           .scrutinee_tmp = maybe_tmp_did,
                                           .result_tid = maybe_result_tid},
                                 span);
+}
+
+OptId<ExecId> RuntimeSolver::handle_ternary_if(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                               OptId<TypeId> maybe_into_tid) {
+    assert(expr->type == AST_EXPR_TERNARY_IF);
+    const ast_expr_ternary_if_t tif = expr->expr.ternary_if;
+    const TypeId bool_tid = context.type_for_builtin(builtin_type::boolean);
+
+    if (tif.compt) {
+        const auto maybe_cond_eid
+            = ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, tif.condition, bool_tid);
+        if (maybe_cond_eid.empty()) {
+            return {};
+        }
+        const auto maybe_cond = context.exec(maybe_cond_eid.as_id()).try_as<ExecConst>();
+        if (!maybe_cond.has_value()) {
+            return {};
+        }
+        const auto maybe_bool = maybe_cond.value().try_as<bool>();
+        if (!maybe_bool.has_value()) {
+            return {};
+        }
+        return solve_expr(fid, lctx, maybe_bool.value() ? tif.happy_expr : tif.else_expr,
+                          maybe_into_tid);
+    }
+
+    const auto maybe_cond_eid = solve_expr(fid, lctx, tif.condition, bool_tid);
+
+    const LexicalCtx then_lctx{.scope = lctx.scope,
+                               .map = context.make_persistent_move_map(lctx.map)};
+    const LexicalCtx else_lctx{.scope = lctx.scope,
+                               .map = context.make_persistent_move_map(lctx.map)};
+    const auto maybe_then_eid = solve_expr(fid, then_lctx, tif.happy_expr, maybe_into_tid);
+    const auto maybe_else_eid = solve_expr(fid, else_lctx, tif.else_expr, maybe_into_tid);
+    write_back_moves(context, lctx.map, {then_lctx.map, else_lctx.map});
+
+    if (maybe_cond_eid.empty() || maybe_then_eid.empty() || maybe_else_eid.empty()) {
+        return {};
+    }
+
+    ExecId then_eid = maybe_then_eid.as_id();
+    ExecId else_eid = maybe_else_eid.as_id();
+    OptId<TypeId> maybe_result_tid = maybe_into_tid;
+
+    if (maybe_result_tid.empty()) {
+        const bool then_const = context.exec(then_eid).holds<ExecConst>();
+        const bool else_const = context.exec(else_eid).holds<ExecConst>();
+        maybe_result_tid = infer_type_from_exec(then_const && !else_const ? else_eid : then_eid);
+        if (maybe_result_tid.empty()) {
+            return {};
+        }
+
+        const TypeId result_tid = maybe_result_tid.as_id();
+        bool cooked = false;
+        for (ExecId* eid : {&then_eid, &else_eid}) {
+            if (context.exec(*eid).holds<ExecConst>()) {
+                if (const auto maybe_conv = context.try_convert_to(*eid, result_tid)) {
+                    *eid = maybe_conv.as_id();
+                }
+            }
+            const auto maybe_tid = infer_type_from_exec(*eid);
+            if (maybe_tid.empty()) {
+                cooked = true;
+                continue;
+            }
+            if (!context.assignable_and_inferable_from_type_to(maybe_tid.as_id(), result_tid)) {
+                context.emplace_diagnostic_with_message_value(
+                    context.exec(*eid).span, diag_code::cannot_convert_value_of_type,
+                    diag_type::error,
+                    DiagnosticTypeToType{.from = maybe_tid.as_id(), .to = result_tid});
+
+                cooked = true;
+            }
+        }
+
+        if (cooked) {
+            return {};
+        }
+    }
+
+    return context.emplace_exec(ExecTernaryIf{.condition = maybe_cond_eid.as_id(),
+                                              .then_value = then_eid,
+                                              .else_value = else_eid,
+                                              .result_tid = maybe_result_tid},
+                                Span{context, fid, expr});
 }
 
 bool RuntimeSolver::decompose_variant(FileId fid, LexicalCtx branch_lctx, InProgressBlock& block,

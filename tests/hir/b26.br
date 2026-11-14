@@ -1,0 +1,36 @@
+// tests/hir/b26.br
+
+// testing runtime ternary if
+
+struct Foo {
+    i32 a = 0;
+}
+
+fn main() {
+    fine(true, 1, 1, 1, &compt Foo{}, &compt Foo{});
+    oops(true, 1, 1, 1, &compt Foo{}, 1);
+}
+
+fn fine(bool c, i32 a, i64 b, f32 f, &Foo r1, &Foo r2) -> i32 {
+    i32 _0 = a if c else 2;
+    i32 _1 = 1 if c else a;
+    var _2 = 1 if c else b;
+    i64 _3 = b if c else a as i64;
+    var _4 = a if a > 3 else a + 1;
+    &Foo _5 = &r1 if c else &r2;
+    i32 _6 = (1 if c else 2) + a;
+    i32 _7 = 1 if c else 2 if !c else 3;
+    var _8 = a if compt true else f;
+    var _9 = f if compt 1 > 2 else a;
+    return a if c else 0;
+}
+
+fn oops(bool c, i32 a, i64 b, f32 f, &Foo r, u8 n) {
+    i32 _0 = a if c else b; // oops, i64 -> i32
+    var _1 = a if c else f; // oops, f32 vs i32
+    var _2 = a if n else a; // oops, condition not bool
+    i32 _3 = r if c else a; // oops, &Foo -> i32
+    var _4 = a if compt c else a; // oops, condition not compt
+    &mut Foo _5 = &r if c else &r; // oops, adds mut
+    var _6 = a if c else undeclared; // oops, undeclared
+}
