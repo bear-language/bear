@@ -525,6 +525,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "right-hand side is never evaluated";
     case diag_code::cannot_return_a_reference_to_a_local_variable:
         return "cannot return a reference to a local variable";
+    case diag_code::for_loop_never_terminates_since_condition_is_always_true:
+        return "for loop never terminates since condition is always true";
     }
 
     std::unreachable();

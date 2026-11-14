@@ -891,6 +891,18 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
 
     write_back_moves(context, lctx.map, {body_lctx.map});
 
+    // warn on infinitely looping for loops
+    if (maybe_cond_eid.has_value() && update_expr) {
+        if (const std::optional<bool> maybe_compt_bool_cond
+            = try_compt_bool(maybe_cond_eid.as_id());
+            maybe_compt_bool_cond.has_value()) {
+            context.emplace_diagnostic(
+                context.exec(maybe_cond_eid.as_id()).span,
+                diag_code::for_loop_never_terminates_since_condition_is_always_true,
+                diag_type::warning);
+        }
+    }
+
     if (cooked) {
         const ExecId empty_body_eid = context.emplace_exec(
             ExecBlock{context.emplace_block(Block{.execs = {}, .defs = {}, .lctx = lctx})}, span);
@@ -930,8 +942,8 @@ OptId<ExecId> RuntimeSolver::handle_for(FileId fid, LexicalCtx lctx, InProgressB
     InProgressBlock for_block{};
     handle_stmt(fid, for_lctx, for_block, for_stmt.init);
 
-    const auto maybe_loop_eid = solve_loop(fid, for_lctx, span, for_stmt.condition, for_stmt.step,
-                                           for_stmt.body_stmt);
+    const auto maybe_loop_eid
+        = solve_loop(fid, for_lctx, span, for_stmt.condition, for_stmt.step, for_stmt.body_stmt);
     if (maybe_loop_eid.empty()) {
         return {};
     }
@@ -945,6 +957,15 @@ OptId<ExecId> RuntimeSolver::handle_for(FileId fid, LexicalCtx lctx, InProgressB
     return maybe_loop_eid;
 }
 
+std::optional<bool> RuntimeSolver::try_compt_bool(ExecId eid) {
+
+    const auto maybe_cond = context.exec(eid).try_as<ExecConst>();
+    if (!maybe_cond.has_value()) {
+        return std::nullopt;
+    }
+    return maybe_cond.value().try_as<bool>();
+}
+
 std::optional<bool> RuntimeSolver::solve_compt_condition(FileId fid, LexicalCtx lctx,
                                                          const ast_expr_t* cond) {
     const auto maybe_cond_eid = ComptExprSolver{def_visitor}.solve_expr(
@@ -952,11 +973,7 @@ std::optional<bool> RuntimeSolver::solve_compt_condition(FileId fid, LexicalCtx 
     if (maybe_cond_eid.empty()) {
         return std::nullopt;
     }
-    const auto maybe_cond = context.exec(maybe_cond_eid.as_id()).try_as<ExecConst>();
-    if (!maybe_cond.has_value()) {
-        return std::nullopt;
-    }
-    return maybe_cond.value().try_as<bool>();
+    return try_compt_bool(maybe_cond_eid.as_id());
 }
 
 OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBlock& block,

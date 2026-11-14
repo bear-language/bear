@@ -162,6 +162,7 @@ class RuntimeSolver {
                                    const ast_stmt_t* stmt);
     OptId<ExecId> handle_break(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
     OptId<ExecId> handle_continue(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
+    [[nodiscard]] std::optional<bool> try_compt_bool(ExecId eid);
     [[nodiscard]] std::optional<bool> solve_compt_condition(FileId fid, LexicalCtx lctx,
                                                             const ast_expr_t* cond);
     /// solves a loop (condition, body, and optional update) and returns the ExecLoop's ExecId

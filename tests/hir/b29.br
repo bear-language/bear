@@ -72,7 +72,7 @@ fn early_return(i32 n) -> i32 {
 }
 
 fn forever_returns(i32 n) -> i32 {
-    for (mut i32 i = 0; true; i++) {
+    for (mut i32 i = 0; true || n as bool; i++) { // warn
         if i > n {
             return i; // fine, the loop never exits normally
         }
@@ -105,7 +105,7 @@ fn oops_step(i32 n) {
 }
 
 fn oops_breaks(i32 n) -> i32 {
-    for (mut i32 i = 0; true; i++) {
+    for (mut i32 i = 0; true; i++) { // warn
         if i > n {
             break;
         }
@@ -115,7 +115,7 @@ fn oops_breaks(i32 n) -> i32 {
 fn foo() => 1
 
 fn oops_after_forever() {
-    for (mut i32 i = 0; true; i++) {
+    for (mut i32 i = 0; true; i++) { // warn
         i; // fine
     }
     foo(); // oops, unreachable
