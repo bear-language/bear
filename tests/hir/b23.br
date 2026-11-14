@@ -1,0 +1,55 @@
+// tests/hir/b23.br
+
+// testing that deftype resolution does not depend on declaration order
+
+compt C c0 = 42; // fine, C used before its deftype chain is declared
+
+deftype C = B;
+deftype B = A;
+deftype A = i32;
+
+var _0 = @static_assert @same_type(C, i32);
+var _1 = @static_assert @same_type(A, B);
+
+deftype LateDog = Dog; // fine, Dog declared below
+
+struct Kennel {
+    LateDog dog;
+    Bowl bowl; // fine, Bowl is a deftype declared below
+}
+
+deftype Bowl = [3]Kibble;
+deftype Kibble = u8;
+
+struct Dog {
+    i32 age;
+}
+
+compt Kennel k = Kennel{.dog = Dog{.age = 3}, .bowl = [1, 2, 3]};
+var _2 = @static_assert k.dog.age == 3;
+var _3 = @static_assert @same_type(Bowl, [3]u8);
+
+struct Outer {
+    deftype Inner = Later;
+    deftype Later = *Dog;
+}
+
+var _4 = @static_assert @same_type(Outer..Inner, *Dog);
+
+mod late {
+    deftype Num = Base;
+    deftype Base = i64;
+}
+
+var _5 = @static_assert @same_type(late..Num, i64);
+
+deftype Ouroboros = Ouroboros; // oops, self-referential
+
+deftype Ping = Pong; // cycle origin (note)
+deftype Pong = Ping; // oops, cyclic
+
+deftype Loop0 = *Loop2; // cycle origin (note)
+deftype Loop1 = Loop0; // oops, cyclic through a pointer
+deftype Loop2 = [&]Loop1;
+
+deftype Ghost = Phantom; // oops, never declared
