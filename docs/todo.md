@@ -26,6 +26,17 @@
     - [ ] fix mut semantics on struct members 
         - [ ] warn on `mut` declared members
         - [x] make it so the struct instance's mutability entirely determines the member mutability
+    - [ ] replace `dt self()` with a builtin `Destruct` contract w/ `mt mut destruct()`
+        - [ ] remove `TOK_DT`, `dt` from `token_is_mt_or_dt` & co., special case in `context.cpp`, `DestructorDeclaration` in syntax.md, update parser tests 30 & 44
+        - [ ] `Destruct` is intrinsic
+        - [ ] opt-in only thru `has(Destruct)`
+        - [ ] ban explicit `x.destruct()` calls (or make it a move), otherwise double destruct at scope exit
+        - [ ] compiler-inserted calls ignore mutability
+        - [ ] members are auto-destructed after the user's `destruct()`, pick an order (reverse decl)
+        - [ ] ban moving out of fields of a `Destruct` type (moving fields out will prob have to start out banned anyway)
+        - [ ] `Destruct` types are never implicitly copyable (feeds the copy vs. move rule)
+        - [ ] variants: destruct the active field only; unions: ban `Destruct` members or make it manual
+        - [ ] perhaps warn on `T has Destruct` generic bounds (meaningless since everything gets destructed)
     - [ ] drop/destructor flags, tracked by block/lexical scope (always emit, LLVM folds the unconditional ones)
         - blocked on recording moves
     - [ ] static variable guard variables (thread safe, ideally or eventually)
