@@ -17,6 +17,7 @@
             - [ ] `while` and C-style `for` (`break`/`continue` plumbing already exists)
             - [ ] `yield` in nested positions inside match branch blocks (only top-level yields are handled)
             - [ ] `is` w/ variant decomposition, bindings scoped to the `if`'s then-branch
+            - [ ] c-style `for`
             - [ ] `for in` (blocked on an iteration protocol/contract + `std::Range`)
         - [ ] closures (rust-like capture semantics)
         - [ ] warn on unused expression statements (fine for assignments/mutations/discardable or void fns)
@@ -31,26 +32,6 @@
         - blocked on recording moves
     - [ ] static variable guard variables (thread safe, ideally or eventually)
         - only needed if LHS is not knowable at compt (in which case it can be an LLVM global w/ a constant initializer)
-    
-- [ ] note: (impl. detail) the way mutable references are strucutured is that HIR stores all references types as mut/immut on the reference layer and then the next inner value type is always stored as immut since the mutability only binds to the reference logically. So, be sure to take this into account. 
-    - [x] ensure these work (see `tests/hir/b20.br`):
-        - [x] T       -> mut T
-        - [x] mut T   -> T
-        - [x] &T      -> &mut T         (fail)
-        - [x] &mut T  -> &T 
-        - [x] * T       -> * T mut      (fail)
-        - [x] * T mut   -> *T        
-        - [x] * T       -> *mut T       (fine, top-level `mut` is just rebindability)
-        - [x] \[&]T      -> \[&mut]T    (fine, `[&mut]` is just rebindability)
-        - [x] \[&mut]T   -> \[&]T       
-        - [x] \[&]T      -> \[&] T mut  (fail)
-        - [x] \[&] T mut -> \[&]T       
-        - [x] only the first pointee layer may drop `mut` (e.g. `**T mut -> **T` fails)
-        - [x] null -> *T (don't forget)
-
-- [ ] reference stuff:
-    - [x] strictly ban returning a reference to a local variable directly out of a function
-    - [x] remember: run-time values that are immutable references and have compile-time initializers can just reference static variables that store that compile-time value, this is handled in HIR, but codegen needs to be aware so it can promote
 
 - [ ] tighten up mention/mutation tracking 
     - improve/fix `unused variable: foo` diagnostics (for non top-levels)
