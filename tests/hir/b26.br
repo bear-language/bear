@@ -33,4 +33,6 @@ fn oops(bool c, i32 a, i64 b, f32 f, &Foo r, u8 n) {
     var _4 = a if compt c else a; // oops, condition not compt
     &mut Foo _5 = &r if c else &r; // oops, adds mut
     var _6 = a if c else undeclared; // oops, undeclared
+    var _7 = undeclared if n else undeclared; // oops, not bool, both branches still checked
+    var _8 = undeclared if compt c else undeclared; // oops, not compt, both branches still checked
 }

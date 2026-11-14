@@ -138,9 +138,9 @@ br_test_result_t test_hir(void) {
     char* hir_args[] = {"bearc", "-I", "tests/lib"};
     TEST_SET_ARGS(hir_args);
     char* args1[] = {"bearc", "07.br", "-I", "tests/hir"};
-    ASSERT_EQ_ERR_FROM_ARGS(args1, 1);
+    ASSERT_EQ_ERR_FROM_ARGS(args1, 0);
     char* args2[] = {"bearc", "tests/hir/07.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args2, 4);
+    ASSERT_EQ_ERR_FROM_ARGS(args2, 5);
     char* args3[] = {"bearc", "tests/hir/04.br", "--compile", "--import-path", "."};
     ASSERT_EQ_ERR_FROM_ARGS(args3, 10);
     char* args4[]
@@ -222,7 +222,7 @@ br_test_result_t test_hir(void) {
     char* args41[] = {"bearc", "tests/hir/41.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args41, 7);
     char* args42[] = {"bearc", "tests/hir/42.br"};
-    ASSERT_EQ_ERR_FROM_ARGS(args42, 5);
+    ASSERT_EQ_ERR_FROM_ARGS(args42, 4);
     char* args43[] = {"bearc", "tests/hir/43.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args43, 2);
     char* args44[] = {"bearc", "tests/hir/44.br"};
@@ -506,7 +506,8 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b23", 7);
     ASSERT_EQ_ERR("hir/b24", 0);
     ASSERT_EQ_ERR("hir/b25", 9);
-    ASSERT_EQ_ERR("hir/b26", 9);
+    ASSERT_EQ_ERR("hir/b26", 16);
+    ASSERT_EQ_ERR("hir/b27", 19);
 
     return TEST_RESULT;
 }

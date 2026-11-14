@@ -84,9 +84,14 @@ template <equivalence E> bool equivalent_exec_impl(const Context& ctx, ExecId ei
                 return false;
             };
             const auto o = other.as<ExecBranch>();
+            if (t.else_block.has_value() != o.else_block.has_value()) {
+                return false;
+            }
             return equivalent_exec_impl<E>(ctx, t.condition, o.condition)
                    && equivalent_exec_impl<E>(ctx, t.then_block, o.then_block)
-                   && equivalent_exec_impl<E>(ctx, t.else_block, o.else_block);
+                   && (t.else_block.empty()
+                       || equivalent_exec_impl<E>(ctx, t.else_block.as_id(),
+                                                  o.else_block.as_id()));
         },
         [&other, &ctx](const ExecJump& t) -> bool {
             if (!other.holds<ExecJump>()) {
@@ -661,8 +666,9 @@ bool definitely_returns_yields_impl(const Context& ctx, ExecId eid) {
             return false;
         },
         [&ctx](const ExecBranch& d) -> bool {
-            return definitely_returns_yields_impl<T>(ctx, d.then_block)
-                   && definitely_returns_yields_impl<T>(ctx, d.else_block);
+            return d.else_block.has_value()
+                   && definitely_returns_yields_impl<T>(ctx, d.then_block)
+                   && definitely_returns_yields_impl<T>(ctx, d.else_block.as_id());
         },
         [](const ExecYield&) -> bool { return std::same_as<T, ExecYield>; },
         [](const ExecJump&) -> bool { return {}; },

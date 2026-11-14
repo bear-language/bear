@@ -43,8 +43,8 @@ static void write_back_moves(Context& context, MoveMapId parent,
                 return;
             }
             const IdSlice<ExecId> slice = context.exec_id_slice(res.as<ExecIdSliceId>());
-            for (auto idx = slice.begin(); idx != slice.end(); ++idx) {
-                it->second.push_back(context.exec_id(idx));
+            for (auto eidx : slice) {
+                it->second.push_back(context.exec_id(eidx));
             }
         });
     }
@@ -502,7 +502,7 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_CONTINUE:
         return handle_continue(fid, block, stmt);
     case AST_STMT_IF:
-    case AST_STMT_ELSE:
+        return handle_if(fid, lctx, block, stmt);
     case AST_STMT_WHILE:
     case AST_STMT_FOR:
     case AST_STMT_FOR_IN:
@@ -511,6 +511,7 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
         break;
 
         // poisoned/malformed:
+    case AST_STMT_ELSE:
     case AST_STMT_VISIBILITY_MODIFIER:
     case AST_STMT_STRUCT_DEF:
     case AST_STMT_CONTRACT_DEF:
@@ -830,6 +831,102 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
             : ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::start},
         Span{context, fid, stmt});
 
+    block.push_back_exec(eid);
+    return eid;
+}
+
+std::optional<bool> RuntimeSolver::solve_compt_condition(FileId fid, LexicalCtx lctx,
+                                                         const ast_expr_t* cond) {
+    const auto maybe_cond_eid = ComptExprSolver{def_visitor}.solve_expr(
+        fid, lctx.scope, cond, context.type_for_builtin(builtin_type::boolean));
+    if (maybe_cond_eid.empty()) {
+        return std::nullopt;
+    }
+    const auto maybe_cond = context.exec(maybe_cond_eid.as_id()).try_as<ExecConst>();
+    if (!maybe_cond.has_value()) {
+        return std::nullopt;
+    }
+    return maybe_cond.value().try_as<bool>();
+}
+
+OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                       const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_IF);
+
+    const ast_stmt_if_t if_stmt = stmt->stmt.if_stmt;
+    const TypeId bool_tid = context.type_for_builtin(builtin_type::boolean);
+    const ast_stmt_t* else_body = if_stmt.has_else && if_stmt.else_stmt->type == AST_STMT_ELSE
+                                      ? if_stmt.else_stmt->stmt.else_stmt.body_stmt
+                                      : nullptr;
+    bool cooked = if_stmt.has_else && !else_body;
+
+    const auto solve_body
+        = [this, fid](LexicalCtx body_lctx, const ast_stmt_t* body) -> OptId<ExecId> {
+        if (body->type == AST_STMT_BLOCK) {
+            return solve_block(fid, body_lctx, body);
+        }
+        const Span body_span{context, fid, body};
+        const LexicalCtx inner_lctx{.scope = context.make_small_scope(body_lctx.scope, body_span),
+                                    .map = body_lctx.map};
+        InProgressBlock inner{};
+        if (handle_stmt(fid, inner_lctx, inner, body).empty() && inner.execs.empty()) {
+            return {};
+        }
+        return context.emplace_exec(
+            ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(inner.execs),
+                                                  .defs = context.freeze_id_vec(inner.defs),
+                                                  .lctx = inner_lctx})},
+            body_span);
+    };
+
+    OptId<ExecId> maybe_cond_eid{};
+    if (if_stmt.compt) {
+        const auto maybe_bool = solve_compt_condition(fid, lctx, if_stmt.condition);
+
+        // never solve the non-taken branch
+        if (maybe_bool.has_value() && !cooked) {
+            const ast_stmt_t* taken = maybe_bool.value() ? if_stmt.body_stmt : else_body;
+            if (!taken) {
+                return {};
+            }
+            const auto maybe_taken_eid = solve_body(lctx, taken);
+            if (maybe_taken_eid.has_value()) {
+                block.push_back_exec(maybe_taken_eid.as_id());
+            }
+            return maybe_taken_eid;
+        }
+        cooked = true;
+    } else {
+        maybe_cond_eid = solve_expr(fid, lctx, if_stmt.condition, bool_tid);
+        cooked |= maybe_cond_eid.empty();
+    }
+
+    const LexicalCtx then_lctx{
+        .scope = context.make_small_scope(lctx.scope, Span{context, fid, if_stmt.body_stmt}),
+        .map = context.make_persistent_move_map(lctx.map)};
+    const auto maybe_then_eid = solve_body(then_lctx, if_stmt.body_stmt);
+    cooked |= maybe_then_eid.empty();
+
+    OptId<ExecId> maybe_else_eid{};
+    if (else_body) {
+        const LexicalCtx else_lctx{
+            .scope = context.make_small_scope(lctx.scope, Span{context, fid, else_body}),
+            .map = context.make_persistent_move_map(lctx.map)};
+        maybe_else_eid = solve_body(else_lctx, else_body);
+        cooked |= maybe_else_eid.empty();
+        write_back_moves(context, lctx.map, {then_lctx.map, else_lctx.map});
+    } else {
+        write_back_moves(context, lctx.map, {then_lctx.map});
+    }
+
+    if (cooked) {
+        return {};
+    }
+
+    const ExecId eid = context.emplace_exec(ExecBranch{.condition = maybe_cond_eid.as_id(),
+                                                       .then_block = maybe_then_eid.as_id(),
+                                                       .else_block = maybe_else_eid},
+                                            Span{context, fid, stmt});
     block.push_back_exec(eid);
     return eid;
 }
@@ -1184,25 +1281,16 @@ OptId<ExecId> RuntimeSolver::handle_ternary_if(FileId fid, LexicalCtx lctx, cons
     const ast_expr_ternary_if_t tif = expr->expr.ternary_if;
     const TypeId bool_tid = context.type_for_builtin(builtin_type::boolean);
 
+    OptId<ExecId> maybe_cond_eid{};
     if (tif.compt) {
-        const auto maybe_cond_eid
-            = ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, tif.condition, bool_tid);
-        if (maybe_cond_eid.empty()) {
-            return {};
+        const auto maybe_bool = solve_compt_condition(fid, lctx, tif.condition);
+        if (maybe_bool.has_value()) {
+            return solve_expr(fid, lctx, maybe_bool.value() ? tif.happy_expr : tif.else_expr,
+                              maybe_into_tid);
         }
-        const auto maybe_cond = context.exec(maybe_cond_eid.as_id()).try_as<ExecConst>();
-        if (!maybe_cond.has_value()) {
-            return {};
-        }
-        const auto maybe_bool = maybe_cond.value().try_as<bool>();
-        if (!maybe_bool.has_value()) {
-            return {};
-        }
-        return solve_expr(fid, lctx, maybe_bool.value() ? tif.happy_expr : tif.else_expr,
-                          maybe_into_tid);
+    } else {
+        maybe_cond_eid = solve_expr(fid, lctx, tif.condition, bool_tid);
     }
-
-    const auto maybe_cond_eid = solve_expr(fid, lctx, tif.condition, bool_tid);
 
     const LexicalCtx then_lctx{.scope = lctx.scope,
                                .map = context.make_persistent_move_map(lctx.map)};

@@ -157,6 +157,10 @@ class RuntimeSolver {
                                    const ast_stmt_t* stmt);
     OptId<ExecId> handle_break(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
     OptId<ExecId> handle_continue(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
+    [[nodiscard]] std::optional<bool> solve_compt_condition(FileId fid, LexicalCtx lctx,
+                                                            const ast_expr_t* cond);
+    OptId<ExecId> handle_if(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                            const ast_stmt_t* stmt);
 
     [[nodiscard]] OptId<ExecId> handle_literal(FileId fid, const ast_expr_t* expr);
 

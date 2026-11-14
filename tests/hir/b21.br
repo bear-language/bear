@@ -11,7 +11,7 @@ fn short_circuit(bool b) {
 }
 
 fn unimplemented(bool b) {
-    if b {} // not yet implemented
+    if b {} // empty block warning
     while b {} // not yet implemented
     var _0 = 1 if b else 2;
 }

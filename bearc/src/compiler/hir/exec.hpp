@@ -51,7 +51,7 @@ struct ExecJump {
 struct ExecBranch {
     ExecId condition;
     ExecId then_block;
-    ExecId else_block;
+    OptId<ExecId> else_block;
 };
 
 struct ExecReturn {

@@ -2340,8 +2340,10 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
             str += exec_to_string(ctx, t.condition);
             str += " then ";
             str += exec_to_string(ctx, t.then_block);
-            str += " else ";
-            str += exec_to_string(ctx, t.else_block);
+            if (t.else_block.has_value()) {
+                str += " else ";
+                str += exec_to_string(ctx, t.else_block.as_id());
+            }
             return str;
         },
         [&ctx](const ExecReturn& t) -> std::string {
