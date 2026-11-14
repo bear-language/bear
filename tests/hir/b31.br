@@ -1,0 +1,29 @@
+// tests/hir/b31.br
+
+// testing suspicious conditions
+
+fn main() {
+    if_stmt(1, true, true);
+}
+
+fn if_stmt(mut i32 a, mut bool b, bool c) {
+    if a = 1 { // oops (covered by bool failed conversion to )
+        a--;
+    }
+    if b = c { // warn
+        a--;
+    }
+}
+
+fn tif(mut i32 a, mut bool b, bool c) {
+    a-- if b = c else a++; // warn
+}
+
+fn loops(mut i32 a, mut bool b, bool c) {
+   while (b = c) { // warn
+       a++;
+   }
+   for (mut var i = 0; b = c; i++) { // warn
+        a++;
+   }
+}
