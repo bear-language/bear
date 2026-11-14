@@ -67,8 +67,11 @@ class TypeResolver {
         Span span{context, fid, type->first, type->last};
 
         if (maybe_type.has_value()) {
-            auto did = need_layout_info ? def_visitor.visit_as_dependent(maybe_type.as_id())
-                                        : def_visitor.visit_as_transparent(maybe_type.as_id());
+            const ast_stmt_t* type_node = context.def_ast_node(maybe_type.as_id());
+            const bool is_deftype = type_node && type_node->type == AST_STMT_DEFTYPE;
+            auto did = (need_layout_info || is_deftype)
+                           ? def_visitor.visit_as_dependent(maybe_type.as_id())
+                           : def_visitor.visit_as_transparent(maybe_type.as_id());
 
             const Def& def = context.def(did);
 
@@ -81,6 +84,10 @@ class TypeResolver {
 
                 return context.emplace_type(TypeDeftype{.true_type = new_tid, .definition = did},
                                             span, mut);
+            }
+
+            if (is_deftype) {
+                return {};
             }
 
             if (context.def_or_recursive_parent_of_def_is_unspecialized_generic(did)) {

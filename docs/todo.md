@@ -1,8 +1,6 @@
 ### todos
 
 #### priority 
-- [ ] make deftype resolution not declaration order dependent
-- [x] emit a diagnostic (e.g. `not yet implemented in a runtime context`) for unhandled expr kinds in `RuntimeSolver::solve_expr` versus returning empty w/o a diag
 - [ ] evaluate non-taken compt paths for basic validity 
 
 #### function body resolution / runtime eval:
