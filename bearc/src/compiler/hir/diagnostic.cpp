@@ -461,6 +461,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "break statement used outside of loop";
     case diag_code::continue_statement_outside_of_loop:
         return "continue statement used outside of loop";
+    case diag_code::break_statement_inside_of_loop_header:
+        return "break statement cannot be used inside of a loop's condition or update";
+    case diag_code::continue_statement_inside_of_loop_header:
+        return "continue statement cannot be used inside of a loop's condition or update";
     case diag_code::struct_indexing_requires_a_constant_u32_value:
         return "struct indexing requires a constant u32 value";
     case diag_code::requested_struct_member:

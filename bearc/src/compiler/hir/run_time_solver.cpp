@@ -807,6 +807,12 @@ OptId<ExecId> RuntimeSolver::handle_expr_stmt(FileId fid, LexicalCtx lctx, InPro
 OptId<ExecId> RuntimeSolver::handle_break(FileId fid, InProgressBlock& block,
                                           const ast_stmt_t* stmt) {
     assert(stmt->type == AST_STMT_BREAK);
+    if (inside_loop_header) {
+        context.emplace_diagnostic(Span{context, fid, stmt},
+                                   diag_code::break_statement_inside_of_loop_header,
+                                   diag_type::error);
+        return {};
+    }
     if (current_loop_block_eid.empty()) {
         context.emplace_diagnostic(Span{context, fid, stmt},
                                    diag_code::break_statement_outside_of_loop, diag_type::error);
@@ -823,6 +829,12 @@ OptId<ExecId> RuntimeSolver::handle_break(FileId fid, InProgressBlock& block,
 OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
                                              const ast_stmt_t* stmt) {
     assert(stmt->type == AST_STMT_CONTINUE);
+    if (inside_loop_header) {
+        context.emplace_diagnostic(Span{context, fid, stmt},
+                                   diag_code::continue_statement_inside_of_loop_header,
+                                   diag_type::error);
+        return {};
+    }
     if (current_loop_block_eid.empty()) {
         context.emplace_diagnostic(Span{context, fid, stmt},
                                    diag_code::continue_statement_outside_of_loop, diag_type::error);
@@ -840,7 +852,9 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
                                         const ast_expr_t* cond_expr, const ast_expr_t* update_expr,
                                         const ast_stmt_t* body_stmt) {
     bool cooked = false;
+    const bool outer_inside_loop_header = inside_loop_header;
 
+    inside_loop_header = true;
     const auto maybe_cond_eid
         = solve_expr(fid, lctx, cond_expr, context.type_for_builtin(builtin_type::boolean));
     cooked |= maybe_cond_eid.empty();
@@ -853,6 +867,7 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
     current_loop_block_eid = loop_eid;
     current_loop_has_break = false;
     maybe_scope_containing_loop = lctx.scope;
+    inside_loop_header = false;
 
     const LexicalCtx body_lctx{
         .scope = context.make_small_scope(lctx.scope, Span{context, fid, body_stmt}),
@@ -867,10 +882,12 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
 
     OptId<ExecId> maybe_update_eid{};
     if (update_expr) {
+        inside_loop_header = true;
         maybe_update_eid
             = solve_expr(fid, LexicalCtx{.scope = lctx.scope, .map = body_lctx.map}, update_expr);
         cooked |= maybe_update_eid.empty();
     }
+    inside_loop_header = outer_inside_loop_header;
 
     write_back_moves(context, lctx.map, {body_lctx.map});
 
@@ -1304,9 +1321,12 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
                     yielded = true;
                     maybe_value_eid = solve_expr(fid, branch_lctx, stmt->stmt.yield_stmt.expr,
                                                  maybe_result_tid);
-                } else if (const auto maybe_eid = handle_stmt(fid, branch_lctx, block, stmt)) {
-                    diverges = definitely_returns(context, maybe_eid.as_id())
-                               || context.exec(maybe_eid.as_id()).holds<ExecJump>();
+                } else {
+                    const auto maybe_eid = handle_stmt(fid, branch_lctx, block, stmt);
+                    diverges = stmt->type == AST_STMT_BREAK || stmt->type == AST_STMT_CONTINUE
+                               || (maybe_eid.has_value()
+                                   && (definitely_returns(context, maybe_eid.as_id())
+                                       || context.exec(maybe_eid.as_id()).holds<ExecJump>()));
                 }
                 if ((yielded || diverges) && k + 1 < stmts.len) {
                     DiagLinker dl{context};

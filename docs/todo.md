@@ -15,7 +15,7 @@
         - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
             - [ ] `yield` in nested positions inside match branch blocks (only top-level yields are handled)
             - [ ] `is` w/ variant decomposition, bindings scoped to the `if`'s then-branch
-            - [ ] `for in` (blocked on an iteration protocol/contract + `std::Range`)
+            - [ ] `for in` (blocked on an iteration protocol/contract + `std..Range`)
         - [ ] closures (rust-like capture semantics)
             - [ ] note: compt-closures in function bodies naturally capture (by-scope) local vars which is malformed, so this is gonna have to be handled
         - [ ] warn on unused expression statements (fine for assignments/mutations/discardable or void fns)

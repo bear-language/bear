@@ -233,6 +233,8 @@ enum class diag_code : uint8_t {
     function_does_not_return_a_value,
     break_statement_outside_of_loop,
     continue_statement_outside_of_loop,
+    break_statement_inside_of_loop_header,
+    continue_statement_inside_of_loop_header,
     struct_indexing_requires_a_constant_u32_value,
     requested_struct_member, // fragment, not a diag on its own
     is_not_a_type,

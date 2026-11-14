@@ -30,6 +30,7 @@ class RuntimeSolver {
     IdSlice<DefId> params{};
     OptId<ExecId> current_loop_block_eid{};
     bool current_loop_has_break{};
+    bool inside_loop_header{};
     /// TODO: check this when solving a move
     /// - ban the move if this has a value (i.e. we're inside a loop body) and the
     ///   moved def is defined inside of this scope (i.e. outside of the loop),

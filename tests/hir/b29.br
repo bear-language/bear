@@ -15,6 +15,8 @@ fn main() {
     oops_step(1);
     oops_breaks(1);
     oops_after_forever();
+    oops_header_jumps(1);
+    header_inner_loop(1);
 }
 
 fn sum_to(i32 n) -> i32 {
@@ -117,4 +119,33 @@ fn oops_after_forever() {
         i; // fine
     }
     foo(); // oops, unreachable
+}
+
+fn oops_header_jumps(i32 n) {
+    while match n { 0 => { break; }, else => { yield true; } } { // oops, break in condition
+        n;
+    }
+    for (mut i32 i = 0; i < n; match i { 0 => { continue; }, else => { yield i++; } }) { // oops, continue in update
+        i;
+    }
+    while true {
+        while match n { 0 => { break; }, else => { yield true; } } { // oops, still banned when nested
+            n;
+        }
+        break;
+    }
+}
+
+fn header_inner_loop(i32 n) {
+    while match n {
+        0 => {
+            while true {
+                break; // fine, targets the inner loop in the header
+            }
+            yield false;
+        },
+        else => { yield true; },
+    } {
+        break;
+    }
 }
