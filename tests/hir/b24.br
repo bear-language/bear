@@ -1,0 +1,25 @@
+// tests/hir/b24.br
+
+// testing that match and is on a variant do not depend on declaration order
+
+fn main() {
+    State a = State..State0;
+    bool b = a is State1;
+    var c = match (a) {
+        State0 => 1,
+        State1 | State2 => 2,
+    };
+}
+
+fn other(State s) -> i32 {
+    return match (s) {
+        State0 => 0,
+        else => 1,
+    };
+}
+
+variant State {
+    State0,
+    State1,
+    State2,
+}

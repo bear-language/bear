@@ -2599,7 +2599,10 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
     bool valid_branches_and_exhaustive = false;
     OptId<ScopeId> maybe_pattern_scope{};
     if (ty.holds<TypeVariant>()) {
-        const auto variant_did = ty.as<TypeVariant>().def_id;
+        const auto variant_did = def_visitor.visit_as_independent(ty.as<TypeVariant>().def_id);
+        if (!context.def(variant_did).template holds<DefVariant>()) {
+            return {};
+        }
         maybe_pattern_scope = context.def(variant_did).template as<DefVariant>().scope;
         valid_branches_and_exhaustive = valid_exhaustive_match_for_variant(
             *this, scope, maybe_pattern_scope.as_id(), fid, variant_did, match_expr);

@@ -988,7 +988,10 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
     ComptExprSolver compt_solver{def_visitor};
     OptId<DefId> maybe_variant_did{};
     if (const Type& ty = context.type(context.try_decay(scrutinee_tid)); ty.holds<TypeVariant>()) {
-        maybe_variant_did = ty.as<TypeVariant>().def_id;
+        maybe_variant_did = def_visitor.visit_as_independent(ty.as<TypeVariant>().def_id);
+        if (!context.def(maybe_variant_did.as_id()).holds<DefVariant>()) {
+            return {};
+        }
     }
 
     if (maybe_variant_did.has_value()) {
@@ -1739,8 +1742,12 @@ OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_ex
     if (pattern_expr->type != AST_EXPR_VARIANT_DECOMP) {
         return {}; // poisoned
     }
+    const DefId variant_did = def_visitor.visit_as_independent(ty.as<TypeVariant>().def_id);
+    if (!context.def(variant_did).holds<DefVariant>()) {
+        return {};
+    }
     const auto sid_slice = context.symbol_slice(pattern_expr->expr.variant_decomp.id);
-    const auto scope = context.def(ty.as<TypeVariant>().def_id).template as<DefVariant>().scope;
+    const auto scope = context.def(variant_did).template as<DefVariant>().scope;
     const auto maybe_var_field
         = context.look_up_scoped_type(scope, sid_slice, Span{context, fid, pattern_expr});
     if (maybe_var_field.empty()) {
