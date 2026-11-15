@@ -131,37 +131,42 @@ void cli_help(void) {
     const char* usage_args = " <file_name>";
     const char* usage_args_flags = "flags";
     const char* options = "        [--version | -V]  display current bearc version\n"
-                          "        [--help | -h]     display this help message\n";
+                          "        [--help | -h]     display this help message\n\n";
     const char* flags_title = "flags:\n";
     const char* flags
-        = "        [--silent]             suppress all compiler diagnostics\n"
-          "        [--token-table]        print a list of lexed tokens\n"
-          "        [--pretty-print]       print a syntax tree diagram\n"
-          "        [--file-graph]         list all compiled files with their dependencies\n"
-          "        [--parse-only]         stop compilation after parsing\n"
-          "        [--compact-diags]      print diagnostics that are vertically compact\n"
-          "        [--terse | -t]         only print error and warning diagnostics\n"
-          "        [--strict-syntax | -s] stop compilation after parsing when syntax errors are "
+        = "        --silent             suppress all compiler diagnostics\n"
+          "        --token-table        print a list of lexed tokens\n"
+          "        --pretty-print       print a syntax tree diagram\n"
+          "        --file-graph         list all compiled files with their dependencies\n"
+          "        --parse-only         stop compilation after parsing\n"
+          "        --check              check code for correctness, but do not output machine "
+          "code\n"
+          "        --compact-diags      print diagnostics that are vertically compact\n"
+          "        --terse, -t          only print error and warning diagnostics\n"
+          "        --strict-syntax, -s  stop compilation after parsing when syntax errors are "
           "found\n"
-          "        [--warn-cyclic-import] issue a warning when a file imports cyclically\n"
-          "        [--all-src-locs | -a]  show all source code locations, even in chained "
-          "diagnostics\n";
+          "        --warn-cyclic-import issue a warning when a file imports cyclically\n"
+          "        --all-src-locs, -a   show all source code locations, even in chained "
+          "diagnostics\n"
+          "        --dump-hir           print out high-level intermediate representation\n\n";
     const char* flags_w_args_title = "flags with arguments:\n";
     const char* flags_w_args
-        = "        [--import-path | -I] <import_dirs...>  supply import paths\n"
-          "        [--import-file | -i] <import_files...> supply import files\n"
-          "        [--compile | -c]     <root_file>       compile from a root file\n"
-          "        [--output | -o]      <output_file>     specify an output file\n"
+        = "        --import-path, -I <import_dirs...>  supply import paths\n"
+          "        --import-file, -i <import_files...> supply import files\n"
+          "        --compile, -c     <root_file>       compile from a root file\n"
+          "        --output, -o      <output_file>     specify an output file\n"
 
         ;
     const char* options_color = ansi_bold_yellow();
     const char* flags_color = ansi_bold_cyan();
-    printf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", ansi_bold_cyan(),
-           usage_title, ansi_reset(), ansi_bold_green(), usage, ansi_bold_reset(), lbrack,
-           options_color, usage_options, ansi_bold_reset(), rbrack, ansi_bold_green(), usage,
-           ansi_bold_reset(), usage_args, lbrack, flags_color, usage_args_flags, ansi_bold_reset(),
-           rbrack, options_color, options_title, ansi_reset(), options, flags_color, flags_title,
-           ansi_reset(), flags, flags_color, flags_w_args_title, ansi_reset(), flags_w_args);
+    printf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+           ansi_bold_cyan(), ansi_underline(), usage_title, ansi_reset(), ansi_bold_green(), usage,
+           ansi_bold_reset(), lbrack, options_color, usage_options, ansi_bold_reset(), rbrack,
+           ansi_bold_green(), usage, ansi_bold_reset(), usage_args, lbrack, flags_color,
+           usage_args_flags, ansi_bold_reset(), rbrack, options_color, ansi_underline(),
+           options_title, ansi_reset(), options, flags_color, ansi_underline(), flags_title,
+           ansi_reset(), flags, flags_color, ansi_underline(), flags_w_args_title, ansi_reset(),
+           flags_w_args);
 }
 
 void cli_version(void) { printf("bearc " BEARC_VERSION_STR "\n"); }

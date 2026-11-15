@@ -17,12 +17,18 @@ extern "C" {
 
 static int compile_file_impl(const bearc_args_t* args) {
     hir::Context ctx{*args, hir::Context::instances::one};
-    ctx.try_print_info();
-    const auto diag_cnt = ctx.diagnostic_count();
 
-    if (!diag_cnt) {
+    ctx.try_print_info();
+
+    // all diagnostics (including warns, notes, helps since that's
+    // more helpful, also this number is used for tests)
+    const auto diag_cnt = ctx.diagnostic_count();
+    const auto err_cnt = ctx.error_count();
+
+    if (!err_cnt && !args->flags[CLI_FLAG_CHECK] && !args->flags[CLI_FLAG_PARSE_ONLY]) {
         codegen::CodeGen cg{ctx};
-        return cg.emit();
+
+        return diag_cnt + static_cast<int>(cg.emit());
     }
 
     return diag_cnt;

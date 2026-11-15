@@ -39,6 +39,7 @@ cli_flag_long_mapping_t cli_flag_long_map[] = {{"help", CLI_FLAG_HELP},
                                                {"strict-syntax", CLI_FLAG_STRICT_SYNTAX},
                                                {"all-src-locs", CLI_FLAG_ALL_SRC_LOCS},
                                                {"warn-cyclic-import", CLI_FLAG_WARN_CYCLIC_IMPORT},
+                                               {"check", CLI_FLAG_CHECK},
                                                {"dump-hir", CLI_FLAG_DUMP_HIR}};
 static bool is_valid_cli_flag_short(const char* arg) {
     return strlen(arg) == 2 && arg[0] == '-' && short_flag_map[(unsigned char)arg[1]];

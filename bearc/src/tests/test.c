@@ -135,8 +135,10 @@ br_test_result_t test_parser(void) {
 
 br_test_result_t test_hir(void) {
     TEST_INIT("hir");
-    char* hir_args[] = {"bearc", "-I", "tests/lib"};
+
+    char* hir_args[] = {"bearc", "-I", "tests/lib", "--check"};
     TEST_SET_ARGS(hir_args);
+
     char* args1[] = {"bearc", "07.br", "-I", "tests/hir"};
     ASSERT_EQ_ERR_FROM_ARGS(args1, 0);
     char* args2[] = {"bearc", "tests/hir/07.br"};
@@ -401,8 +403,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR_FROM_ARGS(args_a30, 2);
     char* args_a31[] = {"bearc", "tests/hir/a31.br"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a31, 1);
-    char* args_a32[] = {"bearc", "tests/hir/a32.br", "-I", "tests/lib"};
-    ASSERT_EQ_ERR_FROM_ARGS(args_a32, 13);
+    ASSERT_EQ_ERR("hir/a32", 13);
     ASSERT_EQ_ERR("hir/a33", 2);
     ASSERT_EQ_ERR("hir/a34", 43);
     ASSERT_EQ_ERR("hir/a35", 28);
@@ -427,21 +428,17 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a54", 3);
     ASSERT_EQ_ERR("hir/a55", 3);
     ASSERT_EQ_ERR("hir/a56", 3);
-    char* args_a57[] = {"bearc", "tests/hir/a57.br", "-I", "tests/lib"};
-    ASSERT_EQ_ERR_FROM_ARGS(args_a57, 1);
+    ASSERT_EQ_ERR("hir/a57", 1);
     ASSERT_EQ_ERR("hir/a58", 9);
     ASSERT_EQ_ERR("hir/a59", 8);
-    char* args_a60[] = {"bearc", "tests/hir/a60.br", "-I", "tests/lib"};
-    ASSERT_EQ_ERR_FROM_ARGS(args_a60, 21);
+    ASSERT_EQ_ERR("hir/a60", 21);
     ASSERT_EQ_ERR("hir/a61", 10);
     ASSERT_EQ_ERR("hir/a62", 4);
     ASSERT_EQ_ERR("hir/a63", 1);
     // this test is kinda dodgy and only exists because it accidently  found a spanning issue with
     // function call diagnostics (hir/a64):
-    char* args_a64[] = {"bearc", "tests/hir/a64.br", "-I", "tests/lib"};
-    ASSERT_EQ_ERR_FROM_ARGS(args_a64, 21);
-    char* args_a65[] = {"bearc", "tests/hir/a65.br", "-I", "tests/lib"};
-    ASSERT_EQ_ERR_FROM_ARGS(args_a65, 3);
+    ASSERT_EQ_ERR("hir/a64", 21);
+    ASSERT_EQ_ERR("hir/a65", 3);
     ASSERT_EQ_ERR("hir/a66", 12);
     ASSERT_EQ_ERR("hir/a67", 3);
     ASSERT_EQ_ERR("hir/a68", 11);
@@ -451,8 +448,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a72", 9);
     ASSERT_EQ_ERR("hir/a73", 9);
     ASSERT_EQ_ERR("hir/a74", 1);
-    char* args_a75[] = {"bearc", "tests/hir/a75.br", "-I", "tests/lib"};
-    ASSERT_EQ_ERR_FROM_ARGS(args_a75, 2);
+    ASSERT_EQ_ERR("hir/a75", 2);
     ASSERT_EQ_ERR("hir/a76", 12);
     ASSERT_EQ_ERR("hir/a77", 8);
     ASSERT_EQ_ERR("hir/a78", 6);
@@ -461,15 +457,14 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a81", 604);
     ASSERT_EQ_ERR("hir/a82", 0);
     ASSERT_EQ_ERR("hir/a83", 9);
-    char* args04[] = {"bearc", "main.br", "-I", "tests/projects/04", "tests/lib"};
+    char* args04[] = {"bearc", "main.br", "-I", "tests/projects/04", "tests/lib", "--check"};
     ASSERT_EQ_ERR_FROM_ARGSN(args04, 2, 3);
     ASSERT_EQ_ERR("hir/a84", 10);
     ASSERT_EQ_ERR("hir/a85", 2);
     ASSERT_EQ_ERR("hir/a86", 6);
     ASSERT_EQ_ERR("hir/a87", 6);
     ASSERT_EQ_ERR("hir/a88", 4);
-    char* argsa89[] = {"bearc", "tests/hir/a89.br", "-I", "tests/lib"};
-    ASSERT_EQ_ERR_FROM_ARGSN(argsa89, 13, 2);
+    ASSERT_EQ_ERR("hir/a89", 13);
     ASSERT_EQ_ERR("hir/a90", 5);
     ASSERT_EQ_ERR("hir/a91", 32);
     ASSERT_EQ_ERR("hir/a92", 8);
