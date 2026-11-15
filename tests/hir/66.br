@@ -1,11 +1,13 @@
 // tests/hir/66.br
 
-contract Copy {
-    fn copy(&Self self) -> Self;
+struct Faz has Copy {
+    struct Copy {} // oops
+    mt copy() -> Self => Self{}
 }
 
-struct Foo has Copy {
+struct Foo has std..Copy {
     struct Copy {} // fine
+    mt copy() -> Self => Self{}
 }
 
 struct Bar has Copy {

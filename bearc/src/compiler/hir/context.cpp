@@ -652,16 +652,33 @@ use Range;
 contract Default {
     fn default() -> Self;
 }
+mod std {
+use Default;
+}
         )";
     file_intrinsic(symbol_id(default_name), default_src);
-    const char* copy_name = "intrinsic/default";
+    const char* copy_name = "intrinsic/copy";
     const char* copy_src =
         R"(
 contract Copy {
-    mt copy() -> T;
+    mt copy() -> Self;
+}
+mod std {
+use Copy;
 }
         )";
     file_intrinsic(symbol_id(copy_name), copy_src);
+    const char* destruct_name = "intrinsic/destruct";
+    const char* destruct_src =
+        R"(
+contract Destruct {
+    mt mut destruct();
+}
+mod std {
+use Destruct;
+}
+        )";
+    file_intrinsic(symbol_id(destruct_name), destruct_src);
 }
 
 FileId Context::file_parallel(SymbolId path_symbol) {

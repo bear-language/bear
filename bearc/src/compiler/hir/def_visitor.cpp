@@ -1199,7 +1199,7 @@ DefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId 
             dlinker.link(d);
             continue;
         }
-        auto contract_did = visit_and_resolve_if_needed(maybe_contract_did.as_id());
+        auto contract_did = visit_as_dependent(maybe_contract_did.as_id());
         const Def& contract_def = context.def(contract_did);
 
         if (!contract_def.holds<DefContract>()) {
@@ -1207,8 +1207,8 @@ DefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId 
                 ctr_span, diag_code::invalid_contract, diag_type::error,
                 DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
             dlinker.link(d);
-            auto d1 = context.emplace_diagnostic(context.def(did).span, diag_code::declared_here,
-                                                 diag_type::note);
+            auto d1 = context.emplace_diagnostic(context.def(contract_did).span,
+                                                 diag_code::declared_here, diag_type::note);
             dlinker.link(d1);
             continue;
         }
