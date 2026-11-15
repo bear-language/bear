@@ -50,6 +50,12 @@ class RuntimeSolver {
         constexpr void push_back_def(DefId did) { defs.push_back(did); }
     };
 
+    struct IsDecompTarget {
+        LexicalCtx then_lctx;
+        InProgressBlock& outer_block;
+        InProgressBlock& then_block;
+    };
+
   public:
     [[nodiscard]] RuntimeSolver(Context& ctx, DefVisitor& def_visitor)
         : def_visitor{def_visitor}, context{ctx} {}
@@ -237,7 +243,7 @@ class RuntimeSolver {
 
     [[nodiscard]] OptId<ExecId> handle_assign(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_is(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
-                                          bool allow_decomp = false);
+                                          IsDecompTarget* decomp_target = nullptr);
     [[nodiscard]] OptId<ExecId> handle_as(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_subscript(FileId fid, LexicalCtx lctx,
                                                  const ast_expr_t* expr);

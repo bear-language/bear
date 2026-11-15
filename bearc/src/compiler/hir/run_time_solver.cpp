@@ -1163,6 +1163,11 @@ OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBl
             body_span);
     };
 
+    const LexicalCtx then_lctx{
+        .scope = context.make_small_scope(lctx.scope, Span{context, fid, if_stmt.body_stmt}),
+        .map = context.make_persistent_move_map(lctx.map)};
+    InProgressBlock then_prelude{};
+
     OptId<ExecId> maybe_cond_eid{};
     if (if_stmt.compt) {
         const auto maybe_bool = solve_compt_condition(fid, lctx, if_stmt.condition);
@@ -1182,7 +1187,23 @@ OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBl
         cooked = true;
     } else {
         const auto before_solving_cond_diag_cnt = context.diagnostic_count();
-        maybe_cond_eid = solve_expr(fid, lctx, if_stmt.condition, bool_tid);
+        const ast_expr_t* cond_expr = if_stmt.condition;
+        while (cond_expr->type == AST_EXPR_GROUPING) {
+            cond_expr = cond_expr->expr.grouping.expr;
+        }
+        const bool is_decomp
+            = cond_expr->type == AST_EXPR_BINARY
+              && ComptBinaryOp{cond_expr->expr.binary.op}.holds<is_as_op>()
+              && ComptBinaryOp{cond_expr->expr.binary.op}.as<is_as_op>() == is_as_op::is
+              && cond_expr->expr.binary.rhs->type == AST_EXPR_VARIANT_DECOMP
+              && cond_expr->expr.binary.rhs->expr.variant_decomp.vars.len;
+        if (is_decomp) {
+            IsDecompTarget decomp_target{
+                .then_lctx = then_lctx, .outer_block = block, .then_block = then_prelude};
+            maybe_cond_eid = handle_is(fid, lctx, cond_expr, &decomp_target);
+        } else {
+            maybe_cond_eid = solve_expr(fid, lctx, if_stmt.condition, bool_tid);
+        }
         const auto after_solving_cond_diag_cnt = context.diagnostic_count();
         if (maybe_cond_eid.has_value()) {
             try_warn_suspicious_assignment_in_cond(maybe_cond_eid.as_id());
@@ -1222,11 +1243,17 @@ OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBl
         }
     }
 
-    const LexicalCtx then_lctx{
-        .scope = context.make_small_scope(lctx.scope, Span{context, fid, if_stmt.body_stmt}),
-        .map = context.make_persistent_move_map(lctx.map)};
-    const auto maybe_then_eid = solve_body(then_lctx, if_stmt.body_stmt);
+    OptId<ExecId> maybe_then_eid = solve_body(then_lctx, if_stmt.body_stmt);
     cooked |= maybe_then_eid.empty();
+    if (maybe_then_eid.has_value() && !then_prelude.defs.empty()) {
+        then_prelude.push_back_exec(maybe_then_eid.as_id());
+        maybe_then_eid
+            = context.emplace_exec(ExecBlock{context.emplace_block(
+                                       Block{.execs = context.freeze_id_vec(then_prelude.execs),
+                                             .defs = context.freeze_id_vec(then_prelude.defs),
+                                             .lctx = then_lctx})},
+                                   Span{context, fid, if_stmt.body_stmt});
+    }
 
     OptId<ExecId> maybe_else_eid{};
     if (else_body) {
@@ -1422,7 +1449,7 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
     if (maybe_scrutinee_eid.empty()) {
         return {};
     }
-    const ExecId scrutinee_eid = maybe_scrutinee_eid.as_id();
+    ExecId scrutinee_eid = maybe_scrutinee_eid.as_id();
     const auto maybe_scrutinee_tid = infer_type_from_exec(scrutinee_eid);
     if (maybe_scrutinee_tid.empty()) {
         return {};
@@ -1490,13 +1517,19 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
     OptId<DefId> maybe_tmp_did{};
     ExecId scrutinee_ref_eid = scrutinee_eid;
     if (any_decomp && !plain_variable) {
-        maybe_tmp_did = context.register_def(context.symbol_id<"match scrutinee">(), false, false,
-                                             0, scrutinee_exec.span, nullptr,
-                                             DefVariable{.type_id = scrutinee_tid});
+        const Span scrutinee_span = scrutinee_exec.span;
+        const auto maybe_consumed_eid = consume(lctx, scrutinee_eid);
+        if (maybe_consumed_eid.empty()) {
+            return {};
+        }
+        scrutinee_eid = maybe_consumed_eid.as_id();
+        maybe_tmp_did
+            = context.register_def(context.symbol_id<"match scrutinee">(), false, false, 0,
+                                   scrutinee_span, nullptr, DefVariable{.type_id = scrutinee_tid});
         locals.push_back(maybe_tmp_did.as_id());
         scrutinee_ref_eid = context.emplace_exec(
             ExecVariable{.def_id = maybe_tmp_did.as_id(), .type_id = scrutinee_tid},
-            scrutinee_exec.span);
+            scrutinee_span);
     }
 
     MatchCtx match_ctx{
@@ -1748,6 +1781,7 @@ bool RuntimeSolver::decompose_variant(FileId fid, LexicalCtx branch_lctx, InProg
     }
     const auto members = context.def(variant_field_did).as<DefVariantField>().members;
     bool ok = true;
+    bool moves_variant = false;
     for (size_t i = 0; i < decomp.vars.len; ++i) {
         const ast_param_t* var = decomp.vars.start[i];
         if (!var->valid) {
@@ -1755,15 +1789,37 @@ bool RuntimeSolver::decompose_variant(FileId fid, LexicalCtx branch_lctx, InProg
             continue;
         }
         const auto maybe_written_tid = resolve_type(fid, branch_lctx, var->type);
-        const DefId member_did = context.def_id(members.get(i));
-        if (maybe_written_tid.empty()
-            || !decomp_type_matches(context, maybe_written_tid.as_id(), member_did)) {
+        if (maybe_written_tid.empty()) {
             ok = false;
             continue;
         }
-        const TypeId tid = context.def(member_did).as<DefVariable>().type_id;
+        const TypeId written_tid = maybe_written_tid.as_id();
+        const DefId member_did = context.def_id(members.get(i));
+        const TypeId member_tid = context.def(member_did).as<DefVariable>().type_id;
+        const Type written_ty = context.type(written_tid);
+        const bool by_ref
+            = written_ty.holds<TypeRef>()
+              && context.type_inferable_as(written_ty.as<TypeRef>().inner, member_tid);
+        if (!by_ref && !decomp_type_matches(context, written_tid, member_did)) {
+            ok = false;
+            continue;
+        }
         const SymbolId name = context.symbol_id(var->name);
         const Span span{context, fid, var->first, var->last};
+        ExecId rhs_eid = context.emplace_exec(
+            ExecMemberAccess{.owner = variant_eid, .member = member_did}, span);
+        TypeId tid = member_tid;
+        if (by_ref) {
+            const auto maybe_borrow = try_checked_borrow(context, rhs_eid, written_ty.mut, span);
+            if (maybe_borrow.empty()) {
+                ok = false;
+                continue;
+            }
+            rhs_eid = maybe_borrow.as_id();
+            tid = written_tid;
+        } else if (!context.type_is_copyable(member_tid)) {
+            moves_variant = true;
+        }
         const DefId did = context.register_def(name, false, false, 0, span, nullptr,
                                                DefVariable{.type_id = tid});
         context.insert_variable(branch_lctx.scope, name, did);
@@ -1772,9 +1828,15 @@ bool RuntimeSolver::decompose_variant(FileId fid, LexicalCtx branch_lctx, InProg
         block.push_back_exec(context.emplace_exec(
             ExecAssignment{
                 .lhs = context.emplace_exec(ExecVariable{.def_id = did, .type_id = tid}, span),
-                .rhs = context.emplace_exec(
-                    ExecMemberAccess{.owner = variant_eid, .member = member_did}, span)},
+                .rhs = rhs_eid},
             span));
+    }
+    if (ok && moves_variant) {
+        const auto maybe_move_eid = consume(branch_lctx, variant_eid);
+        if (maybe_move_eid.empty()) {
+            return false;
+        }
+        block.push_back_exec(maybe_move_eid.as_id());
     }
     return ok;
 }
@@ -2284,7 +2346,7 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
 }
 
 OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
-                                       const bool allow_decomp) {
+                                       IsDecompTarget* decomp_target) {
     assert(expr->type == AST_EXPR_BINARY);
 
     const auto maybe_lhs_eid = solve_place(fid, lctx, expr->expr.binary.lhs);
@@ -2340,17 +2402,15 @@ OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_ex
 
     DiagLinker dl{context};
 
-    if (pattern_expr->expr.variant_decomp.vars.len != 0) {
-        if (!allow_decomp) {
+    const bool decomposes = pattern_expr->expr.variant_decomp.vars.len != 0;
+    if (decomposes) {
+        if (!decomp_target) {
             Span span{context, fid, pattern_expr};
             dl.link(context.emplace_diagnostic(
                 span, diag_code::variant_decomposition_not_allowed_here, diag_type::error));
             dl.link(context.emplace_diagnostic_with_message_value(
                 span, diag_code::replace_with, diag_type::help,
                 DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice}));
-        } else {
-            // TODO: handle variant decomp properly, although this is reasonable behavior for a
-            // while
         }
     }
 
@@ -2360,16 +2420,46 @@ OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_ex
         return {};
     }
 
-    ExecId discrim_eid
-        = context.emplace_exec(ExecBuiltinAccess{.from = maybe_lhs_eid.as_id(),
-                                                 .kind = builtin_access::variant_discriminant},
-                               lhs_exec.span);
-    const Def& variant_def = context.def(ty.as<TypeVariant>().def_id);
+    const Span lhs_span = lhs_exec.span;
+    const TypeId lhs_tid = maybe_lhs_tid.as_id();
+    const DefId lhs_variant_did = ty.as<TypeVariant>().def_id;
+    ExecId scrutinee_eid = maybe_lhs_eid.as_id();
+    if (decomposes && decomp_target) {
+        const Exec& scrutinee_exec = context.exec(scrutinee_eid);
+        const bool plain_variable = scrutinee_exec.holds<ExecVariable>()
+                                    || (scrutinee_exec.holds<ExecDeref>()
+                                        && context.exec(scrutinee_exec.as<ExecDeref>().dereferenced)
+                                               .holds<ExecVariable>());
+        if (!plain_variable) {
+            const auto maybe_consumed_eid = consume(lctx, scrutinee_eid);
+            if (maybe_consumed_eid.empty()) {
+                return {};
+            }
+            const DefId tmp_did
+                = context.register_def(context.symbol_id<"is scrutinee">(), false, false, 0,
+                                       lhs_span, nullptr, DefVariable{.type_id = lhs_tid});
+            locals.push_back(tmp_did);
+            decomp_target->outer_block.push_back_def(tmp_did);
+            scrutinee_eid = context.emplace_exec(
+                ExecVariable{.def_id = tmp_did, .type_id = lhs_tid}, lhs_span);
+            decomp_target->outer_block.push_back_exec(context.emplace_exec(
+                ExecAssignment{.lhs = scrutinee_eid, .rhs = maybe_consumed_eid.as_id()}, lhs_span));
+        }
+        if (!decompose_variant(fid, decomp_target->then_lctx, decomp_target->then_block,
+                               pattern_expr, hopefully_var_field, scrutinee_eid)) {
+            return {};
+        }
+    }
+
+    ExecId discrim_eid = context.emplace_exec(
+        ExecBuiltinAccess{.from = scrutinee_eid, .kind = builtin_access::variant_discriminant},
+        lhs_span);
+    const Def& variant_def = context.def(lhs_variant_did);
     ExecId field_value_eid = context.emplace_exec(
         ExecConst{context.def(hopefully_var_field).member_idx}
             .try_down_convert_to(variant_def.as<DefVariant>().type_of_discriminant())
             .value(),
-        lhs_exec.span);
+        lhs_span);
 
     return context.emplace_exec(
         ExecBinary{.lhs = discrim_eid, .rhs = field_value_eid, .op = binary_op::bool_equal},

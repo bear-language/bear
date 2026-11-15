@@ -1,0 +1,175 @@
+// tests/hir/b37.br
+
+// testing moves out of match and is decompositions
+
+struct Res has Destruct {
+    i32 handle;
+    mt mut destruct() { return; }
+}
+
+variant Maybe {
+    Some(Res r),
+    Pair(i32 a, i32 b),
+    Nothing,
+}
+
+struct Holder {
+    Maybe m;
+}
+
+fn take(Res r) { return; }
+fn peek(&Res r) { return; }
+fn take_maybe(Maybe m) { return; }
+fn make() -> Maybe => Maybe..Nothing
+
+fn main() {
+    oops_match_by_value_moves(make());
+    match_moving_branch_returns(make());
+    match_ref_bindings(make());
+    match_copyable_bindings(make());
+    oops_match_moved_inside_branch(make());
+    Maybe mm = make();
+    oops_match_through_ref(&mm);
+    match_temporary();
+    oops_match_member(Holder{.m = make()});
+    oops_match_moved_scrutinee(make());
+    oops_is_by_value_moves(make());
+    is_else_doesnt_move(make());
+    is_ref_bindings(make());
+    is_copyable_bindings(make());
+    is_temporary();
+    oops_is_binding_scoped();
+    oops_is_not_in_if(make());
+}
+
+fn oops_match_by_value_moves(Maybe m) {
+    i32 _0 = match (m) {
+        Some(Res r) => {
+            take(r);
+            yield 0;
+        },
+        else => 1,
+    };
+    take_maybe(m); // oops, may have been moved by the Some branch
+}
+
+fn match_moving_branch_returns(Maybe m) {
+    i32 _0 = match (m) {
+        Maybe..Some(Res r) => {
+            take(r);
+            return; // fine, the moving branch diverges
+        },
+        Maybe..Pair(i32 a, i32 b) => a + b,
+        else => 0,
+    };
+    take_maybe(m);
+}
+
+fn match_ref_bindings(Maybe m) {
+    i32 _0 = match (m) {
+        Maybe..Some(&Res r) => {
+            peek(&r);
+            yield 0;
+        },
+        else => 1,
+    };
+    take_maybe(m); // fine, r only borrows
+}
+
+fn match_copyable_bindings(Maybe m) {
+    i32 _0 = match (m) {
+        Maybe..Pair(i32 a, i32 b) => a + b,
+        else => 0,
+    };
+    take_maybe(m); // fine, a and b are copies
+}
+
+fn oops_match_moved_inside_branch(Maybe m) {
+    i32 _0 = match (m) {
+        Maybe..Some(Res r) => {
+            take_maybe(m); // oops, moved by the binding
+            yield 0;
+        },
+        else => 1,
+    };
+}
+
+fn oops_match_through_ref(&Maybe m) {
+    i32 _0 = match (m) {
+        Maybe..Some(Res r) => 0, // oops, can't move out of a reference
+        else => 1,
+    };
+}
+
+fn match_temporary() {
+    i32 _0 = match (make()) {
+        Maybe..Some(Res r) => { // fine, moves out of the temporary
+            take(r);
+            yield 0;
+        },
+        else => 1,
+    };
+}
+
+fn oops_match_member(Holder h) {
+    i32 _0 = match (h.m) { // oops, partial move
+        Some(&Res r) => 0,
+        else => 1,
+    };
+}
+
+fn oops_match_moved_scrutinee(Maybe m) {
+    take_maybe(m);
+    i32 _0 = match (m) { // oops
+        Some(&Res r) => 0,
+        else => 1,
+    };
+}
+
+fn oops_is_by_value_moves(Maybe m) {
+    if m is Some(Res r) {
+        take(r);
+    }
+    take_maybe(m); // oops, may have been moved
+}
+
+fn is_else_doesnt_move(Maybe m) {
+    if m is Some(Res r) {
+        take(r);
+    } else {
+        take_maybe(m); // fine, only the then-branch moves
+    }
+}
+
+fn is_ref_bindings(Maybe m) {
+    if m is Some(&Res r) {
+        peek(&r);
+    }
+    take_maybe(m); // fine, r only borrows
+}
+
+fn is_copyable_bindings(Maybe m) {
+    if (m is Maybe..Pair(i32 a, i32 b)) {
+        i32 _0 = a + b;
+    }
+    take_maybe(m); // fine
+}
+
+fn is_temporary() {
+    if make() is Maybe..Some(Res r) {
+        take(r); // fine
+    }
+}
+
+fn oops_is_binding_scoped() {
+    Maybe m = make();
+    if m is Pair(i32 a, i32 b) {
+        i32 _0 = a;
+    } else {
+        i32 _1 = b; // oops, b is only in scope in the then-branch
+    }
+}
+
+fn oops_is_not_in_if(Maybe m) {
+    bool _0 = m is Maybe..Pair(i32 a, i32 b); // oops, decomposition not allowed here
+}

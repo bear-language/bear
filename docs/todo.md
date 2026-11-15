@@ -24,14 +24,13 @@
                     - [ ] snapshots: inner map wins over outer instead of a union
                 - [ ] `x = foo()` where `x` is unmoved must destruct old value first (codegen w/ drop flag or an `ExecDrop`?)
                 - [x] ban partial moves of structs / variants / unions / arrays
-                - [ ] decide if `match`/`is` on a `Destruct` scrutinee moves it (currently a place, so no)
+                - [x] `match`/`is` on a `Destruct` scrutinee moves it: yes except for refs
                 - [ ] handle `f(make_thing())` destructing temporaries after the end of the statement if they're not moved out (currently won't work easily w/ `MoveMap` which has `DefId` keys, maybe create temp `DefId`s?)
                 - [ ] ban `foo.destruct()` but provide `drop(foo)` which just moves foo out
 
 - [ ] finish runtime solving 
     - `RuntimeSolver` 
         - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
-            - [ ] `is` w/ variant decomposition, bindings scoped to the `if`'s then-branch
             - [ ] `for in` (blocked on an iteration protocol/contract + `std..Range`)
         - [ ] closures (rust-like capture semantics)
             - [ ] note: compt-closures in function bodies naturally capture (by-scope) local vars which is malformed, so this is gonna have to be handled
