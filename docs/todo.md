@@ -9,24 +9,16 @@
             - [x] after child(ren) are made, iterate through the union of moves (across branches if applicable) and mark as moved in current, pointing to moves
             - [x] skip diverging children in `write_back_moves`, `break`/`continue`/`yield` snapshot their path's moves to where they land
             - [ ] actually record moves
-                - [x] emit `ExecMove` (`solve_expr` consumes, `solve_place` doesn't)
-                - [x] copied (`type_is_copyable`):
-                    - [x] implicitly copyable for unions, variants, and structs where all members are copyable 
-                    - [x] builtin types, ptrs, refs (incl. `&mut`), slices, fn ptrs
-                    - [x] arrays of copyable types
-                - [x] not copied: `Destruct` types or types with `Destruct` fields (requires explicit `.clone()`s)
-                - [x] use-after-move diagnostics in `handle_any_id`
-                - [x] ban moving defs declared outside of a loop on paths that reach the loop's back edge
                 - [ ] allow re-initialization: `x = foo()` where `x` is previously moved clears the `MoveMap` entry (consider a tombstone value)
                     - [x] lhs of plain `=` isn't checked for use-after-move
                     - [ ] tombstone has to stop lookup into parent maps
                     - [ ] merges: only live if every path reaching the join reinits (incl. implicit else / zero-iteration loops)
                     - [ ] snapshots: inner map wins over outer instead of a union
-                - [ ] `x = foo()` where `x` is unmoved must destruct old value first (codegen w/ drop flag or an `ExecDrop`?)
+                - [ ] `x = foo()` where `x` is unmoved must destruct old value first (drop glue call before the store)
                 - [x] ban partial moves of structs / variants / unions / arrays
                 - [x] `match`/`is` on a `Destruct` scrutinee moves it: yes except for refs
                 - [ ] handle `f(make_thing())` destructing temporaries after the end of the statement if they're not moved out (currently won't work easily w/ `MoveMap` which has `DefId` keys, maybe create temp `DefId`s?)
-                - [ ] ban `foo.destruct()` but provide `drop(foo)` which just moves foo out
+                - [x] ban `foo.destruct()` but provide `drop(foo)` which just moves foo out
 
 - [ ] finish runtime solving 
     - `RuntimeSolver` 
@@ -42,18 +34,30 @@
         - [ ] warn on `mut` declared members
         - [x] make it so the struct instance's mutability entirely determines the member mutability
     - [ ] replace `dt self()` with a builtin `Destruct` contract w/ `mt mut destruct()`
-        - [ ] remove `TOK_DT`, `dt` from `token_is_mt_or_dt` & co., special case in `context.cpp`, `DestructorDeclaration` in syntax.md, update parser tests 30 & 44
+        - [x] remove `TOK_DT`, `dt` from `token_is_mt_or_dt` & co., special case in `context.cpp`, `DestructorDeclaration` in syntax.md, update parser tests 30 & 44
         - [x] `Destruct` is intrinsic
         - [x] opt-in only thru `has(Destruct)`
-        - [ ] ban explicit `x.destruct()` calls 
+        - [x] ban explicit `x.destruct()` calls 
         - [ ] compiler-inserted calls ignore mutability
-        - [ ] members are auto-destructed after the user's `destruct()`, pick an order (reverse decl)
+        - [ ] members are auto-destructed after the user's `destruct()`(reverse decl order)
         - [x] ban moving out of fields of a `Destruct` type (moving fields out will prob have to start out banned anyway)
         - [x] `Destruct` types are never implicitly copyable (feeds the copy vs. move rule)
         - [ ] variants: destruct the active field only; unions: ban `Destruct` members or make it manual
         - [ ] perhaps warn on `T has Destruct` generic bounds (meaningless since everything gets destructed)
-    - [ ] drop/destructor flags, tracked by block/lexical scope (always emit, LLVM folds the unconditional ones)
-        - `ExecMove` clears the flag, scope exit destructs if set
+    - [ ] destruction in HIR via drop glue (plain `ExecFnCall`s, so compt eval runs destructors too)
+        - [ ] synthesize a drop glue fn per type that needs destruction, cached per type (generic instantiations get their own)
+            - [ ] structs: user's `destruct()` (if `has Destruct`), then glue for fields in reverse decl order
+            - [ ] variants: `match` on the active field, glue for its payload
+            - [ ] arrays: loop over elements
+            - [ ] mark glue defs (e.g. `is_drop_glue` or special chars in name) so analyses can tell drops apart from user calls
+        - [ ] insert glue calls (built directly, not thru `solve_fn_call_impl`, borrows ignore mutability)
+            - [ ] block end: block's defs in reverse decl order
+            - [ ] `return`/`break`/`continue`/`yield`: live defs of every scope being exited (needs a scope stack in `RuntimeSolver`)
+            - [ ] reassignment of a live def
+            - [ ] unmoved temporaries at the end of the statement
+        - [ ] drop flags: defs w/ any move in the fn's move map get a synthesized `bool` def
+            - init sets it, `ExecMove` clears it, drops become `if flag { glue(&mut x) }`
+            - never-moved defs drop unconditionally, LLVM can fold as needed
     - [ ] `.start` / `.end` access for builtin ranges `...` & `...=`, figure out how to handle inclusivity here
     - [ ] impl proper runtime Exec hashing so parallel match/if-else branches can be hashed and compared for duplicativity
 

@@ -1,0 +1,56 @@
+// tests/hir/b38.br
+
+// testing banned explicit destruct calls and drop
+
+struct Res has Destruct {
+    i32 handle;
+    mt mut destruct() { return; }
+}
+
+fn make() -> Res => Res{.handle = 1}
+
+struct Funcs {
+    i32 member;
+    fn get() -> i32 => 1
+}
+
+mod uses {
+use Funcs..get; // fine, functions can be used
+use Funcs..member; // oops, only functions (and types/mods) can be used
+}
+
+fn main() {
+    drops(make());
+    std_drops(make());
+    oops_use_after_drop(make());
+    oops_method_destruct(make());
+    oops_static_destruct(make());
+    drop_copyable(1);
+    i32 _0 = uses..get();
+}
+
+fn drops(Res r) {
+    drop(r); // fine
+}
+
+fn std_drops(Res r) {
+    std..drop(r); // fine
+}
+
+fn oops_use_after_drop(Res r) {
+    drop(r);
+    drop(r); // oops, already moved
+}
+
+fn oops_method_destruct(mut Res r) {
+    r.destruct(); // oops
+}
+
+fn oops_static_destruct(mut Res r) {
+    Res..destruct(&mut r); // oops
+}
+
+fn drop_copyable(i32 x) {
+    drop(x); // fine, just a copy
+    i32 _0 = x;
+}

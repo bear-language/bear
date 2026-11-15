@@ -677,8 +677,10 @@ use Copy;
 contract Destruct {
     mt mut destruct();
 }
+fn drop<T>(T t) { return; }
 mod std {
 use Destruct;
+use drop;
 }
         )";
     file_intrinsic(symbol_id(destruct_name), destruct_src);
@@ -2768,7 +2770,7 @@ DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_
 
 OptId<TypeId> Context::self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t* fn_decl) {
     OptId<TypeId> maybe_self_type{};
-    if (token_is_mt_or_dt(fn_decl->kw->type)) {
+    if (fn_decl->kw->type == TOK_MT) {
         auto maybe_did = look_up_type(scope, symbol_id<"Self">());
 
         if (maybe_did.has_value() && this->def(maybe_did.as_id()).holds<DefDeftype>()) {

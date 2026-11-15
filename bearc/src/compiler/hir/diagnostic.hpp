@@ -240,6 +240,8 @@ enum class diag_code : uint16_t {
     cannot_move_out_of_a_member_or_element_of_non_copyable_type,
     cannot_move_out_of_a_dereferenced_value_of_non_copyable_type,
     value_declared_outside_of_loop_is_moved_inside_of_loop,
+    cannot_explicitly_call_destruct,
+    use_drop_to_destruct_a_value_early,
     struct_indexing_requires_a_constant_u32_value,
     requested_struct_member, // fragment, not a diag on its own
     is_not_a_type,

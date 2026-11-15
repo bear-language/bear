@@ -76,7 +76,6 @@ typedef enum token_type {
     // function
     TOK_FN,
     TOK_MT, // method, for implicit this ptr for data-associated behavior in structs
-    TOK_DT, // dtor
     // integers
     TOK_I8,
     TOK_U8,

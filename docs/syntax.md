@@ -82,9 +82,8 @@
     - | *FunctionDeclaration*: Visibility `fn` Identifier GenericParams? `(` Parameters `)` [`->` Type]?  `;` | `{` BodyStatement(s) `}` | `=>` Expression | `=>` `{` Expression `}`
     - | GenericParams: `<` Identifier -> HasClause? `,` ... `>` 
         - *HasClause*: `has` `(` Contract `+`? Contract(s) `)`
-    - | *StructDeclaration*: Visibility `struct` Identifier -> GenericParams? -> HasClause? -> `{` TopLevelStatement(s) | MethodDeclaration(s) | DestructorDeclaration(s) `}` 
+    - | *StructDeclaration*: Visibility `struct` Identifier -> GenericParams? -> HasClause? -> `{` TopLevelStatement(s) | MethodDeclaration(s) `}` 
     - | *MethodDeclaration*: Visibility `mt` `mut`? Identifier -> GenericParams? -> `(` -> Parameter(s) -> `)` -> `;` | `{` BodyStatement(s) `}`
-    - | *DestructorDeclaration*: `dt` `self` GenericParams? -> `(` -> Parameters -> `)` -> `;` | `{` BodyStatement(s) `}`
     - | *VariantDeclaration*: Visibility `variant` Identifier -> GenericParams? `{` VariantFieldDeclaration(s) `}`
     - | *VariantFieldDeclaration*: Identifier `(` Parameter(s) `)`
     - | *ContractDeclaration*: Visibility `contract` Identifier GenericParams? `{` MethodPrototypes `}`

@@ -286,13 +286,9 @@ bool token_is_literal(token_type_e t) {
            || t == TOK_NULL_LIT;
 }
 
-bool token_is_function_leading_kw(token_type_e t) {
-    return t == TOK_FN || t == TOK_MT || t == TOK_DT;
-}
+bool token_is_function_leading_kw(token_type_e t) { return t == TOK_FN || t == TOK_MT; }
 
 bool token_is_mt_or_fn(token_type_e t) { return t == TOK_FN || t == TOK_MT; }
-
-bool token_is_mt_or_dt(token_type_e t) { return t == TOK_MT || t == TOK_DT; }
 
 bool token_is_syncable_delim(token_type_e t) {
     return t == TOK_LBRACE || t == TOK_SEMICOLON || t == TOK_RBRACE || t == TOK_RPAREN

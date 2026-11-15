@@ -475,6 +475,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot move out of a dereferenced value of non-copyable type";
     case diag_code::value_declared_outside_of_loop_is_moved_inside_of_loop:
         return "value declared outside of loop is moved inside of loop";
+    case diag_code::cannot_explicitly_call_destruct:
+        return "cannot explicitly call `destruct`";
+    case diag_code::use_drop_to_destruct_a_value_early:
+        return "use `drop(...)` to destruct a value early";
     case diag_code::struct_indexing_requires_a_constant_u32_value:
         return "struct indexing requires a constant u32 value";
     case diag_code::requested_struct_member:

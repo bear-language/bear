@@ -168,7 +168,7 @@ typedef struct ast_stmt_expr {
 } ast_stmt_expr_t;
 
 typedef struct ast_stmt_fn_decl {
-    /// fn, mt, or dt
+    /// fn or mt
     token_t* kw;
     token_ptr_slice_t name;
     ast_slice_of_generic_params_t generic_params;

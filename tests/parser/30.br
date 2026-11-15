@@ -1,6 +1,6 @@
-struct Foo {
+struct Foo has Destruct {
     Vec<i32> data;
-    dt self() {
+    mt mut destruct() {
         destroy(data);
     }
 }

@@ -12,7 +12,7 @@ struct Foo {
         Rc::Vec<Foo> tally = Rc..from(Vec..new());
         return Self{.tally = tally};
     }
-    dt self() {
+    mt mut destruct() {
         tally.remove(self);
     }
 }

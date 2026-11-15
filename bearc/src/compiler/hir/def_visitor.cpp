@@ -1243,10 +1243,20 @@ void DefVisitor::resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* s
     // philosophy
     const bool only_look_for_mod = use.mod;
     bool used_mod = true;
+    bool used_var = false;
     OptId<DefId> used_did = context.look_up_scoped_namespace(scope, sid_slice, id_span);
     if (!only_look_for_mod && used_did.empty()) {
         used_did = context.look_up_scoped_type(scope, sid_slice, id_span);
         used_mod = false;
+    }
+    if (!only_look_for_mod && used_did.empty()) {
+        used_did = context.look_up_scoped_variable(scope, sid_slice, id_span);
+        used_var = true;
+        if (used_did.has_value()
+            && !context.def(visit_and_resolve_if_needed(used_did.as_id()))
+                    .holds_any_of<DefFunction, DefGenericFunction, DefFunctionPrototype>()) {
+            used_did = {};
+        }
     }
 
     if (used_did.empty()) {
@@ -1276,6 +1286,8 @@ void DefVisitor::resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* s
     // insert base name into containing scope
     if (used_mod) {
         context.scope(scope).insert_namespace(context.symbol_id(last_symbol), used_did.as_id());
+    } else if (used_var) {
+        context.scope(scope).insert_variable(context.symbol_id(last_symbol), used_did.as_id());
     } else {
         context.scope(scope).insert_type(context.symbol_id(last_symbol), used_did.as_id());
     }

@@ -1199,6 +1199,9 @@ template <IsExprSolver Solver>
             }
             total_arg_cnt++;
         }
+        if (issue) {
+            return {};
+        }
         const auto maybe_gen_args = try_generic_args_from_deduction_guide(
             solver, out_args, maybe_deduction_guide.as_id());
         if (maybe_gen_args.empty()) {
@@ -1394,6 +1397,15 @@ solve_fn_call_impl(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> m
 
     llvm::SmallVector<ExecId> arg_vec{};
     const Span span{context, fid, expr};
+
+    if (context.def(func_did).name == context.template symbol_id<"destruct">()) {
+        DiagLinker dl{context};
+        dl.link(context.emplace_diagnostic(span, diag_code::cannot_explicitly_call_destruct,
+                                           diag_type::error));
+        dl.link(context.emplace_diagnostic(span, diag_code::use_drop_to_destruct_a_value_early,
+                                           diag_type::help));
+        return {};
+    }
 
     if constexpr (!std::same_as<Solver, ComptExprSolver>) {
         if (context.def(func_did).compt) {
