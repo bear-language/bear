@@ -3,12 +3,13 @@
 # use to more easily write variant visitors:
 
 types = """
-    ExecBlock, ExecBranch, ExecReturn, ExecYield, ExecJump,
+    ExecBlock, ExecBranch, ExecLoop, ExecReturn, ExecYield, ExecJump,
 
     ExecUnionInit, ExecVariantInit, ExecStructInit, ExecVariable, ExecComptConstant,
     ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
-    ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecFnPtr,
-    ExecVariantFieldInit, ExecRange
+    ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecTernaryIf,
+    ExecFnPtr, ExecVariantFieldInit, ExecRange, ExecCompoundAssignment, ExecUnary,
+    ExecBuiltinAccess
 """
 
 names = [t.strip() for t in types.replace("\n", "").split(",") if t.strip()]
@@ -18,7 +19,7 @@ template = """\
     return {{}};
 }},"""
 
-RETURN_TYPE = "OptId<DefId>"
+RETURN_TYPE = "bool"
 
 print("const auto vs = Ovld{")
 for n in names:

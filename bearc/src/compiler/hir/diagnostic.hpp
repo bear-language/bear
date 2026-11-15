@@ -267,6 +267,8 @@ enum class diag_code : uint8_t {
     cannot_return_a_reference_to_a_local_variable,
     for_loop_never_terminates_since_condition_is_always_true,
     suspicious_assignment_in_condition,
+    result_of_expression_is_unused,
+    expression_has_no_side_effects,
 
     count, // this must be last,
 

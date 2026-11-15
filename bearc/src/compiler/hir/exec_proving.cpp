@@ -11,6 +11,7 @@
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "utils/hashing.hpp"
+#include <algorithm>
 #include <cstddef>
 
 namespace hir {
@@ -90,8 +91,7 @@ template <equivalence E> bool equivalent_exec_impl(const Context& ctx, ExecId ei
             return equivalent_exec_impl<E>(ctx, t.condition, o.condition)
                    && equivalent_exec_impl<E>(ctx, t.then_block, o.then_block)
                    && (t.else_block.empty()
-                       || equivalent_exec_impl<E>(ctx, t.else_block.as_id(),
-                                                  o.else_block.as_id()));
+                       || equivalent_exec_impl<E>(ctx, t.else_block.as_id(), o.else_block.as_id()));
         },
         [&other, &ctx](const ExecJump& t) -> bool {
             if (!other.holds<ExecJump>()) {
@@ -683,8 +683,7 @@ bool definitely_returns_yields_impl(const Context& ctx, ExecId eid) {
             return false;
         },
         [&ctx](const ExecBranch& d) -> bool {
-            return d.else_block.has_value()
-                   && definitely_returns_yields_impl<T>(ctx, d.then_block)
+            return d.else_block.has_value() && definitely_returns_yields_impl<T>(ctx, d.then_block)
                    && definitely_returns_yields_impl<T>(ctx, d.else_block.as_id());
         },
         [](const ExecYield&) -> bool { return std::same_as<T, ExecYield>; },
@@ -751,6 +750,141 @@ bool definitely_returns(const Context& ctx, ExecId eid) {
 }
 bool definitely_yields(const Context& ctx, ExecId eid) {
     return definitely_returns_yields_impl<ExecYield>(ctx, eid);
+}
+
+enum class effect : uint8_t {
+    // doesn't mutate state
+    purity,
+    // used (does something, not just a "value")
+    used,
+};
+
+template <effect E> static bool may_have_side_effects_impl(const Context& ctx, ExecId eid) {
+    const auto vs = Ovld{
+        [&ctx](const ExecBlock& d) -> bool {
+            const Block bl = ctx.block(d.block_id);
+            for (const auto eidx : bl.execs) {
+                const ExecId eid = ctx.exec_id(eidx);
+                if (exec_result_is_used(ctx, eid)) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        [&ctx](const ExecBranch& d) -> bool {
+            return exec_result_is_used(ctx, d.condition) || exec_result_is_used(ctx, d.then_block)
+                   || (d.else_block.has_value() && exec_result_is_used(ctx, d.else_block.as_id()));
+        },
+        [&ctx](const ExecLoop& d) -> bool {
+            return (d.condition.has_value() && exec_result_is_used(ctx, d.condition.as_id()))
+                   || (d.update.has_value() && exec_result_is_used(ctx, d.update.as_id()))
+                   || exec_result_is_used(ctx, d.body);
+        },
+        [&ctx](const ExecReturn& d) -> bool {
+            if constexpr (E == effect::used) {
+                return true;
+            } else {
+                return d.return_value.has_value()
+                       && exec_result_is_used(ctx, d.return_value.as_id());
+            }
+        },
+        [&ctx](const ExecYield& d) -> bool {
+            return d.yield_value.has_value() && exec_result_is_used(ctx, d.yield_value.as_id());
+        },
+        [&ctx](const ExecJump& d) -> bool {
+            if (d.spot == jump_spot::start) {
+                return exec_result_is_used(ctx, d.block);
+            }
+            return true;
+        },
+        [&ctx](const ExecUnionInit& d) -> bool { return exec_result_is_used(ctx, d.member_init); },
+        [&ctx](const ExecVariantInit& d) -> bool {
+            return exec_result_is_used(ctx, d.payload_init);
+        },
+        [&ctx](const ExecStructInit& d) -> bool {
+            for (const auto eidx : d.member_inits) {
+                if (exec_result_is_used(ctx, ctx.exec_id(eidx))) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        [](const ExecAssignment&) -> bool { return true; },
+        [&ctx](const ExecBinary& d) -> bool {
+            return exec_result_is_used(ctx, d.lhs) || exec_result_is_used(ctx, d.rhs);
+        },
+        [&ctx](const ExecCast& d) -> bool { return exec_result_is_used(ctx, d.exec); },
+        [&ctx](const ExecSubscript& d) -> bool {
+            return exec_result_is_used(ctx, d.base) || exec_result_is_used(ctx, d.index);
+        },
+        [](const ExecFnCall&) -> bool {
+            return true;
+            /*
+            if (may_have_side_effects(ctx, d.callee)) {
+                return true;
+            }
+            for (const auto eidx : d.args) {
+                if (may_have_side_effects(ctx, ctx.exec_id(eidx))) {
+                    return true;
+                }
+            }
+            // TODO record function purity and check here
+            // if callee is compt known and known to be pure, return false here
+            return false;
+            // else return true
+            */
+        },
+        [&ctx](const ExecMatch& d) -> bool {
+            if (exec_result_is_used(ctx, d.scrutinee)) {
+                return true;
+            }
+            for (const auto eidx : d.branches) {
+                if (exec_result_is_used(ctx, ctx.exec_id(eidx))) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        [&ctx](const ExecMatchBranch& d) -> bool { return exec_result_is_used(ctx, d.body); },
+        [&ctx](const ExecTernaryIf& d) -> bool {
+            return exec_result_is_used(ctx, d.condition) || exec_result_is_used(ctx, d.then_value)
+                   || exec_result_is_used(ctx, d.else_value);
+        },
+        [](const ExecCompoundAssignment&) -> bool { return true; },
+        [&ctx](const ExecListLiteral& d) -> bool {
+            for (const auto eidx : d.elems) {
+                if (exec_result_is_used(ctx, ctx.exec_id(eidx))) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        [&ctx](const ExecVariantFieldInit& d) -> bool {
+            for (const auto eidx : d.member_inits) {
+                if (exec_result_is_used(ctx, ctx.exec_id(eidx))) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        [&ctx](const ExecRange& d) -> bool {
+            return exec_result_is_used(ctx, d.start) || exec_result_is_used(ctx, d.end);
+        },
+        [](const ExecFnPtr&) -> bool { return {}; },
+        [](const ExecBorrow&) -> bool { return {}; },
+        [](const ExecAddrOf&) -> bool { return {}; },
+        [](const ExecDeref&) -> bool { return {}; },
+        [](const ExecVariable&) -> bool { return {}; },
+        [](const ExecComptConstant&) -> bool { return {}; },
+        [](const ExecMemberAccess&) -> bool { return {}; },
+        [](const ExecUnary&) -> bool { return {}; },
+        [](const ExecBuiltinAccess&) -> bool { return {}; },
+    };
+    return ctx.exec(eid).visit(vs);
+}
+
+bool exec_result_is_used(const Context& ctx, ExecId eid) {
+    return may_have_side_effects_impl<effect::used>(ctx, eid);
 }
 
 } // namespace hir

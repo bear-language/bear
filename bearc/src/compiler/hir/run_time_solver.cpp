@@ -797,8 +797,12 @@ OptId<ExecId> RuntimeSolver::handle_expr_stmt(FileId fid, LexicalCtx lctx, InPro
     assert(stmt->type == AST_STMT_EXPR);
     const auto maybe_eid = solve_expr(fid, lctx, stmt->stmt.stmt_expr.expr);
     if (maybe_eid.has_value()) {
-        /// TODO: warn unused based on the type of exec (fine for mutation / discardable functions,
-        /// bad for everything else)
+        if (!exec_result_is_used(context, maybe_eid.as_id())) {
+            context.emplace_diagnostic(
+                context.exec(maybe_eid.as_id()).span, diag_code::result_of_expression_is_unused,
+                diag_type::warning,
+                DiagnosticSubCode{.sub_code = diag_code::expression_has_no_side_effects});
+        }
         block.push_back_exec(maybe_eid.as_id());
     }
     return maybe_eid;

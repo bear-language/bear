@@ -30,7 +30,7 @@ fn sum_to(i32 n) -> i32 {
 fn no_init(i32 n) -> i32 {
     mut i32 i = 0;
     for (; i < n; i++) {
-        i; // fine
+        i++; // fine
     }
     return i;
 }
@@ -87,7 +87,7 @@ fn oops_cond(u8 n) {
 
 fn oops_init_scope(i32 n) -> i32 {
     for (mut i32 i = 0; i < n; i++) {
-        i; // fine
+        i++; // fine
     }
     return i; // oops, i is scoped to the for
 }
@@ -116,21 +116,22 @@ fn foo() => 1
 
 fn oops_after_forever() {
     for (mut i32 i = 0; true; i++) { // warn
-        i; // fine
+        i++; // fine
     }
     foo(); // oops, unreachable
 }
 
 fn oops_header_jumps(i32 n) {
+    mut var a = 1;
     while match n { 0 => { break; }, else => { yield true; } } { // oops, break in condition
-        n;
+        a++;
     }
     for (mut i32 i = 0; i < n; match i { 0 => { continue; }, else => { yield i++; } }) { // oops, continue in update
-        i;
+        a++;
     }
     while true {
         while match n { 0 => { break; }, else => { yield true; } } { // oops, still banned when nested
-            n;
+            a--;
         }
         break;
     }

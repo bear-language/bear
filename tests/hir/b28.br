@@ -93,7 +93,7 @@ fn oops_jumps() {
 
 fn oops_after_loop(i32 n) {
     while n > 0 {
-        n; // fine
+        n; // warn (unused)
     }
     break; // oops, the loop has ended
 }
@@ -101,7 +101,7 @@ fn oops_after_loop(i32 n) {
 fn oops_dead_code(i32 n) {
     while n > 0 {
         break;
-        n; // oops, unreachable
+        n; // oops, unreachable; unused
     }
 }
 
@@ -157,5 +157,5 @@ fn oops_runtime_cond(bool c) -> i32 {
 
 fn oops_after_forever() {
     while true {}
-    1; // oops, unreachable
+    1; // oops, unreachable; unused
 }

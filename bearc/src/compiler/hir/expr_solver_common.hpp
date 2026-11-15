@@ -197,7 +197,8 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
             }
         }
 
-        if (def.as<DefVariable>().compt_value.has_value()) {
+        // if def is compt and not poisoned (has a compt value)
+        if (def.compt && def.as<DefVariable>().compt_value.has_value()) {
             // right thing, we good for anything that's compt/runtime eval + compt
             // (make new exec w/ same val since we need to update the span loc!)
             auto orig_exec = context.exec(def.as<DefVariable>().compt_value.as_id());

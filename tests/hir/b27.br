@@ -53,12 +53,12 @@ fn picks() -> i32 {
     }
 }
 
-fn oops_cond(u8 n, i32 a) {
+fn oops_cond(u8 n, mut i32 a) {
     if n { // oops, not bool
-        a + 1;
+        a += 1;
     }
     if compt a > 0 { // oops, not compt
-        a + 1;
+        a += 1;
     }
     if n { // oops, not bool
         i32 _0 = true; // oops, still checked

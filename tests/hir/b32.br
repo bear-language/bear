@@ -1,0 +1,53 @@
+// tests/hir/b32.br 
+
+// testing unused and void rules
+
+fn main() {
+    fine();
+    oops();
+}
+
+fn fine() {
+    mut i32 a;
+    ++a;
+    a--;
+    a++;
+    --a;
+    a += 1;
+    void v = foo();
+    takes_void(v);
+    takes_void3(takes_void2(v));
+}
+
+fn oops() {
+    i32 a;
+    a; // warn
+    a + 2; // warn
+    a->2; // unused but worse error so unused isn't mentioned
+    *i32 p = ^a;
+    p.*; // warn
+    (&a); // warn
+    mut i32 b = foo(); // oops
+    void c = foo();
+    c; // oops
+    c == true; // oops
+}
+
+mut i32 g;
+
+fn foo() {
+   g++; 
+}
+
+fn takes_t<T>(T t) {
+    var _ = t;
+    foo();
+}
+
+fn takes_void(void v) {
+    var _ = v;
+    foo();
+}
+
+compt var takes_void2 = takes_t::<void>;
+compt *fn(void) takes_void3 = takes_t::<void>;

@@ -529,6 +529,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "for loop never terminates since condition is always true";
     case diag_code::suspicious_assignment_in_condition:
         return "suspicious assignment in condition";
+    case diag_code::result_of_expression_is_unused:
+        return "result of expression is unused";
+    case diag_code::expression_has_no_side_effects:
+        return "expression has no side effects";
     }
 
     std::unreachable();

@@ -44,6 +44,10 @@
     - [ ] `.start` / `.end` access for builtin ranges `...` & `...=`, figure out how to handle inclusivity here
     - [ ] impl proper runtime Exec hashing so parallel match/if-else branches can be hashed and compared for duplicativity
 
+- [ ] function purity recording, see TODO in `may_have_side_effects`
+    - [ ] automatic detection 
+    - [ ] enforce user defined `pure` functions (new keyword)
+
 - [ ] tighten up mention/mutation tracking 
     - improve/fix `unused variable: foo` diagnostics (for non top-levels)
     - add `foo is never mutated, consider not declaring as mutable`

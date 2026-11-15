@@ -4108,10 +4108,12 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
                 return {};
             }
             const Type& ty = type(maybe_tid.as_id());
-            if (ty.holds<TypeFnPtr>()) {
+            // only return return_type if it has a value since empty communicate poisoned. no return
+            // type should be considered `void` in the type system
+            if (ty.holds<TypeFnPtr>() && ty.as<TypeFnPtr>().return_type.has_value()) {
                 return ty.as<TypeFnPtr>().return_type;
             }
-            return {};
+            return type_for_builtin(builtin_type::voidd);
         },
         [this](const ExecBorrow& d) -> OptId<TypeId> {
             const auto maybe_inner_tid = infer_type_from_exec(d.borrowee);

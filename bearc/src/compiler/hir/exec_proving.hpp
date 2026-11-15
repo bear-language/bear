@@ -58,7 +58,6 @@ struct CanonicalIntegralRange {
 std::optional<CanonicalIntegralRange> try_canonical_integral_range(const Context& ctx,
                                                                    const ExecRange& range);
 
-
 /// checks whether two Execs are equivalent
 /// - fully checks compt values
 /// - returns true only if the two Execs are certainly equal (since their values are fully knowable
@@ -71,27 +70,30 @@ std::optional<CanonicalIntegralRange> try_canonical_integral_range(const Context
 /// may refer to values that are mutable and mutation was possible between the order of the execs.
 /// for this reason, it would be best to either use this with 1) pure compile-time value or 2) execs
 /// on either side of an expression, like notably some boolean expression: `exec || exec`, etc.
-bool implicit_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
+[[nodiscard]] bool implicit_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
-bool implicit_equivalent_exec_slice(const Context& ctx, IdSlice<ExecId> s1, IdSlice<ExecId> s2);
+[[nodiscard]] bool implicit_equivalent_exec_slice(const Context& ctx, IdSlice<ExecId> s1,
+                                                  IdSlice<ExecId> s2);
 
-bool explicitly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
+[[nodiscard]] bool explicitly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
-bool equivalent_exec_slice(const Context& ctx, IdSlice<ExecId> s1, IdSlice<ExecId> s2);
+[[nodiscard]] bool equivalent_exec_slice(const Context& ctx, IdSlice<ExecId> s1,
+                                         IdSlice<ExecId> s2);
 
 /// considers things like u8 and u64 values that are representable as both as equivalent
-size_t hash_exec_with_implicit_equivalence(const Context& ctx, ExecId eid);
+[[nodiscard]] size_t hash_exec_with_implicit_equivalence(const Context& ctx, ExecId eid);
 
-size_t hash_exec_with_explicit_equivalence(const Context& ctx, ExecId eid);
+[[nodiscard]] size_t hash_exec_with_explicit_equivalence(const Context& ctx, ExecId eid);
 
 /// if two execs could ever be equivalent (cheap type matching)
-bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
+[[nodiscard]] bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
 /// checks if some Exec definitely returns (in all control flow paths)
-bool definitely_returns(const Context& ctx, ExecId eid);
+[[nodiscard]] bool definitely_returns(const Context& ctx, ExecId eid);
 
-bool definitely_yields(const Context& ctx, ExecId eid);
+[[nodiscard]] bool definitely_yields(const Context& ctx, ExecId eid);
 
+[[nodiscard]] bool exec_result_is_used(const Context& ctx, ExecId eid);
 } // namespace hir
 
 #endif // !BEARC_COMPILER_HIR_EXEC_PROVING_HPP
