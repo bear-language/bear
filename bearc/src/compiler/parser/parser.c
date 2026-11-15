@@ -15,7 +15,8 @@ parser_t parser_create(vector_t* tokens, arena_t* arena, compiler_error_list_t* 
                        .arena = arena,
                        .error_list = error_list,
                        .prev_discarded = false,
-                       .mode = PARSER_MODE_DEFAULT};
+                       .mode = PARSER_MODE_DEFAULT,
+                       .yield_depth = 0};
     return parser;
 }
 

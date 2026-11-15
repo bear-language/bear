@@ -421,6 +421,13 @@ template <equivalence E> bool equivalent_exec_impl(const Context& ctx, ExecId ei
             const auto o = other.as<ExecBuiltinAccess>();
             return t.kind == o.kind && equivalent_exec_impl<E>(ctx, t.from, o.from);
         },
+        [&ctx, &other](const ExecMove& t) -> bool {
+            if (!other.holds<ExecMove>()) {
+                return false;
+            }
+            const auto o = other.as<ExecMove>();
+            return t.moved_def == o.moved_def && equivalent_exec_impl<E>(ctx, t.exec, o.exec);
+        },
     };
 
     return ctx.exec(eid1).visit(vs);
@@ -493,6 +500,7 @@ template <equivalence E> size_t hash_exec_impl(const Context& ctx, ExecId eid) {
         [](const ExecCompoundAssignment&) -> size_t { return {}; },
         [](const ExecUnary&) -> size_t { return {}; },
         [](const ExecBuiltinAccess&) -> size_t { return {}; },
+        [](const ExecMove&) -> size_t { return {}; },
         [](const ExecFnPtr& t) -> size_t { return mix(t.func_def_id.raw()); },
         [&ctx](const ExecVariantFieldInit& t) -> size_t {
             size_t h = t.variant_field_def_id.raw();
@@ -664,6 +672,7 @@ bool possibly_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2) {
         [](const ExecCompoundAssignment&) -> bool { return false; },
         [](const ExecUnary&) -> bool { return false; },
         [](const ExecBuiltinAccess&) -> bool { return false; },
+        [](const ExecMove&) -> bool { return false; },
     };
 
     return e1.visit(vs);
@@ -741,6 +750,7 @@ bool definitely_returns_yields_impl(const Context& ctx, ExecId eid) {
         [](const ExecCompoundAssignment&) -> bool { return {}; },
         [](const ExecUnary&) -> bool { return {}; },
         [](const ExecBuiltinAccess&) -> bool { return {}; },
+        [](const ExecMove&) -> bool { return {}; },
     };
 
     return ctx.exec(eid).visit(vs);
@@ -750,6 +760,80 @@ bool definitely_returns(const Context& ctx, ExecId eid) {
 }
 bool definitely_yields(const Context& ctx, ExecId eid) {
     return definitely_returns_yields_impl<ExecYield>(ctx, eid);
+}
+
+template <bool count_yields> static bool definitely_diverges_impl(const Context& ctx, ExecId eid) {
+    const auto vs = Ovld{
+        [](const ExecReturn&) -> bool { return true; },
+        [](const ExecJump&) -> bool { return true; },
+        [](const ExecYield&) -> bool { return count_yields; },
+        [&ctx](const ExecBlock& d) -> bool {
+            for (const auto eidx : ctx.block(d.block_id).execs) {
+                if (definitely_diverges_impl<count_yields>(ctx, ctx.exec_id(eidx))) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        [&ctx](const ExecBranch& d) -> bool {
+            return d.else_block.has_value()
+                   && definitely_diverges_impl<count_yields>(ctx, d.then_block)
+                   && definitely_diverges_impl<count_yields>(ctx, d.else_block.as_id());
+        },
+        [&ctx](const ExecLoop& d) -> bool {
+            if (d.has_break) {
+                return false;
+            }
+            if (d.condition.empty()) {
+                return true;
+            }
+            const Exec& cond = ctx.exec(d.condition.as_id());
+            if (!cond.holds<ExecConst>()) {
+                return false;
+            }
+            const auto maybe_bool = cond.as<ExecConst>().try_as<bool>();
+            return maybe_bool.has_value() && maybe_bool.value();
+        },
+        [&ctx](const ExecMatch& d) -> bool {
+            for (const auto eidx : d.branches) {
+                if (!definitely_diverges_impl<false>(ctx, ctx.exec_id(eidx))) {
+                    return false;
+                }
+            }
+            return d.branches.len() != 0;
+        },
+        [&ctx](const ExecMatchBranch& d) -> bool {
+            return definitely_diverges_impl<count_yields>(ctx, d.body);
+        },
+        [](const ExecUnionInit&) -> bool { return {}; },
+        [](const ExecVariantInit&) -> bool { return {}; },
+        [](const ExecStructInit&) -> bool { return {}; },
+        [](const ExecVariable&) -> bool { return {}; },
+        [](const ExecComptConstant&) -> bool { return {}; },
+        [](const ExecListLiteral&) -> bool { return {}; },
+        [](const ExecAssignment&) -> bool { return {}; },
+        [](const ExecMemberAccess&) -> bool { return {}; },
+        [](const ExecBinary&) -> bool { return {}; },
+        [](const ExecCast&) -> bool { return {}; },
+        [](const ExecSubscript&) -> bool { return {}; },
+        [](const ExecFnCall&) -> bool { return {}; },
+        [](const ExecBorrow&) -> bool { return {}; },
+        [](const ExecAddrOf&) -> bool { return {}; },
+        [](const ExecDeref&) -> bool { return {}; },
+        [](const ExecTernaryIf&) -> bool { return {}; },
+        [](const ExecFnPtr&) -> bool { return {}; },
+        [](const ExecVariantFieldInit&) -> bool { return {}; },
+        [](const ExecRange&) -> bool { return {}; },
+        [](const ExecCompoundAssignment&) -> bool { return {}; },
+        [](const ExecUnary&) -> bool { return {}; },
+        [](const ExecBuiltinAccess&) -> bool { return {}; },
+        [](const ExecMove&) -> bool { return {}; },
+    };
+    return ctx.exec(eid).visit(vs);
+}
+
+bool definitely_diverges(const Context& ctx, ExecId eid) {
+    return definitely_diverges_impl<true>(ctx, eid);
 }
 
 enum class effect : uint8_t {
@@ -772,11 +856,14 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
             return false;
         },
         [&ctx](const ExecBranch& d) -> bool {
-            return may_have_side_effects_impl<E>(ctx, d.condition) || may_have_side_effects_impl<E>(ctx, d.then_block)
-                   || (d.else_block.has_value() && may_have_side_effects_impl<E>(ctx, d.else_block.as_id()));
+            return may_have_side_effects_impl<E>(ctx, d.condition)
+                   || may_have_side_effects_impl<E>(ctx, d.then_block)
+                   || (d.else_block.has_value()
+                       && may_have_side_effects_impl<E>(ctx, d.else_block.as_id()));
         },
         [&ctx](const ExecLoop& d) -> bool {
-            return (d.condition.has_value() && may_have_side_effects_impl<E>(ctx, d.condition.as_id()))
+            return (d.condition.has_value()
+                    && may_have_side_effects_impl<E>(ctx, d.condition.as_id()))
                    || (d.update.has_value() && may_have_side_effects_impl<E>(ctx, d.update.as_id()))
                    || may_have_side_effects_impl<E>(ctx, d.body);
         },
@@ -789,7 +876,8 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
             }
         },
         [&ctx](const ExecYield& d) -> bool {
-            return d.yield_value.has_value() && may_have_side_effects_impl<E>(ctx, d.yield_value.as_id());
+            return d.yield_value.has_value()
+                   && may_have_side_effects_impl<E>(ctx, d.yield_value.as_id());
         },
         [&ctx](const ExecJump& d) -> bool {
             if (d.spot == jump_spot::start) {
@@ -797,7 +885,9 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
             }
             return true;
         },
-        [&ctx](const ExecUnionInit& d) -> bool { return may_have_side_effects_impl<E>(ctx, d.member_init); },
+        [&ctx](const ExecUnionInit& d) -> bool {
+            return may_have_side_effects_impl<E>(ctx, d.member_init);
+        },
         [&ctx](const ExecVariantInit& d) -> bool {
             return may_have_side_effects_impl<E>(ctx, d.payload_init);
         },
@@ -811,11 +901,13 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
         },
         [](const ExecAssignment&) -> bool { return true; },
         [&ctx](const ExecBinary& d) -> bool {
-            return may_have_side_effects_impl<E>(ctx, d.lhs) || may_have_side_effects_impl<E>(ctx, d.rhs);
+            return may_have_side_effects_impl<E>(ctx, d.lhs)
+                   || may_have_side_effects_impl<E>(ctx, d.rhs);
         },
         [&ctx](const ExecCast& d) -> bool { return may_have_side_effects_impl<E>(ctx, d.exec); },
         [&ctx](const ExecSubscript& d) -> bool {
-            return may_have_side_effects_impl<E>(ctx, d.base) || may_have_side_effects_impl<E>(ctx, d.index);
+            return may_have_side_effects_impl<E>(ctx, d.base)
+                   || may_have_side_effects_impl<E>(ctx, d.index);
         },
         [](const ExecFnCall&) -> bool {
             return true;
@@ -845,9 +937,12 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
             }
             return false;
         },
-        [&ctx](const ExecMatchBranch& d) -> bool { return may_have_side_effects_impl<E>(ctx, d.body); },
+        [&ctx](const ExecMatchBranch& d) -> bool {
+            return may_have_side_effects_impl<E>(ctx, d.body);
+        },
         [&ctx](const ExecTernaryIf& d) -> bool {
-            return may_have_side_effects_impl<E>(ctx, d.condition) || may_have_side_effects_impl<E>(ctx, d.then_value)
+            return may_have_side_effects_impl<E>(ctx, d.condition)
+                   || may_have_side_effects_impl<E>(ctx, d.then_value)
                    || may_have_side_effects_impl<E>(ctx, d.else_value);
         },
         [](const ExecCompoundAssignment&) -> bool { return true; },
@@ -868,7 +963,8 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
             return false;
         },
         [&ctx](const ExecRange& d) -> bool {
-            return may_have_side_effects_impl<E>(ctx, d.start) || may_have_side_effects_impl<E>(ctx, d.end);
+            return may_have_side_effects_impl<E>(ctx, d.start)
+                   || may_have_side_effects_impl<E>(ctx, d.end);
         },
         [](const ExecFnPtr&) -> bool { return {}; },
         [](const ExecBorrow&) -> bool { return {}; },
@@ -879,6 +975,7 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
         [](const ExecMemberAccess&) -> bool { return {}; },
         [](const ExecUnary&) -> bool { return {}; },
         [](const ExecBuiltinAccess&) -> bool { return {}; },
+        [&ctx](const ExecMove& d) -> bool { return may_have_side_effects_impl<E>(ctx, d.exec); },
     };
     return ctx.exec(eid).visit(vs);
 }

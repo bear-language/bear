@@ -140,6 +140,10 @@ ast_stmt_t* parse_stmt(parser_t* p) {
         return parse_stmt_continue(p);
     }
 
+    if (next_type == TOK_YIELD && p->yield_depth) {
+        return parse_stmt_yield(p);
+    }
+
     // handle decls with leading mut or brackets (slices and arrays)
     if (token_is_non_id_type_idicator(next_type)) {
         if (next_type == TOK_MUT) {

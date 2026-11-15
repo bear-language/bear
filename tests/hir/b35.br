@@ -1,0 +1,187 @@
+// tests/hir/b35.br
+
+// testing nested yields inside of match branch blocks
+
+fn main() {
+    if_else_yields(1, true);
+    else_if_yields(1);
+    loop_yields(3);
+    nested_match_yields(1, 2);
+    block_yields(1);
+    early_yield(1, true);
+    forever_yields(1);
+    yield_or_return(1, true);
+    inferred_from_nested(1, true);
+    oops_not_all_paths(1, true);
+    oops_dead_code_after_nested(1, true);
+    oops_type_mismatch(1, true);
+    oops_loop_may_exit(1, true);
+}
+
+fn if_else_yields(i32 n, bool c) -> i32 {
+    return match (n) {
+        0 => {
+            if c {
+                yield 1;
+            } else {
+                yield 2;
+            }
+        },
+        else => 3,
+    };
+}
+
+fn else_if_yields(i32 n) -> i32 {
+    return match (n) {
+        0 => {
+            if n > 10 {
+                yield 1;
+            } else if n > 5 {
+                yield 2;
+            } else {
+                yield 3;
+            }
+        },
+        else => 4,
+    };
+}
+
+fn loop_yields(i32 n) -> i32 {
+    return match (n) {
+        0 => {
+            mut i32 i = 0;
+            while true {
+                if i > n {
+                    yield i; // fine, leaves the loop and the match
+                }
+                i++;
+            }
+        },
+        else => 0,
+    };
+}
+
+fn nested_match_yields(i32 a, i32 b) -> i32 {
+    return match (a) {
+        0 => {
+            i32 inner = match (b) {
+                0 => {
+                    if a > b {
+                        yield 1; // yields from the inner match
+                    }
+                    yield 2;
+                },
+                else => 3,
+            };
+            yield inner; // yields from the outer match
+        },
+        else => 4,
+    };
+}
+
+fn block_yields(i32 n) -> i32 {
+    return match (n) {
+        0 => {
+            {
+                yield 1;
+            }
+        },
+        else => 2,
+    };
+}
+
+fn early_yield(i32 n, bool c) -> i32 {
+    return match (n) {
+        0 => {
+            if c {
+                yield 1;
+            }
+            yield 2;
+        },
+        else => 3,
+    };
+}
+
+fn forever_yields(i32 n) -> i32 {
+    return match (n) {
+        0 => {
+            while true {
+                yield 1;
+            }
+        },
+        else => 2,
+    };
+}
+
+fn yield_or_return(i32 n, bool c) -> i32 {
+    return match (n) {
+        0 => {
+            if c {
+                return 1;
+            } else {
+                yield 2;
+            }
+        },
+        else => 3,
+    };
+}
+
+fn inferred_from_nested(i32 n, bool c) -> i32 {
+    var x = match (n) {
+        0 => {
+            if c {
+                yield n; // result type is inferred from here
+            }
+            yield 1;
+        },
+        else => 2,
+    };
+    return x;
+}
+
+fn oops_not_all_paths(i32 n, bool c) -> i32 {
+    return match (n) {
+        0 => { // oops, may fall through when c is false
+            if c {
+                yield 1;
+            }
+        },
+        else => 2,
+    };
+}
+
+fn oops_dead_code_after_nested(i32 n, bool c) -> i32 {
+    return match (n) {
+        0 => {
+            if c {
+                yield 1;
+                n; // oops, unreachable; unused
+            }
+            yield 2;
+        },
+        else => 3,
+    };
+}
+
+fn oops_type_mismatch(i32 n, bool c) -> i32 {
+    return match (n) {
+        0 => {
+            if c {
+                yield true; // oops, not an i32
+            }
+            yield 1;
+        },
+        else => 2,
+    };
+}
+
+fn oops_loop_may_exit(i32 n, bool c) -> i32 {
+    return match (n) {
+        0 => { // oops, the loop can exit without yielding
+            while c {
+                yield 1;
+            }
+        },
+        else => 2,
+    };
+}

@@ -93,6 +93,8 @@ std::optional<CanonicalIntegralRange> try_canonical_integral_range(const Context
 
 [[nodiscard]] bool definitely_yields(const Context& ctx, ExecId eid);
 
+[[nodiscard]] bool definitely_diverges(const Context& ctx, ExecId eid);
+
 [[nodiscard]] bool exec_result_is_used(const Context& ctx, ExecId eid);
 
 [[nodiscard]] bool exec_may_have_side_effects(const Context& ctx, ExecId eid);

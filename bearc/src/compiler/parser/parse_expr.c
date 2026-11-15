@@ -1093,7 +1093,10 @@ ast_expr_t* parse_expr_block_call(parser_t* p, ast_stmt_t* (*call)(parser_t*)) {
 
 ast_expr_t* parse_expr_allowing_block_exprs_with_yields(parser_t* p) {
     if (parser_peek_match(p, TOK_LBRACE)) {
-        return parse_expr_block_call(p, &parse_stmt_allowing_yield);
+        ++p->yield_depth;
+        ast_expr_t* blk = parse_expr_block_call(p, &parse_stmt_allowing_yield);
+        --p->yield_depth;
+        return blk;
     }
     return parse_expr(p);
 }
@@ -1184,6 +1187,8 @@ ast_expr_t* parse_expr_closure(parser_t* p) {
             cl->expr.closure.has_explicit_return_type = true;
         }
     }
+    const uint32_t outer_yield_depth = p->yield_depth;
+    p->yield_depth = 0;
     // allow '|thingie| => thing' syntax
     if (parser_match_token(p, TOK_EQ_ARROW)) {
         cl->expr.closure.body = parse_expr_allowing_block_exprs_without_yields(p);
@@ -1191,6 +1196,7 @@ ast_expr_t* parse_expr_closure(parser_t* p) {
         // {....}
         cl->expr.closure.body = parse_expr_block_call(p, &parse_stmt);
     }
+    p->yield_depth = outer_yield_depth;
     cl->first = first;
     cl->last = parser_prev(p);
     return cl;

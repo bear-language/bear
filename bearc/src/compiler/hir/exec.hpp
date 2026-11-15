@@ -585,6 +585,11 @@ struct ExecBuiltinAccess {
     builtin_access kind;
 };
 
+struct ExecMove {
+    DefId moved_def;
+    ExecId exec;
+};
+
 // ^^^^^^ struct impls ^^^^^^^^
 
 /// main exec variant
@@ -597,7 +602,7 @@ using ExecValue = std::variant<
     ExecListLiteral, ExecAssignment, ExecMemberAccess, ExecBinary, ExecCast, ExecSubscript,
     ExecFnCall, ExecBorrow, ExecAddrOf, ExecDeref, ExecMatch, ExecMatchBranch, ExecTernaryIf,
     ExecFnPtr, ExecVariantFieldInit, ExecRange, ExecCompoundAssignment, ExecUnary,
-    ExecBuiltinAccess>;
+    ExecBuiltinAccess, ExecMove>;
 
 /// main exec structure, corresponds to an hir::ExecId
 struct Exec : NodeWithVariantValue<Exec> {

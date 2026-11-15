@@ -6,9 +6,9 @@
         - [x] `ScopeId`: same as current impl, for symbol look-up
         - [ ] `MoveMapId`: same idea as a scope, but:
             - [x] tracks DefId -> ExecId and DefId -> ExecIdSliceId tracking where defs were moved (for good diagnostics)
-            - [x] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
+            - [x] after child(ren) are made, iterate through the union of moves (across branches if applicable) and mark as moved in current, pointing to moves
             - [ ] actually record moves
-                - [ ] add an `ExecMove`
+                - [ ] emit `ExecMove`
                 - [ ] copied:
                     - [ ] implicitly copyable for unions, variants, and structs where all members are copyable 
                     - [ ] builtin types
@@ -19,21 +19,10 @@
                 - [ ] ban partial moves of structs / variants / unions / arrays
                 - [ ] handle `f(make_thing())` destructing temporaries after the end of the statement if they're not moved out (currently won't work easily w/ `MoveMap` which has `DefId` keys, maybe create temp `DefId`s?)
                 - [ ] ban `foo.destruct()` but provide `drop(foo)` which just moves foo out
-                - [ ] also consider intrinsics:
-                    - [ ] `contract Pinned {}` to pin things
-                    - [ ] `Pin wrapper`:
-    ```bear
-struct Pin<T> has Pinned {
-    T val; 
-    mt get() -> &T => &self.val
-    mt mut get_mut() -> &mut T => &mut self.val
-}
-    ```
 
 - [ ] finish runtime solving 
     - `RuntimeSolver` 
         - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
-            - [ ] `yield` in nested positions inside match branch blocks (only top-level yields are handled)
             - [ ] `is` w/ variant decomposition, bindings scoped to the `if`'s then-branch
             - [ ] `for in` (blocked on an iteration protocol/contract + `std..Range`)
         - [ ] closures (rust-like capture semantics)
@@ -49,7 +38,7 @@ struct Pin<T> has Pinned {
         - [ ] remove `TOK_DT`, `dt` from `token_is_mt_or_dt` & co., special case in `context.cpp`, `DestructorDeclaration` in syntax.md, update parser tests 30 & 44
         - [ ] `Destruct` is intrinsic
         - [ ] opt-in only thru `has(Destruct)`
-        - [ ] ban explicit `x.destruct()` calls (or make it a move), otherwise double destruct at scope exit
+        - [ ] ban explicit `x.destruct()` calls 
         - [ ] compiler-inserted calls ignore mutability
         - [ ] members are auto-destructed after the user's `destruct()`, pick an order (reverse decl)
         - [ ] ban moving out of fields of a `Destruct` type (moving fields out will prob have to start out banned anyway)

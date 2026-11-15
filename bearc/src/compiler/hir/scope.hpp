@@ -69,6 +69,7 @@ class MoveMap {
             f(entry.key(), MoveResult{entry.val()});
         }
     }
+    [[nodiscard]] OptId<MoveMapId> parent_map() const { return parent; }
     /// check for a move in the current parents' lexical scope for the given def
     [[nodiscard]] MoveResult previous_move_for(const Context& ctx, DefId did) const;
     /// check for a move in the current lexical scope or its parents' for the given def

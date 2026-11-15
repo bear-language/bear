@@ -11,6 +11,7 @@
 #include "compiler/diagnostics/error_list.h"
 #include "utils/arena.h"
 #include <stdbool.h>
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,6 +38,7 @@ typedef struct {
     compiler_error_list_t* error_list;
     parser_mode_e mode;
     bool prev_discarded;
+    uint32_t yield_depth;
 } parser_t;
 
 parser_t parser_create(vector_t* tokens, arena_t* arena, compiler_error_list_t* error_list);

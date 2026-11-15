@@ -4213,6 +4213,7 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
         [](const ExecMatch& d) -> OptId<TypeId> { return d.result_tid; },
         [](const ExecMatchBranch&) -> OptId<TypeId> { return {}; },
         [](const ExecTernaryIf& d) -> OptId<TypeId> { return d.result_tid; },
+        [this](const ExecMove& d) -> OptId<TypeId> { return infer_type_from_exec(d.exec); },
         [](const ExecVariantFieldInit&) -> OptId<TypeId> { return {}; },
         [](const ExecBlock&) -> OptId<TypeId> { return {}; },
         [](const ExecBranch&) -> OptId<TypeId> { return {}; },
@@ -4335,6 +4336,7 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
         [](const ExecVariantFieldInit&) -> bool { return false; },
         [](const ExecRange&) -> bool { return false; },
         [](const ExecBuiltinAccess&) -> bool { return false; },
+        [](const ExecMove&) -> bool { return false; },
     };
     return exec(eid).visit(vs);
 }

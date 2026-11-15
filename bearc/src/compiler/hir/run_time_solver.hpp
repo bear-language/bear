@@ -30,13 +30,22 @@ class RuntimeSolver {
     IdSlice<DefId> params{};
     OptId<ExecId> current_loop_block_eid{};
     bool current_loop_has_break{};
+    OptId<MoveMapId> current_loop_base_map{};
+    llvm::SmallVector<MoveMapId>* current_loop_exit_maps{};
     bool inside_loop_header{};
     /// TODO: check this when solving a move
     /// - ban the move if this has a value (i.e. we're inside a loop body) and the
     ///   moved def is defined inside of this scope (i.e. outside of the loop),
     /// - defs not defined inside of this scope are local to the loop and fine to move
     OptId<ScopeId> maybe_scope_containing_loop{};
-    bool inside_match_branch{};
+
+    struct MatchCtx {
+        OptId<TypeId> result_tid;
+        MoveMapId base_map;
+        llvm::SmallVector<MoveMapId> exit_maps;
+        bool poisoned;
+    };
+    MatchCtx* current_match{};
 
     struct InProgressBlock {
         llvm::SmallVector<DefId> defs;
@@ -160,8 +169,12 @@ class RuntimeSolver {
 
     OptId<ExecId> handle_expr_stmt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                    const ast_stmt_t* stmt);
-    OptId<ExecId> handle_break(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
-    OptId<ExecId> handle_continue(FileId fid, InProgressBlock& block, const ast_stmt_t* stmt);
+    OptId<ExecId> handle_break(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                               const ast_stmt_t* stmt);
+    OptId<ExecId> handle_continue(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                  const ast_stmt_t* stmt);
+    OptId<ExecId> handle_yield(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                               const ast_stmt_t* stmt);
     [[nodiscard]] std::optional<bool> try_compt_bool(ExecId eid);
     [[nodiscard]] std::optional<bool> solve_compt_condition(FileId fid, LexicalCtx lctx,
                                                             const ast_expr_t* cond);

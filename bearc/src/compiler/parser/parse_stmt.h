@@ -55,6 +55,8 @@ ast_stmt_t* parse_fn_decl(parser_t* p);
 /// parse a statement beginning with return
 ast_stmt_t* parse_stmt_return(parser_t* p);
 
+ast_stmt_t* parse_stmt_yield(parser_t* p);
+
 /// parse a statement that't just ';'
 ast_stmt_t* parse_stmt_empty(parser_t* p);
 

@@ -29,22 +29,35 @@
 
 namespace hir {
 
+struct MoveExit {
+    MoveMapId map;
+    OptId<ExecId> body;
+};
+
 static void write_back_moves(Context& context, MoveMapId parent,
-                             llvm::ArrayRef<MoveMapId> children) {
+                             llvm::ArrayRef<MoveExit> children) {
     llvm::SmallVector<std::pair<DefId, llvm::SmallVector<ExecId>>> moves{};
-    for (const MoveMapId child : children) {
-        context.move_map(child).for_each_local_move([&](DefId did, MoveResult res) {
+    for (const MoveExit child : children) {
+        if (child.body.has_value() && definitely_diverges(context, child.body.as_id())) {
+            continue;
+        }
+        context.move_map(child.map).for_each_local_move([&](DefId did, MoveResult res) {
             auto* it = std::ranges::find(moves, did, &decltype(moves)::value_type::first);
             if (it == moves.end()) {
                 it = &moves.emplace_back(did, llvm::SmallVector<ExecId>{});
             }
+            const auto push_unique = [&it](ExecId eid) {
+                if (std::ranges::find(it->second, eid) == it->second.end()) {
+                    it->second.push_back(eid);
+                }
+            };
             if (res.holds<ExecId>()) {
-                it->second.push_back(res.as<ExecId>());
+                push_unique(res.as<ExecId>());
                 return;
             }
             const IdSlice<ExecId> slice = context.exec_id_slice(res.as<ExecIdSliceId>());
             for (auto eidx : slice) {
-                it->second.push_back(context.exec_id(eidx));
+                push_unique(context.exec_id(eidx));
             }
         });
     }
@@ -56,6 +69,19 @@ static void write_back_moves(Context& context, MoveMapId parent,
             context.move_map(parent).insert(did, esid);
         }
     }
+}
+
+static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId until) {
+    llvm::SmallVector<MoveExit> chain{};
+    OptId<MoveMapId> curr = from;
+    while (curr.has_value() && curr.as_id() != until) {
+        chain.push_back(MoveExit{.map = curr.as_id(), .body = {}});
+        curr = context.move_map(curr.as_id()).parent_map();
+    }
+    assert(curr.has_value());
+    const MoveMapId snapshot = context.make_persistent_move_map(until);
+    write_back_moves(context, snapshot, chain);
+    return snapshot;
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, ScopeId scope,
@@ -315,7 +341,7 @@ RuntimeSolver::lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generi
         // code warning AND that function_may_not_return_a_value_in_all_control_flow_paths
         // diagnostic nor do we want to see this more than once after the first premature return)
         if (!hit_block_terminator && maybe_eid.has_value()
-            && (context.exec(maybe_eid.as_id()).holds_any_of<ExecReturn, ExecJump>()
+            && (context.exec(maybe_eid.as_id()).holds_any_of<ExecReturn, ExecJump, ExecYield>()
                 || (context.exec(maybe_eid.as_id()).holds<ExecLoop>()
                     && definitely_returns(context, maybe_eid.as_id())))) {
 
@@ -500,17 +526,18 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_EMPTY:
         return {};
     case AST_STMT_BREAK:
-        return handle_break(fid, block, stmt);
+        return handle_break(fid, lctx, block, stmt);
     case AST_STMT_CONTINUE:
-        return handle_continue(fid, block, stmt);
+        return handle_continue(fid, lctx, block, stmt);
     case AST_STMT_IF:
         return handle_if(fid, lctx, block, stmt);
     case AST_STMT_WHILE:
         return handle_while(fid, lctx, block, stmt);
     case AST_STMT_FOR:
         return handle_for(fid, lctx, block, stmt);
-    case AST_STMT_FOR_IN:
     case AST_STMT_YIELD:
+        return handle_yield(fid, lctx, block, stmt);
+    case AST_STMT_FOR_IN:
         diag_not_yet_implemented(Span{context, fid, stmt});
         break;
 
@@ -804,7 +831,7 @@ OptId<ExecId> RuntimeSolver::handle_expr_stmt(FileId fid, LexicalCtx lctx, InPro
     return maybe_eid;
 }
 
-OptId<ExecId> RuntimeSolver::handle_break(FileId fid, InProgressBlock& block,
+OptId<ExecId> RuntimeSolver::handle_break(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                           const ast_stmt_t* stmt) {
     assert(stmt->type == AST_STMT_BREAK);
     if (inside_loop_header) {
@@ -819,6 +846,8 @@ OptId<ExecId> RuntimeSolver::handle_break(FileId fid, InProgressBlock& block,
         return {};
     }
     current_loop_has_break = true;
+    current_loop_exit_maps->push_back(
+        snapshot_moves(context, lctx.map, current_loop_base_map.as_id()));
     const auto eid = context.emplace_exec(
         ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::end},
         Span{context, fid, stmt});
@@ -826,7 +855,7 @@ OptId<ExecId> RuntimeSolver::handle_break(FileId fid, InProgressBlock& block,
     return eid;
 }
 
-OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
+OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                              const ast_stmt_t* stmt) {
     assert(stmt->type == AST_STMT_CONTINUE);
     if (inside_loop_header) {
@@ -840,10 +869,30 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, InProgressBlock& block,
                                    diag_code::continue_statement_outside_of_loop, diag_type::error);
         return {};
     }
+    current_loop_exit_maps->push_back(
+        snapshot_moves(context, lctx.map, current_loop_base_map.as_id()));
     const auto eid = context.emplace_exec(
         ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::start},
         Span{context, fid, stmt});
 
+    block.push_back_exec(eid);
+    return eid;
+}
+
+OptId<ExecId> RuntimeSolver::handle_yield(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                          const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_YIELD);
+    assert(current_match);
+    const auto maybe_value_eid
+        = solve_expr(fid, lctx, stmt->stmt.yield_stmt.expr, current_match->result_tid);
+    if (maybe_value_eid.empty()) {
+        current_match->poisoned = true;
+    } else if (current_match->result_tid.empty()) {
+        current_match->result_tid = infer_type_from_exec(maybe_value_eid.as_id());
+    }
+    current_match->exit_maps.push_back(snapshot_moves(context, lctx.map, current_match->base_map));
+    const auto eid
+        = context.emplace_exec(ExecYield{.yield_value = maybe_value_eid}, Span{context, fid, stmt});
     block.push_back_exec(eid);
     return eid;
 }
@@ -886,8 +935,13 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
     const OptId<ExecId> outer_loop_block_eid = current_loop_block_eid;
     const bool outer_loop_has_break = current_loop_has_break;
     const OptId<ScopeId> outer_scope_containing_loop = maybe_scope_containing_loop;
+    const OptId<MoveMapId> outer_loop_base_map = current_loop_base_map;
+    llvm::SmallVector<MoveMapId>* const outer_loop_exit_maps = current_loop_exit_maps;
+    llvm::SmallVector<MoveMapId> loop_exit_maps{};
     current_loop_block_eid = loop_eid;
     current_loop_has_break = false;
+    current_loop_base_map = lctx.map;
+    current_loop_exit_maps = &loop_exit_maps;
     maybe_scope_containing_loop = lctx.scope;
     inside_loop_header = false;
 
@@ -901,17 +955,25 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
     current_loop_block_eid = outer_loop_block_eid;
     current_loop_has_break = outer_loop_has_break;
     maybe_scope_containing_loop = outer_scope_containing_loop;
+    current_loop_base_map = outer_loop_base_map;
+    current_loop_exit_maps = outer_loop_exit_maps;
 
     OptId<ExecId> maybe_update_eid{};
+    const MoveMapId update_map = context.make_persistent_move_map(body_lctx.map);
     if (update_expr) {
         inside_loop_header = true;
         maybe_update_eid
-            = solve_expr(fid, LexicalCtx{.scope = lctx.scope, .map = body_lctx.map}, update_expr);
+            = solve_expr(fid, LexicalCtx{.scope = lctx.scope, .map = update_map}, update_expr);
         cooked |= maybe_update_eid.empty();
     }
     inside_loop_header = outer_inside_loop_header;
 
-    write_back_moves(context, lctx.map, {body_lctx.map});
+    llvm::SmallVector<MoveExit> loop_exits{MoveExit{.map = body_lctx.map, .body = maybe_body_eid},
+                                           MoveExit{.map = update_map, .body = {}}};
+    for (const MoveMapId exit_map : loop_exit_maps) {
+        loop_exits.push_back(MoveExit{.map = exit_map, .body = {}});
+    }
+    write_back_moves(context, lctx.map, loop_exits);
 
     // warn on infinitely looping for loops
     if (maybe_cond_eid.has_value() && update_expr) {
@@ -1100,9 +1162,12 @@ OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBl
             .map = context.make_persistent_move_map(lctx.map)};
         maybe_else_eid = solve_body(else_lctx, else_body);
         cooked |= maybe_else_eid.empty();
-        write_back_moves(context, lctx.map, {then_lctx.map, else_lctx.map});
+        write_back_moves(context, lctx.map,
+                         {MoveExit{.map = then_lctx.map, .body = maybe_then_eid},
+                          MoveExit{.map = else_lctx.map, .body = maybe_else_eid}});
     } else {
-        write_back_moves(context, lctx.map, {then_lctx.map});
+        write_back_moves(context, lctx.map,
+                         {MoveExit{.map = then_lctx.map, .body = maybe_then_eid}});
     }
 
     if (cooked) {
@@ -1339,10 +1404,11 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
             scrutinee_exec.span);
     }
 
-    OptId<TypeId> maybe_result_tid = maybe_into_tid;
+    MatchCtx match_ctx{
+        .result_tid = maybe_into_tid, .base_map = lctx.map, .exit_maps = {}, .poisoned = false};
+    MatchCtx* const outer_match = current_match;
     bool poisoned = false;
     llvm::SmallVector<ExecId> branch_eids{};
-    llvm::SmallVector<MoveMapId> branch_maps{};
 
     for (size_t i = 0; i < branches.len; ++i) {
         const ast_expr_t* branch_expr = branches.start[i];
@@ -1350,7 +1416,6 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
         const Span branch_span{context, fid, branch_expr};
         const LexicalCtx branch_lctx{.scope = context.make_small_scope(lctx.scope, branch_span),
                                      .map = context.make_persistent_move_map(lctx.map)};
-        branch_maps.push_back(branch_lctx.map);
         InProgressBlock block{};
         llvm::SmallVector<ExecId> pattern_eids{};
 
@@ -1386,25 +1451,19 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
             }
         }
 
+        current_match = &match_ctx;
         OptId<ExecId> maybe_value_eid{};
-        bool diverges = false;
+        bool terminated = false;
         if (branch.value->type == AST_EXPR_BLOCK) {
             const ast_slice_of_stmts_t stmts = branch.value->expr.block.stmts;
-            bool yielded = false;
-            for (size_t k = 0; k < stmts.len && !yielded && !diverges; ++k) {
+            for (size_t k = 0; k < stmts.len && !terminated; ++k) {
                 const ast_stmt_t* stmt = stmts.start[k];
-                if (stmt->type == AST_STMT_YIELD) {
-                    yielded = true;
-                    maybe_value_eid = solve_expr(fid, branch_lctx, stmt->stmt.yield_stmt.expr,
-                                                 maybe_result_tid);
-                } else {
-                    const auto maybe_eid = handle_stmt(fid, branch_lctx, block, stmt);
-                    diverges = stmt->type == AST_STMT_BREAK || stmt->type == AST_STMT_CONTINUE
-                               || (maybe_eid.has_value()
-                                   && (definitely_returns(context, maybe_eid.as_id())
-                                       || context.exec(maybe_eid.as_id()).holds<ExecJump>()));
-                }
-                if ((yielded || diverges) && k + 1 < stmts.len) {
+                const auto maybe_eid = handle_stmt(fid, branch_lctx, block, stmt);
+                terminated
+                    = stmt->type == AST_STMT_BREAK || stmt->type == AST_STMT_CONTINUE
+                      || stmt->type == AST_STMT_YIELD
+                      || (maybe_eid.has_value() && definitely_diverges(context, maybe_eid.as_id()));
+                if (terminated && k + 1 < stmts.len) {
                     DiagLinker dl{context};
                     dl.link(context.emplace_diagnostic(
                         Span{context, fid, stmts.start[k + 1]->first,
@@ -1416,7 +1475,13 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
                                                        diag_type::note));
                 }
             }
-            if (!yielded && !diverges) {
+        } else {
+            maybe_value_eid = solve_expr(fid, branch_lctx, branch.value, match_ctx.result_tid);
+        }
+        current_match = outer_match;
+
+        if (branch.value->type == AST_EXPR_BLOCK) {
+            if (!terminated) {
                 const Span block_span{context, fid, branch.value};
                 const auto d0 = context.emplace_diagnostic(
                     block_span, diag_code::match_branch_block_does_not_yield_a_value,
@@ -1428,18 +1493,16 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
                 continue;
             }
         } else {
-            maybe_value_eid = solve_expr(fid, branch_lctx, branch.value, maybe_result_tid);
-        }
-        if (!diverges) {
             if (maybe_value_eid.empty()) {
                 poisoned = true;
                 continue;
             }
-            if (maybe_result_tid.empty()) {
-                maybe_result_tid = infer_type_from_exec(maybe_value_eid.as_id());
+            if (match_ctx.result_tid.empty()) {
+                match_ctx.result_tid = infer_type_from_exec(maybe_value_eid.as_id());
             }
             block.push_back_exec(
                 context.emplace_exec(ExecYield{.yield_value = maybe_value_eid}, branch_span));
+            match_ctx.exit_maps.push_back(branch_lctx.map);
         }
         const ExecId body_eid = context.emplace_exec(
             ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(block.execs),
@@ -1451,16 +1514,20 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
             branch_span));
     }
 
-    write_back_moves(context, lctx.map, branch_maps);
+    llvm::SmallVector<MoveExit> match_exits{};
+    for (const MoveMapId exit_map : match_ctx.exit_maps) {
+        match_exits.push_back(MoveExit{.map = exit_map, .body = {}});
+    }
+    write_back_moves(context, lctx.map, match_exits);
 
-    if (poisoned) {
+    if (poisoned || match_ctx.poisoned) {
         return {};
     }
 
     return context.emplace_exec(ExecMatch{.scrutinee = scrutinee_eid,
                                           .branches = context.freeze_id_vec(branch_eids),
                                           .scrutinee_tmp = maybe_tmp_did,
-                                          .result_tid = maybe_result_tid},
+                                          .result_tid = match_ctx.result_tid},
                                 span);
 }
 
@@ -1521,7 +1588,9 @@ OptId<ExecId> RuntimeSolver::handle_ternary_if(FileId fid, LexicalCtx lctx, cons
                                .map = context.make_persistent_move_map(lctx.map)};
     const auto maybe_then_eid = solve_expr(fid, then_lctx, tif.happy_expr, maybe_into_tid);
     const auto maybe_else_eid = solve_expr(fid, else_lctx, tif.else_expr, maybe_into_tid);
-    write_back_moves(context, lctx.map, {then_lctx.map, else_lctx.map});
+    write_back_moves(context, lctx.map,
+                     {MoveExit{.map = then_lctx.map, .body = maybe_then_eid},
+                      MoveExit{.map = else_lctx.map, .body = maybe_else_eid}});
 
     if (maybe_cond_eid.empty() || maybe_then_eid.empty() || maybe_else_eid.empty()) {
         return {};
