@@ -1,5 +1,10 @@
 ### todos
 
+#### priority
+- [ ] add `--check` (no codegen) flag and make hir tests use it
+- [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
+    - [ ] just find main thru top-level scope; only require it in non-lib build
+
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
     - [ ] move checker structures / scopes in runtime functions should be composed of a `ScopeId` and `MoveMapId`
@@ -69,11 +74,7 @@
     - improve/fix `unused variable: foo` diagnostics (for non top-levels)
     - add `foo is never mutated, consider not declaring as mutable`
 
-- [ ] handle debug-build dependent panicking on array/slice out-of-bounds
-
-- [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
-
-- [ ] just find main thru top-level scope; only require it in non-lib builds 
+- [ ] handle debug-build dependent panicking on array/slice out-of-boundss 
 
 - [ ] finalize `extern {}` and `extern C {}` semantics for cross-TU and FFI compilation respectively
     - [ ] hand out errors for C-incompatible functions when under a C abi extern basically w/ generics, etc.
