@@ -11,15 +11,28 @@
             - [x] tracks DefId -> ExecId and DefId -> ExecIdSliceId tracking where defs were moved (for good diagnostics)
             - [x] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
             - [ ] actually record moves
-                - [ ] copied
+                - [ ] consider either (1) add an Exec move and let backend decide tracking it or (2) directly create and set drop flags in HIR
+                - [ ] copied:
                     - [ ] explicit `Copy` structures (have intrinsic `contract Copy {mt copy() -> Self;}`)
                     - [ ] implicitly copyable for unions, variants, and structs where all members are copyable 
                     - [ ] builtin types
                     - [ ] arrays of copyable types
                         
-                - [ ] ptrs, refs, slices not implicitly copyable
+                - [ ] not copied: ptrs, refs, slices not implicitly copyable
+                - [ ] consider 
+                - [ ] also consider intrinsics:
+                    - [ ] `contract Pinned {}` to pin things
+                    - [ ] `Pin wrapper`:
+    ```bear
+struct Pin<T> has Pinned {
+    T val; 
+    mt get() -> &T => &self.val
+    mt mut get_mut() -> &mut T => &mut self.val
+}
+    ```
 
-    - [ ] finish impl `RunTimeSolver`
+- [ ] finish runtime solving 
+    - `RuntimeSolver` 
         - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
             - [ ] `yield` in nested positions inside match branch blocks (only top-level yields are handled)
             - [ ] `is` w/ variant decomposition, bindings scoped to the `if`'s then-branch
@@ -66,8 +79,13 @@
 - [ ] just find main thru top-level scope; only require it in non-lib builds 
 
 - [ ] finalize `extern {}` and `extern C {}` semantics for cross-TU and FFI compilation respectively
-    - [ ] hand out errors for C-incompatible functions when under a C abi extern, like no references, generics, etc.
-    - [ ] scrap the `import C "foo.h";` construct
+    - [ ] hand out errors for C-incompatible functions when under a C abi extern basically w/ generics, etc.
+    - [ ] scrap the `import C "foo.h";` construct or have it automatically translate-c (halfway between old/new Zig)
+
+- [ ] allow contract satisfaction `CanonicalTypeId`-wise instead of `DefId`-wise (to allow non-structs to have contracts)
+    - [ ] will require new `satisfy Foo for Bar {}` syntax
+    - [ ] `DefId` -> `DefId` contract maps will need to be use `CanonicalTypeId` keys instead 
+    - [ ] will complicate method look up (look up type's contract scope, then on miss check current scope)
 
 #### top-level resol / compt improvements:
 - [ ] deduction guides
@@ -78,11 +96,6 @@
 
 - [ ] reflection improvements
         - [ ] implement use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members (relatively easy but tedious on some special-casing inside the compile-time solver)
-
-- [ ] reduce redundant diagnostics (particularly revolving around compt eval)
-    - [ ] wrap `context.emplace_diagnostic` / `context.emplace_diagnostic_with_message_value` in ComptExprSolver
-    - [ ] make it so non-`compt` functions evaluated at compt have their bodies evaluated in a disabled diagnostic mode because their bodies get lowered later as runtime funcs, should fix (most) broken tests
-
 
 #### queries
 - [ ] better Span queries: index Span -> Exec and Span -> Type when `ctx.register_spans` is set
@@ -141,9 +154,6 @@
 #### chores
 - [ ] fix highlighting of "\\\\" in bear.nvim
 
-tools
------ 
-
 lexer & parser 
 --------------
 - [ ] improve numerical literal handling 
@@ -160,7 +170,3 @@ hir & later
 
 #### diagnostics
 - [ ] using a scope iterator, use Levenshtein distance to make a `help: did you mean:` `...`
-
-#### debugging 
-- [x] make a scope iterator
-- [ ] debug logger to display context and scope contents
