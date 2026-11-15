@@ -4,6 +4,7 @@
 - [ ] add `--check` (no codegen) flag and make hir tests use it
 - [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
     - [ ] just find main thru top-level scope; only require it in non-lib build
+- [ ] make sure `mut var foo = x;` always creates a mut binding
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
@@ -49,7 +50,7 @@
         - [ ] members are auto-destructed after the user's `destruct()`(reverse decl order)
         - [ ] variants: destruct the active field only; unions: ban `Destruct` members or make it manual
         - [ ] perhaps warn on `T has Destruct` generic bounds (meaningless since everything gets destructed)
-    - [ ] destruction in HIR via drop glue (plain `ExecFnCall`s, so compt eval runs destructors too)
+    - [ ] destruction in HIR via drop glue (plain `ExecFnCall`s, so compt eval could run destructors too)
         - [ ] synthesize a drop glue fn per type that needs destruction, cached per type (generic instantiations get their own)
             - [ ] structs: user's `destruct()` (if `has Destruct`), then glue for fields in reverse decl order
             - [ ] variants: `match` on the active field, glue for its payload
@@ -85,17 +86,36 @@
     - [ ] `DefId` -> `DefId` contract maps will need to be use `CanonicalTypeId` keys instead 
     - [ ] will complicate method look up (look up type's contract scope, then on miss check current scope)
 
-#### top-level resol / compt improvements:
+#### top-level resol / compt improvements / features:
 - [ ] deduction guides
     - [ ] struct deduction guide use (building them is impl'd but untested)
     - [ ] variant deduction guides (building and use)
 
 - [ ] generic deftypes e.g. `deftype MutDecay<T> = mut decay T;` 
 
+- [ ] add `@in_compt` builtin which is true during compt-eval, else false
+
+- [ ] cache results of `@members_of` / `@statics_of`
+
 - [ ] reflection improvements
         - [ ] implement use `foo.@id(str_val)` or `foo.@id(str_val)()` to compile-time reflect on members (relatively easy but tedious on some special-casing inside the compile-time solver)
 
-#### queries
+- [ ] `requires` clauses in contracts (optional single-bool compt predicates per contract)
+
+- [ ] `variant` stuff
+    - [ ] niches, at least for `Opt`
+    - [ ] make `Opt` (and `Err`) intrinsic
+    - [ ] impl `try foo` syntax sugar for `Opt` and `Err`
+
+- [ ] `@volatile_load(src)` / `@volatile_store(dst, src)`
+
+- [ ] intrinsic atomics (not builtin types but special-cased structs)
+
+- [ ] `for compt var x in bar {}` like inline for in Zig
+
+- [ ]
+
+#### language server / ContextDatabase stuff
 - [ ] better Span queries: index Span -> Exec and Span -> Type when `ctx.register_spans` is set
     - [ ] registration lives entirely in the emplacers (`emplace_exec`, `emplace_compt_exec`, `register_exec`, `emplace_type`), Context owns all the state
         - skip generated spans and skip while diagnostics are disabled (speculative solves), so do the diagnostic toggle bullet first
