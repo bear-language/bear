@@ -7,6 +7,8 @@ fn main() {
     warn(1);
     var _0 = Foo..A();
     var _1 = Foo..D(1);
+    var _2 = nan(1.0);
+    lit(1);
 }
 
 fn oops(i32 mut a) {
@@ -54,7 +56,7 @@ fn warn(u32 mut a) {
         a += 42;
     }
 
-    if (Foo..D(a) != Foo..D(a)) {
+    if (Foo..D(a) != Foo..D(a)) { // warn
         a++;
     }
 
@@ -84,4 +86,26 @@ variant Foo {
     B,
     C,
     D(u32 a),
+}
+
+fn nan(f64 x) -> bool => x != x // fine (NaN check)
+
+fn lit(mut u32 a) {
+    if true { // warn
+        a++;
+    }
+
+    if false { // warn
+        a++;
+    }
+
+    while a != a { // warn
+        1+1; // unused warn is separate from the loop warn
+    }
+
+    for (mut var i = 0; a != a; i++) { // warn (always false, not "never terminates")
+        a++;
+    }
+
+    1+1 if a == a else 2+2; // warn (no `if compt` fix since `a == a` isn't compt)
 }

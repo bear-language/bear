@@ -852,9 +852,11 @@ solve_variant_init_impl(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMap
                                                     .variant_field_def_id = variant_field_did},
                                span, should_be_compt);
 
+    const DefId variant_did
+        = def_visitor.visit_as_independent(context.def(variant_field_did).parent.as_id());
     return context.emplace_exec(
         ExecVariantInit{.payload_init = field_init,
-                        .variant_def_id = context.def(variant_field_did).parent.as_id(),
+                        .variant_def_id = variant_did,
                         .active_member_idx = context.def(variant_field_did).member_idx},
         span, should_be_compt);
 }

@@ -536,8 +536,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::condition_is_always_false_so_loop_body_never_executes:
         return "condition is always false so loop body never executes";
     case diag_code::if_condition_always_evaluates_to:
-        return "if condition always evaluate to";
-    case diag_code::for_condtional_compilation_use_if_compt:
+        return "if condition always evaluates to";
+    case diag_code::for_conditional_compilation_use_if_compt:
         return "for conditional compilation, use `if compt`";
     case diag_code::if_body_will_always_execute:
         return "if body will always execute";

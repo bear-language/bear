@@ -867,6 +867,23 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
         try_warn_suspicious_assignment_in_cond(maybe_cond_eid.as_id());
     }
     cooked |= maybe_cond_eid.empty();
+    if (maybe_cond_eid.has_value()) {
+        if (const std::optional<bool> maybe_compt_bool_cond
+            = try_compt_bool(maybe_cond_eid.as_id());
+            maybe_compt_bool_cond.has_value() && !maybe_compt_bool_cond.value()) {
+            const bool cond_already_warned
+                = after_solving_cond_diag_cnt > before_solving_cond_diag_cnt;
+            const auto d = context.emplace_diagnostic(
+                context.exec(maybe_cond_eid.as_id()).span,
+                diag_code::condition_is_always_false_so_loop_body_never_executes,
+                cond_already_warned ? diag_type::note : diag_type::warning,
+                cond_already_warned ? DiagnosticInfoValue{DiagnosticInfoNoPreview{}}
+                                    : DiagnosticNoOtherInfo{});
+            if (cond_already_warned) {
+                context.force_link_diagnostic(d);
+            }
+        }
+    }
 
     const ExecId loop_eid = context.reserve_exec(span);
 
@@ -904,28 +921,11 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
     if (maybe_cond_eid.has_value() && update_expr) {
         if (const std::optional<bool> maybe_compt_bool_cond
             = try_compt_bool(maybe_cond_eid.as_id());
-            maybe_compt_bool_cond.has_value()) {
+            maybe_compt_bool_cond.has_value() && maybe_compt_bool_cond.value()) {
             context.emplace_diagnostic(
                 context.exec(maybe_cond_eid.as_id()).span,
                 diag_code::for_loop_never_terminates_since_condition_is_always_true,
                 diag_type::warning);
-        }
-    }
-    if (maybe_cond_eid.has_value()) {
-        if (const std::optional<bool> maybe_compt_bool_cond
-            = try_compt_bool(maybe_cond_eid.as_id());
-            maybe_compt_bool_cond.has_value() && !maybe_compt_bool_cond.value()) {
-            const bool cond_already_warned
-                = after_solving_cond_diag_cnt > before_solving_cond_diag_cnt;
-            const auto d = context.emplace_diagnostic(
-                context.exec(maybe_cond_eid.as_id()).span,
-                diag_code::condition_is_always_false_so_loop_body_never_executes,
-                cond_already_warned ? diag_type::note : diag_type::warning,
-                cond_already_warned ? DiagnosticInfoValue{DiagnosticInfoNoPreview{}}
-                                    : DiagnosticNoOtherInfo{});
-            if (cond_already_warned) {
-                context.force_link_diagnostic(d);
-            }
         }
     }
 
@@ -1066,22 +1066,27 @@ OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBl
                 const bool cond_is_true = maybe_compt_bool_cond.value();
                 const bool cond_already_warned
                     = after_solving_cond_diag_cnt > before_solving_cond_diag_cnt;
-                const auto d0 = context.emplace_diagnostic(
+                if (!cond_already_warned) {
+                    context.emplace_diagnostic_with_message_value(
+                        context.exec(maybe_cond_eid.as_id()).span,
+                        diag_code::if_condition_always_evaluates_to, diag_type::warning,
+                        DiagnosticSymbolAfterMessage{.sid = cond_is_true
+                                                                ? context.symbol_id<"true">()
+                                                                : context.symbol_id<"false">()});
+                }
+                context.force_link_diagnostic(context.emplace_diagnostic(
                     Span{context, fid, if_stmt.body_stmt},
                     cond_is_true ? diag_code::if_body_will_always_execute
                                  : diag_code::if_body_will_never_execute,
-                    diag_type::note);
-                const auto d1 = context.emplace_diagnostic(
-                    Span{context, fid, stmt->first},
-                    diag_code::for_condtional_compilation_use_if_compt, diag_type::help);
-                const auto d2 = context.emplace_diagnostic_with_message_value(
-                    Span{context, fid, stmt->first}, diag_code::replace_with, diag_type::help,
-                    DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"if compt">()});
-                if (cond_already_warned) {
-                    context.force_link_diagnostic(d0);
+                    cond_already_warned ? diag_type::note : diag_type::warning));
+                if (!cond_already_warned) {
+                    context.force_link_diagnostic(context.emplace_diagnostic(
+                        Span{context, fid, stmt->first},
+                        diag_code::for_conditional_compilation_use_if_compt, diag_type::help));
+                    context.force_link_diagnostic(context.emplace_diagnostic_with_message_value(
+                        Span{context, fid, stmt->first}, diag_code::replace_with, diag_type::help,
+                        DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"if compt">()}));
                 }
-                context.force_link_diagnostic(d1);
-                context.force_link_diagnostic(d2);
             }
         }
     }
@@ -1485,18 +1490,6 @@ OptId<ExecId> RuntimeSolver::handle_ternary_if(FileId fid, LexicalCtx lctx, cons
     }
     const auto after_solving_cond_diag_cnt = context.diagnostic_count();
 
-    const LexicalCtx then_lctx{.scope = lctx.scope,
-                               .map = context.make_persistent_move_map(lctx.map)};
-    const LexicalCtx else_lctx{.scope = lctx.scope,
-                               .map = context.make_persistent_move_map(lctx.map)};
-    const auto maybe_then_eid = solve_expr(fid, then_lctx, tif.happy_expr, maybe_into_tid);
-    const auto maybe_else_eid = solve_expr(fid, else_lctx, tif.else_expr, maybe_into_tid);
-    write_back_moves(context, lctx.map, {then_lctx.map, else_lctx.map});
-
-    if (maybe_cond_eid.empty() || maybe_then_eid.empty() || maybe_else_eid.empty()) {
-        return {};
-    }
-
     if (maybe_cond_eid.has_value()) {
         if (const std::optional<bool> maybe_compt_bool_cond
             = try_compt_bool(maybe_cond_eid.as_id());
@@ -1513,18 +1506,29 @@ OptId<ExecId> RuntimeSolver::handle_ternary_if(FileId fid, LexicalCtx lctx, cons
                     = cond_is_true ? context.symbol_id<"true">() : context.symbol_id<"false">()}},
                 cond_already_warned ? DiagnosticInfoValue{DiagnosticInfoNoPreview{}}
                                     : DiagnosticNoOtherInfo{});
-            const auto d1 = context.emplace_diagnostic(
-                Span{context, fid, tif.if_tok}, diag_code::for_condtional_compilation_use_if_compt,
-                diag_type::help);
-            const auto d2 = context.emplace_diagnostic_with_message_value(
-                Span{context, fid, tif.if_tok}, diag_code::replace_with, diag_type::help,
-                DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"if compt">()});
             if (cond_already_warned) {
                 context.force_link_diagnostic(d0);
+            } else {
+                context.force_link_diagnostic(context.emplace_diagnostic(
+                    Span{context, fid, tif.if_tok},
+                    diag_code::for_conditional_compilation_use_if_compt, diag_type::help));
+                context.force_link_diagnostic(context.emplace_diagnostic_with_message_value(
+                    Span{context, fid, tif.if_tok}, diag_code::replace_with, diag_type::help,
+                    DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"if compt">()}));
             }
-            context.force_link_diagnostic(d1);
-            context.force_link_diagnostic(d2);
         }
+    }
+
+    const LexicalCtx then_lctx{.scope = lctx.scope,
+                               .map = context.make_persistent_move_map(lctx.map)};
+    const LexicalCtx else_lctx{.scope = lctx.scope,
+                               .map = context.make_persistent_move_map(lctx.map)};
+    const auto maybe_then_eid = solve_expr(fid, then_lctx, tif.happy_expr, maybe_into_tid);
+    const auto maybe_else_eid = solve_expr(fid, else_lctx, tif.else_expr, maybe_into_tid);
+    write_back_moves(context, lctx.map, {then_lctx.map, else_lctx.map});
+
+    if (maybe_cond_eid.empty() || maybe_then_eid.empty() || maybe_else_eid.empty()) {
+        return {};
     }
 
     ExecId then_eid = maybe_then_eid.as_id();
@@ -2737,6 +2741,55 @@ bool RuntimeSolver::guard_compt_rhs_operand(builtin_type lhs_bt, binary_op op, E
     return false;
 }
 
+[[nodiscard]] static bool type_may_contain_float(Context& context, TypeId tid) {
+    const Type& ty = context.type(tid);
+    const auto members_may_contain_float = [&context](auto mems) {
+        for (auto didx = mems.begin(); didx != mems.end(); ++didx) {
+            const auto& def = context.def(didx);
+            if (def.template holds<DefVariable>()
+                && type_may_contain_float(context, def.template as<DefVariable>().type_id)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    return ty.visit(Ovld{
+        [](const TypeBuiltin& t) -> bool {
+            return t.type == builtin_type::f32 || t.type == builtin_type::f64;
+        },
+        [&context, &members_may_contain_float](const TypeStruct& t) -> bool {
+            return t.gen_args_slice.has_value()
+                   || members_may_contain_float(context.ordered_defs_for(t.def_id));
+        },
+        [&context, &members_may_contain_float](const TypeVariant& t) -> bool {
+            if (t.generic || t.gen_args_slice.has_value()) {
+                return true;
+            }
+            const auto fields = context.ordered_defs_for(t.def_id);
+            for (auto field_didx = fields.begin(); field_didx != fields.end(); ++field_didx) {
+                const auto& field = context.def(field_didx);
+                if (field.holds<DefVariantField>()
+                    && members_may_contain_float(field.as<DefVariantField>().members)) {
+                    return true;
+                }
+            }
+            return false;
+        },
+        [&context, &members_may_contain_float](const TypeUnion& t) -> bool {
+            return members_may_contain_float(context.ordered_defs_for(t.def_id));
+        },
+        [&context](const TypeDeftype& t) -> bool {
+            return type_may_contain_float(context, t.true_type);
+        },
+        [&context](const TypeArr& t) -> bool { return type_may_contain_float(context, t.inner); },
+        [&context](const TypeRef& t) -> bool { return type_may_contain_float(context, t.inner); },
+        [&context](const TypeSlice& t) -> bool { return type_may_contain_float(context, t.inner); },
+        [](const TypePtr&) -> bool { return false; },
+        [](const TypeFnPtr&) -> bool { return false; },
+        [](const TypeVar&) -> bool { return true; },
+    });
+}
+
 OptId<ExecId> RuntimeSolver::solve_binary_exec(ExecId lhs_eid, binary_op op, ExecId rhs_eid,
                                                Span span) {
     const bool is_bool_conj = op == binary_op::bool_and || op == binary_op::bool_or;
@@ -2803,8 +2856,8 @@ OptId<ExecId> RuntimeSolver::solve_binary_exec(ExecId lhs_eid, binary_op op, Exe
         }
     };
 
-    const auto is_always_true_or_always_false_bool_eq_neq = [this, &span, lhs_eid, rhs_eid, op] {
-        if (bin_op_is_eq_neq(op)) {
+    const auto is_always_true_or_always_false_bool_eq_neq = [this, lhs_eid, rhs_eid, op, lhs_tid] {
+        if (bin_op_is_eq_neq(op) && !type_may_contain_float(context, lhs_tid)) {
             const bool neither_has_side_effect = !exec_may_have_side_effects(context, lhs_eid)
                                                  && !exec_may_have_side_effects(context, rhs_eid);
             const bool both_sides_equivalent
@@ -2901,6 +2954,9 @@ OptId<ExecId> RuntimeSolver::solve_binary_exec(ExecId lhs_eid, binary_op op, Exe
         if (bin_op_is_eq_neq(op)
             && (context.assignable_from_type_to(rhs_tid, lhs_tid)
                 || context.assignable_from_type_to(lhs_tid, rhs_tid))) {
+            if (is_always_true_or_always_false_bool_eq_neq()) {
+                return warn_and_emplace_always_true_or_always_false_bool_eq_neq();
+            }
             return context.emplace_exec(ExecBinary{.lhs = lhs_eid, .rhs = rhs_eid, .op = op}, span);
         }
         diag_op_not_viable();

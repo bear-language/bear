@@ -765,45 +765,45 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
             const Block bl = ctx.block(d.block_id);
             for (const auto eidx : bl.execs) {
                 const ExecId eid = ctx.exec_id(eidx);
-                if (exec_result_is_used(ctx, eid)) {
+                if (may_have_side_effects_impl<E>(ctx, eid)) {
                     return true;
                 }
             }
             return false;
         },
         [&ctx](const ExecBranch& d) -> bool {
-            return exec_result_is_used(ctx, d.condition) || exec_result_is_used(ctx, d.then_block)
-                   || (d.else_block.has_value() && exec_result_is_used(ctx, d.else_block.as_id()));
+            return may_have_side_effects_impl<E>(ctx, d.condition) || may_have_side_effects_impl<E>(ctx, d.then_block)
+                   || (d.else_block.has_value() && may_have_side_effects_impl<E>(ctx, d.else_block.as_id()));
         },
         [&ctx](const ExecLoop& d) -> bool {
-            return (d.condition.has_value() && exec_result_is_used(ctx, d.condition.as_id()))
-                   || (d.update.has_value() && exec_result_is_used(ctx, d.update.as_id()))
-                   || exec_result_is_used(ctx, d.body);
+            return (d.condition.has_value() && may_have_side_effects_impl<E>(ctx, d.condition.as_id()))
+                   || (d.update.has_value() && may_have_side_effects_impl<E>(ctx, d.update.as_id()))
+                   || may_have_side_effects_impl<E>(ctx, d.body);
         },
         [&ctx](const ExecReturn& d) -> bool {
             if constexpr (E == effect::used) {
                 return true;
             } else {
                 return d.return_value.has_value()
-                       && exec_result_is_used(ctx, d.return_value.as_id());
+                       && may_have_side_effects_impl<E>(ctx, d.return_value.as_id());
             }
         },
         [&ctx](const ExecYield& d) -> bool {
-            return d.yield_value.has_value() && exec_result_is_used(ctx, d.yield_value.as_id());
+            return d.yield_value.has_value() && may_have_side_effects_impl<E>(ctx, d.yield_value.as_id());
         },
         [&ctx](const ExecJump& d) -> bool {
             if (d.spot == jump_spot::start) {
-                return exec_result_is_used(ctx, d.block);
+                return may_have_side_effects_impl<E>(ctx, d.block);
             }
             return true;
         },
-        [&ctx](const ExecUnionInit& d) -> bool { return exec_result_is_used(ctx, d.member_init); },
+        [&ctx](const ExecUnionInit& d) -> bool { return may_have_side_effects_impl<E>(ctx, d.member_init); },
         [&ctx](const ExecVariantInit& d) -> bool {
-            return exec_result_is_used(ctx, d.payload_init);
+            return may_have_side_effects_impl<E>(ctx, d.payload_init);
         },
         [&ctx](const ExecStructInit& d) -> bool {
             for (const auto eidx : d.member_inits) {
-                if (exec_result_is_used(ctx, ctx.exec_id(eidx))) {
+                if (may_have_side_effects_impl<E>(ctx, ctx.exec_id(eidx))) {
                     return true;
                 }
             }
@@ -811,11 +811,11 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
         },
         [](const ExecAssignment&) -> bool { return true; },
         [&ctx](const ExecBinary& d) -> bool {
-            return exec_result_is_used(ctx, d.lhs) || exec_result_is_used(ctx, d.rhs);
+            return may_have_side_effects_impl<E>(ctx, d.lhs) || may_have_side_effects_impl<E>(ctx, d.rhs);
         },
-        [&ctx](const ExecCast& d) -> bool { return exec_result_is_used(ctx, d.exec); },
+        [&ctx](const ExecCast& d) -> bool { return may_have_side_effects_impl<E>(ctx, d.exec); },
         [&ctx](const ExecSubscript& d) -> bool {
-            return exec_result_is_used(ctx, d.base) || exec_result_is_used(ctx, d.index);
+            return may_have_side_effects_impl<E>(ctx, d.base) || may_have_side_effects_impl<E>(ctx, d.index);
         },
         [](const ExecFnCall&) -> bool {
             return true;
@@ -835,25 +835,25 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
             */
         },
         [&ctx](const ExecMatch& d) -> bool {
-            if (exec_result_is_used(ctx, d.scrutinee)) {
+            if (may_have_side_effects_impl<E>(ctx, d.scrutinee)) {
                 return true;
             }
             for (const auto eidx : d.branches) {
-                if (exec_result_is_used(ctx, ctx.exec_id(eidx))) {
+                if (may_have_side_effects_impl<E>(ctx, ctx.exec_id(eidx))) {
                     return true;
                 }
             }
             return false;
         },
-        [&ctx](const ExecMatchBranch& d) -> bool { return exec_result_is_used(ctx, d.body); },
+        [&ctx](const ExecMatchBranch& d) -> bool { return may_have_side_effects_impl<E>(ctx, d.body); },
         [&ctx](const ExecTernaryIf& d) -> bool {
-            return exec_result_is_used(ctx, d.condition) || exec_result_is_used(ctx, d.then_value)
-                   || exec_result_is_used(ctx, d.else_value);
+            return may_have_side_effects_impl<E>(ctx, d.condition) || may_have_side_effects_impl<E>(ctx, d.then_value)
+                   || may_have_side_effects_impl<E>(ctx, d.else_value);
         },
         [](const ExecCompoundAssignment&) -> bool { return true; },
         [&ctx](const ExecListLiteral& d) -> bool {
             for (const auto eidx : d.elems) {
-                if (exec_result_is_used(ctx, ctx.exec_id(eidx))) {
+                if (may_have_side_effects_impl<E>(ctx, ctx.exec_id(eidx))) {
                     return true;
                 }
             }
@@ -861,14 +861,14 @@ template <effect E> static bool may_have_side_effects_impl(const Context& ctx, E
         },
         [&ctx](const ExecVariantFieldInit& d) -> bool {
             for (const auto eidx : d.member_inits) {
-                if (exec_result_is_used(ctx, ctx.exec_id(eidx))) {
+                if (may_have_side_effects_impl<E>(ctx, ctx.exec_id(eidx))) {
                     return true;
                 }
             }
             return false;
         },
         [&ctx](const ExecRange& d) -> bool {
-            return exec_result_is_used(ctx, d.start) || exec_result_is_used(ctx, d.end);
+            return may_have_side_effects_impl<E>(ctx, d.start) || may_have_side_effects_impl<E>(ctx, d.end);
         },
         [](const ExecFnPtr&) -> bool { return {}; },
         [](const ExecBorrow&) -> bool { return {}; },
