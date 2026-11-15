@@ -10,7 +10,15 @@
         - [ ] `MoveMapId`: same idea as a scope, but:
             - [x] tracks DefId -> ExecId and DefId -> ExecIdSliceId tracking where defs were moved (for good diagnostics)
             - [x] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
-            - [ ] actually record moves (needs a copy vs. move rule per type first)
+            - [ ] actually record moves
+                - [ ] copied
+                    - [ ] explicit `Copy` structures (have intrinsic `contract Copy {mt copy() -> Self;}`)
+                    - [ ] implicitly copyable for unions, variants, and structs where all members are copyable 
+                    - [ ] builtin types
+                    - [ ] arrays of copyable types
+                        
+                - [ ] ptrs, refs, slices not implicitly copyable
+
     - [ ] finish impl `RunTimeSolver`
         - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
             - [ ] `yield` in nested positions inside match branch blocks (only top-level yields are handled)
@@ -18,7 +26,6 @@
             - [ ] `for in` (blocked on an iteration protocol/contract + `std..Range`)
         - [ ] closures (rust-like capture semantics)
             - [ ] note: compt-closures in function bodies naturally capture (by-scope) local vars which is malformed, so this is gonna have to be handled
-        - [ ] warn on unused expression statements (fine for assignments/mutations/discardable or void fns)
         - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee); either convert them in HIR or cast when lowering the `switch`
         - [ ] use deduction guides for 
             -  [x] functions
