@@ -1,8 +1,5 @@
 ### todos
 
-#### priority 
-- [ ] evaluate non-taken compt paths for basic validity 
-
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
     - [ ] move checker structures / scopes in runtime functions should be composed of a `ScopeId` and `MoveMapId`
