@@ -224,6 +224,7 @@ typedef struct ast_expr_closure {
 
 typedef struct ast_expr_ternary_if {
     ast_expr_t* happy_expr;
+    token_t* if_tok;
     ast_expr_t* condition;
     ast_expr_t* else_expr;
     bool compt;

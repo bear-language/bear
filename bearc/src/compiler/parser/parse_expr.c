@@ -1256,9 +1256,11 @@ ast_expr_t* parse_expr_ternary_if(parser_t* p, ast_expr_t* lhs) {
     tif->type = AST_EXPR_TERNARY_IF;
     token_t* first = lhs->first;
     tif->expr.ternary_if.happy_expr = lhs;
-    if (!parser_expect_token(p, TOK_IF)) {
+    token_t* if_tok = parser_expect_token(p, TOK_IF);
+    if (!if_tok) {
         return parser_sync_expr(p);
     }
+    tif->expr.ternary_if.if_tok = if_tok;
     tif->expr.ternary_if.compt = parser_match_token(p, TOK_COMPT);
     ast_expr_t* cond = parse_expr(p);
     if (cond->type == AST_EXPR_INVALID) {

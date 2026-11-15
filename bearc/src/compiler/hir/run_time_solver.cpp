@@ -859,8 +859,10 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
     const bool outer_inside_loop_header = inside_loop_header;
 
     inside_loop_header = true;
+    const auto before_solving_cond_diag_cnt = context.diagnostic_count();
     const auto maybe_cond_eid
         = solve_expr(fid, lctx, cond_expr, context.type_for_builtin(builtin_type::boolean));
+    const auto after_solving_cond_diag_cnt = context.diagnostic_count();
     if (maybe_cond_eid.has_value()) {
         try_warn_suspicious_assignment_in_cond(maybe_cond_eid.as_id());
     }
@@ -907,6 +909,23 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
                 context.exec(maybe_cond_eid.as_id()).span,
                 diag_code::for_loop_never_terminates_since_condition_is_always_true,
                 diag_type::warning);
+        }
+    }
+    if (maybe_cond_eid.has_value()) {
+        if (const std::optional<bool> maybe_compt_bool_cond
+            = try_compt_bool(maybe_cond_eid.as_id());
+            maybe_compt_bool_cond.has_value() && !maybe_compt_bool_cond.value()) {
+            const bool cond_already_warned
+                = after_solving_cond_diag_cnt > before_solving_cond_diag_cnt;
+            const auto d = context.emplace_diagnostic(
+                context.exec(maybe_cond_eid.as_id()).span,
+                diag_code::condition_is_always_false_so_loop_body_never_executes,
+                cond_already_warned ? diag_type::note : diag_type::warning,
+                cond_already_warned ? DiagnosticInfoValue{DiagnosticInfoNoPreview{}}
+                                    : DiagnosticNoOtherInfo{});
+            if (cond_already_warned) {
+                context.force_link_diagnostic(d);
+            }
         }
     }
 
@@ -1031,11 +1050,40 @@ OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBl
         }
         cooked = true;
     } else {
+        const auto before_solving_cond_diag_cnt = context.diagnostic_count();
         maybe_cond_eid = solve_expr(fid, lctx, if_stmt.condition, bool_tid);
+        const auto after_solving_cond_diag_cnt = context.diagnostic_count();
         if (maybe_cond_eid.has_value()) {
             try_warn_suspicious_assignment_in_cond(maybe_cond_eid.as_id());
         }
         cooked |= maybe_cond_eid.empty();
+
+        // warn cond always true/false
+        if (maybe_cond_eid.has_value()) {
+            if (const std::optional<bool> maybe_compt_bool_cond
+                = try_compt_bool(maybe_cond_eid.as_id());
+                maybe_compt_bool_cond.has_value()) {
+                const bool cond_is_true = maybe_compt_bool_cond.value();
+                const bool cond_already_warned
+                    = after_solving_cond_diag_cnt > before_solving_cond_diag_cnt;
+                const auto d0 = context.emplace_diagnostic(
+                    Span{context, fid, if_stmt.body_stmt},
+                    cond_is_true ? diag_code::if_body_will_always_execute
+                                 : diag_code::if_body_will_never_execute,
+                    diag_type::note);
+                const auto d1 = context.emplace_diagnostic(
+                    Span{context, fid, stmt->first},
+                    diag_code::for_condtional_compilation_use_if_compt, diag_type::help);
+                const auto d2 = context.emplace_diagnostic_with_message_value(
+                    Span{context, fid, stmt->first}, diag_code::replace_with, diag_type::help,
+                    DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"if compt">()});
+                if (cond_already_warned) {
+                    context.force_link_diagnostic(d0);
+                }
+                context.force_link_diagnostic(d1);
+                context.force_link_diagnostic(d2);
+            }
+        }
     }
 
     const LexicalCtx then_lctx{
@@ -1422,6 +1470,7 @@ OptId<ExecId> RuntimeSolver::handle_ternary_if(FileId fid, LexicalCtx lctx, cons
     const TypeId bool_tid = context.type_for_builtin(builtin_type::boolean);
 
     OptId<ExecId> maybe_cond_eid{};
+    const auto before_solving_cond_diag_cnt = context.diagnostic_count();
     if (tif.compt) {
         const auto maybe_bool = solve_compt_condition(fid, lctx, tif.condition);
         if (maybe_bool.has_value()) {
@@ -1434,6 +1483,7 @@ OptId<ExecId> RuntimeSolver::handle_ternary_if(FileId fid, LexicalCtx lctx, cons
             try_warn_suspicious_assignment_in_cond(maybe_cond_eid.as_id());
         }
     }
+    const auto after_solving_cond_diag_cnt = context.diagnostic_count();
 
     const LexicalCtx then_lctx{.scope = lctx.scope,
                                .map = context.make_persistent_move_map(lctx.map)};
@@ -1445,6 +1495,36 @@ OptId<ExecId> RuntimeSolver::handle_ternary_if(FileId fid, LexicalCtx lctx, cons
 
     if (maybe_cond_eid.empty() || maybe_then_eid.empty() || maybe_else_eid.empty()) {
         return {};
+    }
+
+    if (maybe_cond_eid.has_value()) {
+        if (const std::optional<bool> maybe_compt_bool_cond
+            = try_compt_bool(maybe_cond_eid.as_id());
+            maybe_compt_bool_cond.has_value()) {
+            const bool cond_is_true = maybe_compt_bool_cond.value();
+            const bool cond_already_warned
+                = after_solving_cond_diag_cnt > before_solving_cond_diag_cnt;
+            const auto d0 = context.emplace_diagnostic(
+                context.exec(maybe_cond_eid.as_id()).span,
+                diag_code::if_condition_always_evaluates_to,
+                cond_already_warned ? diag_type::note : diag_type::warning,
+                DiagnosticMessageValue{DiagnosticSymbolAfterMessage{
+                    .sid
+                    = cond_is_true ? context.symbol_id<"true">() : context.symbol_id<"false">()}},
+                cond_already_warned ? DiagnosticInfoValue{DiagnosticInfoNoPreview{}}
+                                    : DiagnosticNoOtherInfo{});
+            const auto d1 = context.emplace_diagnostic(
+                Span{context, fid, tif.if_tok}, diag_code::for_condtional_compilation_use_if_compt,
+                diag_type::help);
+            const auto d2 = context.emplace_diagnostic_with_message_value(
+                Span{context, fid, tif.if_tok}, diag_code::replace_with, diag_type::help,
+                DiagnosticSymbolAfterMessage{.sid = context.symbol_id<"if compt">()});
+            if (cond_already_warned) {
+                context.force_link_diagnostic(d0);
+            }
+            context.force_link_diagnostic(d1);
+            context.force_link_diagnostic(d2);
+        }
     }
 
     ExecId then_eid = maybe_then_eid.as_id();
@@ -2723,6 +2803,26 @@ OptId<ExecId> RuntimeSolver::solve_binary_exec(ExecId lhs_eid, binary_op op, Exe
         }
     };
 
+    const auto is_always_true_or_always_false_bool_eq_neq = [this, &span, lhs_eid, rhs_eid, op] {
+        if (bin_op_is_eq_neq(op)) {
+            const bool neither_has_side_effect = !exec_may_have_side_effects(context, lhs_eid)
+                                                 && !exec_may_have_side_effects(context, rhs_eid);
+            const bool both_sides_equivalent
+                = explicitly_equivalent_exec(context, lhs_eid, rhs_eid);
+            return neither_has_side_effect && both_sides_equivalent;
+        }
+        return false;
+    };
+
+    const auto warn_and_emplace_always_true_or_always_false_bool_eq_neq = [this, op, &span] {
+        const bool always_true = op == binary_op::bool_equal;
+        context.emplace_diagnostic_with_message_value(
+            span, diag_code::expression_always_evaluates_to, diag_type::warning,
+            DiagnosticSymbolAfterMessage{.sid = always_true ? context.symbol_id<"true">()
+                                                            : context.symbol_id<"false">()});
+        return context.emplace_compt_exec(ExecComptConstant{always_true}, span);
+    };
+
     if (is_bool_conj) {
         bool cooked = false;
         for (const auto& [eid, ty] : {std::pair{lhs_eid, lhs_ty}, std::pair{rhs_eid, rhs_ty}}) {
@@ -2790,6 +2890,10 @@ OptId<ExecId> RuntimeSolver::solve_binary_exec(ExecId lhs_eid, binary_op op, Exe
             diag_op_not_viable();
             return {};
         }
+        if (is_always_true_or_always_false_bool_eq_neq()) {
+            return warn_and_emplace_always_true_or_always_false_bool_eq_neq();
+        }
+
         return context.emplace_exec(ExecBinary{.lhs = lhs_eid, .rhs = rhs_eid, .op = op}, span);
     }
 
@@ -2830,6 +2934,10 @@ OptId<ExecId> RuntimeSolver::solve_binary_exec(ExecId lhs_eid, binary_op op, Exe
                                               .end = rhs_eid,
                                               .inclusive = op == binary_op::range_inclusive},
                                     span);
+    }
+
+    if (is_always_true_or_always_false_bool_eq_neq()) {
+        return warn_and_emplace_always_true_or_always_false_bool_eq_neq();
     }
 
     return context.emplace_exec(ExecBinary{.lhs = lhs_eid, .rhs = rhs_eid, .op = op}, span);

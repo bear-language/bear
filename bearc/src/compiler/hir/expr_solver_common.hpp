@@ -796,9 +796,10 @@ solve_variant_init_impl(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMap
 
     static constexpr bool is_compt_eval = std::same_as<Solver, ComptExprSolver>;
     Context& context = solver.get_context();
+    DefVisitor& def_visitor = solver.get_def_visitor();
 
     const ast_expr_t* called_expr = fn_call_expr->expr.fn_call.left_expr;
-    const Def& def = context.def(variant_field_did);
+    const Def& def = context.def(def_visitor.visit_as_dependent(variant_field_did));
     if (!def.holds<DefVariantField>()) {
         context.emplace_diagnostic(Span{context, fid, called_expr},
                                    diag_code::value_is_not_callable, diag_type::error,

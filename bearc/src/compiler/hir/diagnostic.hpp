@@ -269,6 +269,11 @@ enum class diag_code : uint8_t {
     suspicious_assignment_in_condition,
     result_of_expression_is_unused,
     expression_has_no_side_effects,
+    condition_is_always_false_so_loop_body_never_executes,
+    if_condition_always_evaluates_to,
+    for_condtional_compilation_use_if_compt,
+    if_body_will_always_execute,
+    if_body_will_never_execute,
 
     count, // this must be last,
 

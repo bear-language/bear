@@ -1,0 +1,87 @@
+// tests/hir/b33.br
+
+// testing warns on always true/false ==/!=
+
+fn main() {
+    oops(1);
+    warn(1);
+    var _0 = Foo..A();
+    var _1 = Foo..D(1);
+}
+
+fn oops(i32 mut a) {
+    while a == a { // warn
+        1+1; // oops unused
+    }
+    while (12 == 12) { // oops (unreachable since above loop never terminates):
+        a++;
+    }
+    while a != a { // warn
+        ++a;
+    }
+}
+
+u32 mut g;
+
+fn foo() -> u32 => g++
+
+fn warn(u32 mut a) {
+    while a != a { // warn
+        ++a;
+    }
+
+    while Foo..A == Foo..B { // warn
+        ++a;
+    }
+
+    while Foo..A != Foo..A { // warn
+        a += 4;
+    }
+
+    while compt(Foo..D(12) != Foo..D(12)) { // warn
+        a += 42;
+    }
+
+    while compt(Foo..D(12) == Foo..D(14)) { // warn
+        a += 42;
+    }
+
+    while (Foo..D(a) != Foo..D(a)) { // warn
+        a += 42;
+    }
+
+    while (Foo..D(a++) != Foo..D(a)) { // fine
+        a += 42;
+    }
+
+    if (Foo..D(a) != Foo..D(a)) {
+        a++;
+    }
+
+    if (a == a) { // warn
+        a++; 
+    }
+
+    if (a != a) { // warn
+        a++;
+    }
+
+    if (a + foo() == a + foo()) { // fine
+        foo();
+    }
+
+    a++ if a == a else a += 32; // warn
+
+    a++ if true else a += 32; // warn
+
+    a++ if compt true else a += 32; // fine
+
+    asdasASHJDFaskjhdfgaksjdf if compt false else a++; // fine cuz conditional compilation (if compt)
+}
+
+variant Foo {
+    A,
+    B,
+    C,
+    D(u32 a),
+}

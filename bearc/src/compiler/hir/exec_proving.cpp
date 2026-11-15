@@ -887,4 +887,8 @@ bool exec_result_is_used(const Context& ctx, ExecId eid) {
     return may_have_side_effects_impl<effect::used>(ctx, eid);
 }
 
+bool exec_may_have_side_effects(const Context& ctx, ExecId eid) {
+    return may_have_side_effects_impl<effect::purity>(ctx, eid);
+}
+
 } // namespace hir
