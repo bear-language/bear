@@ -856,6 +856,10 @@ class Context {
 
     [[nodiscard]] bool type_has_contract(TypeId tid, DefId contract_did);
 
+    [[nodiscard]] bool type_is_copyable(TypeId tid);
+
+    [[nodiscard]] OptId<DefId> non_copyable_cause_for_def(DefId did);
+
     [[nodiscard]] IdSet<DefId>& contract_set_for_struct_did(DefId struct_did);
 
     [[nodiscard]] OptId<TypeId> self_type_for_fn(ScopeId scope, const ast_stmt_fn_decl_t* fn_decl);
@@ -1071,6 +1075,8 @@ class Context {
     IdHashMap<DefId, ContractSetId> struct_did_to_contract_set_id;
     DataArena contract_set_arena;
     StableIdVecMap<ContractSetId, ContractSet> contract_sets;
+    DataArena def_to_non_copyable_cause_arena;
+    IdHashMap<DefId, DefId> def_to_non_copyable_cause;
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // types ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -1,0 +1,159 @@
+// tests/hir/b36.br
+
+// testing moves and copies
+
+struct Res has Destruct {
+    i32 handle;
+    mt mut destruct() { return; }
+    fn eat(Self self) { return; }
+    fn look(&Self self) { return; }
+}
+
+struct Plain {
+    i32 a;
+    f32 b;
+}
+
+struct Holder {
+    Res r;
+}
+
+variant Maybe {
+    Some(Res r),
+    Nothing,
+}
+
+fn take(Res r) { return; }
+fn take_holder(Holder h) { return; }
+fn take_plain(Plain p) { return; }
+fn peek(&Res r) { return; }
+fn make() -> Res => Res{.handle = 1}
+
+fn main() {
+    copies(Plain{.a = 1, .b = 2.0});
+    moves(make());
+    borrows_dont_move(make());
+    oops_borrow_after_move(make());
+    oops_branch_moves(make(), true);
+    early_exit(make(), true);
+    oops_break_moves(make(), true);
+    oops_loop_moves(make(), true);
+    loop_local(true);
+    loop_break_after_move(make());
+    oops_holder_moves(Holder{.r = make()});
+    oops_partial(Holder{.r = make()});
+    oops_variant_moves(Maybe..Nothing);
+    oops_yield_moves(make(), 1);
+    oops_method_moves(make());
+    reinit_lhs(make());
+    temporaries();
+}
+
+fn copies(Plain p) {
+    take_plain(p);
+    take_plain(p); // fine, Plain is copyable
+    Plain q = p;
+    take_plain(p); // fine
+}
+
+fn moves(Res r) {
+    take(r);
+    take(r); // oops, use of moved value
+}
+
+fn borrows_dont_move(Res r) {
+    peek(&r);
+    peek(&(r)); // fine
+    take(r);
+}
+
+fn oops_borrow_after_move(Res r) {
+    take(r);
+    peek(&r); // oops
+}
+
+fn oops_branch_moves(Res r, bool c) {
+    if c {
+        take(r);
+    }
+    take(r); // oops, may have been moved
+}
+
+fn early_exit(Res r, bool c) {
+    if c {
+        take(r);
+        return;
+    }
+    take(r); // fine, the move above diverges
+}
+
+fn oops_break_moves(Res r, bool c) {
+    while c {
+        if c {
+            take(r); // fine, never reaches the next iteration
+            break;
+        }
+    }
+    take(r); // oops, may have been moved before the break
+}
+
+fn oops_loop_moves(Res r, bool c) {
+    while c {
+        take(r); // oops, moved in a previous iteration
+    }
+}
+
+fn loop_local(bool c) {
+    while c {
+        Res r = make();
+        take(r); // fine, local to the loop
+    }
+}
+
+fn loop_break_after_move(Res r) {
+    while true {
+        take(r); // fine, the loop always breaks
+        break;
+    }
+}
+
+fn oops_holder_moves(Holder h) {
+    take_holder(h);
+    take_holder(h); // oops, Holder contains a Res
+}
+
+fn oops_partial(Holder h) {
+    take(h.r); // oops, partial move
+}
+
+fn oops_variant_moves(Maybe m) {
+    Maybe a = m;
+    Maybe b = m; // oops
+}
+
+fn oops_yield_moves(Res r, i32 n) {
+    i32 _0 = match (n) {
+        0 => {
+            take(r);
+            yield 1;
+        },
+        else => 2,
+    };
+    take(r); // oops, may have been moved
+}
+
+fn oops_method_moves(Res r) {
+    r.look();
+    r.look(); // fine
+    r.eat();
+    r.look(); // oops, eat took self by value
+}
+
+fn reinit_lhs(mut Res r) {
+    take(r);
+    r = make(); // fine, assigning to a moved value
+}
+
+fn temporaries() {
+    take(make()); // fine
+}

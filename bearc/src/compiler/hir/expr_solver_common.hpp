@@ -1270,6 +1270,14 @@ template <IsExprSolver Solver>
                 } else {
                     out_args[0] = maybe_borrow.as_id();
                 }
+            } else {
+                const auto maybe_consumed = solver.consume(
+                    LexicalCtx{.scope = scope, .map = maybe_move_map.as_id()}, out_args[0]);
+                if (maybe_consumed.empty()) {
+                    issue = true;
+                } else {
+                    out_args[0] = maybe_consumed.as_id();
+                }
             }
         }
     }

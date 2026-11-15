@@ -32,12 +32,8 @@ class RuntimeSolver {
     bool current_loop_has_break{};
     OptId<MoveMapId> current_loop_base_map{};
     llvm::SmallVector<MoveMapId>* current_loop_exit_maps{};
+    llvm::SmallVector<MoveMapId>* current_loop_back_edge_maps{};
     bool inside_loop_header{};
-    /// TODO: check this when solving a move
-    /// - ban the move if this has a value (i.e. we're inside a loop body) and the
-    ///   moved def is defined inside of this scope (i.e. outside of the loop),
-    /// - defs not defined inside of this scope are local to the loop and fine to move
-    OptId<ScopeId> maybe_scope_containing_loop{};
 
     struct MatchCtx {
         OptId<TypeId> result_tid;
@@ -86,6 +82,10 @@ class RuntimeSolver {
                                            OptId<TypeId> maybe_into_tid);
 
     [[nodiscard]] OptId<ExecId> solve_expr(FileId fid, ScopeId scope, const ast_expr_t* expr);
+
+    [[nodiscard]] OptId<ExecId> solve_place(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+
+    [[nodiscard]] OptId<ExecId> consume(LexicalCtx lctx, ExecId eid);
 
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid) {
         return context.infer_type_from_exec(eid);
@@ -144,7 +144,8 @@ class RuntimeSolver {
     OptId<ExecId> handle_use(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
-    [[nodiscard]] OptId<ExecId> handle_any_id(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_any_id(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                              bool check_moved = true);
     [[nodiscard]] OptId<ExecId> handle_any_generic_id(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
     OptId<ExecId> handle_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,

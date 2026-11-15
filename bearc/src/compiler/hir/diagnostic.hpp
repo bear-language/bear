@@ -19,7 +19,7 @@
 namespace hir {
 
 class Context;
-enum class diag_code : uint8_t {
+enum class diag_code : uint16_t {
     // actionable
     replace_with,
     remove,
@@ -235,6 +235,11 @@ enum class diag_code : uint8_t {
     continue_statement_outside_of_loop,
     break_statement_inside_of_loop_header,
     continue_statement_inside_of_loop_header,
+    use_of_moved_value,
+    value_moved_here,
+    cannot_move_out_of_a_member_or_element_of_non_copyable_type,
+    cannot_move_out_of_a_dereferenced_value_of_non_copyable_type,
+    value_declared_outside_of_loop_is_moved_inside_of_loop,
     struct_indexing_requires_a_constant_u32_value,
     requested_struct_member, // fragment, not a diag on its own
     is_not_a_type,

@@ -71,6 +71,18 @@ static void write_back_moves(Context& context, MoveMapId parent,
     }
 }
 
+template <class F> static void for_each_move_eid(const Context& context, MoveResult res, F&& f) {
+    if (res.holds<ExecId>()) {
+        f(res.as<ExecId>());
+        return;
+    }
+    if (res.holds<ExecIdSliceId>()) {
+        for (const auto eidx : context.exec_id_slice(res.as<ExecIdSliceId>())) {
+            f(context.exec_id(eidx));
+        }
+    }
+}
+
 static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId until) {
     llvm::SmallVector<MoveExit> chain{};
     OptId<MoveMapId> curr = from;
@@ -98,7 +110,43 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr) {
+    const auto maybe_eid = handle_any_typed_expr(fid, lctx, expr);
+    if (maybe_eid.empty()) {
+        return {};
+    }
+    return consume(lctx, maybe_eid.as_id());
+}
+
+[[nodiscard]] OptId<ExecId> RuntimeSolver::solve_place(FileId fid, LexicalCtx lctx,
+                                                       const ast_expr_t* expr) {
+    while (expr->type == AST_EXPR_GROUPING) {
+        expr = expr->expr.grouping.expr;
+    }
     return handle_any_typed_expr(fid, lctx, expr);
+}
+
+[[nodiscard]] OptId<ExecId> RuntimeSolver::consume(LexicalCtx lctx, ExecId eid) {
+    if (!context.is_lvalue(eid)) {
+        return eid;
+    }
+    const auto maybe_tid = infer_type_from_exec(eid);
+    if (maybe_tid.empty() || context.type_is_copyable(maybe_tid.as_id())) {
+        return eid;
+    }
+    const Span span = context.exec(eid).span;
+    if (!context.exec(eid).holds<ExecVariable>()) {
+        context.emplace_diagnostic_with_message_value(
+            span,
+            context.exec(eid).holds<ExecDeref>()
+                ? diag_code::cannot_move_out_of_a_dereferenced_value_of_non_copyable_type
+                : diag_code::cannot_move_out_of_a_member_or_element_of_non_copyable_type,
+            diag_type::error, DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()});
+        return {};
+    }
+    const DefId did = context.exec(eid).as<ExecVariable>().def_id;
+    const ExecId move_eid = context.emplace_exec(ExecMove{.moved_def = did, .exec = eid}, span);
+    context.move_map(lctx.map).insert(did, move_eid);
+    return move_eid;
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, LexicalCtx lctx,
@@ -118,7 +166,7 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr, TypeId into_tid) {
     if (context.type(into_tid).holds<TypeVar>()) {
-        return handle_any_typed_expr(fid, lctx, expr);
+        return solve_expr(fid, lctx, expr);
     }
 
     OptId<ExecId> maybe_eid{};
@@ -275,7 +323,7 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
         return {};
     }
 
-    return maybe_eid;
+    return consume(lctx, maybe_eid.as_id());
 }
 
 [[nodiscard]] OptId<ExecId> RuntimeSolver::solve_block_requiring_return(FileId fid, LexicalCtx lctx,
@@ -869,8 +917,9 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, LexicalCtx lctx, InProg
                                    diag_code::continue_statement_outside_of_loop, diag_type::error);
         return {};
     }
-    current_loop_exit_maps->push_back(
-        snapshot_moves(context, lctx.map, current_loop_base_map.as_id()));
+    const MoveMapId snapshot = snapshot_moves(context, lctx.map, current_loop_base_map.as_id());
+    current_loop_exit_maps->push_back(snapshot);
+    current_loop_back_edge_maps->push_back(snapshot);
     const auto eid = context.emplace_exec(
         ExecJump{.block = current_loop_block_eid.as_id(), .spot = jump_spot::start},
         Span{context, fid, stmt});
@@ -934,15 +983,16 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
 
     const OptId<ExecId> outer_loop_block_eid = current_loop_block_eid;
     const bool outer_loop_has_break = current_loop_has_break;
-    const OptId<ScopeId> outer_scope_containing_loop = maybe_scope_containing_loop;
     const OptId<MoveMapId> outer_loop_base_map = current_loop_base_map;
     llvm::SmallVector<MoveMapId>* const outer_loop_exit_maps = current_loop_exit_maps;
+    llvm::SmallVector<MoveMapId>* const outer_loop_back_edge_maps = current_loop_back_edge_maps;
     llvm::SmallVector<MoveMapId> loop_exit_maps{};
+    llvm::SmallVector<MoveMapId> loop_back_edge_maps{};
     current_loop_block_eid = loop_eid;
     current_loop_has_break = false;
     current_loop_base_map = lctx.map;
     current_loop_exit_maps = &loop_exit_maps;
-    maybe_scope_containing_loop = lctx.scope;
+    current_loop_back_edge_maps = &loop_back_edge_maps;
     inside_loop_header = false;
 
     const LexicalCtx body_lctx{
@@ -954,9 +1004,9 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
     const bool has_break = current_loop_has_break;
     current_loop_block_eid = outer_loop_block_eid;
     current_loop_has_break = outer_loop_has_break;
-    maybe_scope_containing_loop = outer_scope_containing_loop;
     current_loop_base_map = outer_loop_base_map;
     current_loop_exit_maps = outer_loop_exit_maps;
+    current_loop_back_edge_maps = outer_loop_back_edge_maps;
 
     OptId<ExecId> maybe_update_eid{};
     const MoveMapId update_map = context.make_persistent_move_map(body_lctx.map);
@@ -974,6 +1024,29 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
         loop_exits.push_back(MoveExit{.map = exit_map, .body = {}});
     }
     write_back_moves(context, lctx.map, loop_exits);
+
+    llvm::SmallVector<MoveExit> back_edges{MoveExit{.map = body_lctx.map, .body = maybe_body_eid},
+                                           MoveExit{.map = update_map, .body = {}}};
+    for (const MoveMapId back_edge_map : loop_back_edge_maps) {
+        back_edges.push_back(MoveExit{.map = back_edge_map, .body = {}});
+    }
+    const MoveMapId back_edge_moves = context.make_persistent_move_map(lctx.map);
+    write_back_moves(context, back_edge_moves, back_edges);
+    context.move_map(back_edge_moves).for_each_local_move([&](DefId did, MoveResult res) {
+        if (context.look_up_variable(lctx.scope, context.def(did).name) != did) {
+            return;
+        }
+        for_each_move_eid(context, res, [&](ExecId move_eid) {
+            DiagLinker dl{context};
+            dl.link(context.emplace_diagnostic(
+                context.exec(move_eid).span,
+                diag_code::value_declared_outside_of_loop_is_moved_inside_of_loop,
+                diag_type::error));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                context.def(did).span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = context.def(did).name}));
+        });
+    });
 
     // warn on infinitely looping for loops
     if (maybe_cond_eid.has_value() && update_expr) {
@@ -1252,10 +1325,32 @@ OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBl
     return {};
 }
 
-OptId<ExecId> RuntimeSolver::handle_any_id(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+OptId<ExecId> RuntimeSolver::handle_any_id(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                           bool check_moved) {
     assert(expr->type == AST_EXPR_ID);
-    return handle_any_id_impl<compt_or_runtime::runtime>(context, def_visitor, fid, lctx.scope,
-                                                         expr->expr.id.slice, {});
+    const auto maybe_eid = handle_any_id_impl<compt_or_runtime::runtime>(
+        context, def_visitor, fid, lctx.scope, expr->expr.id.slice, {});
+    if (!check_moved || maybe_eid.empty()) {
+        return maybe_eid;
+    }
+    const auto maybe_var = context.exec(maybe_eid.as_id()).try_as<ExecVariable>();
+    if (!maybe_var.has_value()) {
+        return maybe_eid;
+    }
+    const DefId did = maybe_var.value().def_id;
+    const MoveResult res = context.moved(lctx.map, did);
+    if (res.empty()) {
+        return maybe_eid;
+    }
+    DiagLinker dl{context};
+    dl.link(context.emplace_diagnostic_with_message_value(
+        context.exec(maybe_eid.as_id()).span, diag_code::use_of_moved_value, diag_type::error,
+        DiagnosticSymbolAfterMessage{.sid = context.def(did).name}));
+    for_each_move_eid(context, res, [&](ExecId move_eid) {
+        dl.link(context.emplace_diagnostic(context.exec(move_eid).span, diag_code::value_moved_here,
+                                           diag_type::note));
+    });
+    return {};
 }
 
 OptId<ExecId> RuntimeSolver::handle_any_generic_id(FileId fid, LexicalCtx lctx,
@@ -1323,7 +1418,7 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
                                           OptId<TypeId> maybe_into_tid) {
     assert(expr->type == AST_EXPR_MATCH);
 
-    const auto maybe_scrutinee_eid = solve_expr(fid, lctx, expr->expr.match_expr.matched);
+    const auto maybe_scrutinee_eid = solve_place(fid, lctx, expr->expr.match_expr.matched);
     if (maybe_scrutinee_eid.empty()) {
         return {};
     }
@@ -1687,7 +1782,7 @@ bool RuntimeSolver::decompose_variant(FileId fid, LexicalCtx branch_lctx, InProg
 OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
     assert(expr->type == AST_EXPR_BORROW);
 
-    const auto maybe_inner_eid = solve_expr(fid, lctx, expr->expr.borrow.borrowed);
+    const auto maybe_inner_eid = solve_place(fid, lctx, expr->expr.borrow.borrowed);
 
     if (maybe_inner_eid.empty()) {
         return {};
@@ -1700,7 +1795,7 @@ OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const as
 OptId<ExecId> RuntimeSolver::handle_addr_of(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
     assert(expr->type == AST_EXPR_ADDR_OF);
 
-    const auto maybe_inner_eid = solve_expr(fid, lctx, expr->expr.addr_of.inner);
+    const auto maybe_inner_eid = solve_place(fid, lctx, expr->expr.addr_of.inner);
 
     if (maybe_inner_eid.empty()) {
         return {};
@@ -1866,7 +1961,7 @@ OptId<ExecId> RuntimeSolver::handle_postunary(FileId fid, LexicalCtx lctx, const
 OptId<ExecId> RuntimeSolver::handle_deref(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
     assert(expr->type == AST_EXPR_POST_UNARY && expr->expr.unary.op->type == TOK_DEREF);
 
-    const auto maybe_inner_eid = solve_expr(fid, lctx, expr->expr.unary.expr);
+    const auto maybe_inner_eid = solve_place(fid, lctx, expr->expr.unary.expr);
     if (maybe_inner_eid.empty()) {
         return {};
     }
@@ -1907,7 +2002,7 @@ OptId<ExecId> RuntimeSolver::handle_inc_dec(FileId fid, LexicalCtx lctx, const a
     assert(expr->type == AST_EXPR_PRE_UNARY || expr->type == AST_EXPR_POST_UNARY);
     assert(op == unary_op::inc || op == unary_op::dec);
 
-    const auto maybe_lhs_eid = solve_expr(fid, lctx, expr->expr.unary.expr);
+    const auto maybe_lhs_eid = solve_place(fid, lctx, expr->expr.unary.expr);
     if (maybe_lhs_eid.empty()) {
         return {};
     }
@@ -2047,7 +2142,15 @@ namespace {
 OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
     assert(expr->type == AST_EXPR_BINARY);
 
-    const auto maybe_lhs_eid = solve_expr(fid, lctx, expr->expr.binary.lhs);
+    const ast_expr_t* lhs_expr = expr->expr.binary.lhs;
+    while (lhs_expr->type == AST_EXPR_GROUPING) {
+        lhs_expr = lhs_expr->expr.grouping.expr;
+    }
+    const bool plain_assign
+        = ComptBinaryOp{expr->expr.binary.op}.as<assign_op>() == assign_op::assign_eq;
+    const auto maybe_lhs_eid = plain_assign && lhs_expr->type == AST_EXPR_ID
+                                   ? handle_any_id(fid, lctx, lhs_expr, /*check_moved=*/false)
+                                   : solve_place(fid, lctx, lhs_expr);
     if (maybe_lhs_eid.empty()) {
         return {};
     }
@@ -2184,7 +2287,7 @@ OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_ex
                                        const bool allow_decomp) {
     assert(expr->type == AST_EXPR_BINARY);
 
-    const auto maybe_lhs_eid = solve_expr(fid, lctx, expr->expr.binary.lhs);
+    const auto maybe_lhs_eid = solve_place(fid, lctx, expr->expr.binary.lhs);
     if (maybe_lhs_eid.empty()) {
         return {};
     }
@@ -2316,7 +2419,7 @@ OptId<ExecId> RuntimeSolver::handle_as(FileId fid, LexicalCtx lctx, const ast_ex
 OptId<ExecId> RuntimeSolver::handle_subscript(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
     assert(expr->type == AST_EXPR_SUBSCRIPT);
 
-    const auto maybe_base_eid = solve_expr(fid, lctx, expr->expr.subscript.lhs);
+    const auto maybe_base_eid = solve_place(fid, lctx, expr->expr.subscript.lhs);
     if (maybe_base_eid.empty()) {
         return {}; // poisoned
     }
@@ -2401,7 +2504,7 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
                                            access_op op) {
     assert(expr->type == AST_EXPR_BINARY);
 
-    OptId<ExecId> maybe_lhs = solve_expr(fid, lctx, expr->expr.binary.lhs);
+    OptId<ExecId> maybe_lhs = solve_place(fid, lctx, expr->expr.binary.lhs);
     if (!maybe_lhs.has_value()) {
         return {}; // poisoned
     }

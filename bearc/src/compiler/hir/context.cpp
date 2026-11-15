@@ -19,6 +19,7 @@
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/diagnostic.hpp"
 #include "compiler/hir/exec.hpp"
+#include "compiler/hir/expr_solver_common.hpp"
 #include "compiler/hir/file.hpp"
 #include "compiler/hir/generic.hpp"
 #include "compiler/hir/indexing.hpp"
@@ -113,6 +114,8 @@ Context::Context(const bearc_args_t& args, instances instances,
       struct_did_to_contract_set_id_arena{DEFAULT_ARENA_CAP},
       struct_did_to_contract_set_id(struct_did_to_contract_set_id_arena, DEFAULT_DEF_CAP),
       contract_set_arena{DEFAULT_ARENA_CAP}, contract_sets{DEFAULT_DEF_CAP},
+      def_to_non_copyable_cause_arena{DEFAULT_ARENA_CAP},
+      def_to_non_copyable_cause{def_to_non_copyable_cause_arena, DEFAULT_DEF_CAP},
       type_ids{DEFAULT_DEF_CAP}, types{DEFAULT_TYPE_CAP},
       canonical_to_type_id(DEFAULT_CANONICAL_TYPE_VEC_CAP),
       canonical_type_table_arena{DEFAULT_CANONICAL_TYPE_ARENA_CAP},
@@ -2804,6 +2807,76 @@ bool Context::type_has_contract(TypeId tid, DefId contract_did) {
     return struct_has_contract(ty.as<TypeStruct>().def_id, contract_did);
 }
 
+bool Context::type_is_copyable(TypeId tid) {
+    const Type ty = type(tid);
+    const auto vs = Ovld{
+        [](const TypeBuiltin&) -> bool { return true; },
+        [](const TypePtr&) -> bool { return true; },
+        [](const TypeRef&) -> bool { return true; },
+        [](const TypeSlice&) -> bool { return true; },
+        [](const TypeFnPtr&) -> bool { return true; },
+        [](const TypeVar&) -> bool { return true; },
+        [this](const TypeDeftype& t) -> bool { return type_is_copyable(t.true_type); },
+        [this](const TypeArr& t) -> bool { return type_is_copyable(t.inner); },
+        [this](const TypeStruct& t) -> bool {
+            return non_copyable_cause_for_def(t.def_id).empty();
+        },
+        [this](const TypeVariant& t) -> bool {
+            return non_copyable_cause_for_def(t.def_id).empty();
+        },
+        [this](const TypeUnion& t) -> bool { return non_copyable_cause_for_def(t.def_id).empty(); },
+    };
+    return ty.visit(vs);
+}
+
+OptId<DefId> Context::non_copyable_cause_for_def(DefId did) {
+    if (def_to_non_copyable_cause.contains(did)) {
+        return def_to_non_copyable_cause.at(did);
+    }
+
+    DefVisitor def_visitor{*this};
+    const DefId resolved_did = def_visitor.visit_and_resolve_if_needed(did);
+
+    const auto first_non_copyable_member = [this](IdSlice<DefId> members) -> OptId<DefId> {
+        for (const auto didx : members) {
+            const DefId member_did = def_id(didx);
+            const auto maybe_var = def(member_did).try_as<DefVariable>();
+            if (maybe_var.has_value() && !type_is_copyable(maybe_var.value().type_id)) {
+                return member_did;
+            }
+        }
+        return {};
+    };
+
+    OptId<DefId> cause{};
+    if (const auto maybe_struct = def(resolved_did).try_as<DefStruct>()) {
+        const auto maybe_destruct_did = look_up_type(root_scope(), symbol_id<"Destruct">());
+        if (maybe_destruct_did.has_value()
+            && struct_has_contract(resolved_did, def_visitor.visit_and_resolve_if_needed(
+                                                     maybe_destruct_did.as_id()))) {
+            cause = resolved_did;
+        } else {
+            cause = first_non_copyable_member(maybe_struct.value().ordered_members);
+        }
+    } else if (const auto maybe_variant = def(resolved_did).try_as<DefVariant>()) {
+        for (const auto didx : maybe_variant.value().ordered_members) {
+            const auto maybe_field = def(def_id(didx)).try_as<DefVariantField>();
+            if (!maybe_field.has_value()) {
+                continue;
+            }
+            cause = first_non_copyable_member(maybe_field.value().members);
+            if (cause.has_value()) {
+                break;
+            }
+        }
+    } else if (const auto maybe_union = def(resolved_did).try_as<DefUnion>()) {
+        cause = first_non_copyable_member(maybe_union.value().ordered_members);
+    }
+
+    def_to_non_copyable_cause.insert(did, cause.has_value() ? cause.as_id() : DefId{});
+    return cause;
+}
+
 IdSet<DefId>& Context::contract_set_for_struct_did(DefId struct_did) {
     const auto maybe_set_id = struct_did_to_contract_set_id.at(struct_did);
     // one doesn't already exist, so make one
@@ -2977,8 +3050,9 @@ Context::default_value_for_type_using_default_contract(TypeId tid, Span span, co
         return {};
     }
 
-    if (!compt) {
-        return {}; // TODO return the runtime fn-call here
+    if (!compt && !def(fn_did).compt) {
+        return emplace_exec(
+            ExecFnCall{.callee = emplace_fn_ptr_exec(*this, fn_did, span), .args = {}}, span);
     }
 
     const llvm::SmallVector<ExecId, 1> no_args{};

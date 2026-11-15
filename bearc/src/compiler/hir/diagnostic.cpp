@@ -465,6 +465,16 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "break statement cannot be used inside of a loop's condition or update";
     case diag_code::continue_statement_inside_of_loop_header:
         return "continue statement cannot be used inside of a loop's condition or update";
+    case diag_code::use_of_moved_value:
+        return "use of moved value";
+    case diag_code::value_moved_here:
+        return "value moved here";
+    case diag_code::cannot_move_out_of_a_member_or_element_of_non_copyable_type:
+        return "cannot move out of a member or element of non-copyable type";
+    case diag_code::cannot_move_out_of_a_dereferenced_value_of_non_copyable_type:
+        return "cannot move out of a dereferenced value of non-copyable type";
+    case diag_code::value_declared_outside_of_loop_is_moved_inside_of_loop:
+        return "value declared outside of loop is moved inside of loop";
     case diag_code::struct_indexing_requires_a_constant_u32_value:
         return "struct indexing requires a constant u32 value";
     case diag_code::requested_struct_member:
