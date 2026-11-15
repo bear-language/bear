@@ -8,15 +8,17 @@
             - [x] tracks DefId -> ExecId and DefId -> ExecIdSliceId tracking where defs were moved (for good diagnostics)
             - [x] after child(ren) are made, iterate through common moves (across branches if applicable) and mark as moved in current, pointing to moves
             - [ ] actually record moves
-                - [ ] consider either (1) add an Exec move and let backend decide tracking it or (2) directly create and set drop flags in HIR
+                - [ ] add an `ExecMove`
                 - [ ] copied:
-                    - [ ] explicit `Copy` structures (have intrinsic `contract Copy {mt copy() -> Self;}`)
                     - [ ] implicitly copyable for unions, variants, and structs where all members are copyable 
                     - [ ] builtin types
                     - [ ] arrays of copyable types
-                        
-                - [ ] not copied: ptrs, refs, slices not implicitly copyable
-                - [ ] consider 
+                - [ ] not copied: `Destruct` types or types with `Destruct` fields (requires explicit `.clone()`s)
+                - [ ] allow re-initialization: `x = foo()` where `x` is previously moved clears the `MoveMap` entry (consider a tombstone value)
+                - [ ] `x = foo()` where `x` is unmoved must destruct old value first
+                - [ ] ban partial moves of structs / variants / unions / arrays
+                - [ ] handle `f(make_thing())` destructing temporaries after the end of the statement if they're not moved out (currently won't work easily w/ `MoveMap` which has `DefId` keys, maybe create temp `DefId`s?)
+                - [ ] ban `foo.destruct()` but provide `drop(foo)` which just moves foo out
                 - [ ] also consider intrinsics:
                     - [ ] `contract Pinned {}` to pin things
                     - [ ] `Pin wrapper`:
@@ -56,8 +58,6 @@ struct Pin<T> has Pinned {
         - [ ] perhaps warn on `T has Destruct` generic bounds (meaningless since everything gets destructed)
     - [ ] drop/destructor flags, tracked by block/lexical scope (always emit, LLVM folds the unconditional ones)
         - blocked on recording moves
-    - [ ] static variable guard variables (thread safe, ideally or eventually)
-        - only needed if LHS is not knowable at compt (in which case it can be an LLVM global w/ a constant initializer)
     - [ ] `.start` / `.end` access for builtin ranges `...` & `...=`, figure out how to handle inclusivity here
     - [ ] impl proper runtime Exec hashing so parallel match/if-else branches can be hashed and compared for duplicativity
 

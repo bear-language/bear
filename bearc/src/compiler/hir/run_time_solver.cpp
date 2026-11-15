@@ -639,7 +639,7 @@ OptId<ExecId> RuntimeSolver::handle_var_decl(FileId fid, LexicalCtx lctx, InProg
     OptId<ExecId> maybe_compt_eid{};
     OptId<ExecId> maybe_runtime_eid{};
 
-    if (compt == compt::compt) {
+    if (compt == compt::compt || storage == storage::statik) {
         maybe_compt_eid
             = context.try_default_value_for_type(maybe_tid.as_id(), span, /*compt=*/true);
     } else {
@@ -678,8 +678,6 @@ OptId<ExecId> RuntimeSolver::handle_var_decl(FileId fid, LexicalCtx lctx, InProg
         block.push_back_exec(assign_eid);
     }
 
-    // TODO: do something special for non-compt static variables using a guard variable
-
     return maybe_runtime_eid;
 }
 
@@ -703,7 +701,7 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
     OptId<ExecId> maybe_compt_eid{};
     OptId<ExecId> maybe_runtime_eid{};
 
-    if (compt == compt::compt) {
+    if (compt == compt::compt || storage == storage::statik) {
         maybe_compt_eid = ComptExprSolver{def_visitor}.solve_expr(
             fid, lctx.scope, stmt->stmt.var_init_decl.rhs, maybe_tid);
         if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())
@@ -754,8 +752,6 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
                                    span);
         block.push_back_exec(assign_eid);
     }
-
-    // TODO: do something special for non-compt static variables using a guard variable
 
     return {};
 }

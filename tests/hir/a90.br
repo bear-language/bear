@@ -29,7 +29,7 @@ struct Foo {
     u8 d = 0;
 }
 
-compt var a = PseudoTuple..new::<Foo>({}); // TODO this fails fuzz
+compt var a = PseudoTuple..new::<Foo>({});
 
 deftype FooTup = PseudoTuple<Foo>;
 

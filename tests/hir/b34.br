@@ -1,0 +1,20 @@
+// tests/hir/34.br
+
+// testing that static local variables need compt initializers
+
+fn main() {
+    static i32 n = 1;
+    compt i32 c = 1;
+    static i32 _0 = 1; // fine (compt)
+    static i32 _1 = n; // oops (not compt)
+    static i32 _2 = c; // fine (compt)
+    static i32 _3 = get(); // fine (compt)
+    static i32 _4 = get_a(); // oops (not compt)
+}
+
+fn get() -> i32 => 12
+
+fn get_a() -> i32 {
+    static i32 mut a;
+    return a++;
+}
