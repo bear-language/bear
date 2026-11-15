@@ -113,8 +113,6 @@
 
 - [ ] `for compt var x in bar {}` like inline for in Zig
 
-- [ ]
-
 #### language server / ContextDatabase stuff
 - [ ] better Span queries: index Span -> Exec and Span -> Type when `ctx.register_spans` is set
     - [ ] registration lives entirely in the emplacers (`emplace_exec`, `emplace_compt_exec`, `register_exec`, `emplace_type`), Context owns all the state
