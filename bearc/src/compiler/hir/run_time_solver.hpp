@@ -222,7 +222,8 @@ class RuntimeSolver {
                                                    const ast_expr_t* expr);
 
     [[nodiscard]] OptId<ExecId> handle_assign(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
-    [[nodiscard]] OptId<ExecId> handle_is(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_is(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                          bool allow_decomp = false);
     [[nodiscard]] OptId<ExecId> handle_as(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_subscript(FileId fid, LexicalCtx lctx,
                                                  const ast_expr_t* expr);

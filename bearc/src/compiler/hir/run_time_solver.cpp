@@ -2111,7 +2111,8 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
         Span{context, fid, expr});
 }
 
-OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                       const bool allow_decomp) {
     assert(expr->type == AST_EXPR_BINARY);
 
     const auto maybe_lhs_eid = solve_expr(fid, lctx, expr->expr.binary.lhs);
@@ -2167,15 +2168,18 @@ OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_ex
 
     DiagLinker dl{context};
 
-    // TODO: handle variant decomp properly, although this is reasonable behavior for a while
     if (pattern_expr->expr.variant_decomp.vars.len != 0) {
-        Span span{context, fid, pattern_expr};
-        dl.link(context.emplace_diagnostic(span, diag_code::variant_decomposition_not_allowed_here,
-                                           diag_type::error));
-        dl.link(context.emplace_diagnostic_with_message_value(
-            span, diag_code::replace_with, diag_type::help,
-            DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice}));
-        // don't return here, since we can safely just move on here
+        if (!allow_decomp) {
+            Span span{context, fid, pattern_expr};
+            dl.link(context.emplace_diagnostic(
+                span, diag_code::variant_decomposition_not_allowed_here, diag_type::error));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                span, diag_code::replace_with, diag_type::help,
+                DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice}));
+        } else {
+            // TODO: handle variant decomp properly, although this is reasonable behavior for a
+            // while
+        }
     }
 
     if (!context.check_variant_field_has_parent(dl, hopefully_var_field,
