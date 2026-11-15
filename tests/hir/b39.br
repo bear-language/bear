@@ -1,0 +1,80 @@
+// tests/hir/b39.br
+
+// testing move edge cases and shadowing
+
+fn main() {
+    no_moves(&compt 1, &compt 2);
+}
+
+variant Foo {
+    A,
+    B,
+    C,
+    D(i32 a, i32 b),
+}
+
+struct Des has Destruct {
+    Foo a;
+    mt mut destruct() {;}
+    fn default() -> Self => Self{.a = Foo..A}
+}
+
+variant Bar {
+    A(Des a),
+    B(Foo a),
+}
+
+fn no_moves(&i32 a, &i32 b) -> i32 {
+    i32 c = a + b;
+    return match Foo..D(a, b) {
+        A => a,
+        B => b,
+        C => c,
+        D(&i32 a, i32 b) => a + b,
+    };
+}
+
+var _ = 1;
+var _ = 2; // oops
+var _ = 3; // oops 
+
+fn multibranch(u64 i) -> i32 {
+    Des a;
+    Des b;
+    Des c;
+    Des c;
+    if i == 12 {
+        Des _ = a;
+    } else if i == 24 {
+        Des _ = a;
+    } else {
+        return match a.a {
+            A => i as i32 + 0,
+            B => i as i32 + 1,
+            C => {
+                if i == 1 {
+                    var _ = b;
+                    yield i as i32 + 2;
+                } else if i == 2 {
+                    var _ =b ;
+                    return 42;
+                }
+                var _ = b;
+                var _ = b; // oops
+                if i as bool {
+                    var _ = a;
+                }
+                if !(i as bool) {
+                    var _ = c;
+                    yield 12345;
+                }
+                var _ = a; // oops
+                var _ = c;
+                var _ = _; // oops
+                yield 1;
+            },
+            D(var a, var b) => (a + b) as i32 + i as i32,
+        };
+    }
+    return 0;
+}
