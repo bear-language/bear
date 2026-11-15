@@ -43,10 +43,10 @@
         - [x] `Destruct` is intrinsic
         - [x] opt-in only thru `has(Destruct)`
         - [x] ban explicit `x.destruct()` calls 
-        - [ ] compiler-inserted calls ignore mutability
-        - [ ] members are auto-destructed after the user's `destruct()`(reverse decl order)
         - [x] ban moving out of fields of a `Destruct` type (moving fields out will prob have to start out banned anyway)
         - [x] `Destruct` types are never implicitly copyable (feeds the copy vs. move rule)
+        - [ ] compiler-inserted calls ignore mutability
+        - [ ] members are auto-destructed after the user's `destruct()`(reverse decl order)
         - [ ] variants: destruct the active field only; unions: ban `Destruct` members or make it manual
         - [ ] perhaps warn on `T has Destruct` generic bounds (meaningless since everything gets destructed)
     - [ ] destruction in HIR via drop glue (plain `ExecFnCall`s, so compt eval runs destructors too)
