@@ -33,7 +33,7 @@
                 - [x] desugaring w/ `Iterator`
                 - [x] desugaring w/ `ExecRange`
                 - [x] arrays / slices
-        - [ ] closures (rust-like capture semantics)
+        - [ ] closures (rust-like capture semantics): delayable until after backend
         - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee); either convert them in HIR or cast when lowering the `switch`
     - [ ] fix mut semantics on struct members 
         - [ ] warn on `mut` declared members
