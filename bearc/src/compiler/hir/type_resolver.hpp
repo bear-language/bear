@@ -258,7 +258,8 @@ class TypeResolver {
         return context.emplace_type(TypeArr{.inner = maybe_inner.as_id(),
                                             .compt_size_expr = maybe_size_exec.as_id(),
                                             .canonical_size = size},
-                                    Span(context, fid, type->first, type->last), false);
+                                    Span(context, fid, type->first, type->last),
+                                    type->type.arr.mut);
     }
 
     OptId<TypeId> type_slice(FileId fid, ScopeId scope, const ast_type_t* type) {

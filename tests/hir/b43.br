@@ -30,17 +30,26 @@ fn oops_bindings() {
         x++; // oops
     }
     mut var marr = [1, 2, 3];
-    for var x in marr {
-        x++; // oops, mutability of `marr` should not leak into `x`
+    for mut var x in marr { // oops, not interiorly mut
+        x++; 
     }
-    [3]i32 mut arrm = [1, 2, 3]; // TODO should be allowed
+    for mut i32 x in marr { // oops, not interiorly mut
+        x++; 
+    }
+    for i32 x in marr {
+        x++; // oops, immut
+    }
+    for var x in marr {
+        x++; // oops, immut
+    }
+    [3]i32 mut arrm = [1, 2, 3]; 
     for mut var x in arrm {
-        x++; // fine 
+        x++; 
     }
     for var x in arrm {
         void _;
     }
-    mut [3]i32 mut marrm = [1, 2, 3]; // TODO should be allowed
+    mut [3]i32 mut marrm = [1, 2, 3]; 
     for var x in arrm {
         void _;
     }

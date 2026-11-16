@@ -173,8 +173,7 @@ static ast_type_t* parse_type_impl(parser_t* p, token_ptr_slice_t leading_id, bo
             return parser_sync_type(p);
         }
         if (t1 == TOK_LBRACK) {
-            compiler_error_list_emplace(p->error_list, first_tkn, ERR_MUT_CANNOT_BIND_TO_ARRAYS);
-            return parser_sync_type(p);
+            return parse_type_arr(p);
         }
         if (t1 == TOK_STRUCT) {
             return parse_type_anon_struct(p);
@@ -277,8 +276,7 @@ static ast_type_t* parse_type_ptr_with_leading_mut(parser_t* p) {
     if (!mut_tkn) {
         return parser_sync_type(p);
     }
-    token_t* redundant_mut_tkn
-        = parser_peek_n(p, 1)->type == TOK_MUT ? parser_peek_n(p, 1) : NULL;
+    token_t* redundant_mut_tkn = parser_peek_n(p, 1)->type == TOK_MUT ? parser_peek_n(p, 1) : NULL;
     ast_type_t* outer = parse_type_ref_ptr(p);
     if (outer->tag != AST_TYPE_REF_PTR) {
         return outer;
@@ -341,6 +339,8 @@ ast_type_t* parse_type_arr(parser_t* p) {
     ast_type_t* outer = parser_alloc_type(p);
     outer->tag = AST_TYPE_ARR;
 
+    bool mut = parser_match_token(p, TOK_MUT);
+
     // handle [size_expr]
     token_t* lbrack = parser_expect_token(p, TOK_LBRACK);
     if (!lbrack) {
@@ -355,11 +355,16 @@ ast_type_t* parse_type_arr(parser_t* p) {
     if (!rbrack) {
         return parser_sync_type(p);
     }
+    while (parser_match_token(p, TOK_MUT)) {
+        compiler_error_list_emplace(p->error_list, parser_prev(p), ERR_REDUNDANT_MUT);
+        mut |= true;
+    }
     ast_type_t* inner = parse_type(p);
     if (inner->tag == AST_TYPE_INVALID) {
         return parser_sync_type(p);
     }
     outer->type.arr.inner = inner;
+    outer->type.arr.mut = mut;
     // handle canonical base
     outer->canonical_base = inner->canonical_base;
     outer->first = lbrack;

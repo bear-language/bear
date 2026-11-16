@@ -2412,6 +2412,10 @@ template <equivalence E>
         return assignable_from_type_to_refs_impl<E>(ctx, from, to);
     }
 
+    if (from_ty.holds_same<TypeArr>(to_ty)) {
+        return assignable_from_type_to_arr_impl<E>(ctx, from, to);
+    }
+
     if constexpr (E == equivalence::implicit) {
         if (to_ty.holds<TypePtr>() && from_ty.holds<TypeBuiltin>()
             && from_ty.as<TypeBuiltin>().type == builtin_type::nullpointer) {
@@ -2471,7 +2475,7 @@ template <equivalence E>
 }
 
 template <equivalence E>
-[[nodiscard]] bool assignable_from_type_to_refs_impl(Context& ctx, TypeId from, TypeId to) {
+[[nodiscard]] static bool assignable_from_type_to_refs_impl(Context& ctx, TypeId from, TypeId to) {
 
     const Type& from_ty = ctx.type(from);
     const Type& to_ty = ctx.type(to);
@@ -2485,6 +2489,21 @@ template <equivalence E>
 
     // .as_id() is safe here because we know both of these hold ref types which always have inner
     // types
+    return assignable_from_type_to_impl<E>(ctx, from_ty.try_inner().as_id(),
+                                           to_ty.try_inner().as_id());
+}
+
+template <equivalence E>
+[[nodiscard]] static bool assignable_from_type_to_arr_impl(Context& ctx, TypeId from, TypeId to) {
+
+    const Type& from_ty = ctx.type(from);
+    const Type& to_ty = ctx.type(to);
+
+    assert(from_ty.holds_same<TypeArr>(to_ty));
+
+    // arrays outer is somewhat arbitrary, the element-wise assignability is what matter (these are
+    // the inner tids) .as_id() is safe here because we know both of these hold arr types which
+    // always have inner types
     return assignable_from_type_to_impl<E>(ctx, from_ty.try_inner().as_id(),
                                            to_ty.try_inner().as_id());
 }

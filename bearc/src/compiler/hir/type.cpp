@@ -920,7 +920,7 @@ template <ConsiderMut C> bool TypeInferer<C>::operator()(const Type& t1, const T
         [&](const TypeSlice&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
         [&](const TypeRef&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
         [&](const TypePtr&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [this, &t1, &t2](const TypeFnPtr& t) -> bool {
+        [this, &t2](const TypeFnPtr& t) -> bool {
             if (!t2.holds<TypeFnPtr>()) {
                 return t2.holds<TypeVar>();
             }
