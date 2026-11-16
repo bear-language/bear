@@ -1,0 +1,36 @@
+// tests/hir/b41.br
+
+// more for in testing
+
+struct MyRange<i64 MAX> has Iterator<&i64> {
+    i64 mut curr = 0;
+    mt mut next() -> Opt<&i64> {
+        if self.curr >= MAX {
+            return Opt..None::<&i64>;
+        }
+        return Opt..Some::<&i64>(&++self.curr);
+    }
+    fn new() -> Self => Self{}
+}
+
+compt var cr = MyRange..new::<64 as i64>();
+
+fn main(){
+    mut i32 a;
+    my_range(&mut a);
+}
+
+fn my_range(&mut i32 a) {
+    for compt var x in cr { // oops, not iterable at compt
+        a++; 
+    }
+    for var x in cr {
+        a += x as i32;
+    }
+    for &i64 x in cr {
+        a += x as i32;
+    }
+    for &var x in cr { // TODO, should work
+        a += x as i32;
+    }
+}
