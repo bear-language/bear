@@ -1,9 +1,10 @@
 ### todos
 
 #### priority
+- [ ] fix inner/outer array mut debacle, see `tests/hir/b43.br`
 - [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
     - [ ] just find main thru top-level scope; only require it in non-lib build
-- [ ] make sure `mut var foo = x;` always creates a mut binding
+- [ ] in bearls, make it so that only chained notes are sub-diags. this way helps get shown as their own diags.
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
