@@ -228,6 +228,7 @@ typedef struct ast_stmt_for_in {
     ast_param_t* each;
     ast_expr_t* iterator;
     ast_stmt_t* body_stmt;
+    bool compt;
 } ast_stmt_for_in_t;
 
 typedef struct ast_stmt_return {

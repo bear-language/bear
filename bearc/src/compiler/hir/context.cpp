@@ -136,8 +136,10 @@ Context::Context(const bearc_args_t& args, instances instances,
       def_to_gen_args(def_to_gen_args_arena, DEFAULT_CANONICAL_GEN_ARGS_CAP),
       exec_to_type_id_arena{DEFAULT_ARENA_CAP},
       exec_to_type_id{*this, exec_to_type_id_arena, DEFAULT_EXEC_VEC_CAP},
-      layouts{DEFAULT_TYPE_CAP}, layout_ids{DEFAULT_TYPE_CAP},
-      canon_type_ids_to_layout_ids_arena{DEFAULT_ARENA_CAP},
+      cache_members_of_arena{DEFAULT_ARENA_CAP}, cached_statics_of_arena{DEFAULT_ARENA_CAP},
+      cached_members_of{cache_members_of_arena, DEFAULT_DEF_CAP},
+      cached_statics_of{cached_statics_of_arena, DEFAULT_DEF_CAP}, layouts{DEFAULT_TYPE_CAP},
+      layout_ids{DEFAULT_TYPE_CAP}, canon_type_ids_to_layout_ids_arena{DEFAULT_ARENA_CAP},
       canon_type_ids_to_layout_ids{canonical_generic_args_table_arena,
                                    DEFAULT_CANONICAL_TYPE_VEC_CAP},
       offsets{DEFAULT_DEF_CAP}, offset_slices{DEFAULT_DEF_CAP},
@@ -4459,5 +4461,14 @@ TypeId Context::type_for_builtin(builtin_type type) const {
     assert(idx < BUILTIN_TYPE_COUNT);
     return builtin_tids[idx];
 }
+
+OptId<ExecId> Context::try_fetch_cached_members_of(DefId did) const {
+    return cached_members_of.at(did);
+}
+OptId<ExecId> Context::try_fetch_cached_statics_of(DefId did) const {
+    return cached_statics_of.at(did);
+}
+void Context::insert_members_of(DefId did, ExecId eid) { cached_members_of.insert(did, eid); }
+void Context::insert_statics_of(DefId did, ExecId eid) { cached_statics_of.insert(did, eid); }
 
 } // namespace hir

@@ -15,8 +15,12 @@
 
 /// holds pure data in an internal arena, which each chunk of the specified chunk size, can hold any
 /// values do that do not rely on non-trivial destructors
+/// - not thread-safe
 class DataArena {
     arena_t arena_;
+    size_t chunk_size{};
+    // for lazy-init
+    bool initialized{false};
 
   public:
     /// arena ctor (init) from a specified standard chunk size.
@@ -26,20 +30,28 @@ class DataArena {
     DataArena& operator=(const DataArena&) = delete;
     DataArena& operator=(DataArena&&) = delete;
     ~DataArena();
+    void try_init() {
+        if (!this->initialized) {
+            this->arena_ = arena_create(chunk_size);
+            this->initialized = true;
+        }
+    }
     /// gets a ptr to the underlying c-style arena
     arena_t* arena();
     /// get an allocation from the arena of a specified size
     template <typename T> T* alloc_type() {
+        try_init();
         return static_cast<T*>(arena_alloc(&this->arena_, sizeof(T)));
     } /// returns the a pointer data already casted to the desired ptr type
     template <typename T>
     T alloc_as(size_t size)
         requires std::is_pointer_v<T>
     {
+        try_init();
         return static_cast<T>(arena_alloc(&this->arena_, size));
     } /// returns the chunk size (in bytes)
     size_t chunk_cap() const noexcept;
-    size_t first_chunk_size() const noexcept;
+    size_t first_chunk_size() noexcept;
     /// for testing purposes
     void log_debug_info();
 };

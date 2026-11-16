@@ -881,8 +881,12 @@ ast_stmt_t* parse_stmt_for_in(parser_t* p) {
     token_t* for_tkn = parser_prev(p);
     ast_stmt_t* for_stmt = parser_alloc_stmt(p);
     for_stmt->type = AST_STMT_FOR_IN;
+    for_stmt->stmt.for_in_stmt.compt = parser_match_token(p, TOK_COMPT);
+    parser_shed_compt_qualis_with_error(p);
     ast_param_t* param = parse_param(p);
+    parser_shed_compt_qualis_with_error(p);
     parser_expect_token(p, TOK_IN);
+    parser_shed_compt_qualis_with_error(p);
     ast_expr_t* iter = parse_expr_before_opening_brace(p);
     for_stmt->stmt.for_in_stmt.each = param;
     for_stmt->stmt.for_in_stmt.iterator = iter;

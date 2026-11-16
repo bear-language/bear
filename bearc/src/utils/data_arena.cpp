@@ -9,14 +9,27 @@
 #include "utils/data_arena.hpp"
 #include "utils/arena.h"
 #include <stddef.h>
-DataArena::DataArena(size_t chunk_size) : arena_{arena_create(chunk_size)} {}
+DataArena::DataArena(size_t chunk_size) : chunk_size{chunk_size} {}
 
-DataArena::~DataArena() { arena_destroy(&this->arena_); }
+DataArena::~DataArena() {
+    if (initialized) {
+        arena_destroy(&this->arena_);
+    }
+}
 
-size_t DataArena::chunk_cap() const noexcept { return this->arena_.chunk_size; }
+size_t DataArena::chunk_cap() const noexcept { return this->chunk_size; }
 
-void DataArena::log_debug_info() { arena_log_debug_info(&this->arena_); }
+void DataArena::log_debug_info() {
+    try_init();
+    arena_log_debug_info(&this->arena_);
+}
 
-arena_t* DataArena::arena() { return &this->arena_; }
+arena_t* DataArena::arena() {
+    try_init();
+    return &this->arena_;
+}
 
-size_t DataArena::first_chunk_size() const noexcept { return arena_.head->used; }
+size_t DataArena::first_chunk_size() noexcept {
+    try_init();
+    return arena_.head->used;
+}

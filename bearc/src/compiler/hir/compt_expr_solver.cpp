@@ -2920,9 +2920,15 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
 
         llvm::SmallVector<ExecId> strs{};
 
-        DefId struct_did = ty.as<TypeStruct>().def_id;
+        DefId struct_did = def_visitor.visit_as_dependent(ty.as<TypeStruct>().def_id);
         if (!context.def(struct_did).holds<DefStruct>()) {
             return {};
+        }
+        const auto maybe_cached = context.try_fetch_cached_members_of(struct_did);
+        if (maybe_cached.has_value()) {
+            const Exec& ex = context.exec(maybe_cached.as_id());
+            return context.emplace_compt_exec(ex.value,
+                                              span); // same exec value but with a appropriate span
         }
 
         const IdSlice<DefId> ordered_members
@@ -2936,8 +2942,11 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
 
         const IdSlice<ExecId> elems = context.freeze_id_vec(strs);
 
-        return context.emplace_compt_exec(ExecListLiteral{.elems = elems, .elem_type_id = elem_tid},
-                                          span);
+        const auto eid = context.emplace_compt_exec(
+            ExecListLiteral{.elems = elems, .elem_type_id = elem_tid}, span);
+        // cache
+        context.insert_members_of(struct_did, eid);
+        return eid;
     }
 
     return context.emplace_compt_exec(ExecListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);
@@ -2963,9 +2972,15 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
 
         llvm::SmallVector<ExecId> strs{};
 
-        DefId struct_did = ty.as<TypeStruct>().def_id;
+        DefId did = ty.as<TypeStruct>().def_id;
+        const auto maybe_cached = context.try_fetch_cached_statics_of(did);
+        if (maybe_cached.has_value()) {
+            const Exec& ex = context.exec(maybe_cached.as_id());
+            return context.emplace_compt_exec(ex.value,
+                                              span); // same exec value but with a appropriate span
+        }
 
-        const IdSlice<DefId> ordered_members = context.static_defs_for(struct_did);
+        const IdSlice<DefId> ordered_members = context.static_defs_for(did);
 
         for (auto didx = ordered_members.begin(); didx != ordered_members.end(); ++didx) {
             DefId did = context.def_id(didx);
@@ -2975,8 +2990,11 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
 
         const IdSlice<ExecId> elems = context.freeze_id_vec(strs);
 
-        return context.emplace_compt_exec(ExecListLiteral{.elems = elems, .elem_type_id = elem_tid},
-                                          span);
+        const auto eid = context.emplace_compt_exec(
+            ExecListLiteral{.elems = elems, .elem_type_id = elem_tid}, span);
+        // cache
+        context.insert_statics_of(did, eid);
+        return eid;
     }
 
     return context.emplace_compt_exec(ExecListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);

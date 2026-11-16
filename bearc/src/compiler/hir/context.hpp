@@ -993,6 +993,11 @@ class Context {
 
     [[nodiscard]] bool is_rvalue(ExecId eid) { return !is_lvalue(eid); }
 
+    [[nodiscard]] OptId<ExecId> try_fetch_cached_members_of(DefId did) const;
+    [[nodiscard]] OptId<ExecId> try_fetch_cached_statics_of(DefId did) const;
+    void insert_members_of(DefId did, ExecId eid);
+    void insert_statics_of(DefId did, ExecId eid);
+
   private:
     // containers:
     // ~~~~~~~~~~~~~~~~~ file stuff ~~~~~~~~~~~~~~~~~~~
@@ -1127,6 +1132,11 @@ class Context {
 
     DataArena exec_to_type_id_arena;
     ExecHashMap<TypeId, equivalence::exact> exec_to_type_id;
+
+    DataArena cache_members_of_arena;
+    DataArena cached_statics_of_arena;
+    IdHashMap<DefId, ExecId> cached_members_of;
+    IdHashMap<DefId, ExecId> cached_statics_of;
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

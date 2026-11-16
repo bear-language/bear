@@ -935,6 +935,9 @@ void pretty_print_stmt(const ast_stmt_t* stmt) {
         print_title("for-in-loop statement");
         printer_do_indent();
         print_op_from_type(TOK_FOR);
+        if (stmt->stmt.for_in_stmt.compt) {
+            print_op_from_type(TOK_COMPT);
+        }
         print_param(stmt->stmt.for_in_stmt.each);
         printer_deindent();
         print_delineator_from_type(TOK_IN);
