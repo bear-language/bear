@@ -1,0 +1,36 @@
+// tests/hir/b43.br
+
+// testing that `mut` on inferred for-in bindings is kept
+
+fn main() {
+    fine_bindings();
+    oops_bindings();
+}
+
+fn fine_bindings() {
+    var arr = [1, 2, 3];
+    for mut var x in arr {
+        x++;
+    }
+    mut var marr = [1, 2, 3];
+    for mut var x in marr {
+        x += 2;
+    }
+    for var mut x in arr {
+        x--;
+    }
+    for mut i32 x in arr {
+        x++;
+    }
+}
+
+fn oops_bindings() {
+    var arr = [1, 2, 3];
+    for var x in arr {
+        x++; // oops
+    }
+    mut var marr = [1, 2, 3];
+    for var x in marr {
+        x++; // oops, mutability of `marr` should not leak into `x`
+    }
+}

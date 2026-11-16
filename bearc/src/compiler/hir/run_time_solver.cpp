@@ -3382,7 +3382,12 @@ bool RuntimeSolver::bind_for_each_var(FileId fid, LexicalCtx body_lctx, InProgre
     ok &= maybe_rhs_eid.has_value();
 
     if (TypeTransformer<TypeContainsVar>{context}(tid)) {
-        tid = elem_tid; // just correct it to limit cascades
+        // fill in the var from the element type, keeping the written top-level mut
+        if (context.type(written_tid).mut == context.type(elem_tid).mut) {
+            tid = elem_tid;
+        } else {
+            tid = context.emplace_type(context.type(elem_tid).value, span, written_ty.mut);
+        }
     }
 
     const DefId did
