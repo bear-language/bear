@@ -1,0 +1,78 @@
+// tests/hir/b40.br
+
+fn main() {
+    var _ = compt_for();
+    var _ = for_in();
+}
+
+struct Foo has Iterator<i32> {
+    i32 a = 0;
+    i32 b = 0;
+    i64 c = 0;
+    i64 d = 0;
+
+    static i32 e = 42;
+    static i32 f = 67;
+
+    /// bumps a until it equals e + f or is greater
+    mt mut next() -> Opt<i32> {
+        if self.a >= e + f {
+            return Opt..None::<i32>;
+        }
+        return Opt..Some::<i32>(self.a++);
+    }
+}
+
+struct Bar {
+    Foo foo = {};
+    mt iter() -> Foo => self.foo
+}
+
+fn compt_for() -> i32 {
+    mut i32 v;
+    for compt var x in @members_of(Foo) {
+        @note(x); // note, compt str for member name
+        v += 1;
+    }
+    for compt var x in @statics_of(Foo) {
+        @note(x); // note, compt str for static name
+        v += 2;
+    }
+    for compt var x in 0...(@members_of(Foo).len) {
+        @note(x as str); // note, compt member index
+        v += 3;
+    }
+    for compt var x in 0...(@members_of(Foo).len) {
+        @note(x as str); // note, compt member index
+        v += 4;
+    }
+    for compt var s in ["1", "2", "3"] {
+        @note(s); // note
+    }
+    for compt var i in [1, 34, 56, 78, 9] {
+        @note(i as str); // note
+    }
+    return v;
+}
+
+fn for_in() {
+    i32 mut v;
+    for i32 x in Foo{} {
+        v++;
+    }
+    for mut i32 x in Foo{} {
+        v++;
+    }
+    for &i32 x in Foo{} { // oops 
+        v++;
+    }
+    for var x in Foo{} {
+        v++;
+    }
+    for &var x in Foo{} { // oops
+        v++;
+    }
+    for u32 x in Foo{} { // oops
+        v++;
+    }
+}
