@@ -258,6 +258,11 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
             str += '[';
             str += std::to_string(t.canonical_size);
             str += ']';
+            if constexpr (considers_mut()) {
+                if (t1.mut) {
+                    str += " mut";
+                }
+            }
         },
         [&](const TypeSlice&) {
             str += '[';

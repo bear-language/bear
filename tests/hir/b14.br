@@ -6,7 +6,7 @@ struct Foo {
     i32 a;
 }
 
-fn fine([&]i32 s, [&mut]i32 ms, [4]i32 a, [4]mut i32 ma, *i32 p, *i32 mut mp, *Foo pf, str st, usize i) {
+fn fine([&]i32 s, [&mut]i32 ms, [4]i32 a, [4]i32 mut ma, *i32 p, *i32 mut mp, *Foo pf, str st, usize i) {
     i32 _0 = s[i];
     i32 _1 = a[0];
     i32 _2 = p[i + 1];

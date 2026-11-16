@@ -6,7 +6,7 @@
 
 #### Types
 - Type: 
-    - MutType: `mut`? Type `mut`? *** `mut`s bind leftward, unless nothing is to the left, where they will then bind rightward
+    - Mut Rule: general form is `mut`? Type `mut`? *** `mut`s bind leftward, unless nothing is to the left, where they will then bind rightward
     - | FnPtr: `*` `fn` `mut`? `(` Parameter(s) `)` `->` ReturnType
     - | BaseType:
         - Signed integers: `i8, i16, i32, i64`
@@ -18,11 +18,10 @@
         - | Struct: (implicit: `struct`) Identifier
         - | Union: (implicit: `union`) Identifier
     - | Generic: \[BaseType `::`? `<` GenericParam(s) `>`] | BaseType `::` GenericParam
-    - | Array: `[` CompileTimeExpression `]` Type 
+    - | Array: `[` CompileTimeExpression `]` `mut`? Type 
     - | Slice: `[` `&` `mut`? `]` Type
-    - | Reference: `&` Type
-    - | Pointer: `*` Type
-    - | Variadic: Type `...`
+    - | Reference: `&` `mut`? Type
+    - | Pointer: `*` `mut`? Type
     - | TypeOf: `typeof` Expression 
     - | Decay: `decay` Type
     - | Anonymous Struct (aka Tuple): `struct` `(` Type(s) `)` 

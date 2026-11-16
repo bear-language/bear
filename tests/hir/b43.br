@@ -30,10 +30,10 @@ fn oops_bindings() {
         x++; // oops
     }
     mut var marr = [1, 2, 3];
-    for mut var x in marr { // oops, not interiorly mut
+    for mut var x in marr { // fine (new binding) 
         x++; 
     }
-    for mut i32 x in marr { // oops, not interiorly mut
+    for mut i32 x in marr { // fine (new binding)
         x++; 
     }
     for i32 x in marr {
@@ -57,4 +57,7 @@ fn oops_bindings() {
         void _;
     }
     marrm = [3, 2, 1];
+    for &mut var x in marrm {
+        x++;
+    }
 }

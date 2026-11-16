@@ -356,7 +356,9 @@ ast_type_t* parse_type_arr(parser_t* p) {
         return parser_sync_type(p);
     }
     while (parser_match_token(p, TOK_MUT)) {
-        compiler_error_list_emplace(p->error_list, parser_prev(p), ERR_REDUNDANT_MUT);
+        if (mut) {
+            compiler_error_list_emplace(p->error_list, parser_prev(p), ERR_REDUNDANT_MUT);
+        }
         mut |= true;
     }
     ast_type_t* inner = parse_type(p);
