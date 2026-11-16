@@ -558,8 +558,7 @@ DefId DefVisitor::resolve_def(DefId did) {
 
         ScopeId contract_scope = context.scope_for_def(did);
         context.register_generated_deftype(
-            contract_scope, context.symbol_id<"Self">(),
-            context.emplace_type(TypeVar{}, Span::generated(), false), did,
+            contract_scope, context.symbol_id<"Self">(), context.type_for_var(false), did,
             Span{context, context.def(did).span.file_id, stmt->stmt.contract_decl.name});
         IdSlice<DefId> ordered_fns = context.ordered_defs_for(did);
         for (auto didx = ordered_fns.begin(); didx != ordered_fns.end(); ++didx) {

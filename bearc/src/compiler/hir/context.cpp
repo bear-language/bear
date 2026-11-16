@@ -165,6 +165,9 @@ Context::Context(const bearc_args_t& args, instances instances,
                                        Span::generated(), false);
     }
 
+    var_tid = emplace_type(TypeVar{}, Span::generated(), false);
+    mut_var_tid = emplace_type(TypeVar{}, Span::generated(), false);
+
     // must be known before any file is read
     this->source_overlays.assign(source_overlays.begin(), source_overlays.end());
 
@@ -2438,9 +2441,15 @@ template <equivalence E>
         return true;
     }
 
-    // one has an inner and the other doesn't -> not strucurally equivalent
+    // one has an inner and the other doesn't -> not strucurally equivalent if exact, but fine if
+    // implicit passed the top-level check (to reach here, it already passed) and neither outer is a
+    // ref, sice refs should be explicitly annotated
     if (from_inner.has_value() != to_inner.has_value()) {
-        return false;
+        if constexpr (E == equivalence::exact) {
+            return false;
+        } else {
+            return !from_ty.holds<TypeRef>() && !to_ty.holds<TypeRef>();
+        }
     }
 
     if ((from_ty.holds<TypePtr>() || from_ty.holds<TypeSlice>()) && ctx.type(from_inner.as_id()).mut
@@ -2509,6 +2518,33 @@ bool Context::type_castable_to(TypeId from, TypeId to) const {
         return true;
     }
     return type(from).castable_to(type(to));
+}
+
+bool Context::guard_non_assignable_inferred_type(TypeId from, TypeId to, Span from_span) {
+    if (!assignable_and_inferable_from_type_to(from, to)) {
+        const auto d0 = emplace_diagnostic_with_message_value(
+            from_span, diag_code::cannot_convert_value_of_type, diag_type::error,
+            DiagnosticTypeToType{.from = from, .to = to});
+        if (type(from).holds<TypeRef>()
+            && assignable_and_inferable_from_type_to(type(from).try_inner().as_id(), to)) {
+            const Type& to_ty = type(to);
+            const auto inner_replacement_tid
+                = to_ty.mut ? (to_ty.holds<TypeVar>()
+                                   ? type_for_var(false)
+                                   : emplace_type(to_ty.value, Span::generated(), false))
+                            : to;
+            const TypeId replacement_tid = emplace_type(TypeRef{.inner = inner_replacement_tid},
+                                                        Span::generated(), type(from).mut);
+            const auto d1 = emplace_diagnostic(
+                to_ty.span, diag_code::replace_with, diag_type::help,
+                DiagnosticSymbolAfterMessage{
+                    .sid = symbol_id(type_to_string_as_mentioned(*this, replacement_tid))},
+                DiagnosticSubCode{.sub_code = diag_code::write_this_as_a_reference_type});
+            link_diagnostic(d0, d1);
+        }
+        return true;
+    }
+    return false;
 }
 
 bool Context::compatible_contract_params(IdSlice<TypeId> s1, IdSlice<TypeId> s2, DefId struct_id) {
@@ -4484,6 +4520,8 @@ TypeId Context::type_for_builtin(builtin_type type) const {
     assert(idx < BUILTIN_TYPE_COUNT);
     return builtin_tids[idx];
 }
+
+TypeId Context::type_for_var(bool mut) const { return mut ? mut_var_tid : var_tid; }
 
 OptId<ExecId> Context::try_fetch_cached_members_of(DefId did) const {
     return cached_members_of.at(did);

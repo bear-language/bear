@@ -288,6 +288,7 @@ enum class diag_code : uint16_t {
     for_conditional_compilation_use_if_compt,
     if_body_will_always_execute,
     if_body_will_never_execute,
+    write_this_as_a_reference_type,
 
     count, // this must be last,
 

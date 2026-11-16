@@ -571,6 +571,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "if body will always execute";
     case diag_code::if_body_will_never_execute:
         return "if body will never execute";
+    case diag_code::write_this_as_a_reference_type:
+        return "write this as a reference type";
     }
 
     std::unreachable();

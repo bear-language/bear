@@ -1,6 +1,6 @@
 // tests/hir/b41.br
 
-// more for in testing
+// testing more for in and mut/ref bindings
 
 struct MyRange<i64 MAX> has Iterator<&i64> {
     i64 mut curr = 0;
@@ -24,13 +24,32 @@ fn my_range(&mut i32 a) {
     for compt var x in cr { // oops, not iterable at compt
         a++; 
     }
-    for var x in cr {
+    for var x in cr { // oops, should annotate as &var
         a += x as i32;
     }
     for &i64 x in cr {
         a += x as i32;
     }
-    for &var x in cr { // TODO, should work
+    for &var x in cr { // fine 
         a += x as i32;
     }
+
+}
+
+fn var_bindings(&mut i32 a) {
+    var b = a;
+    b++; // oops
+    mut var c = a;
+    c++;
+    &var d = &a;
+    d++; // oops
+    &mut var e = &mut a;
+    e++;
+    mut var _ = &mut e; // oops
+    &var _ = &mut e;
+    &var _ = &e;
+    &mut var _ = &d; // oops
+    compt &i32 _ = 12; // fine (compt)
+    compt &var _ = 12; // fine (compt)
+    compt &i32 _ = &compt 12; // fine (compt)
 }

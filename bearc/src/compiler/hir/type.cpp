@@ -905,18 +905,86 @@ template <ConsiderMut C> bool TypeInferer<C>::operator()(const Type& t1, const T
     TypeComparator<C> comparator{context};
 
     auto vs = Ovld{
-        [&](const TypeBuiltin&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeStruct&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeVariant&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeUnion&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeDeftype&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeArr&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeSlice&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypeRef&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [&](const TypePtr&) -> bool { return t2.holds<TypeVar>() || comparator(t1, t2); },
-        [this, &t2](const TypeFnPtr& t) -> bool {
+        [&](const TypeBuiltin&) -> bool {
+            if constexpr (std::same_as<C, DoConsiderMut>) {
+                if (t1.mut != t2.mut) {
+                    return false;
+                }
+            }
+            return t1.holds<TypeVar>() || t2.holds<TypeVar>() || comparator(t1, t2);
+        },
+        [&](const TypeStruct&) -> bool {
+            if constexpr (std::same_as<C, DoConsiderMut>) {
+                if (t1.mut != t2.mut) {
+                    return false;
+                }
+            }
+            return t1.holds<TypeVar>() || t2.holds<TypeVar>() || comparator(t1, t2);
+        },
+        [&](const TypeVariant&) -> bool {
+            if constexpr (std::same_as<C, DoConsiderMut>) {
+                if (t1.mut != t2.mut) {
+                    return false;
+                }
+            }
+            return t1.holds<TypeVar>() || t2.holds<TypeVar>() || comparator(t1, t2);
+        },
+        [&](const TypeUnion&) -> bool {
+            if constexpr (std::same_as<C, DoConsiderMut>) {
+                if (t1.mut != t2.mut) {
+                    return false;
+                }
+            }
+            return t1.holds<TypeVar>() || t2.holds<TypeVar>() || comparator(t1, t2);
+        },
+        [&](const TypeDeftype&) -> bool {
+            if constexpr (std::same_as<C, DoConsiderMut>) {
+                if (t1.mut != t2.mut) {
+                    return false;
+                }
+            }
+            return t1.holds<TypeVar>() || t2.holds<TypeVar>() || comparator(t1, t2);
+        },
+        [&](const TypeArr&) -> bool {
+            if constexpr (std::same_as<C, DoConsiderMut>) {
+                if (t1.mut != t2.mut) {
+                    return false;
+                }
+            }
+            return t1.holds<TypeVar>() || t2.holds<TypeVar>() || comparator(t1, t2);
+        },
+        [&](const TypeSlice&) -> bool {
+            if constexpr (std::same_as<C, DoConsiderMut>) {
+                if (t1.mut != t2.mut) {
+                    return false;
+                }
+            }
+            return t1.holds<TypeVar>() || t2.holds<TypeVar>() || comparator(t1, t2);
+        },
+        [&](const TypeRef&) -> bool {
+            if constexpr (std::same_as<C, DoConsiderMut>) {
+                if (t1.mut != t2.mut) {
+                    return false;
+                }
+            }
+            return t1.holds<TypeVar>() || t2.holds<TypeVar>() || comparator(t1, t2);
+        },
+        [&](const TypePtr&) -> bool {
+            if constexpr (std::same_as<C, DoConsiderMut>) {
+                if (t1.mut != t2.mut) {
+                    return false;
+                }
+            }
+            return t1.holds<TypeVar>() || t2.holds<TypeVar>() || comparator(t1, t2);
+        },
+        [this, &t1, &t2](const TypeFnPtr& t) -> bool {
             if (!t2.holds<TypeFnPtr>()) {
                 return false;
+            }
+            if constexpr (std::same_as<C, DoConsiderMut>) {
+                if (t1.mut != t2.mut) {
+                    return false;
+                }
             }
             bool rt_match = false;
             if (t.return_type.has_value() && t2.as<TypeFnPtr>().return_type.has_value()) {

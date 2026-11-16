@@ -26,6 +26,7 @@
 #include "compiler/token.h"
 #include <algorithm>
 #include <bit>
+#include <iostream>
 
 namespace hir {
 
@@ -763,33 +764,37 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
     const SymbolId name = context.symbol_id(stmt->stmt.var_init_decl.name);
     const Span span{context, fid, stmt};
 
-    OptId<TypeId> maybe_tid = TypeResolver{context, def_visitor}.resolve_type(
+    OptId<TypeId> maybe_written_tid = TypeResolver{context, def_visitor}.resolve_type(
         fid, lctx.scope, stmt->stmt.var_init_decl.type);
 
-    if (maybe_tid.empty()) {
+    if (maybe_written_tid.empty()) {
         return {};
     }
 
-    TypeId fall_back_tid_which_may_contain_var = maybe_tid.as_id();
+    TypeId fall_back_tid_which_may_contain_var = maybe_written_tid.as_id();
 
     OptId<ExecId> maybe_compt_eid{};
     OptId<ExecId> maybe_runtime_eid{};
 
     if (compt == compt::compt || storage == storage::statik) {
         maybe_compt_eid = ComptExprSolver{def_visitor}.solve_expr(
-            fid, lctx.scope, stmt->stmt.var_init_decl.rhs, maybe_tid);
-        if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())
+            fid, lctx.scope, stmt->stmt.var_init_decl.rhs, maybe_written_tid);
+        if (TypeTransformer<TypeContainsVar>{context}(maybe_written_tid.as_id())
             && maybe_compt_eid.has_value()) {
-            maybe_tid = infer_type_from_exec(maybe_compt_eid.as_id());
+            maybe_written_tid = infer_type_from_exec(maybe_compt_eid.as_id());
         }
     } else {
-        maybe_runtime_eid = solve_expr(fid, lctx, stmt->stmt.var_init_decl.rhs, maybe_tid);
-        if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())
+        maybe_runtime_eid = solve_expr(fid, lctx, stmt->stmt.var_init_decl.rhs, maybe_written_tid);
+        if (TypeTransformer<TypeContainsVar>{context}(maybe_written_tid.as_id())
             && maybe_runtime_eid.has_value()) {
-            bool mut = context.type(maybe_tid.as_id()).mut;
+            bool mut = context.type(maybe_written_tid.as_id()).mut;
             const auto maybe_inferred_tid = infer_type_from_exec(maybe_runtime_eid.as_id());
             if (maybe_inferred_tid.has_value()) {
-                maybe_tid
+                // this handles diagnostics, but continue onward regardless as to reduce cascades
+                context.guard_non_assignable_inferred_type(
+                    maybe_inferred_tid.as_id(), maybe_written_tid.as_id(),
+                    context.exec(maybe_runtime_eid.as_id()).span);
+                maybe_written_tid
                     = context.emplace_type(context.type(maybe_inferred_tid.as_id()).value,
                                            context.type(maybe_inferred_tid.as_id()).span, mut);
             }
@@ -799,7 +804,8 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
     const DefId did = context.register_def(
         name, compt == compt::compt, storage == storage::statik, align, span, stmt,
         DefVariable{
-            .type_id = maybe_tid ? maybe_tid.as_id() : fall_back_tid_which_may_contain_var,
+            .type_id
+            = maybe_written_tid ? maybe_written_tid.as_id() : fall_back_tid_which_may_contain_var,
             .compt_value = maybe_compt_eid,
         },
         {});
@@ -819,7 +825,7 @@ OptId<ExecId> RuntimeSolver::handle_var_init_decl(FileId fid, LexicalCtx lctx,
             = context.emplace_exec(ExecAssignment{.lhs = context.emplace_exec(
                                                       ExecVariable{
                                                           .def_id = did,
-                                                          .type_id = maybe_tid.as_id(),
+                                                          .type_id = maybe_written_tid.as_id(),
                                                       },
                                                       span),
                                                   .rhs = maybe_runtime_eid.as_id()},
@@ -3340,28 +3346,28 @@ bool RuntimeSolver::bind_for_each_var(FileId fid, LexicalCtx body_lctx, InProgre
     }
     const TypeId written_tid = maybe_written_tid.as_id();
     const TypeId elem_tid = maybe_elem_tid.as_id();
-    const Type written_ty = context.type(written_tid);
+    const Type& written_ty = context.type(written_tid);
     const SymbolId name = context.symbol_id(param->name);
     const Span span{context, fid, param->first, param->last};
-
-    const bool by_ref = src == for_each_src::indexable && written_ty.holds<TypeRef>()
-                        && context.type_inferable_as(written_ty.as<TypeRef>().inner, elem_tid);
+    const bool by_ref_for_indexable
+        = src == for_each_src::indexable && written_ty.holds<TypeRef>()
+          && context.type_inferable_as(written_ty.as<TypeRef>().inner, elem_tid);
 
     TypeId tid = written_tid;
     OptId<ExecId> maybe_rhs_eid{};
     bool ok = true;
-    if (by_ref) {
+    if (by_ref_for_indexable) {
+
+        const bool written_ty_contains_var = TypeTransformer<TypeContainsVar>{context}(written_tid);
         maybe_rhs_eid = try_checked_borrow(context, elem_eid, written_ty.mut, span);
-        if (maybe_rhs_eid.has_value() && TypeTransformer<TypeContainsVar>{context}(written_tid)) {
+
+        if (maybe_rhs_eid.has_value() && written_ty_contains_var) {
             const auto maybe_inferred_tid = infer_type_from_exec(maybe_rhs_eid.as_id());
             if (maybe_inferred_tid.empty()) {
                 return false;
             }
             tid = maybe_inferred_tid.as_id();
         }
-    } else if (written_ty.holds<TypeVar>()) {
-        tid = context.emplace_type(context.type(elem_tid).value, span, written_ty.mut);
-        maybe_rhs_eid = elem_eid;
     } else if (context.assignable_and_inferable_from_type_to(elem_tid, written_tid)) {
         maybe_rhs_eid = elem_eid;
     } else {
@@ -3371,13 +3377,13 @@ bool RuntimeSolver::bind_for_each_var(FileId fid, LexicalCtx body_lctx, InProgre
         ok = false;
     }
 
-    if (maybe_rhs_eid.has_value() && !by_ref && src == for_each_src::indexable) {
+    if (maybe_rhs_eid.has_value() && !by_ref_for_indexable && src == for_each_src::indexable) {
         maybe_rhs_eid = consume(body_lctx, maybe_rhs_eid.as_id());
     }
     ok &= maybe_rhs_eid.has_value();
 
     if (TypeTransformer<TypeContainsVar>{context}(tid)) {
-        return false;
+        tid = elem_tid; // just correct it to limit cascades
     }
 
     const DefId did
@@ -3385,7 +3391,9 @@ bool RuntimeSolver::bind_for_each_var(FileId fid, LexicalCtx body_lctx, InProgre
     context.insert_variable(body_lctx.scope, name, did);
     prelude.push_back_def(did);
     locals.push_back(did);
-    if (ok) {
+
+    // push_back regardless of `ok` to minimize cascades
+    if (maybe_rhs_eid.has_value()) {
         prelude.push_back_exec(context.emplace_exec(
             ExecAssignment{
                 .lhs = context.emplace_exec(ExecVariable{.def_id = did, .type_id = tid}, span),

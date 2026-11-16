@@ -1,0 +1,36 @@
+// tests/hir/b42.br
+
+// testing more binding and interactions with mut 
+
+fn main() {
+    oops_bindings();
+    fine_bindings();
+}
+
+fn oops_bindings() { 
+    var _ = &compt [1, 2, 3]; // oops 
+    var _ = &[1, 2, 3]; // oops 
+    mut var _ = &[1, 2, 3]; // oops 
+    mut var arr = [1, 2, 3];
+    mut var _ = &mut arr; // oops
+    mut var _ = &arr; // oops
+    &mut var _ = &arr; // oops
+
+    &mut var _ = &mut [1, 2, 3]; // oops
+    &mut var _ = &12; // oops
+    &mut var _ = &compt 12; // oops
+
+    &mut var _ = compt 1; // oops
+    &var _ = compt 1.00121; // oops
+    &mut var _ = &mut compt 1231234; // oops
+}
+
+fn fine_bindings() {
+    &var _ = &compt [1, 2, 3];
+    var _ = compt 1;
+    var mut _ = compt 1;
+    mut var _ = compt 1;
+    mut var arr = [1, 2, 3];
+    &mut var _ = &mut arr;
+    &mut var _ = &mut arr;
+}

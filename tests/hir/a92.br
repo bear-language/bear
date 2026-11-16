@@ -22,15 +22,15 @@ fn named_compt_constants() {
 }
 
 fn compt_aggregates_are_promoted() {
-    var rl = &[1, 2, 3];
+    &var rl = &[1, 2, 3];
     var _0 = @static_assert @type_to_str(typeof rl) == "&[3]i32";
-    var rs = &Foo{.x = 5};
+    &var rs = &Foo{.x = 5};
     var _1 = @static_assert @type_to_str(typeof rs) == "&Foo";
-    var ru = &Bar{.a = 1};
+    &var ru = &Bar{.a = 1};
     var _2 = @static_assert @type_to_str(typeof ru) == "&Bar";
-    var rt = &(1, 2);
+    &var rt = &(1, 2);
     var _3 = @static_assert @type_to_str(typeof rt) == "&struct(i32,i32)";
-    var rd = &Foo{}; // all-default members still count as compt
+    &var rd = &Foo{}; // all-default members still count as compt
 }
 
 fn runtime_aggregates_are_temporaries(i32 p, i64 q) {

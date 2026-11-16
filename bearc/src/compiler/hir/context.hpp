@@ -111,6 +111,8 @@ class Context {
 
     [[nodiscard]] TypeId type_for_builtin(builtin_type type) const;
 
+    [[nodiscard]] TypeId type_for_var(bool mut) const;
+
     // ----- accessors / emplacers --------
 
     /// gets the SymbolId for the (string span of) a token
@@ -647,6 +649,10 @@ class Context {
     [[nodiscard]] bool equivalent_type_slice(IdSlice<TypeId> s1, IdSlice<TypeId> s2) const;
 
     [[nodiscard]] bool type_castable_to(TypeId from, TypeId to) const;
+
+    /// returns true on mismatch, else false
+    /// - emplaces appropriate diagnostics, including help messages
+    bool guard_non_assignable_inferred_type(TypeId from, TypeId to, Span from_span);
 
     [[nodiscard]] bool compatible_contract_params(IdSlice<TypeId> s1, IdSlice<TypeId> s2,
                                                   DefId struct_id);
@@ -1199,6 +1205,8 @@ class Context {
 
     static constexpr size_t BUILTIN_TYPE_COUNT = static_cast<size_t>(builtin_type::boolean) + 1;
     std::array<TypeId, BUILTIN_TYPE_COUNT> builtin_tids{};
+    TypeId var_tid;
+    TypeId mut_var_tid;
     bool register_spans{false};
 
     bool compact_diagnostics{false};
