@@ -26,7 +26,6 @@
 #include "compiler/token.h"
 #include <algorithm>
 #include <bit>
-#include <iostream>
 
 namespace hir {
 
