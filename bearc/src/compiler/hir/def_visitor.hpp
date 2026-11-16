@@ -49,9 +49,8 @@ class DefVisitor {
     /// try to satisfy contracts for a struct upon construction
     bool try_satisfy_contracts(DefId struct_did, IdSlice<DefId> contract_dids);
 
-    [[nodiscard]] OptId<DefId> resolve_param(FileId fid, ScopeId scope, DefId func_def,
-                                             const ast_param_t* param);
-    [[nodiscard]] OptId<DefId> resolve_param(DefId func_def, TypeId tid, SymbolId name, Span span);
+    [[nodiscard]] OptId<DefId> resolve_param(FileId fid, ScopeId scope, const ast_param_t* param);
+    [[nodiscard]] OptId<DefId> resolve_param(TypeId tid, SymbolId name, Span span);
 
     void resolve_fn_body(FileId fid, DefId func_did);
 

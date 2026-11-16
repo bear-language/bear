@@ -740,8 +740,7 @@ void DefVisitor::report_cycle(DefId culprit, diag_code code) {
     assert(false && "failed to find culprit defintion when reporting a circular defintion");
 }
 
-OptId<DefId> DefVisitor::resolve_param(FileId fid, ScopeId scope, DefId func_def,
-                                       const ast_param_t* param) {
+OptId<DefId> DefVisitor::resolve_param(FileId fid, ScopeId scope, const ast_param_t* param) {
 
     if (!param->valid) {
         return std::nullopt;
@@ -759,11 +758,11 @@ OptId<DefId> DefVisitor::resolve_param(FileId fid, ScopeId scope, DefId func_def
 
     SymbolId name = context.symbol_id(param->name);
 
-    return resolve_param(func_def, tid, name, span);
+    return resolve_param(tid, name, span);
 }
 
-OptId<DefId> DefVisitor::resolve_param(DefId func_def, TypeId tid, SymbolId name, Span span) {
-    return context.register_def(name, span, func_def,
+OptId<DefId> DefVisitor::resolve_param(TypeId tid, SymbolId name, Span span) {
+    return context.register_def(name, span, {},
                                 DefVariable{.type_id = tid, .compt_value = std::nullopt});
 }
 
@@ -781,9 +780,8 @@ DefVisitor::resolve_params(FileId fid, ScopeId scope, DefId func_def,
     if (self_type.has_value()) {
         const auto* fn_node = context.def_ast_node(func_def);
         assert(fn_node->type == AST_STMT_FN_DECL || fn_node->type == AST_STMT_FN_PROTOTYPE);
-        auto hopefully_self_param
-            = resolve_param(func_def, self_type.as_id(), context.symbol_id<"self">(),
-                            Span{context, fid, fn_node->stmt.fn_decl->kw});
+        auto hopefully_self_param = resolve_param(self_type.as_id(), context.symbol_id<"self">(),
+                                                  Span{context, fid, fn_node->stmt.fn_decl->kw});
         if (hopefully_self_param.empty()) {
             return freeze_params(true); // poisoned
         }
@@ -792,7 +790,7 @@ DefVisitor::resolve_params(FileId fid, ScopeId scope, DefId func_def,
 
     for (HirSize i = 0; i < params.len; i++) {
         const ast_param_t* param = params.start[i];
-        OptId<DefId> maybe_param = resolve_param(fid, scope, func_def, param);
+        OptId<DefId> maybe_param = resolve_param(fid, scope, param);
         if (maybe_param.empty()) {
             return freeze_params(true); // poisoned
         }

@@ -30,7 +30,6 @@
         - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
             - [ ] `for in` (blocked on an iteration protocol/contract + `std..Range`)
         - [ ] closures (rust-like capture semantics)
-            - [ ] note: compt-closures in function bodies naturally capture (by-scope) local vars which is malformed, so this is gonna have to be handled
         - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee); either convert them in HIR or cast when lowering the `switch`
         - [ ] use deduction guides for 
             -  [x] functions
