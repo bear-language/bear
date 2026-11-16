@@ -477,6 +477,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "`for` iterates over `Iterator`s, arrays, slices, strs, and ranges";
     case diag_code::write_the_range_directly_in_the_for_statement:
         return "write the range directly in the `for` statement";
+    case diag_code::maximum_compt_for_iterations_exceeded:
+        return "maximum number of `for compt` iterations exceeded, the limit is";
     case diag_code::use_of_moved_value:
         return "use of moved value";
     case diag_code::value_moved_here:

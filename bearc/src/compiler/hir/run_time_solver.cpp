@@ -3844,17 +3844,19 @@ OptId<ExecId> RuntimeSolver::handle_for_compt(FileId fid, LexicalCtx lctx, InPro
     const Exec iterable = context.exec(maybe_iterable_eid.as_id());
 
     llvm::SmallVector<ExecId> elems{};
+    const auto exceeds_cap = [&] { return elems.size() > MAX_COMPT_FOR_ITERATIONS; };
     bool iterable_ok = false;
     if (iterable.holds<ExecListLiteral>()) {
         iterable_ok = true;
         const IdSlice<ExecId> list = iterable.as<ExecListLiteral>().elems;
-        for (size_t i = 0; i < list.len(); ++i) {
+        for (size_t i = 0; i < list.len() && !exceeds_cap(); ++i) {
             elems.push_back(context.exec_id(list.get(i)));
         }
     } else if (iterable.holds<ExecConst>() && iterable.as<ExecConst>().holds<SymbolId>()) {
         iterable_ok = true;
         const std::string chars{context.symbol(iterable.as<ExecConst>().as<SymbolId>())};
-        for (const char c : chars) {
+        for (size_t i = 0; i < chars.size() && !exceeds_cap(); ++i) {
+            const char c = chars[i];
             elems.push_back(context.emplace_compt_exec(ExecConst{ConstantValue{c}}, iterable_span));
         }
     } else if (iterable.holds<ExecRange>()) {
@@ -3877,7 +3879,7 @@ OptId<ExecId> RuntimeSolver::handle_for_compt(FileId fid, LexicalCtx lctx, InPro
                 const int64_t last = end.to_i64();
                 for (int64_t v = start.to_i64(); range.inclusive ? v <= last : v < last; ++v) {
                     push_elem(ConstantValue{v});
-                    if (v == last) {
+                    if (v == last || exceeds_cap()) {
                         break;
                     }
                 }
@@ -3885,12 +3887,16 @@ OptId<ExecId> RuntimeSolver::handle_for_compt(FileId fid, LexicalCtx lctx, InPro
                 const uint64_t last = end.to_size();
                 for (uint64_t v = start.to_size(); range.inclusive ? v <= last : v < last; ++v) {
                     push_elem(ConstantValue{v});
-                    if (v == last) {
+                    if (v == last || exceeds_cap()) {
                         break;
                     }
                 }
             }
         }
+    }
+    const bool exceeded = exceeds_cap();
+    if (exceeded) {
+        elems.resize(MAX_COMPT_FOR_ITERATIONS);
     }
     if (!iterable_ok) {
         diag_not_iterable(iterable_span, infer_type_from_exec(maybe_iterable_eid.as_id()),
@@ -3955,6 +3961,14 @@ OptId<ExecId> RuntimeSolver::handle_for_compt(FileId fid, LexicalCtx lctx, InPro
     }
 
     inside_compt_for = outer_inside_compt_for;
+
+    if (exceeded && !cooked) {
+        context.emplace_diagnostic_with_message_value(
+            iterable_span, diag_code::maximum_compt_for_iterations_exceeded, diag_type::error,
+            DiagnosticSymbolAfterMessage{
+                .sid = context.symbol_id(std::to_string(MAX_COMPT_FOR_ITERATIONS))});
+        return {};
+    }
 
     if (cooked) {
         return {};

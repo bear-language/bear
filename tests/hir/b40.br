@@ -55,6 +55,12 @@ fn compt_for() -> i32 {
     for compt var c in "ab" {
         var _ = @note(c as str); // note
     }
+    for compt var x in 0...512 { // fine, exactly at the cap
+        v += 5;
+    }
+    for compt var x in 0...=512 { // oops, exceeds the cap
+        v += 6;
+    }
     return v;
 }
 

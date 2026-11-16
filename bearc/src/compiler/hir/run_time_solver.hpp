@@ -36,6 +36,7 @@ class RuntimeSolver {
     llvm::SmallVector<MoveMapId>* current_loop_back_edge_maps{};
     bool inside_loop_header{};
     bool inside_compt_for{};
+    static constexpr size_t MAX_COMPT_FOR_ITERATIONS = 512;
 
     struct MatchCtx {
         OptId<TypeId> result_tid;
