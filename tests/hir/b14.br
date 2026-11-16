@@ -2,8 +2,6 @@
 
 // testing runtime subscripting of slices, arrays, ptrs, and strs
 
-deftype usize = u64;
-
 struct Foo {
     i32 a;
 }

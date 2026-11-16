@@ -2,8 +2,6 @@
 
 // testing compt folding of runtime subscripts into compt list literals and compt strs
 
-deftype usize = u64;
-
 compt usize TWO = 2;
 compt str HELLO = "hello";
 

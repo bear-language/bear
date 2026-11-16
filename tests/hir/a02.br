@@ -71,3 +71,13 @@ struct D<Vary V> { // generic compt variant cuz why not
         }
     };
 }
+
+var _10 = @static_assert C..len::<([1 as i8, 2 as i8, 3 as i8, 4 as i8])> == 4;
+
+var _11 = @static_assert @same_type(typeof C..len::<([1 as i8, 2 as i8, 3 as i8, 4 as i8])>, usize);
+
+var _12 = @static_assert C..len::<([1 as i8, 2 as i8, 3 as i8, 4 as i8])> == 5; // oops
+
+var _13 = @static_assert C..first_val::<([1 as i8, 2 as i8, 3 as i8, 4 as i8])> == 2; // oops
+
+var _14 = @static_assert @same_type(typeof C..len::<([1 as i8, 2 as i8, 3 as i8, 4 as i8])>, u32); // oops

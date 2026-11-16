@@ -1,7 +1,5 @@
 // tests/hir/09.br 
 
-deftype usize = u64;
-
 fn main() -> i32 {
     return 0;
 }

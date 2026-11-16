@@ -1164,6 +1164,7 @@ class Context {
     std::shared_mutex import_file_mutex;
 
     // for abi styuff, these are usually the same:
+    // TODO: actually set these based on target arch
     HirSize pointer_size_bytes_{8};
     HirSize register_size_bytes_{8};
 
@@ -1204,7 +1205,7 @@ class Context {
     /// wrapped by file handling logic and should thus not be used directly anywhere else
     [[nodiscard]] FileAstId emplace_ast(const char* file_name);
     /// gets the overlaid src for a path, or nullptr if the file should be read from disk
-    [[nodiscard]] const char* overlay_src_for(SymbolId path) const;
+    [[nodiscard]] const char* try_overlay_src_for(SymbolId path) const;
     void register_importer(FileId importee, FileId importer);
     void report_cycle(llvm::SmallVectorImpl<FileId>& import_stack, const token_t* import_path_tkn);
     [[nodiscard]] OptId<FileId> try_file_from_import_statement(FileId importer_id,

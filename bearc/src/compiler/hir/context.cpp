@@ -581,12 +581,12 @@ FileId Context::file(SymbolId path_symbol) {
     if (maybe_file_id.has_value()) {
         return maybe_file_id.as_id();
     }
-    // ****************** all lexing and parsing done in this one line
-    const char* overlay_src = overlay_src_for(path_symbol);
-    FileAstId ast_id
-        = overlay_src
-              ? this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol), overlay_src)
-              : this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol));
+    // ****************** all lexing and parsing done in these two lines
+    const char* maybe_overlay_src = try_overlay_src_for(path_symbol);
+    FileAstId ast_id = maybe_overlay_src
+                           ? this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol),
+                                                                maybe_overlay_src)
+                           : this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol));
     // ^^^^^^^^^^^^^^^^^^
     FileId file_id = this->files.emplace_and_get_id(path_symbol, ast_id);
     // store this mapping for future detection
@@ -677,13 +677,26 @@ use Copy;
 contract Destruct {
     mt mut destruct();
 }
-fn drop<T>(T t) { return; }
+fn drop<T>(T t) { 
+    var _ = t; 
+}
 mod std {
 use Destruct;
 use drop;
 }
         )";
     file_intrinsic(symbol_id(destruct_name), destruct_src);
+    const char* size_name = "intrinsic/size";
+    const char* size_src =
+        R"(
+deftype usize = u64;
+deftype isize = i64;
+mod std {
+use usize;
+use isize;
+}
+        )";
+    file_intrinsic(symbol_id(size_name), size_src);
 }
 
 FileId Context::file_parallel(SymbolId path_symbol) {
@@ -697,7 +710,7 @@ FileId Context::file_parallel(SymbolId path_symbol) {
     }
     // ****************** all lexing and parsing done in this one line
     // pure parsing, doesn't touch Context, so this is fully parallelizable
-    const char* overlay_src = overlay_src_for(path_symbol);
+    const char* overlay_src = try_overlay_src_for(path_symbol);
     FileAst file_ast = overlay_src ? FileAst{symbol_id_to_cstr(path_symbol), overlay_src}
                                    : FileAst{symbol_id_to_cstr(path_symbol)};
     // ^^^^^^^^^^^^^^^^^^
@@ -729,7 +742,7 @@ FileAstId Context::emplace_ast(const char* file_name) {
     return this->file_asts.emplace_and_get_id(file_name);
 }
 
-const char* Context::overlay_src_for(SymbolId path) const {
+const char* Context::try_overlay_src_for(SymbolId path) const {
     const std::string_view path_sv = symbol(path);
     for (const SourceOverlay& overlay : source_overlays) {
         if (overlay.path == path_sv) {
