@@ -1,7 +1,6 @@
 ### todos
 
 #### priority
-- [ ] add `--check` (no codegen) flag and make hir tests use it
 - [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
     - [ ] just find main thru top-level scope; only require it in non-lib build
 - [ ] make sure `mut var foo = x;` always creates a mut binding
