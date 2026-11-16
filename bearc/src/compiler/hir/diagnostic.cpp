@@ -465,6 +465,18 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "break statement cannot be used inside of a loop's condition or update";
     case diag_code::continue_statement_inside_of_loop_header:
         return "continue statement cannot be used inside of a loop's condition or update";
+    case diag_code::break_statement_inside_of_compt_for:
+        return "break statement cannot be used inside of a `for compt` body";
+    case diag_code::continue_statement_inside_of_compt_for:
+        return "continue statement cannot be used inside of a `for compt` body";
+    case diag_code::value_is_not_iterable:
+        return "value is not iterable";
+    case diag_code::for_compt_iterates_over_compt_lists_strs_and_ranges:
+        return "`for compt` iterates over compt lists, strs, and ranges";
+    case diag_code::for_in_iterates_over_iterators_arrays_slices_strs_and_ranges:
+        return "`for` iterates over `Iterator`s, arrays, slices, strs, and ranges";
+    case diag_code::write_the_range_directly_in_the_for_statement:
+        return "write the range directly in the `for` statement";
     case diag_code::use_of_moved_value:
         return "use of moved value";
     case diag_code::value_moved_here:

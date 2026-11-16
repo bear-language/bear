@@ -830,16 +830,24 @@ ast_expr_t* parse_grouping(parser_t* p) {
     grouping->type = AST_EXPR_GROUPING;
     token_t* lparen = parser_eat(p);
     grouping->expr.grouping.left_paren = lparen;
+    parser_mode_e saved = parser_mode(p);
+    if (saved == PARSER_MODE_BAN_STRUCT_INIT) {
+        parser_mode_set(p, PARSER_MODE_DEFAULT);
+    }
     ast_expr_t* expr = parse_expr(p);
     if (expr->type == AST_EXPR_INVALID) {
+        parser_mode_set(p, saved);
         grouping->type = AST_EXPR_INVALID;
         grouping->first = lparen;
         grouping->last = parser_prev(p);
         return grouping;
     }
     if (parser_match_token(p, TOK_COMMA)) {
-        return parse_tuple(p, lparen, expr);
+        ast_expr_t* tup = parse_tuple(p, lparen, expr);
+        parser_mode_set(p, saved);
+        return tup;
     }
+    parser_mode_set(p, saved);
     grouping->expr.grouping.expr = expr;
     token_t* rparen = parser_expect_token(p, TOK_RPAREN);
     if (!rparen) {

@@ -17,6 +17,7 @@
 #include "compiler/hir/expr_solver.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
+#include "llvm/ADT/STLFunctionalExtras.h"
 #include <cassert>
 #include <cstdint>
 
@@ -34,6 +35,7 @@ class RuntimeSolver {
     llvm::SmallVector<MoveMapId>* current_loop_exit_maps{};
     llvm::SmallVector<MoveMapId>* current_loop_back_edge_maps{};
     bool inside_loop_header{};
+    bool inside_compt_for{};
 
     struct MatchCtx {
         OptId<TypeId> result_tid;
@@ -128,6 +130,15 @@ class RuntimeSolver {
         compt,
     };
 
+    enum class for_each_src : uint8_t {
+        iterator,
+        indexable,
+        range,
+    };
+
+    using LoopPrelude
+        = llvm::function_ref<bool(ExecId loop_eid, LexicalCtx body_lctx, InProgressBlock& prelude)>;
+
     /// internally handles all ast_stmt_t statement types
     ///
     /// - fid   - current file id
@@ -189,6 +200,29 @@ class RuntimeSolver {
     /// without emplacing it into any block
     OptId<ExecId> solve_loop(FileId fid, LexicalCtx lctx, Span span, const ast_expr_t* cond_expr,
                              const ast_expr_t* update_expr, const ast_stmt_t* body_stmt);
+    OptId<ExecId> solve_loop_core(FileId fid, LexicalCtx lctx, Span span,
+                                  OptId<ExecId> maybe_cond_eid, bool cooked,
+                                  const ast_expr_t* update_expr, const ast_stmt_t* body_stmt,
+                                  LoopPrelude prelude = {});
+    OptId<ExecId> handle_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                const ast_stmt_t* stmt);
+    OptId<ExecId> handle_for_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                   const ast_stmt_t* stmt);
+    OptId<ExecId> solve_range_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                     const ast_stmt_t* stmt, const ast_expr_t* range_expr,
+                                     bool inclusive);
+    OptId<ExecId> solve_indexable_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                         const ast_stmt_t* stmt, ExecId seq_eid);
+    OptId<ExecId> solve_iterator_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                        const ast_stmt_t* stmt, ExecId iterable_eid);
+    [[nodiscard]] bool bind_for_each_var(FileId fid, LexicalCtx body_lctx,
+                                         InProgressBlock& prelude, const ast_param_t* param,
+                                         ExecId elem_eid, for_each_src src);
+    DefId emplace_hidden_local(InProgressBlock& block, SymbolId name, TypeId tid, Span span,
+                               OptId<ExecId> maybe_init_eid);
+    [[nodiscard]] ExecId emplace_block_exec(const InProgressBlock& block, LexicalCtx lctx,
+                                            Span span);
+    void diag_not_iterable(Span span, OptId<TypeId> maybe_tid, diag_code help);
     OptId<ExecId> handle_while(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                const ast_stmt_t* stmt);
     OptId<ExecId> handle_for(FileId fid, LexicalCtx lctx, InProgressBlock& block,

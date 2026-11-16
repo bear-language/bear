@@ -28,7 +28,11 @@
 - [ ] finish runtime solving 
     - `RuntimeSolver` 
         - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
-            - [ ] `for in` (blocked on an iteration protocol/contract + `std..Range`)
+            - [x] `for in` solving
+                - [x] `for compt var x in bar {}` like inline for in Zig (expand to an ExecBlock of ExecBlocks) - probably ban `break`/`continue` inside this
+                - [x] desugaring w/ `Iterator`
+                - [x] desugaring w/ `ExecRange`
+                - [x] arrays / slices
         - [ ] closures (rust-like capture semantics)
         - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee); either convert them in HIR or cast when lowering the `switch`
     - [ ] fix mut semantics on struct members 
@@ -107,8 +111,6 @@
 - [ ] `@volatile_load(src)` / `@volatile_store(dst, src)`
 
 - [ ] intrinsic atomics (not builtin types but special-cased structs)
-
-- [ ] `for compt var x in bar {}` like inline for in Zig
 
 #### language server / ContextDatabase stuff
 - [ ] better Span queries: index Span -> Exec and Span -> Type when `ctx.register_spans` is set

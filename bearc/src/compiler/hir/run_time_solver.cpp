@@ -586,8 +586,7 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_YIELD:
         return handle_yield(fid, lctx, block, stmt);
     case AST_STMT_FOR_IN:
-        diag_not_yet_implemented(Span{context, fid, stmt});
-        break;
+        return handle_for_in(fid, lctx, block, stmt);
 
         // poisoned/malformed:
     case AST_STMT_ELSE:
@@ -888,6 +887,11 @@ OptId<ExecId> RuntimeSolver::handle_break(FileId fid, LexicalCtx lctx, InProgres
                                    diag_type::error);
         return {};
     }
+    if (inside_compt_for) {
+        context.emplace_diagnostic(Span{context, fid, stmt},
+                                   diag_code::break_statement_inside_of_compt_for, diag_type::error);
+        return {};
+    }
     if (current_loop_block_eid.empty()) {
         context.emplace_diagnostic(Span{context, fid, stmt},
                                    diag_code::break_statement_outside_of_loop, diag_type::error);
@@ -910,6 +914,11 @@ OptId<ExecId> RuntimeSolver::handle_continue(FileId fid, LexicalCtx lctx, InProg
         context.emplace_diagnostic(Span{context, fid, stmt},
                                    diag_code::continue_statement_inside_of_loop_header,
                                    diag_type::error);
+        return {};
+    }
+    if (inside_compt_for) {
+        context.emplace_diagnostic(Span{context, fid, stmt},
+                                   diag_code::continue_statement_inside_of_compt_for, diag_type::error);
         return {};
     }
     if (current_loop_block_eid.empty()) {
@@ -979,6 +988,17 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
         }
     }
 
+    inside_loop_header = outer_inside_loop_header;
+    return solve_loop_core(fid, lctx, span, maybe_cond_eid, cooked, update_expr, body_stmt);
+}
+
+OptId<ExecId> RuntimeSolver::solve_loop_core(FileId fid, LexicalCtx lctx, Span span,
+                                             OptId<ExecId> maybe_cond_eid, bool cooked,
+                                             const ast_expr_t* update_expr,
+                                             const ast_stmt_t* body_stmt, LoopPrelude prelude) {
+    const bool outer_inside_loop_header = inside_loop_header;
+    const bool outer_inside_compt_for = inside_compt_for;
+
     const ExecId loop_eid = context.reserve_exec(span);
 
     const OptId<ExecId> outer_loop_block_eid = current_loop_block_eid;
@@ -994,12 +1014,22 @@ OptId<ExecId> RuntimeSolver::solve_loop(FileId fid, LexicalCtx lctx, Span span,
     current_loop_exit_maps = &loop_exit_maps;
     current_loop_back_edge_maps = &loop_back_edge_maps;
     inside_loop_header = false;
+    inside_compt_for = false;
 
-    const LexicalCtx body_lctx{
-        .scope = context.make_small_scope(lctx.scope, Span{context, fid, body_stmt}),
-        .map = context.make_persistent_move_map(lctx.map)};
-    const auto maybe_body_eid = solve_block(fid, body_lctx, body_stmt);
+    const Span body_span{context, fid, body_stmt};
+    const LexicalCtx body_lctx{.scope = context.make_small_scope(lctx.scope, body_span),
+                               .map = context.make_persistent_move_map(lctx.map)};
+    InProgressBlock prelude_block{};
+    if (prelude) {
+        cooked |= !prelude(loop_eid, body_lctx, prelude_block);
+    }
+    auto maybe_body_eid = solve_block(fid, body_lctx, body_stmt);
+    if (maybe_body_eid.has_value() && prelude) {
+        prelude_block.push_back_exec(maybe_body_eid.as_id());
+        maybe_body_eid = emplace_block_exec(prelude_block, body_lctx, body_span);
+    }
     cooked |= maybe_body_eid.empty();
+    inside_compt_for = outer_inside_compt_for;
 
     const bool has_break = current_loop_has_break;
     current_loop_block_eid = outer_loop_block_eid;
@@ -3259,6 +3289,679 @@ OptId<ExecId> RuntimeSolver::solve_binary_exec(ExecId lhs_eid, binary_op op, Exe
     }
 
     return context.emplace_exec(ExecBinary{.lhs = lhs_eid, .rhs = rhs_eid, .op = op}, span);
+}
+
+ExecId RuntimeSolver::emplace_block_exec(const InProgressBlock& block, LexicalCtx lctx, Span span) {
+    return context.emplace_exec(
+        ExecBlock{context.emplace_block(Block{.execs = context.freeze_id_vec(block.execs),
+                                              .defs = context.freeze_id_vec(block.defs),
+                                              .lctx = lctx})},
+        span);
+}
+
+DefId RuntimeSolver::emplace_hidden_local(InProgressBlock& block, SymbolId name, TypeId tid,
+                                          Span span, OptId<ExecId> maybe_init_eid) {
+    const DefId did
+        = context.register_def(name, false, false, 0, span, nullptr, DefVariable{.type_id = tid});
+    locals.push_back(did);
+    block.push_back_def(did);
+    if (maybe_init_eid.has_value()) {
+        block.push_back_exec(context.emplace_exec(
+            ExecAssignment{
+                .lhs = context.emplace_exec(ExecVariable{.def_id = did, .type_id = tid}, span),
+                .rhs = maybe_init_eid.as_id()},
+            span));
+    }
+    return did;
+}
+
+void RuntimeSolver::diag_not_iterable(Span span, OptId<TypeId> maybe_tid, diag_code help) {
+    DiagLinker dl{context};
+    dl.link(context.emplace_diagnostic(span, diag_code::value_is_not_iterable, diag_type::error));
+    if (maybe_tid.has_value()) {
+        dl.link(context.emplace_diagnostic_with_message_value(
+            span, diag_code::value_is_of_type, diag_type::note,
+            DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()}));
+    }
+    dl.link(context.emplace_diagnostic(span, help, diag_type::help));
+}
+
+bool RuntimeSolver::bind_for_each_var(FileId fid, LexicalCtx body_lctx, InProgressBlock& prelude,
+                                      const ast_param_t* param, ExecId elem_eid,
+                                      for_each_src src) {
+    const auto maybe_written_tid = resolve_type(fid, body_lctx, param->type);
+    if (maybe_written_tid.empty()) {
+        return false;
+    }
+    const auto maybe_elem_tid = infer_type_from_exec(elem_eid);
+    if (maybe_elem_tid.empty()) {
+        return false;
+    }
+    const TypeId written_tid = maybe_written_tid.as_id();
+    const TypeId elem_tid = maybe_elem_tid.as_id();
+    const Type written_ty = context.type(written_tid);
+    const SymbolId name = context.symbol_id(param->name);
+    const Span span{context, fid, param->first, param->last};
+
+    const bool by_ref
+        = src == for_each_src::indexable && written_ty.holds<TypeRef>()
+          && context.type_inferable_as(
+              written_ty.as<TypeRef>().inner,
+              context.emplace_type(context.type(elem_tid).value, context.type(elem_tid).span,
+                                   false));
+
+    TypeId tid = written_tid;
+    OptId<ExecId> maybe_rhs_eid{};
+    bool ok = true;
+    if (by_ref) {
+        maybe_rhs_eid = try_checked_borrow(context, elem_eid, written_ty.mut, span);
+        if (maybe_rhs_eid.has_value() && TypeTransformer<TypeContainsVar>{context}(written_tid)) {
+            const auto maybe_inferred_tid = infer_type_from_exec(maybe_rhs_eid.as_id());
+            if (maybe_inferred_tid.empty()) {
+                return false;
+            }
+            tid = maybe_inferred_tid.as_id();
+        }
+    } else if (written_ty.holds<TypeVar>()) {
+        tid = context.emplace_type(context.type(elem_tid).value, span, written_ty.mut);
+        maybe_rhs_eid = elem_eid;
+    } else if (context.assignable_and_inferable_from_type_to(elem_tid, written_tid)) {
+        maybe_rhs_eid = elem_eid;
+    } else {
+        context.emplace_diagnostic_with_message_value(
+            span, diag_code::cannot_convert_value_of_type, diag_type::error,
+            DiagnosticTypeToType{.from = elem_tid, .to = written_tid});
+        ok = false;
+    }
+
+    if (maybe_rhs_eid.has_value() && !by_ref && src == for_each_src::indexable) {
+        maybe_rhs_eid = consume(body_lctx, maybe_rhs_eid.as_id());
+    }
+    ok &= maybe_rhs_eid.has_value();
+
+    if (TypeTransformer<TypeContainsVar>{context}(tid)) {
+        return false;
+    }
+
+    const DefId did
+        = context.register_def(name, false, false, 0, span, nullptr, DefVariable{.type_id = tid});
+    context.insert_variable(body_lctx.scope, name, did);
+    prelude.push_back_def(did);
+    locals.push_back(did);
+    if (ok) {
+        prelude.push_back_exec(context.emplace_exec(
+            ExecAssignment{
+                .lhs = context.emplace_exec(ExecVariable{.def_id = did, .type_id = tid}, span),
+                .rhs = maybe_rhs_eid.as_id()},
+            span));
+    }
+    return ok;
+}
+
+OptId<ExecId> RuntimeSolver::handle_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                           const ast_stmt_t* stmt) {
+    assert(stmt->type == AST_STMT_FOR_IN);
+    const ast_stmt_for_in_t for_in = stmt->stmt.for_in_stmt;
+    if (!for_in.each || !for_in.each->valid || !for_in.iterator || !for_in.body_stmt
+        || for_in.body_stmt->type != AST_STMT_BLOCK) {
+        return {};
+    }
+    if (for_in.compt) {
+        return handle_for_compt(fid, lctx, block, stmt);
+    }
+
+    const Span span{context, fid, stmt};
+    const LexicalCtx for_lctx{.scope = context.make_small_scope(lctx.scope, span), .map = lctx.map};
+    InProgressBlock for_block{};
+
+    const ast_expr_t* iter_expr = for_in.iterator;
+    while (iter_expr->type == AST_EXPR_GROUPING) {
+        iter_expr = iter_expr->expr.grouping.expr;
+    }
+
+    std::optional<bool> range_inclusive{};
+    if (iter_expr->type == AST_EXPR_BINARY) {
+        const ComptBinaryOp op{iter_expr->expr.binary.op};
+        if (op.holds<binary_op>()
+            && (op.as<binary_op>() == binary_op::range_exclusive
+                || op.as<binary_op>() == binary_op::range_inclusive)) {
+            range_inclusive = op.as<binary_op>() == binary_op::range_inclusive;
+        }
+    }
+
+    OptId<ExecId> maybe_loop_eid{};
+    if (range_inclusive.has_value()) {
+        maybe_loop_eid = solve_range_for_in(fid, for_lctx, for_block, stmt, iter_expr,
+                                            range_inclusive.value());
+    } else {
+        const auto maybe_iterable_eid = solve_place(fid, for_lctx, iter_expr);
+        if (maybe_iterable_eid.empty()) {
+            return {};
+        }
+        const auto maybe_iterable_tid = infer_type_from_exec(maybe_iterable_eid.as_id());
+        if (maybe_iterable_tid.empty()) {
+            return {};
+        }
+        const TypeId iterable_tid = maybe_iterable_tid.as_id();
+        if (const Type& decayed_ty = context.type(context.try_decay(iterable_tid));
+            decayed_ty.holds_any_of<TypeArr, TypeSlice>()
+            || (decayed_ty.holds<TypeBuiltin>()
+                && decayed_ty.as<TypeBuiltin>().type == builtin_type::str)) {
+            maybe_loop_eid = solve_indexable_for_in(fid, for_lctx, for_block, stmt,
+                                                    maybe_iterable_eid.as_id());
+        } else if (context.type(iterable_tid).holds<TypeStruct>()) {
+            maybe_loop_eid
+                = solve_iterator_for_in(fid, for_lctx, for_block, stmt, maybe_iterable_eid.as_id());
+        } else {
+            diag_not_iterable(context.exec(maybe_iterable_eid.as_id()).span, iterable_tid,
+                              diag_code::for_in_iterates_over_iterators_arrays_slices_strs_and_ranges);
+            return {};
+        }
+    }
+
+    if (maybe_loop_eid.empty()) {
+        return {};
+    }
+    for_block.push_back_exec(maybe_loop_eid.as_id());
+    block.push_back_exec(emplace_block_exec(for_block, for_lctx, span));
+    return maybe_loop_eid;
+}
+
+OptId<ExecId> RuntimeSolver::solve_range_for_in(FileId fid, LexicalCtx lctx,
+                                                InProgressBlock& block, const ast_stmt_t* stmt,
+                                                const ast_expr_t* range_expr, bool inclusive) {
+    const ast_stmt_for_in_t for_in = stmt->stmt.for_in_stmt;
+    const Span span{context, fid, stmt};
+    const Span range_span{context, fid, range_expr};
+
+    const auto maybe_written_tid = resolve_type(fid, lctx, for_in.each->type);
+    if (maybe_written_tid.empty()) {
+        return {};
+    }
+    OptId<TypeId> maybe_elem_tid{};
+    if (const Type& written_ty = context.type(maybe_written_tid.as_id());
+        written_ty.holds<TypeBuiltin>()) {
+        maybe_elem_tid = context.emplace_type(written_ty.value, written_ty.span, false);
+    }
+
+    const auto maybe_start_eid
+        = solve_expr(fid, lctx, range_expr->expr.binary.lhs, maybe_elem_tid);
+    if (maybe_start_eid.empty()) {
+        return {};
+    }
+    if (maybe_elem_tid.empty()) {
+        const auto maybe_start_tid = infer_type_from_exec(maybe_start_eid.as_id());
+        if (maybe_start_tid.empty()) {
+            return {};
+        }
+        const Type& start_ty = context.type(maybe_start_tid.as_id());
+        maybe_elem_tid = context.emplace_type(start_ty.value, start_ty.span, false);
+    }
+    const TypeId elem_tid = maybe_elem_tid.as_id();
+    const auto maybe_end_eid = solve_expr(fid, lctx, range_expr->expr.binary.rhs, elem_tid);
+    if (maybe_end_eid.empty()) {
+        return {};
+    }
+
+    std::optional<ConstantValue> maybe_one{};
+    if (const Type& elem_ty = context.type(elem_tid); elem_ty.holds<TypeBuiltin>()) {
+        maybe_one = inc_dec_one_for(elem_ty.as<TypeBuiltin>().type);
+    }
+    if (!maybe_one.has_value() || !ExecConst{maybe_one.value()}.is_integral()) {
+        diag_not_iterable(range_span, elem_tid,
+                          diag_code::for_in_iterates_over_iterators_arrays_slices_strs_and_ranges);
+        return {};
+    }
+
+    const Span start_span = context.exec(maybe_start_eid.as_id()).span;
+    const Span end_span = context.exec(maybe_end_eid.as_id()).span;
+    const TypeId idx_tid = context.emplace_type(context.type(elem_tid).value, start_span, true);
+    const DefId idx_did = emplace_hidden_local(block, context.symbol_id<"for index">(), idx_tid,
+                                               start_span, maybe_start_eid);
+    const DefId end_did = emplace_hidden_local(block, context.symbol_id<"for end">(), elem_tid,
+                                               end_span, maybe_end_eid);
+    const auto idx_var = [&] {
+        return context.emplace_exec(ExecVariable{.def_id = idx_did, .type_id = idx_tid},
+                                    start_span);
+    };
+    const auto idx_val = [&] {
+        return context.emplace_exec(ExecVariable{.def_id = idx_did, .type_id = elem_tid},
+                                    start_span);
+    };
+    const auto end_var = [&] {
+        return context.emplace_exec(ExecVariable{.def_id = end_did, .type_id = elem_tid},
+                                    end_span);
+    };
+    const auto inc_idx = [&] {
+        return context.emplace_exec(
+            ExecCompoundAssignment{
+                .lhs = idx_var(),
+                .rhs = context.emplace_compt_exec(ExecConst{maybe_one.value()}, range_span),
+                .op = binary_op::plus,
+                .yield_old = false},
+            range_span);
+    };
+    const auto idx_less_than_end = [&](binary_op op) {
+        return context.emplace_exec(ExecBinary{.lhs = idx_var(), .rhs = end_var(), .op = op},
+                                    range_span);
+    };
+
+    if (!inclusive) {
+        return solve_loop_core(
+            fid, lctx, span, idx_less_than_end(binary_op::less_than), false, nullptr,
+            for_in.body_stmt,
+            [&](ExecId, LexicalCtx body_lctx, InProgressBlock& prelude) -> bool {
+                const bool ok = bind_for_each_var(fid, body_lctx, prelude, for_in.each, idx_val(),
+                                                  for_each_src::range);
+                prelude.push_back_exec(inc_idx());
+                return ok;
+            });
+    }
+
+    const TypeId go_tid = context.emplace_type(
+        context.type(context.type_for_builtin(builtin_type::boolean)).value, range_span, true);
+    const DefId go_did
+        = emplace_hidden_local(block, context.symbol_id<"for continue">(), go_tid, range_span,
+                               idx_less_than_end(binary_op::less_than_or_equal));
+    const auto go_var = [&] {
+        return context.emplace_exec(ExecVariable{.def_id = go_did, .type_id = go_tid}, range_span);
+    };
+
+    return solve_loop_core(
+        fid, lctx, span, go_var(), false, nullptr, for_in.body_stmt,
+        [&](ExecId, LexicalCtx body_lctx, InProgressBlock& prelude) -> bool {
+            const bool ok = bind_for_each_var(fid, body_lctx, prelude, for_in.each, idx_val(),
+                                              for_each_src::range);
+            InProgressBlock then_block{};
+            then_block.push_back_exec(inc_idx());
+            InProgressBlock else_block{};
+            else_block.push_back_exec(context.emplace_exec(
+                ExecAssignment{.lhs = go_var(),
+                               .rhs = context.emplace_compt_exec(ExecConst{ConstantValue{false}},
+                                                                 range_span)},
+                range_span));
+            prelude.push_back_exec(context.emplace_exec(
+                ExecBranch{.condition = idx_less_than_end(binary_op::less_than),
+                           .then_block = emplace_block_exec(then_block, body_lctx, range_span),
+                           .else_block = emplace_block_exec(else_block, body_lctx, range_span)},
+                range_span));
+            return ok;
+        });
+}
+
+OptId<ExecId> RuntimeSolver::solve_indexable_for_in(FileId fid, LexicalCtx lctx,
+                                                    InProgressBlock& block, const ast_stmt_t* stmt,
+                                                    ExecId seq_eid) {
+    const ast_stmt_for_in_t for_in = stmt->stmt.for_in_stmt;
+    const Span span{context, fid, stmt};
+    const Span seq_span = context.exec(seq_eid).span;
+    const TypeId seq_tid = infer_type_from_exec(seq_eid).as_id();
+    const Type seq_ty = context.type(seq_tid);
+
+    TypeId var_tid = seq_tid;
+    bool deref = false;
+    OptId<ExecId> maybe_init_eid{};
+    if (seq_ty.holds<TypeRef>()) {
+        deref = true;
+        maybe_init_eid = seq_eid;
+    } else if (seq_ty.holds_any_of<TypeSlice, TypeBuiltin>() || !context.is_lvalue(seq_eid)) {
+        maybe_init_eid = consume(lctx, seq_eid);
+    } else {
+        deref = true;
+        maybe_init_eid = try_checked_borrow(context, seq_eid, seq_ty.mut, seq_span);
+        if (maybe_init_eid.has_value()) {
+            const auto maybe_ref_tid = infer_type_from_exec(maybe_init_eid.as_id());
+            if (maybe_ref_tid.empty()) {
+                return {};
+            }
+            var_tid = maybe_ref_tid.as_id();
+        }
+    }
+    if (maybe_init_eid.empty()) {
+        return {};
+    }
+
+    const DefId seq_did = emplace_hidden_local(block, context.symbol_id(seq_span), var_tid,
+                                               seq_span, maybe_init_eid);
+    const bool deref_mut = deref && context.type(var_tid).mut;
+    const auto seq_base = [&] {
+        ExecId eid = context.emplace_exec(ExecVariable{.def_id = seq_did, .type_id = var_tid},
+                                          seq_span);
+        if (deref) {
+            eid = context.emplace_exec(ExecDeref{.dereferenced = eid, .mut = deref_mut}, seq_span);
+        }
+        return eid;
+    };
+
+    const builtin_type usize_bt = context.builtin_usize_type();
+    const auto usize_const = [&](uint64_t value) {
+        return context.emplace_compt_exec(
+            ExecConst{ConstantValue{value}}.try_cast_to(context, usize_bt).value(), seq_span);
+    };
+
+    const Type& container_ty = context.type(context.try_decay(var_tid));
+    const ExecId len_eid
+        = container_ty.holds<TypeArr>()
+              ? usize_const(static_cast<uint64_t>(container_ty.as<TypeArr>().canonical_size))
+              : context.emplace_exec(
+                    ExecBuiltinAccess{.from = seq_base(),
+                                      .kind = container_ty.holds<TypeSlice>()
+                                                  ? builtin_access::slice_len
+                                                  : builtin_access::str_len},
+                    seq_span);
+
+    const TypeId idx_tid
+        = context.emplace_type(context.type(context.usize_type()).value, seq_span, true);
+    const DefId idx_did = emplace_hidden_local(block, context.symbol_id<"for index">(), idx_tid,
+                                               seq_span, usize_const(0));
+    const auto idx_var = [&] {
+        return context.emplace_exec(ExecVariable{.def_id = idx_did, .type_id = idx_tid}, seq_span);
+    };
+
+    const ExecId cond_eid = context.emplace_exec(
+        ExecBinary{.lhs = idx_var(), .rhs = len_eid, .op = binary_op::less_than}, seq_span);
+
+    return solve_loop_core(
+        fid, lctx, span, cond_eid, false, nullptr, for_in.body_stmt,
+        [&](ExecId, LexicalCtx body_lctx, InProgressBlock& prelude) -> bool {
+            const ExecId elem_eid = context.emplace_exec(
+                ExecSubscript{.base = seq_base(), .index = idx_var()}, seq_span);
+            const bool ok = bind_for_each_var(fid, body_lctx, prelude, for_in.each, elem_eid,
+                                              for_each_src::indexable);
+            prelude.push_back_exec(context.emplace_exec(
+                ExecCompoundAssignment{.lhs = idx_var(),
+                                       .rhs = usize_const(1),
+                                       .op = binary_op::plus,
+                                       .yield_old = false},
+                seq_span));
+            return ok;
+        });
+}
+
+OptId<ExecId> RuntimeSolver::solve_iterator_for_in(FileId fid, LexicalCtx lctx,
+                                                   InProgressBlock& block, const ast_stmt_t* stmt,
+                                                   ExecId iterable_eid) {
+    const ast_stmt_for_in_t for_in = stmt->stmt.for_in_stmt;
+    const Span span{context, fid, stmt};
+    const Span iterable_span = context.exec(iterable_eid).span;
+    const TypeId iterable_tid = infer_type_from_exec(iterable_eid).as_id();
+    const DefId struct_did
+        = def_visitor.visit_as_independent(context.type(iterable_tid).as<TypeStruct>().def_id);
+    if (!context.def(struct_did).holds<DefStruct>()) {
+        return {};
+    }
+
+    const auto fail = [&] -> OptId<ExecId> {
+        const bool is_range = context.def(struct_did).name == context.symbol_id<"Range">()
+                              && context.is_intrinsic(struct_did);
+        diag_not_iterable(iterable_span, iterable_tid,
+                          is_range
+                              ? diag_code::write_the_range_directly_in_the_for_statement
+                              : diag_code::for_in_iterates_over_iterators_arrays_slices_strs_and_ranges);
+        return {};
+    };
+
+    OptId<DefId> maybe_next_did = context.look_up_variable(
+        context.def(struct_did).as<DefStruct>().scope, context.symbol_id<"next">());
+    if (maybe_next_did.has_value()) {
+        maybe_next_did
+            = context.try_func_did(def_visitor.visit_and_resolve_if_needed(maybe_next_did.as_id()));
+    }
+    if (maybe_next_did.empty()) {
+        return fail();
+    }
+    const DefId next_did = def_visitor.visit_as_dependent(maybe_next_did.as_id());
+    if (!context.def(next_did).holds<DefFunction>()) {
+        return fail();
+    }
+    const DefFunction next_fn = context.def(next_did).as<DefFunction>();
+    if (next_fn.return_type.empty() || next_fn.params.len() != 1) {
+        return fail();
+    }
+    const Type self_ty = context.type(context.def(next_fn.params.get(0)).as<DefVariable>().type_id);
+    if (!self_ty.holds<TypeRef>()) {
+        return fail();
+    }
+
+    const TypeId opt_tid = next_fn.return_type.as_id();
+    if (!context.type(opt_tid).holds<TypeVariant>()) {
+        return fail();
+    }
+    const DefId opt_did
+        = def_visitor.visit_as_independent(context.type(opt_tid).as<TypeVariant>().def_id);
+    if (!context.def(opt_did).holds<DefVariant>()) {
+        return fail();
+    }
+    const auto maybe_some_did = context.look_up_scoped_type(
+        context.def(opt_did).as<DefVariant>().scope,
+        context.freeze_id_vec({context.symbol_id<"Some">()}), iterable_span);
+    if (maybe_some_did.empty() || !context.def(maybe_some_did.as_id()).holds<DefVariantField>()
+        || context.def(maybe_some_did.as_id()).as<DefVariantField>().members.len() != 1) {
+        return fail();
+    }
+    const DefId some_did = maybe_some_did.as_id();
+    const DefId payload_did
+        = context.def_id(context.def(some_did).as<DefVariantField>().members.get(0));
+    const TypeId item_tid = context.def(payload_did).as<DefVariable>().type_id;
+
+    const OptId<DefId> maybe_iterator_did = context.look_up_scoped_type_generic(
+        def_visitor, context.root_scope(),
+        context.freeze_id_vec({context.symbol_id<"std">(), context.symbol_id<"Iterator">()}),
+        Span::generated(),
+        context.emplace_generic_arg_id_slice(
+            context.freeze_id_vec({context.emplace_generic_arg(item_tid)})));
+    if (maybe_iterator_did.empty()
+        || !context.struct_has_contract(struct_did,
+                                        def_visitor.visit_as_dependent(maybe_iterator_did.as_id()))) {
+        return fail();
+    }
+
+    const auto maybe_consumed_eid = consume(lctx, iterable_eid);
+    if (maybe_consumed_eid.empty()) {
+        return {};
+    }
+    const TypeId it_tid = context.emplace_type(context.type(iterable_tid).value, iterable_span, true);
+    const DefId it_did = emplace_hidden_local(block, context.symbol_id(iterable_span), it_tid,
+                                              iterable_span, maybe_consumed_eid);
+
+    const ExecId true_eid
+        = context.emplace_compt_exec(ExecConst{ConstantValue{true}}, iterable_span);
+
+    return solve_loop_core(
+        fid, lctx, span, true_eid, false, nullptr, for_in.body_stmt,
+        [&](ExecId loop_eid, LexicalCtx body_lctx, InProgressBlock& prelude) -> bool {
+            const auto maybe_self_eid = try_checked_borrow(
+                context,
+                context.emplace_exec(ExecVariable{.def_id = it_did, .type_id = it_tid},
+                                     iterable_span),
+                self_ty.mut, iterable_span);
+            if (maybe_self_eid.empty()) {
+                return false;
+            }
+            const ExecId call_eid = context.emplace_exec(
+                ExecFnCall{.callee = emplace_fn_ptr_exec(context, next_did, iterable_span),
+                           .args = context.freeze_id_vec({maybe_self_eid.as_id()})},
+                iterable_span);
+            const DefId next_val_did = emplace_hidden_local(
+                prelude, context.symbol_id<"for next">(), opt_tid, iterable_span, call_eid);
+            const auto next_val_var = [&] {
+                return context.emplace_exec(
+                    ExecVariable{.def_id = next_val_did, .type_id = opt_tid}, iterable_span);
+            };
+
+            const ExecId discrim_eid = context.emplace_exec(
+                ExecBuiltinAccess{.from = next_val_var(),
+                                  .kind = builtin_access::variant_discriminant},
+                iterable_span);
+            const ExecId some_idx_eid = context.emplace_exec(
+                ExecConst{context.def(some_did).member_idx}
+                    .try_down_convert_to(
+                        context.def(opt_did).as<DefVariant>().type_of_discriminant())
+                    .value(),
+                iterable_span);
+            InProgressBlock exit_block{};
+            exit_block.push_back_exec(context.emplace_exec(
+                ExecJump{.block = loop_eid, .spot = jump_spot::end}, iterable_span));
+            current_loop_has_break = true;
+            prelude.push_back_exec(context.emplace_exec(
+                ExecBranch{.condition = context.emplace_exec(
+                               ExecBinary{.lhs = discrim_eid,
+                                          .rhs = some_idx_eid,
+                                          .op = binary_op::bool_not_equal},
+                               iterable_span),
+                           .then_block = emplace_block_exec(exit_block, body_lctx, iterable_span),
+                           .else_block = {}},
+                iterable_span));
+
+            const ExecId payload_eid = context.emplace_exec(
+                ExecMemberAccess{.owner = next_val_var(), .member = payload_did}, iterable_span);
+            if (!bind_for_each_var(fid, body_lctx, prelude, for_in.each, payload_eid,
+                                   for_each_src::iterator)) {
+                return false;
+            }
+            if (!context.type_is_copyable(item_tid)) {
+                const auto maybe_move_eid = consume(body_lctx, next_val_var());
+                if (maybe_move_eid.empty()) {
+                    return false;
+                }
+                prelude.push_back_exec(maybe_move_eid.as_id());
+            }
+            return true;
+        });
+}
+
+OptId<ExecId> RuntimeSolver::handle_for_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
+                                              const ast_stmt_t* stmt) {
+    const ast_stmt_for_in_t for_in = stmt->stmt.for_in_stmt;
+    const Span span{context, fid, stmt};
+    const Span iterable_span{context, fid, for_in.iterator};
+
+    const auto maybe_iterable_eid
+        = ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, for_in.iterator);
+    if (maybe_iterable_eid.empty()) {
+        return {};
+    }
+    const Exec iterable = context.exec(maybe_iterable_eid.as_id());
+
+    llvm::SmallVector<ExecId> elems{};
+    bool iterable_ok = false;
+    if (iterable.holds<ExecListLiteral>()) {
+        iterable_ok = true;
+        const IdSlice<ExecId> list = iterable.as<ExecListLiteral>().elems;
+        for (size_t i = 0; i < list.len(); ++i) {
+            elems.push_back(context.exec_id(list.get(i)));
+        }
+    } else if (iterable.holds<ExecConst>() && iterable.as<ExecConst>().holds<SymbolId>()) {
+        iterable_ok = true;
+        const std::string chars{context.symbol(iterable.as<ExecConst>().as<SymbolId>())};
+        for (const char c : chars) {
+            elems.push_back(context.emplace_compt_exec(ExecConst{ConstantValue{c}}, iterable_span));
+        }
+    } else if (iterable.holds<ExecRange>()) {
+        const ExecRange range = iterable.as<ExecRange>();
+        const auto maybe_start = context.exec(range.start).try_as<ExecConst>();
+        const auto maybe_end = context.exec(range.end).try_as<ExecConst>();
+        if (maybe_start.has_value() && maybe_end.has_value() && maybe_start->is_integral()
+            && maybe_end->is_integral()) {
+            iterable_ok = true;
+            const ExecConst start = maybe_start.value();
+            const ExecConst end = maybe_end.value();
+            const builtin_type bt = start.type_builtin();
+            const auto push_elem = [&](ConstantValue value) {
+                const auto maybe_elem = ExecConst{value}.try_cast_to(context, bt);
+                if (maybe_elem.has_value()) {
+                    elems.push_back(context.emplace_compt_exec(maybe_elem.value(), iterable_span));
+                }
+            };
+            if (start.is_signed_integral()) {
+                const int64_t last = end.to_i64();
+                for (int64_t v = start.to_i64(); range.inclusive ? v <= last : v < last; ++v) {
+                    push_elem(ConstantValue{v});
+                    if (v == last) {
+                        break;
+                    }
+                }
+            } else {
+                const uint64_t last = end.to_size();
+                for (uint64_t v = start.to_size(); range.inclusive ? v <= last : v < last; ++v) {
+                    push_elem(ConstantValue{v});
+                    if (v == last) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (!iterable_ok) {
+        diag_not_iterable(iterable_span, infer_type_from_exec(maybe_iterable_eid.as_id()),
+                          diag_code::for_compt_iterates_over_compt_lists_strs_and_ranges);
+        return {};
+    }
+
+    const auto maybe_written_tid = resolve_type(fid, lctx, for_in.each->type);
+    if (maybe_written_tid.empty()) {
+        return {};
+    }
+    const TypeId written_tid = maybe_written_tid.as_id();
+    const bool infer = TypeTransformer<TypeContainsVar>{context}(written_tid);
+    const SymbolId name = context.symbol_id(for_in.each->name);
+    const Span var_span{context, fid, for_in.each->first, for_in.each->last};
+    const Span body_span{context, fid, for_in.body_stmt};
+
+    const bool outer_inside_compt_for = inside_compt_for;
+    inside_compt_for = true;
+
+    InProgressBlock expansion{};
+    bool cooked = false;
+    for (const ExecId elem_eid : elems) {
+        OptId<ExecId> maybe_value_eid = elem_eid;
+        if (!infer && context.exec(elem_eid).holds<ExecConst>()) {
+            if (const auto maybe_conv = context.try_convert_to(elem_eid, written_tid)) {
+                maybe_value_eid = maybe_conv;
+            }
+        }
+        const auto maybe_elem_tid = infer_type_from_exec(maybe_value_eid.as_id());
+        if (maybe_elem_tid.empty()) {
+            cooked = true;
+            break;
+        }
+        TypeId tid = written_tid;
+        if (infer) {
+            tid = maybe_elem_tid.as_id();
+        } else if (!context.assignable_and_inferable_from_type_to(maybe_elem_tid.as_id(),
+                                                                   written_tid)) {
+            context.emplace_diagnostic_with_message_value(
+                var_span, diag_code::cannot_convert_value_of_type, diag_type::error,
+                DiagnosticTypeToType{.from = maybe_elem_tid.as_id(), .to = written_tid});
+            cooked = true;
+            break;
+        }
+
+        const LexicalCtx iter_lctx{.scope = context.make_small_scope(lctx.scope, body_span),
+                                   .map = lctx.map};
+        const DefId did = context.register_def(
+            name, true, true, 0, var_span, nullptr,
+            DefVariable{.type_id = tid, .compt_value = maybe_value_eid});
+        context.insert_variable(iter_lctx.scope, name, did);
+        InProgressBlock iteration{};
+        iteration.push_back_def(did);
+        const auto maybe_body_eid = solve_block(fid, iter_lctx, for_in.body_stmt);
+        if (maybe_body_eid.empty()) {
+            cooked = true;
+            continue;
+        }
+        iteration.push_back_exec(maybe_body_eid.as_id());
+        expansion.push_back_exec(emplace_block_exec(iteration, iter_lctx, body_span));
+    }
+
+    inside_compt_for = outer_inside_compt_for;
+
+    if (cooked) {
+        return {};
+    }
+    const ExecId eid = emplace_block_exec(expansion, lctx, span);
+    block.push_back_exec(eid);
+    return eid;
 }
 
 } // namespace hir

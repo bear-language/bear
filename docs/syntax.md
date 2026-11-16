@@ -99,7 +99,7 @@
     - | IfStatement: `if` `compt`? Expression `{` BodyStatement(s) `}` \[`else` `{` BodyStatement(s) `}`]?
     - | WhileStatement: `while` Expression `{` LoopBodyStatement(s) `}`
     - | ForLoopStatement: `for` `(` BodyStatement `;` Expression `;` Expression `)` `{` LoopBodyStatement(s) `}`
-    - | ForInLoopStatement: `for` `var` Identifier `in` Expression `{` LoopBodyStatement(s) `}`
+    - | ForInLoopStatement: `for` `compt`? `var` Identifier `in` Expression `{` LoopBodyStatement(s) `}`
     - | ReturnStatement: `return` Expression? `;`
     - | EmptyStatement: `;`
     - | ExpressionStatement: Expression `;`
