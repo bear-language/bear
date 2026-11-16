@@ -699,6 +699,29 @@ use isize;
 }
         )";
     file_intrinsic(symbol_id(size_name), size_src);
+    const char* opt_name = "intrinsic/opt";
+    const char* opt_src =
+        R"(
+variant Opt<T> {
+    Some(T t),
+    None,
+}
+mod std {
+use Opt;
+}
+        )";
+    file_intrinsic(symbol_id(opt_name), opt_src);
+    const char* iterator_name = "intrinsic/iterator";
+    const char* iterator_src =
+        R"(
+contract Iterator<T> {
+    mt mut next() -> Opt<T>;
+}
+mod std {
+use Iterator;
+}
+        )";
+    file_intrinsic(symbol_id(iterator_name), iterator_src);
 }
 
 FileId Context::file_parallel(SymbolId path_symbol) {

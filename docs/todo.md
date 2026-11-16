@@ -31,9 +31,6 @@
             - [ ] `for in` (blocked on an iteration protocol/contract + `std..Range`)
         - [ ] closures (rust-like capture semantics)
         - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee); either convert them in HIR or cast when lowering the `switch`
-        - [ ] use deduction guides for 
-            -  [x] functions
-            -  [ ] variants/structs?
     - [ ] fix mut semantics on struct members 
         - [ ] warn on `mut` declared members
         - [x] make it so the struct instance's mutability entirely determines the member mutability
@@ -83,6 +80,8 @@
     - [ ] will require new `satisfy Foo for Bar {}` syntax
     - [ ] `DefId` -> `DefId` contract maps will need to be use `CanonicalTypeId` keys instead 
     - [ ] will complicate method look up (look up type's contract scope, then on miss check current scope)
+
+- [ ] make a way to reserve the root FileId so intrinsics can be registered first (better diagnostic order for redefinitions)
 
 #### top-level resol / compt improvements / features:
 - [ ] deduction guides

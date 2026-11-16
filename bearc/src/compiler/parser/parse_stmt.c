@@ -903,7 +903,7 @@ ast_stmt_t* parse_stmt_for_in(parser_t* p) {
     for_stmt->stmt.for_in_stmt.body_stmt = parse_stmt_block(p);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     for_stmt->first = for_tkn;
-    for_stmt->last = for_stmt->stmt.for_in_stmt.body_stmt->last;
+    for_stmt->last = parser_prev(p);
     return for_stmt;
 }
 

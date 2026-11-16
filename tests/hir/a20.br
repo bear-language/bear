@@ -1,10 +1,5 @@
 // tests/hir/a20.br
 
-variant Opt<T> {
-    Some(T val),
-    None,
-}
-
 compt fn is_num<T>() -> bool => {
     @same_type(decay T, i64) || @same_type(decay T, u64) ||
     @same_type(decay T, i32) || @same_type(decay T, u32) ||
