@@ -44,5 +44,5 @@ struct Foo4<T> {
 }
 
 struct Bar4 {
-    [&mut]Foo4::Bar4 a;
+    [&mut]Foo4::Bar4 a; // warn
 }

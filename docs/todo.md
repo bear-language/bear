@@ -4,8 +4,9 @@
 - [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
     - [ ] just find main thru top-level scope; only require it in non-lib build
 - [ ] in bearls:
-    - [ ] make it so that only chained notes are sub-diags. this way more things are shown as their own diags.
+    - [ ] make it so that help diags with different spans to their parent diags get there own primary diag so they show up more prominantly in editors (still have the errors have those help diags as linked quick-fixes as well, so this change is purely additive)
     - [ ] if parser diagnostics and hir diagnostics share a span, report the parser diagnostics first so they appear on top
+    - [ ] for the diagnostics "in generic instantion requested here" & "compt function called" here, make it so that span is the primary span instead of the location within said generic/compt function so that way on-site errors are reported instead of only showing up in the generic def/compt fn body
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
@@ -29,17 +30,8 @@
 
 - [ ] finish runtime solving 
     - `RuntimeSolver` 
-        - [ ] control-flow stmts, mirroring `handle_match` (per-branch `InProgressBlock`, child move maps + `write_back_moves`)
-            - [x] `for in` solving
-                - [x] `for compt var x in bar {}` like inline for in Zig (expand to an ExecBlock of ExecBlocks) - probably ban `break`/`continue` inside this
-                - [x] desugaring w/ `Iterator`
-                - [x] desugaring w/ `ExecRange`
-                - [x] arrays / slices
         - [ ] closures (rust-like capture semantics): delayable until after backend
-        - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee); either convert them in HIR or cast when lowering the `switch`
-    - [ ] fix mut semantics on struct members 
-        - [ ] warn on `mut` declared members
-        - [x] make it so the struct instance's mutability entirely determines the member mutability
+        - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee): convert them in HIR or cast when lowering the `switch`
     - [ ] replace `dt self()` with a builtin `Destruct` contract w/ `mt mut destruct()`
         - [x] remove `TOK_DT`, `dt` from `token_is_mt_or_dt` & co., special case in `context.cpp`, `DestructorDeclaration` in syntax.md, update parser tests 30 & 44
         - [x] `Destruct` is intrinsic

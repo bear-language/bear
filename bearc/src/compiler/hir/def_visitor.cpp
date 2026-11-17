@@ -146,6 +146,18 @@ DefId DefVisitor::resolve_def(DefId did) {
                 type.span, diag_code::should_have_explicit_type_since_it_has_no_initializer,
                 diag_type::error, DiagnosticSymbolBeforeMessage{def.name});
         }
+        const Type& ty = context.type(maybe_tid.as_id());
+        if (!def.statik && ty.mut && parent_is_struct(context, def)) {
+            DiagLinker dl{context};
+            dl.link(context.emplace_diagnostic(
+                ty.span,
+                diag_code::
+                    top_level_mut_on_struct_member_is_ignored_since_instance_mutability_determines_it,
+                diag_type::warning));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                ty.span, diag_code::replace_with, diag_type::help,
+                DiagnosticTypeAfterMessage{.tid = context.emplace_type(ty.value, ty.span, false)}));
+        }
         def.set_value(DefVariable{
             .type_id = maybe_tid.as_id(),
             // this function emits diagnostics if there's a problem and
@@ -175,7 +187,10 @@ DefId DefVisitor::resolve_def(DefId did) {
 
         OptId<ExecId> maybe_compt_eid{};
 
-        if (context.def(did).compt && type_contains_var) {
+        Def& def = context.def(did);
+        const Type& ty = context.type(maybe_tid.as_id());
+
+        if (def.compt && type_contains_var) {
             ComptExprSolver solver{context, *this};
             maybe_compt_eid = solver.solve_expr(span.file_id, scope, stmt->stmt.var_init_decl.rhs,
                                                 maybe_tid.as_id());
@@ -192,8 +207,7 @@ DefId DefVisitor::resolve_def(DefId did) {
                                               maybe_tid.as_id());
         }
 
-        if (context.def(did).compt && context.type(maybe_tid.as_id()).holds<TypeRef>()) {
-            const auto& ty = context.type(maybe_tid.as_id());
+        if (def.compt && ty.holds<TypeRef>()) {
             auto d0 = context.emplace_diagnostic_with_message_value(
                 ty.span, diag_code::compt_declarations_should_not_be_ref_type, diag_type::error,
                 DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()});
@@ -204,8 +218,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         }
 
         // error when struct member does not have an explicit type
-        if (!context.def(did).statik && parent_is_struct(context, context.def(did))
-            && type_contains_var) {
+        if (!def.statik && parent_is_struct(context, def) && type_contains_var) {
             const Type& type = context.type(maybe_tid.as_id());
             auto d0 = context.emplace_diagnostic_with_message_value(
                 type.span, diag_code::should_have_explicit_type, diag_type::error,
@@ -222,10 +235,21 @@ DefId DefVisitor::resolve_def(DefId did) {
                     context.link_diagnostic(d0, d1);
                 }
             }
-        };
+        }
 
-        context.def(did).set_value(
-            DefVariable{.type_id = maybe_tid.as_id(), .compt_value = maybe_compt_eid});
+        if (!def.statik && ty.mut && parent_is_struct(context, def)) {
+            DiagLinker dl{context};
+            dl.link(context.emplace_diagnostic(
+                ty.span,
+                diag_code::
+                    top_level_mut_on_struct_member_is_ignored_since_instance_mutability_determines_it,
+                diag_type::warning));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                ty.span, diag_code::replace_with, diag_type::help,
+                DiagnosticTypeAfterMessage{.tid = context.emplace_type(ty.value, ty.span, false)}));
+        }
+
+        def.set_value(DefVariable{.type_id = maybe_tid.as_id(), .compt_value = maybe_compt_eid});
 
         // if something about the most recent diagnostics involved not being resovable at
         // compile-time

@@ -8,13 +8,13 @@ struct Nodette {
 
     *Node next; // fine 
 
-    mut Nodette nodette; // oops
+    mut Nodette nodette; // oops, warn
 
     static mut Nodette nodette_static; // oops, not initialized properly
 
-    mut Node node; // fine
+    mut Node node; // warn
     
-    mut Nodey nodey;
+    mut Nodey nodey; // warn
 
     struct Node {
 

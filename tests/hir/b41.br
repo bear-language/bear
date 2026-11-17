@@ -3,7 +3,7 @@
 // testing more for in and mut/ref bindings
 
 struct MyRange<i64 MAX> has Iterator<&i64> {
-    i64 mut curr = 0;
+    i64 mut curr = 0; // warn
     mt mut next() -> Opt<&i64> {
         if self.curr >= MAX {
             return Opt..None::<&i64>;

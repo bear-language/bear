@@ -9,7 +9,7 @@ struct Des has Destruct {
 }
 
 struct DesIt has Iterator<Des> {
-    i32 mut n = 0;
+    i32 n = 0;
     mt mut next() -> Opt<Des> {
         if self.n >= 3 {
             return Opt..None::<Des>;

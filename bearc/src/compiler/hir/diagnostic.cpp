@@ -579,6 +579,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::should_have_explicit_type_since_it_has_no_initializer:
         return "should have an explicit type since it has no explicit initializer indicating its "
                "type";
+    case diag_code::
+        top_level_mut_on_struct_member_is_ignored_since_instance_mutability_determines_it:
+        return "top-level mut on struct member is ignored since each instance determines member "
+               "mutability";
     }
 
     std::unreachable();

@@ -291,6 +291,7 @@ enum class diag_code : uint16_t {
     if_body_will_never_execute,
     write_this_as_a_reference_type,
     iterable_value_is_of_type,
+    top_level_mut_on_struct_member_is_ignored_since_instance_mutability_determines_it,
 
     count, // this must be last,
 
