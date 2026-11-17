@@ -3,10 +3,6 @@
 #### priority
 - [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
     - [ ] just find main thru top-level scope; only require it in non-lib build
-- [ ] in bearls:
-    - [ ] make it so that help diags with different spans to their parent diags get there own primary diag so they show up more prominantly in editors (still have the errors have those help diags as linked quick-fixes as well, so this change is purely additive)
-    - [ ] if parser diagnostics and hir diagnostics share a span, report the parser diagnostics first so they appear on top
-    - [ ] for the diagnostics "in generic instantion requested here" & "compt function called" here, make it so that span is the primary span instead of the location within said generic/compt function so that way on-site errors are reported instead of only showing up in the generic def/compt fn body
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s

@@ -10,6 +10,15 @@
 #include "compiler/hir/indexing.hpp"
 #include <optional>
 
+namespace {
+
+/// guards chain walks against a malformed (cyclic) diagnostic chain
+constexpr size_t MAX_DIAGNOSTIC_CHAIN_LEN = 64;
+
+constexpr size_t UNIQUE_DIAGNOSTICS_ARENA_CAP = 0x1000;
+
+} // namespace
+
 using namespace hir;
 
 ContextDatabase::DefQueryResult
@@ -81,6 +90,56 @@ const hir::Exec& ContextDatabase::exec(hir::ExecId eid) const { return ctx->exec
 [[nodiscard]] const llvm::SmallVectorImpl<hir::DiagnosticId>&
 ContextDatabase::diagnostics_for_file(hir::FileId fid) const {
     return ctx->diagnostics_for_file(fid);
+}
+
+ContextDatabase::UniqueDiagnostics::UniqueDiagnostics(ContextDatabase& db, FileId fid)
+    : db{&db}, fid{fid}, arena{std::make_unique<DataArena>(UNIQUE_DIAGNOSTICS_ARENA_CAP)},
+      seen_chains{std::make_unique<DiagnosticHashSet>(*db.ctx, *arena)} {}
+
+bool ContextDatabase::UniqueDiagnostics::should_yield(DiagnosticId did) {
+    DiagnosticId head = did;
+    for (size_t i = 0; i < MAX_DIAGNOSTIC_CHAIN_LEN && db->diagnostic(head).prev.has_value(); ++i) {
+        head = db->diagnostic(head).prev.as_id();
+    }
+    if (yielded_heads.contains(head.raw())) {
+        return true; // another member of a chain that's already being yielded
+    }
+    if (seen_chains->insert(head)) {
+        return false; // an equivalent chain (with a different head) was already yielded
+    }
+    yielded_heads.insert(head.raw());
+    return true;
+}
+
+ContextDatabase::UniqueDiagnostics::iterator::iterator(UniqueDiagnostics& owner, size_t index)
+    : owner{&owner}, index{index} {
+    settle();
+}
+
+void ContextDatabase::UniqueDiagnostics::iterator::settle() {
+    const auto& dids = owner->db->diagnostics_for_file(owner->fid);
+    while (index < dids.size() && !owner->should_yield(dids[index])) {
+        ++index;
+    }
+}
+
+DiagnosticId ContextDatabase::UniqueDiagnostics::iterator::operator*() const {
+    return owner->db->diagnostics_for_file(owner->fid)[index];
+}
+
+ContextDatabase::UniqueDiagnostics::iterator&
+ContextDatabase::UniqueDiagnostics::iterator::operator++() {
+    ++index;
+    settle();
+    return *this;
+}
+
+bool ContextDatabase::UniqueDiagnostics::iterator::operator==(std::default_sentinel_t) const {
+    return !owner || index >= owner->db->diagnostics_for_file(owner->fid).size();
+}
+
+ContextDatabase::UniqueDiagnostics ContextDatabase::unique_diagnostics_for_file(FileId fid) {
+    return UniqueDiagnostics{*this, fid};
 }
 
 [[nodiscard]] const compiler_error_list_t&

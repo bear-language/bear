@@ -12,12 +12,18 @@
 #include "cli/args.h"
 #include "compiler/hir/context.hpp"
 #include "compiler/hir/def.hpp"
+#include "compiler/hir/diagnostic_hash_map.hpp"
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/span.hpp"
+#include "utils/data_arena.hpp"
+#include <cstddef>
+#include <iterator>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -76,6 +82,60 @@ class ContextDatabase {
     /// gets the hir (semantic anaylsis phase) / logical diagnostics for a given file
     [[nodiscard]] const llvm::SmallVectorImpl<hir::DiagnosticId>&
     diagnostics_for_file(hir::FileId fid) const;
+
+    /// a file's hir diagnostics, skipping members of chains that are structurally equivalent to a
+    /// chain already yielded (e.g. the same error re-emitted by several compt evaluations)
+    /// - chains are compared from their heads, so every member of a yielded chain is yielded
+    /// - one instance de-duplicates across every pass over it, so iterating it again yields the
+    /// same diagnostics
+    class UniqueDiagnostics {
+      public:
+        class iterator {
+          public:
+            using value_type = hir::DiagnosticId;
+            using difference_type = std::ptrdiff_t;
+
+            iterator() = default;
+
+            [[nodiscard]] hir::DiagnosticId operator*() const;
+            iterator& operator++();
+            iterator operator++(int) {
+                iterator prev = *this;
+                ++*this;
+                return prev;
+            }
+            [[nodiscard]] bool operator==(std::default_sentinel_t) const;
+
+          private:
+            friend UniqueDiagnostics;
+            iterator(UniqueDiagnostics& owner, size_t index);
+            /// moves index forward to the next diagnostic that should be yielded (if any)
+            void settle();
+
+            UniqueDiagnostics* owner{nullptr};
+            size_t index{0};
+        };
+
+        UniqueDiagnostics(ContextDatabase& db, hir::FileId fid);
+
+        [[nodiscard]] iterator begin() { return iterator{*this, 0}; }
+        [[nodiscard]] std::default_sentinel_t end() const noexcept { return {}; }
+
+      private:
+        /// whether a diagnostic's chain is yielded (and records it as yielded if so)
+        [[nodiscard]] bool should_yield(hir::DiagnosticId did);
+
+        ContextDatabase* db;
+        hir::FileId fid;
+        /// both are behind pointers so the set's reference to the arena survives a move
+        std::unique_ptr<DataArena> arena;
+        std::unique_ptr<hir::DiagnosticHashSet> seen_chains;
+        /// heads (by id) of the chains that are being yielded
+        std::unordered_set<hir::HirId> yielded_heads;
+    };
+
+    /// gets the hir diagnostics for a given file, without duplicate chains
+    [[nodiscard]] UniqueDiagnostics unique_diagnostics_for_file(hir::FileId fid);
 
     /// gets the parser diagnostics for a file
     [[nodiscard]] const compiler_error_list_t& parser_diagnostics_for_file(hir::FileId fid) const;
