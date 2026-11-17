@@ -209,6 +209,9 @@ class RuntimeSolver {
                                 const ast_stmt_t* stmt);
     OptId<ExecId> handle_for_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                    const ast_stmt_t* stmt);
+    /// fallback after a "not iterable" error: solves the body with the each var bound to its
+    /// written (possibly implicit) type
+    OptId<ExecId> solve_non_iterable_for_in(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
     OptId<ExecId> solve_range_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                      const ast_stmt_t* stmt, const ast_expr_t* range_expr,
                                      bool inclusive);
@@ -216,9 +219,9 @@ class RuntimeSolver {
                                          const ast_stmt_t* stmt, ExecId seq_eid);
     OptId<ExecId> solve_iterator_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                         const ast_stmt_t* stmt, ExecId iterable_eid);
-    [[nodiscard]] bool bind_for_each_var(FileId fid, LexicalCtx body_lctx,
-                                         InProgressBlock& prelude, const ast_param_t* param,
-                                         ExecId elem_eid, for_each_src src);
+    [[nodiscard]] bool bind_for_each_var(FileId fid, LexicalCtx body_lctx, InProgressBlock& prelude,
+                                         const ast_param_t* param, ExecId elem_eid,
+                                         for_each_src src, ExecId iterable_eid);
     DefId emplace_hidden_local(InProgressBlock& block, SymbolId name, TypeId tid, Span span,
                                OptId<ExecId> maybe_init_eid);
     [[nodiscard]] ExecId emplace_block_exec(const InProgressBlock& block, LexicalCtx lctx,

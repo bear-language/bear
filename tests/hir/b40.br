@@ -113,4 +113,33 @@ fn for_in() {
     for &i32 x in arr {
         v++;
     }
+    i32 s = 0;
+    i32 e = 12;
+    for i32 x in s...e {
+        x++; // oops
+    }
+    for i32 x in 1234 { // oops
+        x++; // oops
+    }
+    i32 c = 0;
+    for var x in 1234 { // oops
+        v++;
+        c++; // oops
+    }
+    for mut var x in bar { // oops
+        x++;
+        c++; // oops
+    }
+    for &var x in 1234 { // oops
+        v += x;
+        c++; // oops
+    }
+    for var x in 1.0...2.0 { // oops
+        v++;
+        c++; // oops
+    }
+    for &mut i32 x in 1234 { // oops
+        x++;
+        c++; // oops
+    }
 }

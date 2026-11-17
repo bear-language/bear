@@ -573,6 +573,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "if body will never execute";
     case diag_code::write_this_as_a_reference_type:
         return "write this as a reference type";
+    case diag_code::iterable_value_is_of_type:
+        return "iterable value is of type";
     }
 
     std::unreachable();

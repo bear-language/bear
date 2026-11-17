@@ -289,6 +289,7 @@ enum class diag_code : uint16_t {
     if_body_will_always_execute,
     if_body_will_never_execute,
     write_this_as_a_reference_type,
+    iterable_value_is_of_type,
 
     count, // this must be last,
 

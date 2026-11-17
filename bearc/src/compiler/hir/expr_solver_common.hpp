@@ -118,8 +118,6 @@ template <compt_or_runtime C>
 handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeId scope,
                    token_ptr_slice_t id_slice, OptId<GenericArgIdSliceId> maybe_gen_args) {
 
-    // TODO handle moves
-
     const auto sid_slice = context.symbol_slice(id_slice);
     const Span expr_span{context, fid, id_slice};
     OptId<DefId> maybe_did{};
@@ -206,6 +204,11 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
         }
         // handle runtime
         const auto tid = def.as<DefVariable>().type_id;
+        // a variable whose type still contains `var` (e.g. the each var of a for-in over a
+        // non-iterable) never got its type inferred, so it's poisoned
+        if (TypeTransformer<TypeContainsVar>{context}(tid)) {
+            return {}; // poisoned
+        }
 
         const bool mut_ref = context.type(tid).mut;
 

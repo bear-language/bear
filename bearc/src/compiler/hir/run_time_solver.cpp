@@ -3334,7 +3334,8 @@ void RuntimeSolver::diag_not_iterable(Span span, OptId<TypeId> maybe_tid, diag_c
 }
 
 bool RuntimeSolver::bind_for_each_var(FileId fid, LexicalCtx body_lctx, InProgressBlock& prelude,
-                                      const ast_param_t* param, ExecId elem_eid, for_each_src src) {
+                                      const ast_param_t* param, ExecId elem_eid, for_each_src src,
+                                      ExecId iterable_eid) {
     const auto maybe_written_tid = resolve_type(fid, body_lctx, param->type);
     if (maybe_written_tid.empty()) {
         return false;
@@ -3370,9 +3371,22 @@ bool RuntimeSolver::bind_for_each_var(FileId fid, LexicalCtx body_lctx, InProgre
     } else if (context.assignable_and_inferable_from_type_to(elem_tid, written_tid)) {
         maybe_rhs_eid = elem_eid;
     } else {
-        context.emplace_diagnostic_with_message_value(
+        DiagLinker dl{context};
+        dl.link(context.emplace_diagnostic_with_message_value(
             span, diag_code::cannot_convert_value_of_type, diag_type::error,
-            DiagnosticTypeToType{.from = elem_tid, .to = written_tid});
+            DiagnosticTypeToType{.from = elem_tid, .to = written_tid}));
+        const Exec& iterable_exec = context.exec(iterable_eid);
+        if (const auto maybe_inferred_tid = infer_type_from_exec(iterable_eid)) {
+            dl.link(context.emplace_diagnostic_with_message_value(
+                iterable_exec.span, diag_code::iterable_value_is_of_type, diag_type::note,
+                DiagnosticTypeAfterMessage{.tid = maybe_inferred_tid.as_id()}));
+            if (const auto maybe_did = context.try_def_for_type(maybe_inferred_tid.as_id())) {
+                const Def& d = context.def(maybe_did.as_id());
+                dl.link(context.emplace_diagnostic_with_message_value(
+                    d.span, diag_code::declared_here, diag_type::note,
+                    DiagnosticTypeBeforeMessage{.tid = maybe_inferred_tid.as_id()}));
+            }
+        }
         ok = false;
     }
 
@@ -3465,7 +3479,7 @@ OptId<ExecId> RuntimeSolver::handle_for_in(FileId fid, LexicalCtx lctx, InProgre
             diag_not_iterable(
                 context.exec(maybe_iterable_eid.as_id()).span, iterable_tid,
                 diag_code::for_in_iterates_over_iterators_arrays_slices_strs_and_ranges);
-            return {};
+            maybe_loop_eid = solve_non_iterable_for_in(fid, for_lctx, stmt);
         }
     }
 
@@ -3475,6 +3489,34 @@ OptId<ExecId> RuntimeSolver::handle_for_in(FileId fid, LexicalCtx lctx, InProgre
     for_block.push_back_exec(maybe_loop_eid.as_id());
     block.push_back_exec(emplace_block_exec(for_block, for_lctx, span));
     return maybe_loop_eid;
+}
+
+OptId<ExecId> RuntimeSolver::solve_non_iterable_for_in(FileId fid, LexicalCtx lctx,
+                                                       const ast_stmt_t* stmt) {
+    // the iterable has already been diagnosed as not iterable, so code gen will never run; still
+    // solve the body (with the each var bound to its written type, implicit or not, and left
+    // uninitialized) to surface its diagnostics. the loop itself is a cooked dummy.
+    const ast_stmt_t* body_stmt = stmt->stmt.for_in_stmt.body_stmt;
+    const ast_param_t* each = stmt->stmt.for_in_stmt.each;
+    const auto maybe_written_tid = resolve_type(fid, lctx, each->type);
+    if (maybe_written_tid.empty()) {
+        return {};
+    }
+    const TypeId tid = maybe_written_tid.as_id();
+    const Span span{context, fid, stmt};
+    const Span each_span{context, fid, each->first, each->last};
+    const ExecId false_eid = context.emplace_compt_exec(ExecConst{ConstantValue{false}}, span);
+    return solve_loop_core(fid, lctx, span, false_eid, true, nullptr, body_stmt,
+                           [&](ExecId, LexicalCtx body_lctx, InProgressBlock& prelude) -> bool {
+                               const SymbolId name = context.symbol_id(each->name);
+                               const DefId did
+                                   = context.register_def(name, false, false, 0, each_span, nullptr,
+                                                          DefVariable{.type_id = tid});
+                               context.insert_variable(body_lctx.scope, name, did);
+                               prelude.push_back_def(did);
+                               locals.push_back(did);
+                               return false;
+                           });
 }
 
 OptId<ExecId> RuntimeSolver::solve_range_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
@@ -3519,7 +3561,7 @@ OptId<ExecId> RuntimeSolver::solve_range_for_in(FileId fid, LexicalCtx lctx, InP
     if (!maybe_one.has_value() || !ExecConst{maybe_one.value()}.is_integral()) {
         diag_not_iterable(range_span, elem_tid,
                           diag_code::for_in_iterates_over_iterators_arrays_slices_strs_and_ranges);
-        return {};
+        return solve_non_iterable_for_in(fid, lctx, stmt);
     }
 
     const Span start_span = context.exec(maybe_start_eid.as_id()).span;
@@ -3558,9 +3600,13 @@ OptId<ExecId> RuntimeSolver::solve_range_for_in(FileId fid, LexicalCtx lctx, InP
         return solve_loop_core(
             fid, lctx, span, idx_less_than_end(binary_op::less_than), false, nullptr,
             for_in.body_stmt, [&](ExecId, LexicalCtx body_lctx, InProgressBlock& prelude) -> bool {
-                const bool ok = bind_for_each_var(fid, body_lctx, prelude, for_in.each, idx_val(),
-                                                  for_each_src::range);
-                prelude.push_back_exec(inc_idx());
+                bool ok = false;
+                if (OptId<ExecId> maybe_iterable_eid = solve_expr(fid, lctx, for_in.iterator)) {
+
+                    ok = bind_for_each_var(fid, body_lctx, prelude, for_in.each, idx_val(),
+                                           for_each_src::range, maybe_iterable_eid.as_id());
+                    prelude.push_back_exec(inc_idx());
+                }
                 return ok;
             });
     }
@@ -3577,8 +3623,11 @@ OptId<ExecId> RuntimeSolver::solve_range_for_in(FileId fid, LexicalCtx lctx, InP
     return solve_loop_core(
         fid, lctx, span, go_var(), false, nullptr, for_in.body_stmt,
         [&](ExecId, LexicalCtx body_lctx, InProgressBlock& prelude) -> bool {
-            const bool ok = bind_for_each_var(fid, body_lctx, prelude, for_in.each, idx_val(),
-                                              for_each_src::range);
+            bool ok = false;
+            if (OptId<ExecId> maybe_iterable_eid = solve_expr(fid, lctx, for_in.iterator)) {
+                ok = bind_for_each_var(fid, body_lctx, prelude, for_in.each, idx_val(),
+                                       for_each_src::range, maybe_iterable_eid.as_id());
+            }
             InProgressBlock then_block{};
             then_block.push_back_exec(inc_idx());
             InProgressBlock else_block{};
@@ -3673,7 +3722,7 @@ OptId<ExecId> RuntimeSolver::solve_indexable_for_in(FileId fid, LexicalCtx lctx,
                                    ExecSubscript{.base = seq_base(), .index = idx_var()}, seq_span);
                                const bool ok
                                    = bind_for_each_var(fid, body_lctx, prelude, for_in.each,
-                                                       elem_eid, for_each_src::indexable);
+                                                       elem_eid, for_each_src::indexable, seq_eid);
                                prelude.push_back_exec(context.emplace_exec(
                                    ExecCompoundAssignment{.lhs = idx_var(),
                                                           .rhs = usize_const(1),
@@ -3704,7 +3753,7 @@ OptId<ExecId> RuntimeSolver::solve_iterator_for_in(FileId fid, LexicalCtx lctx,
             iterable_span, iterable_tid,
             is_range ? diag_code::write_the_range_directly_in_the_for_statement
                      : diag_code::for_in_iterates_over_iterators_arrays_slices_strs_and_ranges);
-        return {};
+        return solve_non_iterable_for_in(fid, lctx, stmt);
     };
 
     OptId<DefId> maybe_next_did = context.look_up_variable(
@@ -3823,7 +3872,7 @@ OptId<ExecId> RuntimeSolver::solve_iterator_for_in(FileId fid, LexicalCtx lctx,
             const ExecId payload_eid = context.emplace_exec(
                 ExecMemberAccess{.owner = next_val_var(), .member = payload_did}, iterable_span);
             if (!bind_for_each_var(fid, body_lctx, prelude, for_in.each, payload_eid,
-                                   for_each_src::iterator)) {
+                                   for_each_src::iterator, iterable_eid)) {
                 return false;
             }
             if (!context.type_is_copyable(item_tid)) {
