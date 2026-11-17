@@ -204,7 +204,7 @@ class RuntimeSolver {
     OptId<ExecId> solve_loop_core(FileId fid, LexicalCtx lctx, Span span,
                                   OptId<ExecId> maybe_cond_eid, bool cooked,
                                   const ast_expr_t* update_expr, const ast_stmt_t* body_stmt,
-                                  LoopPrelude prelude = {});
+                                  LoopPrelude prelude = {}, bool cond_reruns_in_lctx_map = false);
     OptId<ExecId> handle_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                 const ast_stmt_t* stmt);
     OptId<ExecId> handle_for_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,
@@ -213,8 +213,7 @@ class RuntimeSolver {
     /// written (possibly implicit) type
     OptId<ExecId> solve_non_iterable_for_in(FileId fid, LexicalCtx lctx, const ast_stmt_t* stmt);
     OptId<ExecId> solve_range_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
-                                     const ast_stmt_t* stmt, const ast_expr_t* range_expr,
-                                     bool inclusive);
+                                     const ast_stmt_t* stmt, ExecId range_eid);
     OptId<ExecId> solve_indexable_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,
                                          const ast_stmt_t* stmt, ExecId seq_eid);
     OptId<ExecId> solve_iterator_for_in(FileId fid, LexicalCtx lctx, InProgressBlock& block,

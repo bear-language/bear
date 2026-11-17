@@ -11,6 +11,7 @@
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/type.hpp"
 #include "utils/ansi_codes.h"
+#include "llvm/ADT/Hashing.h"
 #include <algorithm>
 #include <iostream>
 #include <sstream>
@@ -1320,5 +1321,187 @@ OptId<DiagnosticId> DiagLinker::last_in_chain() const { return prev; }
 OptId<DiagnosticId> DiagLinker::first_in_chain() const { return first; }
 
 DiagRange DiagLinker::range() const { return {first_in_chain(), last_in_chain()}; }
+
+static auto fields(const DiagnosticNoOtherInfo&) { return std::tie(); }
+static auto fields(const DiagnosticIdentifierAfterMessage& d) { return std::tie(d.sid_slice); }
+static auto fields(const DiagnosticIdentifierBeforeMessage& d) { return std::tie(d.sid_slice); }
+static auto fields(const DiagnosticIdentifierBeforeMessageAndTypeAfter& d) {
+    return std::tie(d.sid_slice, d.tid);
+}
+static auto fields(const DiagnosticTypeBeforeMessageAndSymbolAfter& d) {
+    return std::tie(d.sid, d.tid);
+}
+static auto fields(const DiagnosticTypeBeforeMessageAndSymbolWithMaybeGenArgsAfter& d) {
+    return std::tie(d.tid, d.sid, d.maybe_gen_args);
+}
+static auto fields(const DiagnosticSymbolBeforeMessage& d) { return std::tie(d.sid); }
+static auto fields(const DiagnosticSymbolAfterMessage& d) { return std::tie(d.sid); }
+static auto fields(const DiagnosticSymbolAfterMessageNoQuotes& d) { return std::tie(d.sid); }
+static auto fields(const DiagnosticTypeAfterMessage& d) { return std::tie(d.tid); }
+static auto fields(const DiagnosticTypeAfterMessageAsMentioned& d) { return std::tie(d.tid); }
+static auto fields(const DiagnosticTypeBeforeMessage& d) { return std::tie(d.tid); }
+static auto fields(const DiagnosticTypeToType& d) { return std::tie(d.from, d.to); }
+static auto fields(const DiagnosticTypeAndType& d) { return std::tie(d.lhs_tid, d.rhs_tid); }
+static auto fields(const DiagnosticTypeAndTypeForBinaryOp& d) {
+    return std::tie(d.lhs_tid, d.rhs_tid, d.op);
+}
+static auto fields(const DiagnosticSymButGotSym& d) { return std::tie(d.leading, d.sid1, d.sid2); }
+static auto fields(const DiagnosticComptStackOverflow& d) { return std::tie(d.function_sid); }
+static auto fields(const DiagnosticIdxOutOfBounds& d) { return std::tie(d.idx_sid, d.length_sid); }
+static auto fields(const DiagnosticStructMemberSymBeforeMsg& d) { return std::tie(d.mem_sid); }
+static auto fields(const DiagnosticStructDoesNotDefineBlankForContract& d) {
+    return std::tie(d.struct_name, d.func_name, d.contract_name, d.maybe_gen_args);
+}
+static auto fields(const DiagnosticContractFnExpectedButGotNumParams& d) {
+    return std::tie(d.contract_fn_name, d.expected_sid, d.got_sid);
+}
+static auto fields(const DiagnosticContractFnExpectedRetTyButGot& d) {
+    return std::tie(d.contract_fn_name, d.expected_return_tid, d.got_return_tid);
+}
+static auto fields(const DiagnosticTyButGot& d) { return std::tie(d.expected_tid, d.got_tid); }
+static auto fields(const DiagnosticVariantInitExpectedButGotNumArgs& d) {
+    return std::tie(d.variant_field_name, d.expected_sid, d.got_sid);
+}
+static auto fields(const DiagnosticGenArgsExpectedButGotNumArgs& d) {
+    return std::tie(d.name, d.expected_sid, d.got_sid);
+}
+static auto fields(const DiagnosticSymbolBeforeAndAfterMessage& d) {
+    return std::tie(d.before_sid, d.after_sid);
+}
+static auto fields(const DiagnosticCustomComptDiag& d) { return std::tie(d.sid); }
+static auto fields(const DiagnosticContractFnParamExpectedTyButGot& d) {
+    return std::tie(d.expected_tid, d.got_tid, d.arg_index);
+}
+static auto fields(const DiagnosticImportStack& d) { return std::tie(d.files); }
+static auto fields(const DiagnosticInfoNoPreview&) { return std::tie(); }
+static auto fields(const DiagnosticDontDisplayFile&) { return std::tie(); }
+static auto fields(const DiagnosticSubCode& d) { return std::tie(d.sub_code); }
+
+namespace {
+
+struct DiagFieldOps {
+    Context& ctx;
+
+    template <class E>
+        requires std::is_enum_v<E> || std::is_integral_v<E>
+    [[nodiscard]] size_t hash(E e) const {
+        return static_cast<size_t>(e);
+    }
+    template <IsId I> [[nodiscard]] size_t hash(I id) const { return id.raw(); }
+    template <IsId I> [[nodiscard]] size_t hash(OptId<I> id) const {
+        return id.has_value() ? id.as_id().raw() + 1 : 0;
+    }
+    [[nodiscard]] size_t hash(TypeId tid) const { return ctx.type(tid).canonical.raw(); }
+    [[nodiscard]] size_t hash(IdSlice<SymbolId> s) const {
+        llvm::hash_code h = llvm::hash_value(s.len());
+        for (const auto sidx : s) {
+            h = llvm::hash_combine(h, ctx.symbol_id(sidx).raw());
+        }
+        return h;
+    }
+    [[nodiscard]] size_t hash(IdSlice<FileId> s) const {
+        llvm::hash_code h = llvm::hash_value(s.len());
+        for (const auto fidx : s) {
+            h = llvm::hash_combine(h, ctx.file_id(fidx).raw());
+        }
+        return h;
+    }
+
+    template <class T> [[nodiscard]] bool eq(T a, T b) const { return a == b; }
+    template <IsId I> [[nodiscard]] bool eq(OptId<I> a, OptId<I> b) const {
+        return hash(a) == hash(b);
+    }
+    [[nodiscard]] bool eq(TypeId a, TypeId b) const {
+        if (!ctx.equivalent_type(a, b)) {
+            return false;
+        }
+        if (!contains_deftype(ctx, a) && !contains_deftype(ctx, b)) {
+            return true;
+        }
+        return type_to_string_as_mentioned(ctx, a) == type_to_string_as_mentioned(ctx, b);
+    }
+    [[nodiscard]] bool eq(IdSlice<SymbolId> a, IdSlice<SymbolId> b) const {
+        if (a.len() != b.len()) {
+            return false;
+        }
+        for (HirSize i = 0; i < a.len(); ++i) {
+            if (ctx.symbol_id(a.get(i)) != ctx.symbol_id(b.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+    [[nodiscard]] bool eq(IdSlice<FileId> a, IdSlice<FileId> b) const {
+        if (a.len() != b.len()) {
+            return false;
+        }
+        for (HirSize i = 0; i < a.len(); ++i) {
+            if (ctx.file_id(a.get(i)) != ctx.file_id(b.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    template <class... Ts> [[nodiscard]] size_t hash(const std::variant<Ts...>& v) const {
+        return std::visit(
+            [&](const auto& alt) {
+                llvm::hash_code h = llvm::hash_value(v.index());
+                std::apply([&](const auto&... f) { ((h = llvm::hash_combine(h, hash(f))), ...); },
+                           fields(alt));
+                return static_cast<size_t>(h);
+            },
+            v);
+    }
+    template <class... Ts>
+    [[nodiscard]] bool eq(const std::variant<Ts...>& a, const std::variant<Ts...>& b) const {
+        if (a.index() != b.index()) {
+            return false;
+        }
+        return std::visit(
+            [&](const auto& alt) {
+                const auto& other = std::get<std::decay_t<decltype(alt)>>(b);
+                return eq_fields(fields(alt), fields(other),
+                                 std::make_index_sequence<
+                                     std::tuple_size_v<std::decay_t<decltype(fields(alt))>>>{});
+            },
+            a);
+    }
+    template <class Tup, size_t... Is>
+    [[nodiscard]] bool eq_fields(const Tup& a, const Tup& b, std::index_sequence<Is...>) const {
+        return (eq(std::get<Is>(a), std::get<Is>(b)) && ...);
+    }
+};
+
+} // namespace
+
+size_t DiagnosticHasher::operator()(DiagnosticId did) const {
+    const DiagFieldOps ops{context};
+    llvm::hash_code h{0};
+    for (OptId<DiagnosticId> curr = did; curr.has_value();
+         curr = context.diagnostic(curr.as_id()).next) {
+        const Diagnostic& d = context.diagnostic(curr.as_id());
+        h = llvm::hash_combine(h, d.span.start, d.span.len, d.span.file_id.raw(), d.code, d.type,
+                               ops.hash(d.message_value), ops.hash(d.value));
+    }
+    return h;
+}
+
+bool DiagnosticComparator::operator()(DiagnosticId did1, DiagnosticId did2) const {
+    const DiagFieldOps ops{context};
+    OptId<DiagnosticId> curr1 = did1;
+    OptId<DiagnosticId> curr2 = did2;
+    for (; curr1.has_value() && curr2.has_value(); curr1 = context.diagnostic(curr1.as_id()).next,
+                                                   curr2 = context.diagnostic(curr2.as_id()).next) {
+        const Diagnostic& d1 = context.diagnostic(curr1.as_id());
+        const Diagnostic& d2 = context.diagnostic(curr2.as_id());
+        if (d1.span.start != d2.span.start || d1.span.len != d2.span.len
+            || d1.span.file_id != d2.span.file_id || d1.code != d2.code || d1.type != d2.type
+            || !ops.eq(d1.message_value, d2.message_value) || !ops.eq(d1.value, d2.value)) {
+            return false;
+        }
+    }
+    return curr1.empty() && curr2.empty();
+}
 
 } // namespace hir

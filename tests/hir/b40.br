@@ -76,13 +76,13 @@ fn for_in() {
     for mut i32 x in (Foo{}) {
         v++;
     }
-    for &i32 x in (Foo{}) { // oops 
+    for &i32 x in (Foo{}) {
         v++;
     }
     for var x in (Foo{}) {
         v++;
     }
-    for &var x in (Foo{}) { // oops
+    for &var x in (Foo{}) {
         v++;
     }
     for u32 x in (Foo{}) { // oops

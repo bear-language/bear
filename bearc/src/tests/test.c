@@ -359,7 +359,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a91", 32);
     ASSERT_EQ_ERR("hir/a92", 10);
     ASSERT_EQ_ERR("hir/a93", 10);
-    ASSERT_EQ_ERR("hir/a94", 30);
+    ASSERT_EQ_ERR("hir/a94", 28);
     ASSERT_EQ_ERR("hir/a95", 13);
     ASSERT_EQ_ERR("hir/a96", 0);
     ASSERT_EQ_ERR("hir/a97", 23);
@@ -379,7 +379,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b11", 12);
     ASSERT_EQ_ERR("hir/b12", 0);
     ASSERT_EQ_ERR("hir/b13", 32);
-    ASSERT_EQ_ERR("hir/b14", 24);
+    ASSERT_EQ_ERR("hir/b14", 26);
     ASSERT_EQ_ERR("hir/b15", 11);
     ASSERT_EQ_ERR("hir/b16", 17);
     ASSERT_EQ_ERR("hir/b17", 8);
@@ -405,11 +405,12 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b37", 16);
     ASSERT_EQ_ERR("hir/b38", 7);
     ASSERT_EQ_ERR("hir/b39", 8);
-    ASSERT_EQ_ERR("hir/b40", 72);
+    ASSERT_EQ_ERR("hir/b40", 64);
     ASSERT_EQ_ERR("hir/b41", 13);
     ASSERT_EQ_ERR("hir/b42", 18);
     ASSERT_EQ_ERR("hir/b43", 8);
     ASSERT_EQ_ERR("hir/b44", 9);
+    ASSERT_EQ_ERR("hir/b45", 17);
 
     return TEST_RESULT;
 }

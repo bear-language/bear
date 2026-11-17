@@ -514,6 +514,10 @@ template <IsExprSolver Solver>
         if (!maybe_eid && !maybe_default_eid
             && !poisoned_members.test(context.def(did).member_idx)) {
             cooked = true;
+            if (TypeTransformer<TypeContainsVar>{context}(
+                    context.def(did).as<DefVariable>().type_id)) {
+                continue;
+            }
             dl.link(context.emplace_diagnostic_with_message_value(
                 Span{context, fid, expr}, diag_code::struct_initializer_does_not_initialize_field,
                 diag_type::error, DiagnosticSymbolAfterMessage{.sid = context.def(did).name}));

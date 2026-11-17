@@ -1,0 +1,83 @@
+// tests/hir/b45.br
+
+// testing loop condition moves, upfront range solving, slice elem mut, and iterator bindings
+
+struct Des has Destruct {
+    i32 handle;
+    mt mut destruct() { return; }
+    mt mut bump() { self.handle++; }
+}
+
+struct DesIt has Iterator<Des> {
+    i32 mut n = 0;
+    mt mut next() -> Opt<Des> {
+        if self.n >= 3 {
+            return Opt..None::<Des>;
+        }
+        self.n++;
+        return Opt..Some::<Des>(Des{.handle = self.n});
+    }
+}
+
+struct Holder {
+    var m; // oops
+}
+
+fn take_b(Des r) -> bool => true
+fn take_i(Des r) -> i32 => 1
+
+fn main() {
+    poisoned_member();
+}
+
+fn loop_conds(Des r, Des r2, bool c) {
+    while take_b(r) { // oops
+        void _;
+    }
+    for (mut i32 i = 0; c && take_b(r2); i++) { // oops
+        void _;
+    }
+}
+
+fn ranges(Des r, u64 n) {
+    for i32 x in 0...take_i(r) {
+        void _;
+    }
+    for var x in 0...n {
+        var _ = @static_assert(@same_type(typeof x, u64));
+    }
+    for char c in 'a'...='z' {
+        void _;
+    }
+    for u8 x in 0...256 { // oops
+        void _;
+    }
+}
+
+fn slices([&]i32 s, [&mut]i32 rs, [&] mut i32 ms) {
+    rs = s;
+    rs[0] = 1; // oops
+    ms[0] = 1;
+    for &mut i32 x in rs { // oops
+        x++;
+    }
+    for &mut i32 x in ms {
+        x++;
+    }
+}
+
+fn iterators(&mut DesIt mit, &DesIt it) {
+    for &mut Des r in mit {
+        r.bump();
+    }
+    for &Des r in mit {
+        r.bump(); // oops
+    }
+    for var r in it { // oops, next needs a mutable reference
+        void _;
+    }
+}
+
+fn poisoned_member() {
+    Holder _ = Holder{};
+}

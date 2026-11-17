@@ -18,6 +18,7 @@
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/diagnostic.hpp"
+#include "compiler/hir/diagnostic_hash_map.hpp"
 #include "compiler/hir/exec.hpp"
 #include "compiler/hir/expr_solver_common.hpp"
 #include "compiler/hir/file.hpp"
@@ -934,7 +935,10 @@ void Context::try_print_info() {
                   << ansi_reset();
     }
     // 3. print diagnostics last (so always seen first in terminal)
+    std::array<int, 4> duplicate_cnts{};
     if (!has_flag(CLI_FLAG_SILENT)) {
+        DataArena printed_arena{DEFAULT_ARENA_CAP};
+        DiagnosticHashSet printed{*this, printed_arena};
         // go thru each file ast to print info
         for (auto fid = files.begin_id(); fid != files.end_id(); fid++) {
             const FileAst& curr_ast = ast(fid);
@@ -942,7 +946,19 @@ void Context::try_print_info() {
             curr_ast.print_all_errors(compact_diagnostics_enabled());
             // 2. print diagnostics (semantic/non-grammatical errors)
             for (const auto d : file_to_diagnostics.at(fid)) {
-                print_diagnostic(d);
+                DiagnosticId head = d;
+                while (diagnostic(head).prev.has_value()) {
+                    head = diagnostic(head).prev.as_id();
+                }
+                if (diagnostics_used.at(head) || !printed.insert(head)) {
+                    print_diagnostic(d);
+                    continue;
+                }
+                for (OptId<DiagnosticId> curr = head; curr.has_value();
+                     curr = diagnostic(curr.as_id()).next) {
+                    diagnostics_used.at(curr.as_id()) = true;
+                    ++duplicate_cnts[static_cast<size_t>(diagnostic(curr.as_id()).type)];
+                }
             }
         }
 
@@ -954,25 +970,25 @@ void Context::try_print_info() {
         }
     }
     if (!has_flag(CLI_FLAG_SILENT)) {
-        auto errors = error_count();
+        auto errors = error_count() - duplicate_cnts[static_cast<size_t>(diag_type::error)];
         if (errors == 1) {
             puts("1 error generated.");
         } else if (errors != 0) {
             printf("%d errors generated.\n", errors);
         }
-        auto warnings = warning_count();
+        auto warnings = warning_count() - duplicate_cnts[static_cast<size_t>(diag_type::warning)];
         if (warnings == 1) {
             puts("1 warning generated.");
         } else if (warnings != 0) {
             printf("%d warnings generated.\n", warnings);
         }
-        auto notes = note_count();
+        auto notes = note_count() - duplicate_cnts[static_cast<size_t>(diag_type::note)];
         if (notes == 1) {
             puts("1 note generated.");
         } else if (notes != 0) {
             printf("%d notes generated.\n", notes);
         }
-        auto helps = help_count();
+        auto helps = help_count() - duplicate_cnts[static_cast<size_t>(diag_type::help)];
         if (helps == 1) {
             puts("1 tip generated.");
         } else if (helps != 0) {
@@ -4278,19 +4294,8 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
                 && base_ty.as<TypeBuiltin>().type == builtin_type::str) {
                 return type_for_builtin(builtin_type::charr);
             }
-            const TypeId elem_tid = base_ty.try_inner().as_id();
-            // arrays and ptrs carry element mutability on their inner type, so take it as-is (top
-            // level ptr mut only means the ptr is rebindable)
-            if (base_ty.holds_any_of<TypeArr, TypePtr>()) {
-                return elem_tid;
-            }
-            // slices carry element mutability on their own layer, [&mut]T
-            const bool base_mut = base_ty.mut;
-            const Type& elem_ty = type(elem_tid);
-            if (elem_ty.mut == base_mut) {
-                return elem_tid;
-            }
-            return emplace_type(elem_ty.value, elem_ty.span, base_mut);
+            // element mutability lives on the inner type (top level mut is only rebindability)
+            return base_ty.try_inner().as_id();
         },
         [this](const ExecFnCall& d) -> OptId<TypeId> {
             const auto maybe_tid = infer_type_from_exec(d.callee);

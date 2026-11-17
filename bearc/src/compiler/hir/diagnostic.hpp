@@ -529,6 +529,24 @@ class DiagLinker {
     DiagRange range() const;
 };
 
+/// hashes the diagnostic chain starting at a DiagnosticId
+class DiagnosticHasher {
+    Context& context;
+
+  public:
+    explicit DiagnosticHasher(Context& context) : context(context) {}
+    size_t operator()(DiagnosticId did) const;
+};
+
+/// structurally compares the diagnostic chains starting at two DiagnosticIds
+class DiagnosticComparator {
+    Context& context;
+
+  public:
+    explicit DiagnosticComparator(Context& context) : context(context) {}
+    bool operator()(DiagnosticId did1, DiagnosticId did2) const;
+};
+
 } // namespace hir
 
 #endif

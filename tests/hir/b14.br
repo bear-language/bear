@@ -6,7 +6,7 @@ struct Foo {
     i32 a;
 }
 
-fn fine([&]i32 s, [&mut]i32 ms, [4]i32 a, [4]i32 mut ma, *i32 p, *i32 mut mp, *Foo pf, str st, usize i) {
+fn fine([&]i32 s, [&] mut i32 ms, [4]i32 a, [4]i32 mut ma, *i32 p, *i32 mut mp, *Foo pf, str st, usize i) {
     i32 _0 = s[i];
     i32 _1 = a[0];
     i32 _2 = p[i + 1];
@@ -44,10 +44,12 @@ fn arr_bounds([4]i32 a, [2][3]i32 aa, usize i) {
     i32 _5 = aa[2][0]; // oops, out of bounds on the outer array
 }
 
-fn oops_rebindable(*mut i32 rp, i32 x) {
+fn oops_rebindable(*mut i32 rp, i32 x, [&mut]i32 rs, [&]i32 s) {
     rp = ^x; // fine, rp is rebindable
     rp[0] = 1; // oops, rebindable ptr to immut i32
     rp.* = 1; // oops, same thru an explicit deref
+    rs = s; // fine, rs is rebindable
+    rs[0] = 1; // oops, rebindable slice of immut i32
 }
 
 struct Foo2 {
