@@ -1,10 +1,12 @@
 ### todos
 
 #### priority
-- [ ] fix inner/outer array mut debacle, see `tests/hir/b43.br`
+- [ ] give better diagnostics on for-in binding mismatch pointing to the `Iterator`/indexable and stating its type
 - [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
     - [ ] just find main thru top-level scope; only require it in non-lib build
-- [ ] in bearls, make it so that only chained notes are sub-diags. this way helps get shown as their own diags.
+- [ ] in bearls:
+    - [ ] make it so that only chained notes are sub-diags. this way more things are shown as their own diags.
+    - [ ] if parser diagnostics and hir diagnostics share a span, report the parser diagnostics first so they appear on top
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
