@@ -575,6 +575,9 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "write this as a reference type";
     case diag_code::iterable_value_is_of_type:
         return "iterable value is of type";
+    case diag_code::should_have_explicit_type_since_it_has_no_initializer:
+        return "should have an explicit type since it has no explicit initializer indicating its "
+               "type";
     }
 
     std::unreachable();

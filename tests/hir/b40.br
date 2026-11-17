@@ -138,8 +138,12 @@ fn for_in() {
         v++;
         c++; // oops
     }
+    var a; // oops
     for &mut i32 x in 1234 { // oops
         x++;
         c++; // oops
+        a++;
     }
 }
+
+var a; // oops

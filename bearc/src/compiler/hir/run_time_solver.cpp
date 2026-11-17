@@ -706,8 +706,9 @@ OptId<ExecId> RuntimeSolver::handle_var_decl(FileId fid, LexicalCtx lctx, InProg
 
     if (TypeTransformer<TypeContainsVar>{context}(maybe_tid.as_id())) {
         context.emplace_diagnostic_with_message_value(
-            context.type(maybe_tid.as_id()).span, diag_code::should_have_explicit_type,
-            diag_type::error, DiagnosticSymbolBeforeMessage{.sid = name});
+            context.type(maybe_tid.as_id()).span,
+            diag_code::should_have_explicit_type_since_it_has_no_initializer, diag_type::error,
+            DiagnosticSymbolBeforeMessage{.sid = name});
     }
 
     OptId<ExecId> maybe_compt_eid{};

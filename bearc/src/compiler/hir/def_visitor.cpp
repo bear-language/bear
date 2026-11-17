@@ -140,7 +140,12 @@ DefId DefVisitor::resolve_def(DefId did) {
             context.emplace_diagnostic_with_message_value(
                 type.span, diag_code::should_have_explicit_type, diag_type::error,
                 DiagnosticStructMemberSymBeforeMsg{.mem_sid = def.name});
-        };
+        } else if (type_contains_var) {
+            const Type& type = context.type(maybe_tid.as_id());
+            context.emplace_diagnostic_with_message_value(
+                type.span, diag_code::should_have_explicit_type_since_it_has_no_initializer,
+                diag_type::error, DiagnosticSymbolBeforeMessage{def.name});
+        }
         def.set_value(DefVariable{
             .type_id = maybe_tid.as_id(),
             // this function emits diagnostics if there's a problem and
