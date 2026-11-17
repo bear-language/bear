@@ -1,0 +1,39 @@
+// tests/hir/b46.br
+
+// testing errors in generics
+
+struct NeverInst<T> {
+    aSKLFsdfjh askjdfhasd; // TODO: never instantiated means no errors for now
+}
+
+// just returns a bool
+struct IsI32OrI64<T> {
+    compt var value = @same_type(T, i32) || @same_type(T, i64);
+}
+
+var _0 = @static_assert(IsI32OrI64..value::<i32>);
+var _1 = @static_assert(IsI32OrI64..value::<i64>);
+var _2 = @static_assert(IsI32OrI64..value::<i64>);
+var _3 = @static_assert(!IsI32OrI64..value::<i8>);
+
+/// takes a compt tuple and an index into said tuple and wraps the a value of the type stored at that index in the tuple
+struct TupleIntWrapper<var TUP, u32 IDX> {
+    compt var has_struct_tuple = @members_of(typeof TUP).len;
+    compt var _ = @err(!has_struct_tuple, "TUP should be a struct type but it is of type `" + @type_to_str(typeof TUP) + "`");
+    deftype T = typeof(TUP.(IDX));
+    compt var _ = @note @type_to_str(decay T);
+    T val;
+}
+
+// struct Bar <[&]var T> {}
+
+// compt Bar::<(["foo"])> bar = {};
+compt var tiw = TupleIntWrapper::<0, 0>{}; // oops
+compt var tiw1 = TupleIntWrapper::<(0,0), 0>{.val = 1};
+compt var tiw12 = TupleIntWrapper::<(0,0), 1>{.val = 1};
+compt var tiw13 = TupleIntWrapper::<(0,0), 2>{}; // oops
+
+struct Foo {}
+
+compt Foo f = {};
+compt bool _ = !f;
