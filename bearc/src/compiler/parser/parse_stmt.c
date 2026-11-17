@@ -1317,12 +1317,7 @@ ast_stmt_t* parse_stmt_deftype(parser_t* p) {
     if (!eq) {
         return parser_sync_stmt(p);
     }
-    // either a type expression or typeof(expr)
-    if (parser_peek_match(p, TOK_TYPEOF)) {
-        s->stmt.deftype.aliased_type_expr = parse_expr(p);
-    } else {
-        s->stmt.deftype.aliased_type_expr = parse_expr_type(p);
-    }
+    s->stmt.deftype.aliased_type_expr = parse_expr_type(p);
     parser_expect_token(p, TOK_SEMICOLON);
     s->first = first;
     s->last = parser_prev(p);

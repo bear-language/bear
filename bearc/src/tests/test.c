@@ -154,7 +154,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR_FROM_ARGSN(args6, 6, 2);
     char* args7[] = {"bearc", "00.br", "-I", "tests/projects/02", "--check"};
     ASSERT_EQ_ERR_FROM_ARGSN(args7, 12, 3);
-    ASSERT_EQ_ERR("hir/09", 5);
+    ASSERT_EQ_ERR("hir/09", 2);
     ASSERT_EQ_ERR("hir/10", 2);
     ASSERT_EQ_ERR("hir/11", 8);
     ASSERT_EQ_ERR("hir/12", 3);
@@ -184,7 +184,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/33", 8);
     ASSERT_EQ_ERR("hir/34", 6);
     ASSERT_EQ_ERR("hir/35", 2);
-    ASSERT_EQ_ERR("hir/36", 3);
+    ASSERT_EQ_ERR("hir/36", 1);
     ASSERT_EQ_ERR("hir/37", 1);
     ASSERT_EQ_ERR("hir/38", 4);
     ASSERT_EQ_ERR("hir/39", 3);
@@ -254,7 +254,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a02", 15);
     ASSERT_EQ_ERR("hir/a03", 9);
     ASSERT_EQ_ERR("hir/a04", 10);
-    ASSERT_EQ_ERR("hir/a05", 16);
+    ASSERT_EQ_ERR("hir/a05", 13);
     ASSERT_EQ_ERR("hir/a06", 2);
     ASSERT_EQ_ERR("hir/a07", 14);
     ASSERT_EQ_ERR("hir/a08", 5);
@@ -411,6 +411,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b43", 8);
     ASSERT_EQ_ERR("hir/b44", 9);
     ASSERT_EQ_ERR("hir/b45", 17);
+    ASSERT_EQ_ERR("hir/b46", 16);
 
     return TEST_RESULT;
 }

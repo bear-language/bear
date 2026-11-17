@@ -15,6 +15,7 @@
 #include "compiler/hir/def.hpp"
 #include "compiler/hir/def_visitor.hpp"
 #include "compiler/hir/diagnostic.hpp"
+#include "compiler/hir/run_time_solver.hpp"
 #include "compiler/hir/type.hpp"
 #include "compiler/token.h"
 #include <optional>
@@ -326,11 +327,16 @@ class TypeResolver {
             }
         }
 
-        auto maybe_tid
-            = ComptExprSolver{context, def_visitor}.infer_type_from_compt_expr(fid, scope, expr);
+        const auto maybe_eid = RuntimeSolver{context, def_visitor}.solve_expr(fid, scope, expr);
+
+        if (maybe_eid.empty()) {
+            return {};
+        }
+
+        const auto maybe_tid = context.infer_type_from_exec(maybe_eid.as_id());
 
         if (maybe_tid.empty()) {
-            return std::nullopt;
+            return {};
         }
 
         // make new type as to update span
@@ -352,6 +358,7 @@ class TypeResolver {
         return decay_type(maybe_tid.as_id(), Span{context, fid, type_node->first, type_node->last});
     }
 
+    // aka tuple
     [[nodiscard]] OptId<TypeId> type_anon_struct(FileId fid, ScopeId scope, const ast_type_t* type,
                                                  bool need_layout_info) {
         assert(type->tag == AST_TYPE_ANON_STRUCT);
@@ -402,8 +409,8 @@ class TypeResolver {
             return {}; // some issue or not found
         }
 
-        (need_layout_info) ? def_visitor.visit_as_dependent(maybe_instant.as_id())
-                           : def_visitor.visit_as_transparent(maybe_instant.as_id());
+        need_layout_info ? def_visitor.visit_as_dependent(maybe_instant.as_id())
+                         : def_visitor.visit_as_transparent(maybe_instant.as_id());
 
         if (context.is_struct(maybe_instant.as_id())) {
             return context.emplace_type(

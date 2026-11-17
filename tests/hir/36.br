@@ -10,7 +10,7 @@ typeof(b) d; // fine
 
 typeof(gabagool) e; // oops
 
-typeof(b + 1) f; // oops
+typeof(b + 1) f; 
 
 struct BenTheDog{}
 

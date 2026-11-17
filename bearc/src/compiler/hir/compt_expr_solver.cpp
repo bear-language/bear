@@ -422,9 +422,11 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
         // eventually allow sizeof, allignof
         token_type_e t = expr->expr.unary.op->type;
         OptId<ExecId> maybe_inner{};
-        if (t == TOK_BOOL_NOT || t == TOK_PLUS || t == TOK_MINUS || t == TOK_BIT_NOT) {
-            maybe_inner = solve_builtin_compt_expr(fid, scope, expr->expr.unary.expr, std::nullopt,
-                                                   std::nullopt);
+        if (t == TOK_BOOL_NOT) {
+            maybe_inner = solve_builtin_compt_expr(fid, scope, expr->expr.unary.expr,
+                                                   builtin_type::boolean);
+        } else if (t == TOK_PLUS || t == TOK_MINUS || t == TOK_BIT_NOT) {
+            maybe_inner = solve_builtin_compt_expr(fid, scope, expr->expr.unary.expr, {});
         } else {
             Span span{fid, context.ast(fid).buffer(), expr->expr.unary.op};
             auto d0 = context.emplace_diagnostic(span, diag_code::operator_not_viable_at_compt,
@@ -613,23 +615,19 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
         return solve_closure(fid, scope, expr);
     case AST_EXPR_TYPE_ID:
         return solve_type_id(fid, scope, expr);
-    case AST_EXPR_TYPE:
-    case AST_EXPR_LIST_LITERAL:
-    case AST_EXPR_BORROW:
-    case AST_EXPR_STRUCT_MEMBER_INIT:
+    case AST_EXPR_MEMBERS_OF:
     case AST_EXPR_ADDR_OF:
+    case AST_EXPR_STATICS_OF:
+    case AST_EXPR_TUPLE_INIT:
+    case AST_EXPR_TYPE:
+    case AST_EXPR_BORROW:
+    case AST_EXPR_LIST_LITERAL:
+    case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_ELSE_MATCH_PATTERN:
-    case AST_EXPR_MEMBERS_OF:
-    case AST_EXPR_STATICS_OF:
-    case AST_EXPR_TUPLE_INIT:
     case AST_EXPR_INVALID:
-        // not a valid compile-time expr
-        context.emplace_diagnostic(Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
-                                   diag_code::cannot_resolve_at_compt, diag_type::error);
-        return std::nullopt;
         break;
     }
 
@@ -657,10 +655,17 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
         assert(maybe_converted.value().matches_type(into_builtin.value()));
         return emplace_e(maybe_converted.value());
     }
-    context.emplace_diagnostic(Span(context, fid, expr), diag_code::cannot_resolve_at_compt,
-                               diag_type::error);
-
-    // as to not duplicate compt errors from bubbling up
+    if (into_builtin || into_tid) {
+        TypeId to = into_tid.has_value() ? into_tid.as_id()
+                                         : context.type_for_builtin(into_builtin.value());
+        context.emplace_diagnostic(Span{context, fid, expr},
+                                   diag_code::cannot_convert_expression_to_type, diag_type::error,
+                                   DiagnosticTypeAfterMessage{.tid = to}, DiagnosticNoOtherInfo{});
+    } else {
+        // not a valid compile-time expr
+        context.emplace_diagnostic(Span{context, fid, expr}, diag_code::cannot_resolve_at_compt,
+                                   diag_type::error);
+    }
     return {};
 }
 
@@ -1509,7 +1514,17 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
     assert(inner_exec.compt);
 
     if (!inner_exec.template holds<ExecConst>()) {
-        return std::nullopt;
+        const auto maybe_inferred_tid = infer_type_from_exec(eid);
+        if (maybe_inferred_tid) {
+            return {};
+        }
+        auto d0 = context.emplace_diagnostic(
+            op_span, diag_code::invalid_operand_for_unary_expression, diag_type::error);
+        auto d1 = context.emplace_diagnostic_with_message_value(
+            inner_exec.span, diag_code::value_is_of_type, diag_type::note,
+            DiagnosticTypeAfterMessage{.tid = maybe_inferred_tid.as_id()});
+        context.link_diagnostic(d0, d1);
+        return {};
     }
 
     ExecConst inner_val = inner_exec.as<ExecConst>();
@@ -2922,7 +2937,8 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
 
         DefId struct_did = def_visitor.visit_as_dependent(ty.as<TypeStruct>().def_id);
         if (!context.def(struct_did).holds<DefStruct>()) {
-            return {};
+            return context.emplace_compt_exec(
+                ExecListLiteral{.elems = {}, .elem_type_id = elem_tid}, span);
         }
         const auto maybe_cached = context.try_fetch_cached_members_of(struct_did);
         if (maybe_cached.has_value()) {

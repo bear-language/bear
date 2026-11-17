@@ -3842,9 +3842,20 @@ void Context::insert_gen_args_into_scope(DefId orginal_generic_did, DefId instan
                 },
                 [this, scope, instance_did, param, arg](GenericParamVariable v) {
                     if (arg.holds<ExecId>()) {
+                        const auto maybe_from_tid = infer_type_from_exec(arg.as<ExecId>());
+                        OptId<ExecId> maybe_conv_eid{};
+                        if (maybe_from_tid.has_value()
+                            && !type_inferable_as(maybe_from_tid.as_id(), v.type)) {
+                            maybe_conv_eid = try_convert_to(arg.as<ExecId>(), v.type);
+                        }
                         const auto p = register_compt_def(
                             param.name, exec(arg.as<ExecId>()).span, instance_did,
-                            DefVariable{.type_id = v.type, .compt_value = arg.as<ExecId>()});
+                            DefVariable{.type_id = TypeTransformer<TypeContainsVar>{*this}(v.type)
+                                                           && maybe_from_tid
+                                                       ? maybe_from_tid.as_id()
+                                                       : v.type,
+                                        .compt_value = maybe_conv_eid ? maybe_conv_eid.as_id()
+                                                                      : arg.as<ExecId>()});
                         insert_variable(scope, param.name, p);
                     }
                 }};
@@ -3963,7 +3974,8 @@ void Context::insert_gen_args_into_scope(DefId orginal_generic_did, DefId instan
                             DiagnosticSymbolBeforeMessage{.sid = param.name}));
                         return false;
                     }
-                    if (!type_inferable_as(maybe_tid.as_id(), expected_tid)) {
+                    if (!type_inferable_as(maybe_tid.as_id(), expected_tid)
+                        && !is_convertible_to(eid, expected_tid)) {
                         dl.link(emplace_diagnostic_with_message_value(
                             exec(eid).span, diag_code::generic_argument_expected_value_of_type,
                             diag_type::error,
@@ -4106,14 +4118,17 @@ OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {
     return maybe_new;
 }
 
-[[nodiscard]] OptId<ExecId> Context::try_convert_to(ExecId eid, TypeId into_tid) {
+[[nodiscard]] bool Context::is_convertible_to(ExecId eid, TypeId into_tid) {
+    // TODO: for now this has to be kept in sync with Context::try_convert_to, which is bad, try to
+    // factor out into a template upon next change
+
     const Exec& ex = this->exec(eid);
 
     // since lengthless exec can't be inferred
     if (ex.holds<ExecListLiteral>() && !ex.as<ExecListLiteral>().len()) {
         const auto& ty = type(into_tid);
         if (ty.template holds<TypeSlice>()) {
-            return eid;
+            return true;
         }
         return {};
     }
@@ -4121,15 +4136,61 @@ OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {
     // make sure all list literals can be assigned to compt slices
     if (ex.holds<ExecListLiteral>() && type(into_tid).template holds<TypeSlice>()
         && ex.as<ExecListLiteral>().elem_type_id.has_value()
-        && equivalent_type(type(into_tid).template as<TypeSlice>().inner,
-                           ex.as<ExecListLiteral>().elem_type_id.as_id())) {
-        return eid;
+        && type_inferable_as(type(into_tid).template as<TypeSlice>().inner,
+                             ex.as<ExecListLiteral>().elem_type_id.as_id())) {
+        return true;
     }
 
     OptId<TypeId> maybe_inferred_etid = infer_type_from_exec(eid);
     if (maybe_inferred_etid.has_value()
         && type_inferable_as(maybe_inferred_etid.as_id(), into_tid)) {
-        return eid;
+        return true;
+    }
+
+    if (!ex.holds<ExecConst>()) {
+        return {};
+    }
+    const Type& ty = type(into_tid);
+    if (!ty.holds<TypeBuiltin>()) {
+        return {};
+    }
+    auto conv = ex.as<ExecConst>().try_safe_convert_to(*this, ty.as<TypeBuiltin>().type);
+    if (!conv.has_value()) {
+        return {};
+    }
+    return true;
+}
+
+[[nodiscard]] OptId<ExecId> Context::try_convert_to(ExecId eid, TypeId into_tid) {
+
+    // TODO: for now this has to be kept in sync with Context::is_convertible_to, which is bad, try
+    // to factor out into a template upon next change
+
+    // re-emplacing here so that infer_type_from_exec can newly cache the updated val
+
+    const Exec& ex = this->exec(eid);
+
+    // since lengthless exec can't be inferred
+    if (ex.holds<ExecListLiteral>() && !ex.as<ExecListLiteral>().len()) {
+        const auto& ty = type(into_tid);
+        if (ty.template holds<TypeSlice>()) {
+            return emplace_exec(ex.value, ex.span, ex.compt);
+        }
+        return {};
+    }
+
+    // make sure all list literals can be assigned to compt slices
+    if (ex.holds<ExecListLiteral>() && type(into_tid).template holds<TypeSlice>()
+        && ex.as<ExecListLiteral>().elem_type_id.has_value()
+        && type_inferable_as(type(into_tid).template as<TypeSlice>().inner,
+                             ex.as<ExecListLiteral>().elem_type_id.as_id())) {
+        return emplace_exec(ex.value, ex.span, ex.compt);
+    }
+
+    OptId<TypeId> maybe_inferred_etid = infer_type_from_exec(eid);
+    if (maybe_inferred_etid.has_value()
+        && type_inferable_as(maybe_inferred_etid.as_id(), into_tid)) {
+        return emplace_exec(ex.value, ex.span, ex.compt);
     }
 
     if (!ex.holds<ExecConst>()) {

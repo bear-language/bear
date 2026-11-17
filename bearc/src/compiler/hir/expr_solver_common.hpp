@@ -22,6 +22,7 @@
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type_resolver.hpp"
 #include "llvm/ADT/SmallBitVector.h"
+#include <iostream>
 
 namespace hir {
 
@@ -443,6 +444,7 @@ template <IsExprSolver Solver>
     static constexpr bool is_compt_eval = std::same_as<Solver, ComptExprSolver>;
 
     Context& context = solver.get_context();
+    DefVisitor& def_visitor = solver.get_def_visitor();
     const auto member_dids = context.ordered_defs_for(struct_did);
     const ast_slice_of_exprs_t init_slice = expr->expr.struct_init.member_inits;
 
@@ -506,7 +508,8 @@ template <IsExprSolver Solver>
     llvm::SmallVector<ExecId> member_init_execs{};
     for (const auto didx : member_dids) {
         const auto did = context.def_id(didx);
-        if (!context.def(did).template holds<DefVariable>()) {
+        const Def& def = context.def(def_visitor.visit_as_dependent(did));
+        if (!def.template holds<DefVariable>()) {
             return std::nullopt;
         }
         const auto maybe_eid = mem_defs_to_execs.at(did);
@@ -542,9 +545,9 @@ template <IsExprSolver Solver>
                                            diag_type::error));
     }
     if (cooked) {
-        dl.link(context.emplace_diagnostic(
+        context.force_link_diagnostic(context.emplace_diagnostic_with_message_value(
             context.def(struct_did).span, diag_code::declared_here, diag_type::note,
-            DiagnosticSymbolBeforeMessage{context.def(struct_did).name}, DiagnosticNoOtherInfo{}));
+            DiagnosticSymbolBeforeMessage{context.def(struct_did).name}));
         return std::nullopt;
     }
     if (poisoned_members.any()) {

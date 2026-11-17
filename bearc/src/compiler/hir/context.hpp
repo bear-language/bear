@@ -980,6 +980,8 @@ class Context {
     [[nodiscard]] OptId<TypeId> infer_type_from_exec(ExecId eid);
 
     /// does not emit diagnostics on failure
+    [[nodiscard]] bool is_convertible_to(ExecId eid, TypeId into_tid);
+    /// does not emit diagnostics on failure
     [[nodiscard]] OptId<ExecId> try_convert_to(ExecId eid, TypeId into_tid);
 
     [[nodiscard]] const llvm::SmallVectorImpl<hir::DiagnosticId>&
