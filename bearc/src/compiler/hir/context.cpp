@@ -2501,6 +2501,10 @@ template <equivalence E>
 
     assert(from_ty.holds_same<TypeArr>(to_ty));
 
+    if (from_ty.as<TypeArr>().canonical_size != to_ty.as<TypeArr>().canonical_size) {
+        return false;
+    }
+
     // arrays outer is somewhat arbitrary, the element-wise assignability is what matter (these are
     // the inner tids) .as_id() is safe here because we know both of these hold arr types which
     // always have inner types

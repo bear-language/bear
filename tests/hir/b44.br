@@ -1,0 +1,61 @@
+// tests/hir/b44.br
+
+// regression tests for array assignability (sizes must match) and array mut printing
+
+fn main() {
+    size_mismatches();
+    size_matches();
+    mut_printing();
+    ref_bindings_over_arrays();
+}
+
+fn size_mismatches() {
+    [3]i32 a = [1, 2, 3];
+    [4]i32 _ = a; // oops, size mismatch
+    [3]i32 _ = [1, 2, 3, 4]; // oops, size mismatch
+    [3]i32 _ = [1, 2]; // oops, size mismatch
+    &[4]i32 _ = &a; // oops, size mismatch behind a ref
+    &[2]i32 _ = &a; // oops, size mismatch behind a ref
+    mut [3]i32 ma = [1, 2, 3];
+    &mut [4]i32 _ = &mut ma; // oops, size mismatch behind a mut ref
+    [2][3]i32 nested = [[1, 2, 3], [4, 5, 6]];
+    [2][4]i32 _ = nested; // oops, inner size mismatch
+}
+
+fn size_matches() {
+    [3]i32 a = [1, 2, 3];
+    [3]i32 _ = a;
+    &[3]i32 _ = &a;
+    mut [3]i32 ma = [1, 2, 3];
+    &mut [3]i32 _ = &mut ma;
+    &[3]i32 _ = &ma;
+    [2][3]i32 nested = [[1, 2, 3], [4, 5, 6]];
+    [2][3]i32 _ = nested;
+}
+
+fn mut_printing() {
+    mut [3]i32 outer = [1, 2, 3];
+    var _ = @static_assert @type_to_str(typeof outer) == "[3]mut i32";
+    [3]i32 mut inner = [1, 2, 3];
+    var _ = @static_assert @type_to_str(typeof inner) == "[3]i32 mut";
+}
+
+fn ref_bindings_over_arrays() {
+    [3]i32 mut m = [1, 2, 3];
+    for &i32 x in m {
+        void _;
+    }
+    for &var x in m {
+        void _;
+    }
+    for &mut i32 x in m {
+        x++;
+    }
+    for &mut var x in m {
+        x++;
+    }
+    [3]i32 a = [1, 2, 3];
+    for &mut var x in a { // oops, `a` is immutable
+        x++;
+    }
+}

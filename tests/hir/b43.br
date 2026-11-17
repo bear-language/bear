@@ -44,20 +44,25 @@ fn oops_bindings() {
     }
     [3]i32 mut arrm = [1, 2, 3]; 
     for mut var x in arrm {
+        var _ = @static_assert(@same_type(typeof x, mut i32));
         x++; 
     }
     for var x in arrm {
-        void _;
+        var _ = @static_assert(@same_type(typeof x, i32));
     }
     mut [3]i32 mut marrm = [1, 2, 3]; 
-    for var x in arrm {
-        void _;
+    for var x in marrm {
+        var _ = @static_assert(@same_type(typeof x, i32));
     }
-    for mut var x in arrm {
-        void _;
+    for mut var x in marrm {
+        var _ = @static_assert(@same_type(typeof x, i32 mut));
     }
     marrm = [3, 2, 1];
     for &mut var x in marrm {
         x++;
+    }
+    for &var x in marrm {
+        var _ = @static_assert(@same_type(typeof x, &i32));
+        x++; // oops
     }
 }

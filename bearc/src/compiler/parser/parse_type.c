@@ -339,6 +339,8 @@ ast_type_t* parse_type_arr(parser_t* p) {
     ast_type_t* outer = parser_alloc_type(p);
     outer->tag = AST_TYPE_ARR;
 
+    token_t* first = parser_peek(p);
+
     bool mut = parser_match_token(p, TOK_MUT);
 
     // handle [size_expr]
@@ -359,7 +361,7 @@ ast_type_t* parse_type_arr(parser_t* p) {
         if (mut) {
             compiler_error_list_emplace(p->error_list, parser_prev(p), ERR_REDUNDANT_MUT);
         }
-        mut |= true;
+        mut = true;
     }
     ast_type_t* inner = parse_type(p);
     if (inner->tag == AST_TYPE_INVALID) {
@@ -369,8 +371,8 @@ ast_type_t* parse_type_arr(parser_t* p) {
     outer->type.arr.mut = mut;
     // handle canonical base
     outer->canonical_base = inner->canonical_base;
-    outer->first = lbrack;
-    outer->last = inner->last;
+    outer->first = first;
+    outer->last = parser_prev(p);
     return outer;
 }
 

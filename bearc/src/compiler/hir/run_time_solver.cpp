@@ -3350,7 +3350,7 @@ bool RuntimeSolver::bind_for_each_var(FileId fid, LexicalCtx body_lctx, InProgre
     const Span span{context, fid, param->first, param->last};
     const bool by_ref_for_indexable = src == for_each_src::indexable && written_ty.holds<TypeRef>()
                                       && context.assignable_and_inferable_from_type_to(
-                                          written_ty.as<TypeRef>().inner, elem_tid);
+                                          elem_tid, written_ty.as<TypeRef>().inner);
 
     TypeId tid = written_tid;
     OptId<ExecId> maybe_rhs_eid{};
