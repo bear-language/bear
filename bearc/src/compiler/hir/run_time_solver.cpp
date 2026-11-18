@@ -889,8 +889,8 @@ OptId<ExecId> RuntimeSolver::handle_expr_stmt(FileId fid, LexicalCtx lctx, InPro
 
             const Def& def = context.def(maybe_did.as_id());
 
-            if ((def.holds<DefFunction>() && !def.as<DefFunction>().discardable)
-                    && def.as<DefFunction>().return_type
+            if ((def.holds<DefFunction>() && !def.as<DefFunction>().discardable
+                 && def.as<DefFunction>().return_type)
                 || (def.holds<DefFunctionPrototype>() && def.as<DefFunctionPrototype>().return_type
                     && !def.as<DefFunctionPrototype>().discardable)) {
 

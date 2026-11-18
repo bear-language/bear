@@ -1,0 +1,32 @@
+// tests/hir/b51
+
+import "compt_str.br";
+
+struct Holds<T> {
+    T a;
+    fn new(T v) -> Self => Self{.a = v}
+    mt get() -> T => self.a
+}
+
+struct ArbComptHolds<var V> {
+    compt fn get() -> typeof(V) => V
+}
+
+fn main() {
+
+    compt var a = Holds..new::<i32>(12345);
+    compt var b = a.get();
+    var _ = @note(b as str);
+
+    deftype Thingy = ArbComptHolds::"i think we should put an llm on the satellite";
+    var _ = @note @type_to_str(decay Thingy);
+
+    deftype Foo = ArbComptHolds::(["ba", "ba", "ba", "ba"]);
+    var _ = @note @type_to_str(decay Foo);
+    var _ = @note to_compt_str(Foo..get());
+
+    var _ = @static_assert(
+        @note(@note(@note("hello!"), "hi!"), "oh, hello again!"), // chained
+        "this should be true, so this will never be reported. confession: meow"
+    ); 
+}

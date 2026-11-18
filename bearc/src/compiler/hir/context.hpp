@@ -479,7 +479,6 @@ class Context {
     [[nodiscard]] Diagnostic* prev_diagnostic();
 
     // try to chain custom diagnostics in a pretty way (link them only with each other)
-    void try_link_custom_diagnostic(DiagnosticId diag);
     void print_diagnostic(DiagnosticId diag, bool print_file = true, bool force_print = false);
     void force_print_diagnostic(DiagnosticId diag, bool print_file = true) {
         print_diagnostic(diag, print_file, true);

@@ -1957,6 +1957,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
     auto bool_val = false;
 
     OptId<ExecId> maybe_bool_eid{};
+    const auto prior_diag_cnt = context.diagnostic_count();
     if (expr->expr.diagnostic.maybe_second_expr) {
         maybe_bool_eid = solve_builtin_compt_expr(fid, scope, expr->expr.diagnostic.first_expr,
                                                   builtin_type::boolean);
@@ -1975,6 +1976,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
     } else {
         bool_val = true;
     }
+    const auto post_diag_cnt = context.diagnostic_count();
 
     diag_type t = diag_type::error;
     switch (expr->expr.diagnostic.diag_type) {
@@ -1993,9 +1995,12 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
     }
 
     if (bool_val) {
-        context.try_link_custom_diagnostic(context.emplace_diagnostic(
+        const auto d = context.emplace_diagnostic(
             Span{context, fid, expr}, diag_code::only_message_value_is_meaningful, t,
-            DiagnosticCustomComptDiag{.sid = sid}, DiagnosticInfoNoPreview{}));
+            DiagnosticCustomComptDiag{.sid = sid}, DiagnosticInfoNoPreview{});
+        if (post_diag_cnt > prior_diag_cnt) {
+            context.force_link_diagnostic(d);
+        }
     }
 
     return context.emplace_compt_exec(ExecConst{bool_val}, Span{context, fid, expr});

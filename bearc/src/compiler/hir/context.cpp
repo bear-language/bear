@@ -1434,23 +1434,6 @@ bool Context::last_diagnostic_chain_contains(diag_code code) {
     return false;
 }
 
-void Context::try_link_custom_diagnostic(DiagnosticId diag) {
-    HirId prev_val = diag.raw() - 1;
-    if (prev_val == HIR_ID_NONE) {
-        return;
-    }
-    const DiagnosticId prev{prev_val};
-    const Diagnostic& prev_diag = diagnostics.at(prev);
-    // if the previous was a failed staic assertion or custom diagnostics, assume they were being
-    // chained so the reporting is prettier
-    if (std::holds_alternative<DiagnosticCustomComptDiag>(prev_diag.message_value)
-        || prev_diag.code == diag_code::static_assertion_failed
-        || prev_diag.code == diag_code::static_assertion_failed_colon) {
-        diagnostics.at(prev).set_next(diag);
-        diagnostics.at(diag).set_prev(prev);
-    }
-}
-
 Def& Context::def(DefId def_id) { return defs.at(def_id); }
 
 [[nodiscard]] IdSlice<SymbolId> Context::canonical_name(DefId def_id) {
