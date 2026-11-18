@@ -69,7 +69,7 @@ fn warn(u32 mut a) {
     }
 
     if (a + foo() == a + foo()) { // fine
-        foo();
+        var _ = foo();
     }
 
     a++ if a == a else a += 32; // warn

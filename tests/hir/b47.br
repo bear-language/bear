@@ -1,0 +1,60 @@
+// tests/hir/b47.br
+
+fn main() {
+    oops();
+    get(); // oops
+    maybe_get();
+    Getter..get(); // oops
+    DiscGetter..get();
+    var _ = Getter..get(); 
+
+}
+
+fn oops() {
+    var x = 12;
+    var _ = typeof x; // oops
+    deftype X = typeof x; // fine
+    var _ = @note @type_to_str(decay X);
+}
+
+fn get() -> i32 => 42
+fn maybe_get() ~> i32 => 42
+
+contract Get<T> {
+    fn get() -> T;
+}
+
+contract DiscGet<T> {
+    fn get() ~> T;
+}
+
+struct OopsGetter has Get<i32> {
+    fn get() -> i64 => 0
+}
+
+struct OopsOnDiscGetter has Get<i32> {
+    fn get() ~> u8 => 0
+}
+
+struct Getter has Get<i32> {
+    fn get() -> i32 => 0 // oops
+}
+
+struct DiscGetter has DiscGet<i32> {
+    fn get() ~> i32 => 0
+}
+
+contract SelfGet {
+    fn get() -> Self;
+}
+
+struct OopsSelfGet has SelfGet {
+    fn get() -> i32 => 12
+}
+
+struct OopsieSelfGet has SelfGet {
+    fn get() ~> i32 => 12
+}
+
+
+struct NoneGet has SelfGet {}

@@ -426,7 +426,8 @@ DefId DefVisitor::resolve_def(DefId did) {
         context.def(did).set_value(DefFunctionPrototype{.params = params,
                                                         .param_types = param_types,
                                                         .return_type = return_tid,
-                                                        .takes_self = maybe_self_type.has_value()});
+                                                        .takes_self = maybe_self_type.has_value(),
+                                                        .discardable = fn_decl.discardable});
 
         break;
     }
@@ -936,7 +937,7 @@ bool DefVisitor::try_satisfy_contract(DefId struct_did, DefId contract_did) {
         const Def ct_func_def = context.def(ct_func_did);
 
         OptId<DefId> maybe_matching_named_func_in_struct
-            = context.look_up_variable(struct_scope, ct_func_def.name);
+            = context.look_up_local_variable(struct_scope, ct_func_def.name);
 
         OptId<DefId> maybe_different_orig{};
         if (maybe_matching_named_func_in_struct.has_value()) {

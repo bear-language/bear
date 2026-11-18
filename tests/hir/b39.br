@@ -3,7 +3,7 @@
 // testing move edge cases and shadowing
 
 fn main() {
-    no_moves(&compt 1, &compt 2);
+    var _ = no_moves(&compt 1, &compt 2);
 }
 
 variant Foo {

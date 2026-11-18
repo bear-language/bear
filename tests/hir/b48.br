@@ -1,0 +1,17 @@
+// tests/hir/b48.br
+
+fn main() -> i32 => 12
+
+contract Do {
+    fn do();
+}
+
+contract SelfGet { 
+    fn get() -> Self; 
+}
+
+struct Does has Do {} // oops
+
+struct SelfGets has SelfGet {}
+
+fn do() {;}

@@ -7,7 +7,7 @@ struct Foo {
 }
 
 fn main() {
-    fine(true, 1, 1, 1, &compt Foo{}, &compt Foo{});
+    var _ = fine(true, 1, 1, 1, &compt Foo{}, &compt Foo{});
     oops(true, 1, 1, 1, &compt Foo{}, 1);
 }
 

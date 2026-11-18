@@ -149,7 +149,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR_FROM_ARGS(args4, 2);
     char* args5[]
         = {"bearc", "-I", "tests/projects/00", "-c", "00.br", "--warn-cyclic-import", "--check"};
-    ASSERT_EQ_ERR_FROM_ARGSN(args5, 6, 2);
+    ASSERT_EQ_ERR_FROM_ARGSN(args5, 8, 2);
     char* args6[] = {"bearc", "-I", "tests/projects/01", "-c", "00.br", "--check"};
     ASSERT_EQ_ERR_FROM_ARGSN(args6, 6, 2);
     char* args7[] = {"bearc", "00.br", "-I", "tests/projects/02", "--check"};
@@ -412,6 +412,10 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b44", 9);
     ASSERT_EQ_ERR("hir/b45", 17);
     ASSERT_EQ_ERR("hir/b46", 16);
+    ASSERT_EQ_ERR("hir/b47", 31);
+    ASSERT_EQ_ERR("hir/b48", 6);
+    ASSERT_EQ_ERR("hir/b49", 6);
+    ASSERT_EQ_ERR("hir/b50", 6);
 
     return TEST_RESULT;
 }

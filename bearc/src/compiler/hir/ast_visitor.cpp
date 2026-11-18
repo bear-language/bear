@@ -282,7 +282,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
                     diag_code::out_of_line_scoped_member_functions_not_allowed_for_generic_structs,
                     diag_type::error);
                 const auto d1 = context.emplace_diagnostic_with_message_value(
-                    context.def(parent.as_id()).span, diag_code::declared_here_as_generic,
+                    context.name_span_for_def(parent.as_id()), diag_code::declared_here_as_generic,
                     diag_type::note,
                     DiagnosticSymbolBeforeMessage{.sid = context.def(parent.as_id()).name});
                 const auto d2 = context.emplace_diagnostic(

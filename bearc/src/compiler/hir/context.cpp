@@ -258,7 +258,8 @@ Context::Context(const bearc_args_t& args, instances instances,
                                                    span_for_gen_args(gen_args.as_id()), false)},
                     DiagnosticInfoNoPreview{}));
                 force_link_diagnostic(emplace_diagnostic_with_message_value(
-                    d.span, diag_code::declared_here_as_generic, diag_type::note,
+                    name_span_for_def(maybe_gen_parent.as_id()),
+                    diag_code::declared_here_as_generic, diag_type::note,
                     DiagnosticSymbolBeforeMessage{.sid = d.name}));
             }
         }
@@ -1484,6 +1485,27 @@ DefId Context::try_func_did(DefId def_id) {
 
 FileId Context::file_id(IdIdx<FileId> ididx) const { return file_ids.at(ididx); }
 
+Span Context::function_header_span_for_def(DefId did) const {
+    const auto* maybe_node = def_ast_node(did);
+    if (!maybe_node) {
+        return Span::generated();
+    }
+    ast_stmt_fn_decl_t* decl;
+    if (maybe_node->type == AST_STMT_FN_DECL) {
+        decl = maybe_node->stmt.fn_decl;
+    } else if (maybe_node->type == AST_STMT_FN_PROTOTYPE) {
+        decl = maybe_node->stmt.fn_prototype;
+    } else {
+        return Span::generated();
+    }
+    const auto* maybe_rt = decl->return_type;
+    if (maybe_rt) {
+        return Span{*this, def(did).span.file_id, maybe_node->first, maybe_rt->last};
+    }
+    return Span{*this, def(did).span.file_id, maybe_node->first,
+                decl->only_expr ? decl->expr->first : decl->block_stmt->first};
+}
+
 void Context::register_ordered_defs(DefId def, llvm::SmallVectorImpl<DefId>& vec) {
     IdSlice<DefId> def_slice = freeze_id_vec(vec);
     OrderedDefSliceId ord_def_slice_id = ordered_def_slices.emplace_and_get_id(def_slice);
@@ -2461,9 +2483,9 @@ template <equivalence E>
         return true;
     }
 
-    // one has an inner and the other doesn't -> not strucurally equivalent if exact, but fine if
-    // implicit passed the top-level check (to reach here, it already passed) and neither outer is a
-    // ref, sice refs should be explicitly annotated
+    // one has an inner and the other doesn't -> not strucurally equivalent if exact, but fine
+    // if implicit passed the top-level check (to reach here, it already passed) and neither
+    // outer is a ref, sice refs should be explicitly annotated
     if (from_inner.has_value() != to_inner.has_value()) {
         if constexpr (E == equivalence::exact) {
             return false;
@@ -2503,8 +2525,8 @@ template <equivalence E>
         return false;
     }
 
-    // .as_id() is safe here because we know both of these hold ref types which always have inner
-    // types
+    // .as_id() is safe here because we know both of these hold ref types which always have
+    // inner types
     return assignable_from_type_to_impl<E>(ctx, from_ty.try_inner().as_id(),
                                            to_ty.try_inner().as_id());
 }
@@ -2521,9 +2543,9 @@ template <equivalence E>
         return false;
     }
 
-    // arrays outer is somewhat arbitrary, the element-wise assignability is what matter (these are
-    // the inner tids) .as_id() is safe here because we know both of these hold arr types which
-    // always have inner types
+    // arrays outer is somewhat arbitrary, the element-wise assignability is what matter (these
+    // are the inner tids) .as_id() is safe here because we know both of these hold arr types
+    // which always have inner types
     return assignable_from_type_to_impl<E>(ctx, from_ty.try_inner().as_id(),
                                            to_ty.try_inner().as_id());
 }
@@ -2730,22 +2752,28 @@ bool Context::func_sigs_match_for_contract(DefId did1, DefId did2, DefId struct_
     OptId<TypeId> return_tid1;
     IdSlice<TypeId> param_tids2;
     OptId<TypeId> return_tid2;
+    bool discardable1{};
+    bool discardable2{};
 
     if (def1.holds<DefFunction>()) {
         param_tids1 = def1.as<DefFunction>().param_types;
         return_tid1 = def1.as<DefFunction>().return_type;
+        discardable1 = def1.as<DefFunction>().discardable;
     } else if (def1.holds<DefFunctionPrototype>()) {
         param_tids1 = def1.as<DefFunctionPrototype>().param_types;
         return_tid1 = def1.as<DefFunctionPrototype>().return_type;
+        discardable1 = def1.as<DefFunctionPrototype>().discardable;
     } else {
         return false;
     }
     if (def2.holds<DefFunction>()) {
         param_tids2 = def2.as<DefFunction>().param_types;
         return_tid2 = def2.as<DefFunction>().return_type;
+        discardable2 = def2.as<DefFunction>().discardable;
     } else if (def2.holds<DefFunctionPrototype>()) {
         param_tids2 = def2.as<DefFunctionPrototype>().param_types;
         return_tid2 = def2.as<DefFunctionPrototype>().return_type;
+        discardable2 = def2.as<DefFunctionPrototype>().discardable;
     } else {
         return false;
     }
@@ -2755,6 +2783,10 @@ bool Context::func_sigs_match_for_contract(DefId did1, DefId did2, DefId struct_
     }
 
     if (def1.pub != def2.pub) {
+        return false;
+    }
+
+    if (discardable1 != discardable2) {
         return false;
     }
 
@@ -2786,26 +2818,32 @@ DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_
     // contract's stuff
     IdSlice<TypeId> ct_param_tids;
     OptId<TypeId> ct_return_tid;
+    bool ct_discardable{};
 
     // function's stuff
     IdSlice<TypeId> fn_param_tids;
     OptId<TypeId> fn_return_tid;
+    bool fn_discarable{};
 
     if (contracts_def.holds<DefFunction>()) {
         ct_param_tids = contracts_def.as<DefFunction>().param_types;
         ct_return_tid = contracts_def.as<DefFunction>().return_type;
+        ct_discardable = contracts_def.as<DefFunction>().discardable;
     } else if (contracts_def.holds<DefFunctionPrototype>()) {
         ct_param_tids = contracts_def.as<DefFunctionPrototype>().param_types;
         ct_return_tid = contracts_def.as<DefFunctionPrototype>().return_type;
+        ct_discardable = contracts_def.as<DefFunctionPrototype>().discardable;
     } else {
         return {};
     }
     if (fn_def.holds<DefFunction>()) {
         fn_param_tids = fn_def.as<DefFunction>().param_types;
         fn_return_tid = fn_def.as<DefFunction>().return_type;
+        fn_discarable = fn_def.as<DefFunction>().discardable;
     } else if (fn_def.holds<DefFunctionPrototype>()) {
         fn_param_tids = fn_def.as<DefFunctionPrototype>().param_types;
         fn_return_tid = fn_def.as<DefFunctionPrototype>().return_type;
+        fn_discarable = fn_def.as<DefFunctionPrototype>().discardable;
     } else {
         return {};
     }
@@ -2818,6 +2856,17 @@ DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_
     if (!contracts_def.compt && fn_def.compt) {
         dlinker.link(emplace_diagnostic_with_message_value(
             name_span_for_def(function_did), diag_code::should_not_be_declared_compt,
+            diag_type::help, DiagnosticSymbolBeforeMessage{.sid = fn_def.name}));
+    }
+
+    if (ct_discardable && !fn_discarable) {
+        dlinker.link(emplace_diagnostic_with_message_value(
+            name_span_for_def(function_did), diag_code::should_be_declared_discarable,
+            diag_type::help, DiagnosticSymbolBeforeMessage{.sid = fn_def.name}));
+    }
+    if (!ct_discardable && fn_discarable) {
+        dlinker.link(emplace_diagnostic_with_message_value(
+            name_span_for_def(function_did), diag_code::should_be_declared_non_discardable,
             diag_type::help, DiagnosticSymbolBeforeMessage{.sid = fn_def.name}));
     }
 
@@ -2841,7 +2890,7 @@ DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_
                         .expected_tid = ct_tid, .got_tid = fn_tid, .arg_index = i}));
                 dlinker.link(emplace_diagnostic_with_message_value(
                     type(fn_tid).span, diag_code::replace_with, diag_type::help,
-                    DiagnosticTypeAfterMessageAsMentioned{.tid = ct_tid}));
+                    DiagnosticCanonicalTypeAfterMessage{.tid = ct_tid}));
             }
         }
     }
@@ -2876,7 +2925,7 @@ DiagRange Context::report_function_disagreement_with_contract(DefId contract_fn_
                                                     .got_return_tid = fn_return_tid.as_id()}));
         dlinker.link(emplace_diagnostic_with_message_value(
             type(fn_return_tid.as_id()).span, diag_code::replace_with, diag_type::help,
-            DiagnosticTypeAfterMessage{.tid = ct_return_tid.as_id()}));
+            DiagnosticCanonicalTypeAfterMessage{.tid = ct_return_tid.as_id()}));
     }
     return dlinker.range();
 }
@@ -3213,6 +3262,8 @@ OptId<DefId> Context::try_def_for_exec(ExecId eid) const {
         [this](const ExecBorrow& e) -> OptId<DefId> { return try_def_for_exec(e.borrowee); },
         [this](const ExecMemberAccess& e) -> OptId<DefId> { return try_def_for_exec(e.owner); },
         [this](const ExecSubscript& e) -> OptId<DefId> { return try_def_for_exec(e.base); },
+        [this](const ExecFnCall& e) -> OptId<DefId> { return try_def_for_exec(e.callee); },
+        [this](const ExecFnPtr& e) -> OptId<DefId> { return e.func_def_id; },
         OvldDefault<OptId<DefId>>{},
     };
     return exec(eid).visit(vs);
@@ -4093,8 +4144,8 @@ void Context::register_import_files_parallel(const char* const* file_paths, uint
 
 OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {
     // use a poison value to indicate the we did indeed check this but couldn't get a TypeId
-    // (very rare but possible), we must do this since the map function foo.at() already returns an
-    // optional id, so we need an extra value besides none to indicate this
+    // (very rare but possible), we must do this since the map function foo.at() already returns
+    // an optional id, so we need an extra value besides none to indicate this
     static constexpr TypeId POISONED{HIR_SIZE_MAX};
 
     const auto maybe_existing = exec_to_type_id.at(eid);
@@ -4119,8 +4170,8 @@ OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {
 }
 
 [[nodiscard]] bool Context::is_convertible_to(ExecId eid, TypeId into_tid) {
-    // TODO: for now this has to be kept in sync with Context::try_convert_to, which is bad, try to
-    // factor out into a template upon next change
+    // TODO: for now this has to be kept in sync with Context::try_convert_to, which is bad, try
+    // to factor out into a template upon next change
 
     const Exec& ex = this->exec(eid);
 
@@ -4163,8 +4214,8 @@ OptId<TypeId> Context::infer_type_from_exec(ExecId eid) {
 
 [[nodiscard]] OptId<ExecId> Context::try_convert_to(ExecId eid, TypeId into_tid) {
 
-    // TODO: for now this has to be kept in sync with Context::is_convertible_to, which is bad, try
-    // to factor out into a template upon next change
+    // TODO: for now this has to be kept in sync with Context::is_convertible_to, which is bad,
+    // try to factor out into a template upon next change
 
     // re-emplacing here so that infer_type_from_exec can newly cache the updated val
 
@@ -4364,8 +4415,8 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
                 return {};
             }
             const Type& ty = type(maybe_tid.as_id());
-            // only return return_type if it has a value since empty communicate poisoned. no return
-            // type should be considered `void` in the type system
+            // only return return_type if it has a value since empty communicate poisoned. no
+            // return type should be considered `void` in the type system
             if (ty.holds<TypeFnPtr>() && ty.as<TypeFnPtr>().return_type.has_value()) {
                 return ty.as<TypeFnPtr>().return_type;
             }
@@ -4485,8 +4536,8 @@ OptId<TypeId> Context::do_type_inference_from_exec(ExecId eid) {
 [[nodiscard]] OptId<OffsetSliceId> Context::offset_slice_for_type(TypeId tid) {
     const auto& ty = type(tid);
 
-    // we do this because every anonymous struct has it's own definition but similar ones share a
-    // canonical type
+    // we do this because every anonymous struct has it's own definition but similar ones share
+    // a canonical type
     const auto maybe_existing = canon_tid_to_offset_slice.at(ty.canonical);
 
     if (maybe_existing.has_value()) {

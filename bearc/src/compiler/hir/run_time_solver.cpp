@@ -872,15 +872,39 @@ OptId<ExecId> RuntimeSolver::handle_expr_stmt(FileId fid, LexicalCtx lctx, InPro
                                               const ast_stmt_t* stmt) {
     assert(stmt->type == AST_STMT_EXPR);
     const auto maybe_eid = solve_expr(fid, lctx, stmt->stmt.stmt_expr.expr);
-    if (maybe_eid.has_value()) {
-        if (!exec_result_is_used(context, maybe_eid.as_id())) {
-            context.emplace_diagnostic(
-                context.exec(maybe_eid.as_id()).span, diag_code::result_of_expression_is_unused,
-                diag_type::warning,
-                DiagnosticSubCode{.sub_code = diag_code::expression_has_no_side_effects});
-        }
-        block.push_back_exec(maybe_eid.as_id());
+    if (maybe_eid.empty()) {
+        return {};
     }
+    DiagLinker dl{context};
+    // guard unused expr result
+    if (!exec_result_is_used(context, maybe_eid.as_id())) {
+        dl.link(context.emplace_diagnostic(
+            context.exec(maybe_eid.as_id()).span, diag_code::result_of_expression_is_unused,
+            diag_type::warning,
+            DiagnosticSubCode{.sub_code = diag_code::expression_has_no_side_effects}));
+    }
+    // guard wrongly discarded values
+    if (const Exec& exec = context.exec(maybe_eid.as_id()); exec.holds<ExecFnCall>()) {
+        if (OptId<DefId> maybe_did = context.try_def_for_exec(exec.as<ExecFnCall>().callee)) {
+
+            const Def& def = context.def(maybe_did.as_id());
+
+            if ((def.holds<DefFunction>() && !def.as<DefFunction>().discardable)
+                    && def.as<DefFunction>().return_type
+                || (def.holds<DefFunctionPrototype>() && def.as<DefFunctionPrototype>().return_type
+                    && !def.as<DefFunctionPrototype>().discardable)) {
+
+                dl.link(context.emplace_diagnostic_with_message_value(
+                    exec.span, diag_code::ignoring_return_value_of_non_discardable_function,
+                    diag_type::error, DiagnosticSymbolAfterMessage{.sid = def.name}));
+                dl.link(context.emplace_diagnostic_with_message_value(
+                    context.function_header_span_for_def(maybe_did.as_id()),
+                    diag_code::declared_here_as_non_discardable, diag_type::note,
+                    DiagnosticSymbolBeforeMessage{.sid = def.name}));
+            }
+        }
+    }
+    block.push_back_exec(maybe_eid.as_id());
     return maybe_eid;
 }
 

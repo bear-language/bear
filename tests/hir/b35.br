@@ -3,19 +3,19 @@
 // testing nested yields inside of match branch blocks
 
 fn main() {
-    if_else_yields(1, true);
-    else_if_yields(1);
-    loop_yields(3);
-    nested_match_yields(1, 2);
-    block_yields(1);
-    early_yield(1, true);
-    forever_yields(1);
-    yield_or_return(1, true);
-    inferred_from_nested(1, true);
-    oops_not_all_paths(1, true);
-    oops_dead_code_after_nested(1, true);
-    oops_type_mismatch(1, true);
-    oops_loop_may_exit(1, true);
+    var _ = if_else_yields(1, true);
+    var _ = else_if_yields(1);
+    var _ = loop_yields(3);
+    var _ = nested_match_yields(1, 2);
+    var _ = block_yields(1);
+    var _ = early_yield(1, true);
+    var _ = forever_yields(1);
+    var _ = yield_or_return(1, true);
+    var _ = inferred_from_nested(1, true);
+    var _ = oops_not_all_paths(1, true);
+    var _ = oops_dead_code_after_nested(1, true);
+    var _ = oops_type_mismatch(1, true);
+    var _ = oops_loop_may_exit(1, true);
 }
 
 fn if_else_yields(i32 n, bool c) -> i32 {

@@ -248,22 +248,21 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
                                                           .active_member_idx = def.member_idx},
                                           expr_span);
     }
+    DiagLinker dl{context};
     if constexpr (C == compt_or_runtime::compt) {
-        auto d0 = context.emplace_diagnostic(
+        dl.link(context.emplace_diagnostic(
             expr_span, diag_code::is_not_a_variable, diag_type::error,
-            DiagnosticSubCode{.sub_code = diag_code::is_not_a_compile_time_constant});
-        auto d1 = context.emplace_diagnostic_with_message_value(
+            DiagnosticSubCode{.sub_code = diag_code::is_not_a_compile_time_constant}));
+        dl.link(context.emplace_diagnostic_with_message_value(
             def.span, diag_code::declared_here, diag_type::note,
-            DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
-        context.link_diagnostic(d0, d1);
+            DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice}));
     } else {
-        auto d0 = context.emplace_diagnostic_with_message_value(
+        dl.link(context.emplace_diagnostic_with_message_value(
             expr_span, diag_code::is_not_a_variable, diag_type::error,
-            DiagnosticSymbolBeforeMessage{.sid = def.name});
-        auto d1 = context.emplace_diagnostic_with_message_value(
+            DiagnosticSymbolBeforeMessage{.sid = def.name}));
+        dl.link(context.emplace_diagnostic_with_message_value(
             def.span, diag_code::declared_here, diag_type::note,
-            DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
-        context.link_diagnostic(d0, d1);
+            DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice}));
     }
     return {};
 }
@@ -336,7 +335,8 @@ handle_struct_or_union_init_impl(Solver& solver, FileId fid, ScopeId scope,
                 auto d0 = context.emplace_diagnostic_with_message_value(
                     Span{context, fid, id_slice}, diag_code::raw_use_of_generic_type,
                     diag_type::error, DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
-                auto d1 = context.emplace_diagnostic(def.span, diag_code::declared_here_as_generic,
+                auto d1 = context.emplace_diagnostic(context.name_span_for_def(did),
+                                                     diag_code::declared_here_as_generic,
                                                      diag_type::note);
                 context.link_diagnostic(d0, d1);
                 return {};

@@ -292,6 +292,11 @@ enum class diag_code : uint16_t {
     write_this_as_a_reference_type,
     iterable_value_is_of_type,
     top_level_mut_on_struct_member_is_ignored_since_instance_mutability_determines_it,
+    ignoring_return_value_of_non_discardable_function,
+    declared_here_as_non_discardable,
+    should_be_declared_discarable,
+    should_be_declared_non_discardable,
+    did_you_mean_to_use_dot_dot,
 
     count, // this must be last,
 
@@ -337,6 +342,10 @@ struct DiagnosticSymbolAfterMessageNoQuotes {
 };
 
 struct DiagnosticTypeAfterMessage {
+    TypeId tid;
+};
+
+struct DiagnosticCanonicalTypeAfterMessage {
     TypeId tid;
 };
 
@@ -447,7 +456,8 @@ using DiagnosticMessageValue = std::variant<
     DiagnosticGenArgsExpectedButGotNumArgs, DiagnosticTypeBeforeMessageAndSymbolAfter,
     DiagnosticTyButGot, DiagnosticCustomComptDiag,
     DiagnosticTypeBeforeMessageAndSymbolWithMaybeGenArgsAfter,
-    DiagnosticContractFnParamExpectedTyButGot, DiagnosticTypeAfterMessageAsMentioned>;
+    DiagnosticContractFnParamExpectedTyButGot, DiagnosticTypeAfterMessageAsMentioned,
+    DiagnosticCanonicalTypeAfterMessage>;
 
 struct DiagnosticImportStack {
     IdSlice<FileId> files;

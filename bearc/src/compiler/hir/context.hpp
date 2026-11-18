@@ -431,6 +431,10 @@ class Context {
 
     [[nodiscard]] Span name_span_for_def(DefId did) const;
 
+    /// did should correspand to DefFunction or DefFunctionPrototype
+    /// - on failure, returns Span::generated()
+    [[nodiscard]] Span function_header_span_for_def(DefId did) const;
+
     /// record ordered definitions to be frozen as an IdSlice<DefId> corresponding to a DefId
     /// (particularly requiring ordered members, like a struct)
     void register_ordered_defs(DefId def, llvm::SmallVectorImpl<DefId>& vec);

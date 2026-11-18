@@ -583,6 +583,17 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         top_level_mut_on_struct_member_is_ignored_since_instance_mutability_determines_it:
         return "top-level mut on struct member is ignored since each instance determines member "
                "mutability";
+    case diag_code::ignoring_return_value_of_non_discardable_function:
+        return "ignoring return value of non discardable function";
+    case diag_code::declared_here_as_non_discardable:
+        return "declared here as non-discardable since return type is annotated with `->`, not "
+               "`~>`";
+    case diag_code::should_be_declared_discarable:
+        return "should be declared with `~>` (discardable return value)";
+    case diag_code::should_be_declared_non_discardable:
+        return "should be declared with `->` (non-discardable return value)";
+    case diag_code::did_you_mean_to_use_dot_dot:
+        return "did you mean to use `..`?";
     }
 
     std::unreachable();
@@ -975,6 +986,19 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
         }
     };
 
+    auto type_helper_canonical_color = [&ctx, &str](TypeId tid, const char* color) {
+        str += ansi_bold_reset();
+        str += '`';
+        str += color;
+        if (TypeTransformer<TypeContainsVar>{ctx}(tid)) {
+            str += type_to_string_as_mentioned(ctx, tid);
+        } else {
+            str += type_to_string(ctx, tid);
+        }
+        str += ansi_bold_reset();
+        str += '`';
+    };
+
     auto type_helper = [this, &type_helper_color](TypeId tid) {
         type_helper_color(tid, accent_color_for_type(type));
     };
@@ -1017,6 +1041,11 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        str += message_for_code(code);
                        str += ' ';
                        type_helper_as_mentioned(d.tid);
+                   },
+                   [&](DiagnosticCanonicalTypeAfterMessage d) {
+                       str += message_for_code(code);
+                       str += ' ';
+                       type_helper_canonical_color(d.tid, accent_color_for_type(type));
                    },
 
                    [&](DiagnosticIdentifierBeforeMessage d) {
@@ -1218,7 +1247,7 @@ void Diagnostic::build_complex_message(Context& ctx, std::string& str) const {
                        sid_helper(d.contract_fn_name);
                        str += " expected return type ";
                        str += ansi_bold_green();
-                       type_helper_color(d.expected_return_tid, ansi_bold_green());
+                       type_helper_canonical_color(d.expected_return_tid, ansi_bold_green());
                        str += ansi_bold_reset();
                        str += " but got ";
                        str += ansi_bold_red();
@@ -1343,6 +1372,7 @@ static auto fields(const DiagnosticSymbolAfterMessage& d) { return std::tie(d.si
 static auto fields(const DiagnosticSymbolAfterMessageNoQuotes& d) { return std::tie(d.sid); }
 static auto fields(const DiagnosticTypeAfterMessage& d) { return std::tie(d.tid); }
 static auto fields(const DiagnosticTypeAfterMessageAsMentioned& d) { return std::tie(d.tid); }
+static auto fields(const DiagnosticCanonicalTypeAfterMessage& d) { return std::tie(d.tid); }
 static auto fields(const DiagnosticTypeBeforeMessage& d) { return std::tie(d.tid); }
 static auto fields(const DiagnosticTypeToType& d) { return std::tie(d.from, d.to); }
 static auto fields(const DiagnosticTypeAndType& d) { return std::tie(d.lhs_tid, d.rhs_tid); }

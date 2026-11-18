@@ -3,15 +3,15 @@
 // testing runtime if statements
 
 fn main() {
-    sign(0);
-    clamp(1, 0, 2);
-    scoped(1);
-    picks();
+    var _ = sign(0);
+    var _ = clamp(1, 0, 2);
+    var _ = scoped(1);
+    var _ = picks();
     oops_cond(1, 1);
     oops_body(false);
-    oops_scope(true);
-    oops_return(true);
-    oops_else_if_return(true, true);
+    var _ = oops_scope(true);
+    var _ = oops_return(true);
+    var _ = oops_else_if_return(true, true);
 }
 
 fn sign(i32 a) -> i32 {

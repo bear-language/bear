@@ -3,17 +3,17 @@
 // testing runtime c-style for loops
 
 fn main() {
-    sum_to(3);
-    no_init(3);
-    skip_odds(4);
-    nested(3);
-    early_return(3);
-    forever_returns(1);
+    var _ = sum_to(3);
+    var _ = no_init(3);
+    var _ = skip_odds(4);
+    var _ = nested(3);
+    var _ = early_return(3);
+    var _ = forever_returns(1);
     oops_cond(1);
-    oops_init_scope(1);
+    var _ = oops_init_scope(1);
     oops_body_not_in_step(1);
     oops_step(1);
-    oops_breaks(1);
+    var _ = oops_breaks(1);
     oops_after_forever();
     oops_header_jumps(1);
     header_inner_loop(1);
