@@ -267,31 +267,7 @@ Context::Context(const bearc_args_t& args, instances instances,
     if (warn_unused) {
         for (auto did = defs.begin_id(); did != defs.end_id(); ++did) {
             if (mention_state_of(did) == Def::mention_state::unused) {
-                const Def& def = this->def(did);
-                if (should_warn_as_unused(did)) {
-                    DiagLinker dl{*this};
-                    const Span name_span = name_span_for_def(did);
-                    dl.link(emplace_diagnostic_with_message_value(
-                        name_span, diag_code::is_never_used, diag_type::warning,
-                        DiagnosticSymbolBeforeMessage{.sid = def.name}));
-                    // `self` defs maybe be generated variables made implicitly thru a `mt` method,
-                    // so just play it safe and don't try to help in this case since it would be
-                    // inaccurate to do so.
-                    if (def.name != symbol_id<"self">()) {
-                        dl.link(emplace_diagnostic_with_message_value(
-                            def.span, diag_code::remove, diag_type::help,
-                            DiagnosticSymbolAfterMessage{.sid = def.name}));
-                        // also helpful if name_span didn't fallback to the def's span
-                        if (name_span != def.span) {
-                            std::string str{};
-                            str += '_';
-                            str += symbol(def.name);
-                            dl.link(emplace_diagnostic_with_message_value(
-                                name_span, diag_code::replace_with, diag_type::help,
-                                DiagnosticSymbolAfterMessage{.sid = symbol_id(str)}));
-                        }
-                    }
-                }
+                try_warn_unused(did);
             }
         }
     }
@@ -300,6 +276,54 @@ Context::Context(const bearc_args_t& args, instances instances,
 bool Context::should_warn_as_unused(DefId did) const {
     const Def& def = this->def(did);
     return !starts_with_underscore(def.name) && !is_top_level(did) && !is_intrinsic(did);
+}
+
+void Context::do_warn_unused(DefId did) {
+    const Def& def = this->def(did);
+    DiagLinker dl{*this};
+    const Span name_span = name_span_for_def(did);
+    dl.link(emplace_diagnostic_with_message_value(name_span, diag_code::is_never_used,
+                                                  diag_type::warning,
+                                                  DiagnosticSymbolBeforeMessage{.sid = def.name}));
+    // `self` defs maybe be generated variables made implicitly thru a `mt` method,
+    // so just play it safe and don't try to help in this case since it would be
+    // inaccurate to do so.
+    if (def.name != symbol_id<"self">()) {
+        Span remove_span = def.span;
+
+        // do this walk cuz it's help for trimming trailing stuff (particularly in paramters)
+        HirSize i{};
+        while (char c = remove_span.safe_n_char_after_end(*this, i)) {
+            if (c != ' ' && c != ',') {
+                break;
+            }
+            ++i;
+        }
+        if (i != 0) {
+            remove_span.extend_n(*this, i);
+        }
+
+        dl.link(
+            emplace_diagnostic_with_message_value(remove_span, diag_code::remove, diag_type::help,
+                                                  DiagnosticSymbolAfterMessage{.sid = def.name}));
+        // also helpful if name_span didn't fallback to the def's span
+        if (name_span != def.span) {
+            std::string str{};
+            str += '_';
+            str += symbol(def.name);
+            dl.link(emplace_diagnostic_with_message_value(
+                name_span, diag_code::replace_with, diag_type::help,
+                DiagnosticSymbolAfterMessage{.sid = symbol_id(str)}));
+        }
+    }
+}
+
+bool Context::try_warn_unused(DefId did) {
+    if (should_warn_as_unused(did)) {
+        do_warn_unused(did);
+        return true;
+    }
+    return false;
 }
 
 bool Context::is_top_level(DefId did) const { return def(did).top_level; }

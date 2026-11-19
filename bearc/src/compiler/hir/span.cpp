@@ -108,4 +108,21 @@ Span Span::find_between_spans(const Context& ctx, FileId fid, Span s1, Span s2) 
                 s1.col};
 }
 
+char Span::safe_n_char_after_end(const Context& ctx, HirSize n) const {
+    const auto& ast = ctx.ast(file_id);
+    if (start + len + n >= ast.src()->src_len) {
+        return '\0';
+    }
+    // std::cout << std::string{ast.buffer() + start + len + n, 10} << '\n';
+    return ast.buffer()[start + len + n];
+}
+
+void Span::extend_n(const Context& ctx, HirSize n) {
+    const auto& ast = ctx.ast(file_id);
+    if (start + len + n > ast.src()->src_len) {
+        return;
+    }
+    len += n;
+}
+
 } // namespace hir

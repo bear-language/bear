@@ -1,0 +1,21 @@
+// tests/hir/b54
+
+fn main() {
+    fine(1, 2, 3);
+    oops(1, 2, 3);
+}
+
+fn fine(i32 a, i32 b, i32 c) {
+    var _ = a + b + c;
+}
+
+fn oops(i32 a, i32 b, i32 c) { // warn
+    ;
+}
+
+fn fine1(i32 _, i32 _, i32 _) {;}
+
+fn oops1() {
+    void a; // warn 
+    void _;
+}

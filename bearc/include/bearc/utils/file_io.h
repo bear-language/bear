@@ -24,7 +24,7 @@ typedef struct src_buffer {
     char* data;
     // total size of char buffer, in bytes/chars
     size_t total_size;
-    /// length of src file, use this to get the length of the actual buffer (total_size include the
+    /// length of src file, use this to get the length of the actual buffer (total_size includes the
     /// file_name)
     size_t src_len;
     bool owns_data;

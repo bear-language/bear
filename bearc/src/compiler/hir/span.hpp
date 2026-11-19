@@ -65,6 +65,12 @@ class Span {
         return start == other.start && len == other.len && file_id == other.file_id
                && line == other.line && col == other.col;
     }
+
+    /// if possible gets the nth char succeeding the Span, else returns 0 on no valid char (would be
+    /// out-of-bounds)
+    char safe_n_char_after_end(const Context& ctx, HirSize n) const;
+    // extends by however many chars, caps out at src len
+    void extend_n(const Context& ctx, HirSize n);
 };
 
 } // namespace hir

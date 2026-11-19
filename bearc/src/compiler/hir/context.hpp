@@ -131,7 +131,13 @@ class Context {
     [[nodiscard]] SymbolId symbol_id_for_str_lit_tkn(const token_t* tkn, FileId fid);
     [[nodiscard]] std::string symbol_id_slice_to_string(IdSlice<SymbolId> sid_slice) const;
 
+    /// true on should, else false
     [[nodiscard]] bool should_warn_as_unused(DefId did) const;
+
+    void do_warn_unused(DefId did);
+
+    /// true on warned, else false
+    bool try_warn_unused(DefId did);
 
     [[nodiscard]] bool is_top_level(DefId did) const;
 
