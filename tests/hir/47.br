@@ -8,9 +8,10 @@ struct Foo {
 }
 
 
-compt mt mut Foo..do_work() -> i32=> 10 // oops
+compt mt mut Foo..do_work() -> i32 => 10 + self.a // oops
 
 compt mt Foo..thing() -> i32 {
+    var _ = self;
     return 12;
 }
 

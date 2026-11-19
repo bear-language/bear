@@ -4,8 +4,8 @@ import "tests/hir/05.br";
 
 fn main() -> i32 {
     compt i32 foo = 42;
-    var fooey = Foo{.bar = 42, .barry = 12};
-    var bar = Bar{.thingie = &"12345"};
+    var _ = Foo{.bar = 42, .barry = 12};
+    var _ = Bar{.thingie = &"12345"};
     return foo;
 }
 

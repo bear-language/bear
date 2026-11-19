@@ -10,16 +10,16 @@ contract Foo {
 
 struct Fooer has Foo {
     mut i32 a;
-    fn foo(&mut Self self) -> &mut i32 { // oops, signature mismatch
+    fn foo(&mut Self _self) -> &mut i32 { // oops, signature mismatch
         a++;
         return &mut a;
     }
-    fn fooey(&mut Self self) -> &i32 mut { // oops, malformed
+    fn fooey(&mut Self _self) -> &i32 mut { // oops, malformed
         a++;
         return &a;
     }
-    fn foogie(&mut Self mut self) {} // oops
-    fn foogiey(&Self mut self) {} // oops 
+    fn foogie(&mut Self mut _self) {} // oops
+    fn foogiey(&Self mut _self) {} // oops 
 
     deftype Shelf = Self;
     deftype Elf = Self;

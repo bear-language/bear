@@ -13,7 +13,9 @@ fn main() {
     var _ = get();
 }
 
-fn foo(*fn() f) {;}
+fn foo(*fn() f) {
+    var _ = f;
+}
 fn bar() {;}
 fn get() -> i32 => @todo
 fn may() -> i32 => @todo

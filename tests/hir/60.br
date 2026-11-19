@@ -4,4 +4,4 @@ compt fn identity(var a) => a // fine
 
 fn oops(var a) => a // runtime function should have an explicit type
 
-struct Foo { mt foo(var thing) => thing } // oops, runtime func with var param
+struct Foo { mt foo(var thing) => self + thing } // oops, runtime func with var param

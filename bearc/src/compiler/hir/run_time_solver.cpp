@@ -531,6 +531,7 @@ OptId<ExecId> RuntimeSolver::handle_return(FileId fid, LexicalCtx lctx, InProgre
         }
     } else {
         if (stmt->stmt.return_stmt.expr) {
+            const auto _ = solve_expr(fid, lctx, stmt->stmt.return_stmt.expr);
             DiagLinker dl{context};
             const ast_expr_t* expr = stmt->stmt.return_stmt.expr;
             dl.link(context.emplace_diagnostic(Span{context, fid, expr},

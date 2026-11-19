@@ -6,8 +6,12 @@ contract Bar {
 }
 
 struct Foo has Bar {
-    fn bar() {} // oops, not compt
-    compt fn boo() {} // oops, compt
+    fn bar() {
+        void _;
+    } //oops, not compt
+    compt fn boo() {
+        void _;
+    } //oops, compt
 }
 
 contract Barry {

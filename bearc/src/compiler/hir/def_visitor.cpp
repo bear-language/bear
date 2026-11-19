@@ -409,6 +409,7 @@ DefId DefVisitor::resolve_def(DefId did) {
                     diag_type::note);
                 context.link_diagnostic(d0, d1);
             }
+            context.promote_mention_state_of(context.def_id(didx), Def::mention_state::used);
             type_vec.push_back(param_def.as<DefVariable>().type_id);
         }
 
@@ -435,8 +436,9 @@ DefId DefVisitor::resolve_def(DefId did) {
         const ast_stmt_fn_decl fn_decl = *stmt->stmt.fn_decl;
         const auto fid = context.def(did).span.file_id;
         const HirSize prior_diag_count = context.diagnostic_count();
+        const Def& def = context.def(did);
 
-        if (context.def(did).compt && fn_decl.is_mut) {
+        if (def.compt && fn_decl.is_mut) {
             Span span = Span::find_between_tokens(context, fid, fn_decl.kw, fn_decl.name.start[0]);
             auto d0 = context.emplace_diagnostic(
                 span, diag_code::compt_mut_methods_are_not_permitted, diag_type::error);
@@ -449,7 +451,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             context.link_diagnostic(d0, d1);
             context.link_diagnostic(d1, d2);
         }
-        if (context.def(did).compt && !fn_decl.only_expr) {
+        if (def.compt && !fn_decl.only_expr) {
             Span span{context, fid, fn_decl.block_stmt->first};
             auto d0 = context.emplace_diagnostic(
                 span, diag_code::compt_function_does_not_yield_a_pure_expr, diag_type::error);
@@ -460,7 +462,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             context.link_diagnostic(d0, d1);
         }
 
-        if (const auto& def = context.def(did); def.generic) {
+        if (def.generic) {
             // basically: if this is a generic function but the parent is also generic
             // (non-concrete) then this version can never be instantiatied since this parent is a
             // non-initianted generic
@@ -531,6 +533,9 @@ DefId DefVisitor::resolve_def(DefId did) {
                 context.link_diagnostic(d0, d1);
                 context.link_diagnostic(d1, d2);
             }
+            if (def.compt) {
+                context.promote_mention_state_of(context.def_id(didx), Def::mention_state::used);
+            }
             type_vec.push_back(param_def.as<DefVariable>().type_id);
         }
 
@@ -563,7 +568,7 @@ DefId DefVisitor::resolve_def(DefId did) {
                                                .takes_self = takes_self,
                                                .posioned = params_res.poisoned});
 
-        if (!context.def(did).compt) {
+        if (!def.compt || (def.compt && !fn_decl.only_expr)) {
             context.set_resol_state_of(did, Def::resol_state::resolved);
             resolve_fn_body(fid, did);
         }

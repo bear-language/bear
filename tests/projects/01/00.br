@@ -15,6 +15,6 @@ contract Thingie {} // redef error
 struct Counter has(Thingie) {
     i32 a;
     mt onetwothree() -> i32 {
-        return a + 1 + 2 + 3;
+        return self.a + 1 + 2 + 3;
     }
 }

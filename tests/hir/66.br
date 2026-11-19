@@ -2,12 +2,12 @@
 
 struct Faz has Copy {
     struct Copy {} // oops
-    mt copy() -> Self => Self{}
+    mt copy() -> Self => self
 }
 
 struct Foo has std..Copy {
     struct Copy {} // fine
-    mt copy() -> Self => Self{}
+    mt copy() -> Self => self
 }
 
 struct Bar has Copy {

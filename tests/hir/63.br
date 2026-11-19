@@ -44,20 +44,20 @@ contract Cat {
 // these are all fine (except mut ones) since exact typing is statically resolvable:
 
 struct Persian0 has Cat {
-    fn meow(&Self self) {}
+    fn meow(&Self _self) {}
 }
 
 struct Persian1 has Cat {
-    fn meow(&mut Self self) {} // oops mut
+    fn meow(&mut Self _self) {} //oops mut
 }
 
 
 struct Persian2 has Cat {
-    fn meow(Self self) {}
+    fn meow(Self _self) {}
 }
 
 struct Persian3 has Cat {
-    fn meow(mut Self self) {} // oops mut
+    fn meow(mut Self _self) {} // oops mut
 }
 
 struct Persian4 has Cat {

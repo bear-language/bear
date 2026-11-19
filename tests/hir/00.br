@@ -3,6 +3,6 @@ import "tests/hir/01.br";
 
 fn main() -> i32 {
     i32 a = 5;
-    i32 b = a + 4;
+    i32 _b = a + 4;
     return foo..BAR;
 }

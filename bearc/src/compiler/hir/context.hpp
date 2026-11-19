@@ -1221,7 +1221,7 @@ class Context {
     bool strict_syntax{false};
     bool all_src_locs{false};
     bool warn_cyclic_imports{false};
-    bool warn_unused{false}; // TODO: update this once all run-time expr/stmts analysis is done
+    bool warn_unused{true}; // TODO: update this once all run-time expr/stmts analysis is done
 
     // ^^^^^^^^^^^^^^^^^^^^^^^^^
 

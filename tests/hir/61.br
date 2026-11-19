@@ -4,7 +4,7 @@
 
 compt fn inc(i32 a) -> i32 => a + 1
 
-fn incy(i32 a) {}
+fn incy(i32 _) {}
 
 compt *fn(i32)->i32 foo1 = inc;
 

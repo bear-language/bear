@@ -57,7 +57,7 @@ compt Foo foo1 = Foo{.a = 14}.to_str();
 compt Foo foo2 = Foo{} if true else Foo{};
 
 compt fn do_work(i32 a) -> i32 {
-    i32 b = a / 2;
+    mut i32 b = a / 2;
     b += 12;
     return a * 12 * 13;
 }

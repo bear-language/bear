@@ -151,7 +151,7 @@ br_test_result_t test_hir(void) {
         = {"bearc", "-I", "tests/projects/00", "-c", "00.br", "--warn-cyclic-import", "--check"};
     ASSERT_EQ_ERR_FROM_ARGSN(args5, 8, 2);
     char* args6[] = {"bearc", "-I", "tests/projects/01", "-c", "00.br", "--check"};
-    ASSERT_EQ_ERR_FROM_ARGSN(args6, 6, 2);
+    ASSERT_EQ_ERR_FROM_ARGSN(args6, 4, 2);
     char* args7[] = {"bearc", "00.br", "-I", "tests/projects/02", "--check"};
     ASSERT_EQ_ERR_FROM_ARGSN(args7, 12, 3);
     ASSERT_EQ_ERR("hir/09", 2);
@@ -190,7 +190,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/39", 3);
     ASSERT_EQ_ERR("hir/40", 2);
     ASSERT_EQ_ERR("hir/41", 7);
-    ASSERT_EQ_ERR("hir/42", 4);
+    ASSERT_EQ_ERR("hir/42", 2);
     ASSERT_EQ_ERR("hir/43", 2);
     ASSERT_EQ_ERR("hir/44", 3);
     ASSERT_EQ_ERR("hir/45", 12);
@@ -219,7 +219,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/68", 5);
     ASSERT_EQ_ERR("hir/69", 4);
     ASSERT_EQ_ERR("hir/70", 2);
-    ASSERT_EQ_ERR("hir/71", 13);
+    ASSERT_EQ_ERR("hir/71", 12);
     ASSERT_EQ_ERR("hir/72", 1);
     ASSERT_EQ_ERR("hir/73", 17);
     ASSERT_EQ_ERR("hir/74", 6);

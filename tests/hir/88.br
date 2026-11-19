@@ -22,7 +22,7 @@ struct Foo<i32 a> {
 
 
 
-
+        var _ = self;
         return 0;
     }
 }

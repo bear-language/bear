@@ -6,6 +6,7 @@ struct Foo {
 }
 
 mt Foo..bar() -> i32 {
+    var _ = self;
     return 42;
 }
 

@@ -23,7 +23,7 @@ struct Foo has Bar {
         return thingies[0...10][0...10];
     }
 
-    fn bar(i32 b) { // oops
+    fn bar(i32 _) { // oops
     }
 
     mt do_work() -> void {} // oops, should've ommitted instead of returning void
@@ -33,12 +33,12 @@ struct Foo has Bar {
     mt oops_again() -> &var {} // oops
 
     // ~~~~~~~~~~~~~ all fine ~~~~~~~~~~~~~~~~
-    fn self_bar(Foo self) {}
-    fn self_mut_bar(mut Self self) {}
-    fn self_ref_bar(&Self self) {}
-    fn self_mut_ref_bar(&mut Self self) {}
-    fn purely_mt(&Foo self) {}
-    fn purely_mt_but_mut(&mut Foo self) {}
+    fn self_bar(Foo _self) {}
+    fn self_mut_bar(mut Self _self) {}
+    fn self_ref_bar(&Self _self) {}
+    fn self_mut_ref_bar(&mut Self _self) {}
+    fn purely_mt(&Foo _self) {}
+    fn purely_mt_but_mut(&mut Foo _self) {}
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     fn just_mt() -> i32 { return 12; } // oops
 }

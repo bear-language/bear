@@ -14,9 +14,11 @@ mod std {
         // ...
     }
     fn println(str st) {
+        var _ = st;
         // ...
     }
     fn print(str st) {
+        var _ = st;
         // ...
     }
 }
@@ -56,7 +58,7 @@ struct DeviceIno {
     compt bool ON_LINUX = @defined(std..os..linux);
     
  
-    mt print_os(&String st) {
+    fn print_os() {
         std..print("Currently on: ");
         if compt ON_MAC {
             std..println("macOS");

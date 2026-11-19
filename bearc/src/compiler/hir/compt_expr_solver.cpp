@@ -3174,6 +3174,7 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
     for (auto didx = params.begin(); didx != params.end(); didx++) {
         const Def& param_def = context.def(didx);
         assert(param_def.holds<DefVariable>());
+        context.promote_mention_state_of(context.def_id(didx), Def::mention_state::used);
         type_vec.push_back(param_def.as<DefVariable>().type_id);
     }
 
