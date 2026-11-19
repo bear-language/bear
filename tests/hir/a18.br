@@ -33,21 +33,20 @@ contract Divide {
 contract Arithmetic<T has Plus + Minus + Multiply + Divide> {
 }
 
-compt fn is_arith<T>() -> bool => {
+compt fn is_arith<T>() -> bool => 
     @has_contract(decay T, Plus) && 
     @has_contract(decay T, Minus) && 
     @has_contract(decay T, Multiply) &&
     @has_contract(decay T, Divide)
-}
 
-compt fn is_num<T>() -> bool => {
+
+compt fn is_num<T>() -> bool => 
     @same_type(decay T, i64) || @same_type(decay T, u64) ||
     @same_type(decay T, i32) || @same_type(decay T, u32) ||
     @same_type(decay T, i16) || @same_type(decay T, u16) ||
     @same_type(decay T, i8) || @same_type(decay T, u8) ||
     @same_type(decay T, f32) || @same_type(decay T, f64) || 
     is_arith::<T>()
-}
 
 fn square<T has Multiply>(T val) -> T => T..multiply(val, val)
 

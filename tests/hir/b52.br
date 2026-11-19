@@ -1,0 +1,39 @@
+// tests/hir/b52.br
+
+fn sum(i64 a, i64 b) -> i64 => a + b
+
+compt var MY_VAL = sum(67, 2);
+
+compt var MY_ADMISSION = ["i", "love", "latinas"]; 
+
+compt fn collect_str_list([&]str strs, i64 i) -> str => 
+    "" if i==strs.len else strs[i] + " " + collect_str_list(strs, i + 1)
+
+fn my_print_or_whatever(str s) {
+    ;
+}
+
+fn fib(i64 i) -> i64 => i if i <= 1 else fib(i - 1) + fib(i - 2)
+
+fn main() {
+    var _ = @note MY_VAL as str;
+    var _ = @note MY_ADMISSION[0];
+    var _ = @note collect_str_list(MY_ADMISSION, 0);
+    
+    for var i in 0...100 {
+        my_print_or_whatever(compt sum(1,2) as str);
+    }
+
+    var _ = @note fib(52) as str;
+}
+
+fn compt_list_assignments() {
+    compt [1]var _ = ["i"];
+    compt [&]var _ = ["i"];
+    compt [2]var _ = ["i"]; // oops
+    [1]var _ = ["i"];
+    [&]var _ = ["i"]; // oops
+    [5]var _ = ["i"]; // oops
+    [&]str _ = ["i"]; // oops
+    compt [&]i32 _ = ["i"]; // oops
+}

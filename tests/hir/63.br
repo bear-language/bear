@@ -22,7 +22,7 @@ struct Fooey has Foo+Bar+Cat+Bob {
     fn bobret() {} // oops no return 
     fn bob() -> i32 => 42 // oops ret 
 
-    mt babadaba(i32 a) -> i32 => {42 + a }
+    mt babadaba(i32 a) -> i32 => 42 + a
 
     mt meow(i32 a) { // oops, shouldn't take an i32 as a param
 

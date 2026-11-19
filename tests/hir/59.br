@@ -7,12 +7,11 @@ mod demo;
 
 compt fn square_val(var a) => a * a
 
-compt fn is_integer(var i) => {
+compt fn is_integer(var i) => 
     @same_type(typeof i, i64) || @same_type(typeof i, u64) ||
     @same_type(typeof i, i32) || @same_type(typeof i, u32) ||
     @same_type(typeof i, i16) || @same_type(typeof i, u16) ||
     @same_type(typeof i, i8) || @same_type(typeof i, u8) 
-}
 
 struct IntWrapper {
 
@@ -33,17 +32,15 @@ struct IntWrapper {
     compt mt square() => Self..new(square_val(self.val()))
 
     // this can take in any list thru compile-time reflection
-    compt mt val_in_list(var list) -> bool => { 
+    compt mt val_in_list(var list) -> bool => 
         self.val_in_list_helper(list, list.len - 1)
         // self.val_in_list_helper(list, list.len) if @defined(list.len) 
-        //    else false // not a list storing value type
-    }
+        //    else false // not a list storing value type 
     
     // recursive helper
-    hid compt mt val_in_list_helper(var list, var curr) -> bool => { 
+    hid compt mt val_in_list_helper(var list, var curr) -> bool => 
         false if curr == 0 
-            else (list[curr] == self.val()) || self.val_in_list_helper(list, curr - 1)
-    }
+            else (list[curr] == self.val()) || self.val_in_list_helper(list, curr - 1) 
 
 }
 

@@ -375,21 +375,11 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
     if (only_expr) {
         decl->stmt.fn_decl->block_stmt = NULL;
 
-        token_t* lbrace = parser_match_token(p, TOK_LBRACE);
-
         ast_expr_t* expr = parse_expr(p);
         if (expr->type == AST_EXPR_INVALID) {
             cooked = true;
         }
         decl->stmt.fn_decl->expr = expr;
-
-        if (lbrace && !parser_expect_token(p, TOK_RBRACE)) {
-            if (parser_prev(p)->type == TOK_SEMICOLON) {
-                compiler_error_list_emplace(p->error_list, parser_prev(p),
-                                            HELP_REMOVE_SEMICOLON_TO_YIELD_EXPRESSION_VALUE);
-            }
-            return parser_sync_stmt(p);
-        }
 
         parser_match_token(
             p, TOK_SEMICOLON); // allow a trailing semicolon so we don't later emit a warning for it

@@ -135,7 +135,7 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
         TypeId list_type = maybe_list_type.as_id();
 
         // guard diff type
-        if (!context.equivalent_type(into_tid, list_type)) {
+        if (!context.assignable_and_inferable_from_type_to(into_tid, list_type)) {
             context.emplace_diagnostic_with_message_value(
                 Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
                 diag_code::cannot_convert_value_of_type, diag_type::error,
@@ -1649,10 +1649,12 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
 
             const auto& into_type = context.type(maybe_into_tid.as_id());
 
-            if (into_type.template holds<TypeSlice>()) {
+            if (into_type.template holds<TypeSlice>() || into_type.template holds<TypeArr>()) {
+                const TypeId inner_tid = into_type.try_inner().as_id();
+                const Type& inner_ty = context.type(inner_tid);
                 DiagLinker dl{context};
 
-                if (context.type(into_type.try_inner().as_id()).mut) {
+                if (inner_ty.mut) {
                     dl.link(context.emplace_diagnostic_with_message_value(
                         context.exec(maybe_eid.as_id()).span,
                         diag_code::cannot_assign_compt_value_to_mutable_slice_type,
@@ -1665,16 +1667,16 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
 
                 if (!list_type.holds<TypeArr>()) {
                     dl.link(context.emplace_diagnostic_with_message_value(
-                        Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
-                        diag_code::cannot_convert_value_of_type, diag_type::error,
+                        Span(context, fid, expr), diag_code::cannot_convert_value_of_type,
+                        diag_type::error,
                         DiagnosticTypeToType{.from = list_tid, .to = maybe_into_tid.as_id()}));
                     return {};
                 }
 
                 // guard diff type. solving lists should return arr (list) literals, but need to
                 // make sure the inner types are the same
-                if (!context.equivalent_type(into_type.template as<TypeSlice>().inner,
-                                             list_type.template as<TypeArr>().inner)) {
+                if (!context.assignable_and_inferable_from_type_to(
+                        inner_tid, list_type.template as<TypeArr>().inner)) {
                     dl.link(context.emplace_diagnostic_with_message_value(
                         Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
                         diag_code::cannot_convert_value_of_type, diag_type::error,

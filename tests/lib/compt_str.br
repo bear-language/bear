@@ -11,13 +11,13 @@ contract ToComptStr {
 }
 
 
-compt fn to_compt_str<T>(T item) -> str => {
+compt fn to_compt_str<T>(T item) -> str => 
     item.__compt_str..to_compt_str() if @has_contract(decay T, ToComptStr)
         else item if @same_type(T, str)
         else list_to_str(item) if @defined(item.len)
         else tuple_to_str(item) if @members_of(T).len > 0 
         else item as str
-}
+
 
 compt fn format_str<T>(str fmt, T tup) -> str => (
     "(format_str failed)"
@@ -35,10 +35,10 @@ compt fn tuple_to_str<T>(T tup) -> str => "(" + __compt_str..tuple_to_str_helper
 
 mod __compt_str {
 
-compt fn list_helper(var list, var i) -> str => {
+compt fn list_helper(var list, var i) -> str => 
     "" if i == list.len 
         else to_compt_str(list[i]) + maybe_comma(list.len, i) + list_helper(list, i + 1) 
-}
+
 
 compt fn maybe_comma(var len, var i) => "" if (i >= len - 1) else ", "
 

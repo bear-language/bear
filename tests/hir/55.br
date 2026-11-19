@@ -26,15 +26,13 @@ var _7 = @static_assert "foo".len == 3;
 
 var _8 = @static_assert "foo".len == 0; // oops
 
-compt fn list_eq_str_helper(&str s, var list, i32 i) => {
+compt fn list_eq_str_helper(&str s, var list, i32 i) =>
     true if (i == s.len) 
         else ((s[i] == list[i]) && list_eq_str_helper(s, list, i + 1))
-}
 
-compt fn list_eq_str(&str s, var list) => {
+compt fn list_eq_str(&str s, var list) =>
     false if (list.len != s.len) 
         else list_eq_str_helper(s, list, 0)
-}
 
 var _9 = @static_assert list_eq_str("foo", ['f', 'o', 'o']); // fine
 

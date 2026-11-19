@@ -27,13 +27,13 @@ contract Numeric {
 
 struct NumChecker<T> {
     bool passes = value;
-    compt fn check() -> bool => {
+    compt fn check() -> bool =>
         @has_contract(decay T, Numeric) || 
         @same_type(decay T, i64) || @same_type(decay T, u64) ||
         @same_type(decay T, i32) || @same_type(decay T, u32) ||
         @same_type(decay T, i16) || @same_type(decay T, u16) ||
         @same_type(decay T, i8)  || @same_type(decay T, u8)
-    }
+    
     // this invokes the check
     compt bool value = @static_assert 
             check(), 

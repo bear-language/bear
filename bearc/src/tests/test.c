@@ -117,7 +117,7 @@ br_test_result_t test_parser(void) {
     ASSERT_EQ_ERR("parser/53", 0);
     ASSERT_EQ_ERR("parser/54", 3);
     ASSERT_EQ_ERR("parser/55", 0);
-    ASSERT_EQ_ERR("parser/56", 2);
+    ASSERT_EQ_ERR("parser/56", 1);
     ASSERT_EQ_ERR("parser/57", 3);
     ASSERT_EQ_ERR("parser/58", 0);
     ASSERT_EQ_ERR("parser/59", 0);
@@ -182,7 +182,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/31", 0);
     ASSERT_EQ_ERR("hir/32", 11);
     ASSERT_EQ_ERR("hir/33", 8);
-    ASSERT_EQ_ERR("hir/34", 6);
+    ASSERT_EQ_ERR("hir/34", 5);
     ASSERT_EQ_ERR("hir/35", 2);
     ASSERT_EQ_ERR("hir/36", 1);
     ASSERT_EQ_ERR("hir/37", 1);
@@ -417,6 +417,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b49", 6);
     ASSERT_EQ_ERR("hir/b50", 6);
     ASSERT_EQ_ERR("hir/b51", 7);
+    ASSERT_EQ_ERR("hir/b52", 9);
 
     return TEST_RESULT;
 }

@@ -22,10 +22,9 @@ compt var e = ['a', 'b', 'c'] + [1, 2, 3, 4, 5];
 
 compt fn sum_list(var list) => sum_list_helper(list, 0)
 
-compt fn sum_list_helper(var list, usize i) => { 
+compt fn sum_list_helper(var list, usize i) => 
     0 if i >= list.len
         else list[i] + sum_list_helper(list, i + 1)
-}
 
 compt fn square(var i) => i*i
 

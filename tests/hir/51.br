@@ -9,11 +9,10 @@ mod fmt{
 
 compt str not_conv_str = "not convertible to str";
 
-compt fn str(var from) -> str => {
+compt fn str(var from) -> str => 
     from if @same_type(str, decay(typeof(from)))
         else (from.to_str()) if @defined(from.to_str)
         else from as str
-}
 
 }
 }

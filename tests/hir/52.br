@@ -6,11 +6,10 @@ mod demo;
 
 compt str not_conv_str = "not convertible to str";
 
-compt fn str(var from) -> str => {
+compt fn str(var from) -> str => 
     from if @same_type(str, decay(typeof(from)))
         else (from.to_str()) if @defined(from.to_str)
         else from as str
-}
 
 
 
@@ -38,7 +37,7 @@ struct Boo {
     struct Bar {
         u8 b = 12;
     }
-    pub compt mt to_str() => { self.bar.b as str }
+    pub compt mt to_str() => self.bar.b as str
 }
 
 use Boo..Bar;

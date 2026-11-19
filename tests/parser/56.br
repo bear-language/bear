@@ -4,21 +4,21 @@ fn foo() -> i32 => 42
 
 fn foo1() => 12
 
-fn foo2() => {
+fn foo2() => (
     12
-}
+)
 
-fn foo3() -> f32 => {
+fn foo3() -> f32 => (
     1.0000 * 1312.1 / 12.4
-}
+)
 
-compt fn foo4() => { ((42 + 42) / 2) * 2 }
+compt fn foo4() => ((42 + 42) / 2) * 2 
 
-compt fn foo5() => { 3.14159; } // oops
+compt fn foo5() => 3.14159;;  // oops
 
-fn foo6(i32 a) => (|var foo| => foo * 12)(a)
+compt fn foo6(i32 a) => (|var foo| => foo * 12)(a)
 
-fn foo7(i32 b) -> i32 
+compt fn foo7(i32 b) -> i32 
     => foo6(b) * foo4() / 12
 
 

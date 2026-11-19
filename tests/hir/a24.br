@@ -43,13 +43,12 @@ var _0 = @static_assert(
     }
 );
 
-compt fn static_unwrap<T has Default>(Opt<T> val) -> T => { 
+compt fn static_unwrap<T has Default>(Opt<T> val) -> T => 
     match(val) {
         Some(T v) => v,
         None => T..default() if @err("static unwrap failed since value was of none value `Opt..None::" + @type_to_str(decay T) + "`") 
             else @err("bad unwrap") // that first err always fires so this else won't get evaluated
     }
-}
 
 compt Bar c = Bar..new(62);
 

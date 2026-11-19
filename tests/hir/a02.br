@@ -62,14 +62,13 @@ struct D<Vary V> { // generic compt variant cuz why not
         Vary..D => "D",
     };
 
-    compt fn calc_my_num(i32 add) -> i32 => {
+    compt fn calc_my_num(i32 add) -> i32 => 
         match(V) {
             Vary..A(i32 a) => a + add,
             Vary..B(var b) => b + add,
             Vary..C => add,
             Vary..D => add,
-        }
-    };
+        }    
 }
 
 var _10 = @static_assert C..len::<([1 as i8, 2 as i8, 3 as i8, 4 as i8])> == 4;
