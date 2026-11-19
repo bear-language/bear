@@ -269,9 +269,28 @@ Context::Context(const bearc_args_t& args, instances instances,
             if (mention_state_of(did) == Def::mention_state::unused) {
                 const Def& def = this->def(did);
                 if (should_warn_as_unused(did)) {
-                    emplace_diagnostic_with_message_value(
-                        name_span_for_def(did), diag_code::is_never_used, diag_type::warning,
-                        DiagnosticSymbolBeforeMessage{.sid = def.name});
+                    DiagLinker dl{*this};
+                    const Span name_span = name_span_for_def(did);
+                    dl.link(emplace_diagnostic_with_message_value(
+                        name_span, diag_code::is_never_used, diag_type::warning,
+                        DiagnosticSymbolBeforeMessage{.sid = def.name}));
+                    // `self` defs maybe be generated variables made implicitly thru a `mt` method,
+                    // so just play it safe and don't try to help in this case since it would be
+                    // inaccurate to do so.
+                    if (def.name != symbol_id<"self">()) {
+                        dl.link(emplace_diagnostic_with_message_value(
+                            def.span, diag_code::remove, diag_type::help,
+                            DiagnosticSymbolAfterMessage{.sid = def.name}));
+                        // also helpful if name_span didn't fallback to the def's span
+                        if (name_span != def.span) {
+                            std::string str{};
+                            str += '_';
+                            str += symbol(def.name);
+                            dl.link(emplace_diagnostic_with_message_value(
+                                name_span, diag_code::replace_with, diag_type::help,
+                                DiagnosticSymbolAfterMessage{.sid = symbol_id(str)}));
+                        }
+                    }
                 }
             }
         }

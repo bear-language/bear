@@ -61,6 +61,10 @@ class Span {
     [[nodiscard]] bool within_same_file_contained_in(Span containing) const {
         return containing.start <= start && containing.start + containing.len >= start + len;
     };
+    bool operator==(const Span& other) const {
+        return start == other.start && len == other.len && file_id == other.file_id
+               && line == other.line && col == other.col;
+    }
 };
 
 } // namespace hir
