@@ -621,6 +621,8 @@ class Context {
     // gets inner tid if tid corresponds to a TypeRef, this also bypasses deftypes
     [[nodiscard]] TypeId try_decay(TypeId tid) const;
 
+    DiagnosticId do_todo_diagnostic(Span span, OptId<SymbolId> maybe_sid);
+
     /// gets the type value without bypassing deftypes
     [[nodiscard]] const Type& type_as_mentioned(IdIdx<TypeId> ididx) const;
     /// gets the type value without bypassing deftypes

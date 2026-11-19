@@ -17,6 +17,7 @@
 #include "compiler/hir/type_resolver.hpp"
 #include "compiler/parser/token_eaters.h"
 #include "utils/stack.hpp"
+#include <optional>
 
 namespace hir {
 
@@ -294,6 +295,9 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
         return solve_tuple_init(fid, scope, expr);
     case AST_EXPR_TYPE_ID:
         return solve_type_id(fid, scope, expr);
+    case AST_EXPR_TUDU:
+        return solve_todo(fid, scope, expr);
+        break;
     // try should all fall thru to builtin
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_ADDR_OF:
@@ -308,7 +312,6 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
     case AST_EXPR_INFERABLE_AS:
     case AST_EXPR_DIAGNOSTIC:
     case AST_EXPR_STRUCT_MEMBER_INIT:
-
     case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_BLOCK:
     case AST_EXPR_MATCH_BRANCH:
@@ -615,6 +618,8 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
         return solve_closure(fid, scope, expr);
     case AST_EXPR_TYPE_ID:
         return solve_type_id(fid, scope, expr);
+    case AST_EXPR_TUDU:
+        return solve_todo(fid, scope, expr);
     case AST_EXPR_MEMBERS_OF:
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_STATICS_OF:
@@ -1019,6 +1024,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     case AST_EXPR_TYPE_ID:
         maybe_eid = solve_type_id(fid, scope, expr);
         break;
+    case AST_EXPR_TUDU:
+        return solve_todo(fid, scope, expr);
     case AST_EXPR_PRE_UNARY:
     case AST_EXPR_POST_UNARY:
     case AST_EXPR_TYPE:
@@ -1752,6 +1759,8 @@ ComptExprSolver::handle_binary_bool_conj_disj(const Exec& lhs, binary_op op, con
         return guard_exec_type(solve_reflected_scoped_id(fid, scope, expr));
     case AST_EXPR_CLOSURE:
         return guard_exec_type(solve_closure(fid, scope, expr));
+    case AST_EXPR_TUDU:
+        return solve_todo(fid, scope, expr);
     case AST_EXPR_LITERAL:
     case AST_EXPR_ADDR_OF:
     case AST_EXPR_GROUPING:
@@ -3219,6 +3228,24 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
     return context.emplace_compt_exec(ExecConst{context.type(maybe_tid.as_id()).canonical.raw()},
                                       Span{context, fid, expr});
 }
+
+[[nodiscard]] OptId<ExecId> ComptExprSolver::solve_todo(FileId fid, ScopeId scope,
+                                                        const ast_expr_t* expr) {
+    const OptId<ExecId> maybe_string_eid
+        = expr->expr.todo.inner
+              ? solve_builtin_compt_expr(fid, scope, expr->expr.todo.inner, builtin_type::str)
+              : std::nullopt;
+
+    std::optional<SymbolId> sid = maybe_string_eid ? context.exec(maybe_string_eid.as_id())
+                                                         .template as<ExecConst>()
+                                                         .template try_as<SymbolId>()
+                                                   : std::nullopt;
+    context.do_todo_diagnostic(Span{context, fid, expr->first},
+                               sid ? sid.value() : OptId<SymbolId>{});
+    // cuz todo poisons yo:
+    return {};
+}
+
 [[nodiscard]] OptId<GenericArgIdSliceId>
 ComptExprSolver::lower_generic_args(FileId fid, ScopeId scope, ast_slice_of_generic_args_t gen_args,
                                     bool need_layout_info) {

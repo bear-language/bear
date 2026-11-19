@@ -325,6 +325,28 @@ static ast_expr_t* parse_expr_type_id(parser_t* p) {
     return ex;
 }
 
+static ast_expr_t* parse_expr_todo(parser_t* p) {
+    ast_expr_t* ex = parser_alloc_expr(p);
+    ex->type = AST_EXPR_TUDU;
+
+    token_t* first_tkn = parser_expect_token(p, TOK_TUDU);
+    if (!first_tkn) {
+        return parser_sync_expr(p);
+    }
+
+    token_t* lparen = parser_match_token(p, TOK_LPAREN);
+    ex->expr.todo.inner = NULL;
+
+    if (lparen) {
+        ex->expr.todo.inner = parse_expr(p);
+        parser_expect_token(p, TOK_RPAREN);
+    }
+
+    ex->first = first_tkn;
+    ex->last = parser_prev(p);
+    return ex;
+}
+
 ast_expr_t* parse_expr_reflected_id(parser_t* p) {
     ast_expr_t* ex = parser_alloc_expr(p);
     ex->type = AST_EXPR_REFLECTED_ID;
@@ -415,6 +437,8 @@ ast_expr_t* parse_preunary_expr(parser_t* p) {
         return parse_expr_alignof(p);
     case TOK_TYPE_ID:
         return parse_expr_type_id(p);
+    case TOK_TUDU:
+        return parse_expr_todo(p);
     default:
         break;
     }

@@ -370,7 +370,7 @@ void pretty_print_expr(const ast_expr_t* expression) {
     print_indent();
     ast_expr_t expr = *expression;
     switch (expr.type) {
-    case (AST_EXPR_ID): {
+    case AST_EXPR_ID: {
         token_ptr_slice_t ids = expression->expr.id.slice;
         printf("identifier: ");
         print_id_slice(ids);
@@ -764,6 +764,13 @@ void pretty_print_expr(const ast_expr_t* expression) {
     case AST_EXPR_TYPE_ID:
         print_title("@type_id");
         print_type(expr.expr.type_id.type);
+        print_closing_green_brace();
+        break;
+    case AST_EXPR_TUDU:
+        print_title("@todo");
+        if (expr.expr.todo.inner) {
+            pretty_print_expr(expr.expr.todo.inner);
+        }
         print_closing_green_brace();
         break;
     }

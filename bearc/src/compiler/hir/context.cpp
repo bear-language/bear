@@ -51,7 +51,6 @@
 #include <string_view>
 #include <thread>
 #include <utility>
-#include <variant>
 namespace hir {
 
 static constexpr size_t DEFAULT_ARENA_CAP = 0x4000;
@@ -1657,6 +1656,15 @@ TypeId Context::try_decay(TypeId tid) const {
         return type.as<TypeRef>().inner;
     }
     return tid;
+}
+
+DiagnosticId Context::do_todo_diagnostic(Span span, OptId<SymbolId> maybe_sid) {
+    if (maybe_sid.empty()) {
+        return emplace_diagnostic(span, diag_code::todo_here, diag_type::error);
+    }
+    return emplace_diagnostic_with_message_value(
+        span, diag_code::todo_here_colon, diag_type::error,
+        DiagnosticSymbolAfterMessage{.sid = maybe_sid.as_id()});
 }
 
 /// gets the type value without bypassing deftypes

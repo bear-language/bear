@@ -186,6 +186,7 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
     case AST_EXPR_ALIGNOF:
     case AST_EXPR_SAME_TYPE:
     case AST_EXPR_SIZEOF:
+    case AST_EXPR_TUDU:
     case AST_EXPR_TYPE_ID:
     case AST_EXPR_TYPE_TO_STR:
         return ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, expr, into_tid);
@@ -242,11 +243,11 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
     case AST_EXPR_BLOCK:
         diag_not_yet_implemented(Span{context, fid, expr});
         break;
-    case AST_EXPR_TYPE:
     case AST_EXPR_STRUCT_MEMBER_INIT:
     case AST_EXPR_VARIANT_DECOMP:
     case AST_EXPR_MATCH_BRANCH:
     case AST_EXPR_ELSE_MATCH_PATTERN:
+    case AST_EXPR_TYPE:
     case AST_EXPR_INVALID:
         break;
     }
@@ -1379,6 +1380,7 @@ OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBl
     case AST_EXPR_SAME_TYPE:
     case AST_EXPR_SIZEOF:
     case AST_EXPR_TYPE_ID:
+    case AST_EXPR_TUDU:
     case AST_EXPR_TYPE_TO_STR:
         return ComptExprSolver{def_visitor}.solve_expr(fid, lctx.scope, expr);
         // ^^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^

@@ -594,6 +594,10 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "should be declared with `->` (non-discardable return value)";
     case diag_code::did_you_mean_to_use_dot_dot:
         return "did you mean to use `..`?";
+    case diag_code::todo_here:
+        return "unresolved todo here";
+    case diag_code::todo_here_colon:
+        return "unresolved todo here:";
     }
 
     std::unreachable();

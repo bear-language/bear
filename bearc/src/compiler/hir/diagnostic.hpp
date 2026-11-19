@@ -297,6 +297,8 @@ enum class diag_code : uint16_t {
     should_be_declared_discarable,
     should_be_declared_non_discardable,
     did_you_mean_to_use_dot_dot,
+    todo_here,
+    todo_here_colon,
 
     count, // this must be last,
 

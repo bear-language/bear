@@ -135,6 +135,7 @@ typedef enum token_type {
     TOK_REFLECTED_ID,        // @id
     TOK_REFLECTED_SCOPED_ID, // @scoped_id
     TOK_TYPE_ID,             // @type_id
+    TOK_TUDU,                // @todo
 
     // constructs
     TOK_REQUIRES,

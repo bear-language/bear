@@ -42,7 +42,7 @@ static uint8_t preunary_prec_map[TOK__NUM] = {
     [TOK_NOTE] = 3,         [TOK_HELP] = 3,
     [TOK_MEMBERS_OF] = 3,   [TOK_STATICS_OF] = 3,
     [TOK_REFLECTED_ID] = 3, [TOK_REFLECTED_SCOPED_ID] = 3,
-    [TOK_TYPE_ID] = 3,
+    [TOK_TYPE_ID] = 3,      [TOK_TUDU] = 3,
 };
 
 uint8_t prec_preunary(token_type_e type) { return preunary_prec_map[type]; }
