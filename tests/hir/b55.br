@@ -1,5 +1,0 @@
-// tests/hir/a52.br
-
-var _0 = @todo;
-var _1 = @todo("123");
-var _2 = @todo("yo dawg resolve this");

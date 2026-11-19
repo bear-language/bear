@@ -1,0 +1,19 @@
+// tests/hir/a52.br
+
+var _0 = @todo;
+var _1 = @todo("123");
+var _2 = @todo("yo dawg resolve this");
+
+fn main() {
+    var _ = @todo;
+    var _ = @todo("foo");
+    var _ = @todo + 5;
+    var _ = foo(bar);
+    foo(@todo);
+    var _ = get();
+}
+
+fn foo(*fn() f) {;}
+fn bar() {;}
+fn get() -> i32 => @todo
+fn may() -> i32 => @todo

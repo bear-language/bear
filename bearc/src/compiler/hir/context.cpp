@@ -3254,7 +3254,7 @@ OptId<DefId> Context::try_def_for_exec(ExecId eid) const {
         [this](const ExecMemberAccess& e) -> OptId<DefId> { return try_def_for_exec(e.owner); },
         [this](const ExecSubscript& e) -> OptId<DefId> { return try_def_for_exec(e.base); },
         [this](const ExecFnCall& e) -> OptId<DefId> { return try_def_for_exec(e.callee); },
-        [this](const ExecFnPtr& e) -> OptId<DefId> { return e.func_def_id; },
+        [](const ExecFnPtr& e) -> OptId<DefId> { return e.func_def_id; },
         OvldDefault<OptId<DefId>>{},
     };
     return exec(eid).visit(vs);

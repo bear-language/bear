@@ -1,6 +1,6 @@
 // tests/hir/61.br
 
-*fn(i32)->i32 foo = |i32 a| => a; // oops, compt closures not legal (yet)
+*fn(i32)->i32 foo = compt |i32 a| -> i32 => a;
 
 compt fn inc(i32 a) -> i32 => a + 1
 

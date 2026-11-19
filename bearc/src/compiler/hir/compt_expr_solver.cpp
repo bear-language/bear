@@ -151,13 +151,8 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
         return solve_list(fid, scope, expr, into_tid);
     }
 
-    if (into_type.holds<TypeFnPtr>()
-        && (expr->type == AST_EXPR_ID || expr->type == AST_EXPR_GENERIC_ID)) {
-        OptId<ExecId> maybe_fnp
-            = (expr->type == AST_EXPR_ID)
-                  ? handle_any_id(fid, scope, expr->expr.id.slice)
-                  : handle_any_generic_id(fid, scope, expr->expr.generic_id.slice,
-                                          expr->expr.generic_id.args);
+    if (into_type.holds<TypeFnPtr>()) {
+        OptId<ExecId> maybe_fnp = handle_any_typed_expr(fid, scope, expr);
         if (maybe_fnp.empty()) {
             return std::nullopt; // poisoned
         }
@@ -239,14 +234,11 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
         return maybe_eid.as_id();
     }
 
-    // guard against non-builtins
-    if (!into_type.holds<TypeBuiltin>()) {
-        context.emplace_diagnostic(Span{context, fid, expr}, diag_code::cannot_resolve_at_compt,
-                                   diag_type::error);
-        return OptId<ExecId>{};
+    if (into_type.holds<TypeBuiltin>()) {
+        builtin_type into_builtin_type = into_type.as<TypeBuiltin>().type;
+        return solve_builtin_compt_expr(fid, scope, expr, into_builtin_type, into_tid);
     }
-    builtin_type into_builtin_type = into_type.as<TypeBuiltin>().type;
-    return solve_builtin_compt_expr(fid, scope, expr, into_builtin_type, into_tid);
+    return solve_builtin_compt_expr(fid, scope, expr, {}, into_tid);
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::handle_any_typed_expr(FileId fid, ScopeId scope,
