@@ -42,10 +42,10 @@ fn mut_printing() {
 
 fn ref_bindings_over_arrays() {
     [3]i32 mut m = [1, 2, 3];
-    for &i32 x in m {
+    for &i32 _ in m {
         void _;
     }
-    for &var x in m {
+    for &var _ in m {
         void _;
     }
     for &mut i32 x in m {

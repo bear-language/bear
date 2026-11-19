@@ -28,7 +28,7 @@ fn fine(Shape s, &Shape rs, i32 x) -> i32 {
     };
     
     i32 _3 = match (rs) { // auto-deref'd ref, no temp
-        Shape..Rect(i32 w, i32 h) => w,
+        Shape..Rect(i32 w, i32 _h) => w,
         else => x,
     };
     
@@ -48,7 +48,7 @@ fn fine(Shape s, &Shape rs, i32 x) -> i32 {
             i32 area = w * h;
             yield area + x;
         },
-        Shape..Circle(f32 r) => {
+        Shape..Circle => {
             return 7; // diverging branch doesn't need to yield
         },
         else => 0,
@@ -74,7 +74,7 @@ fn oops(Shape s, i32 x, u8 b) {
         Shape..Rect(i32 w, i32 h) => w,
     };
     var _1 = match (s) {
-        Shape..Rect(f32 w, i32 h) => 1, // oops, w is an i32
+        Shape..Rect(f32 w) => 1, // oops, w is an i32
         else => 0,
     };
     var _2 = match (s) {
@@ -102,7 +102,7 @@ fn oops(Shape s, i32 x, u8 b) {
     };
     var _8 = match (x) {
         0 => { // oops, doesn't yield
-            i32 y = 2;
+            i32 _ = 2;
         },
         else => 1,
     };

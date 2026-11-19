@@ -13,7 +13,7 @@ union U {
 }
 
 fn access(mut Foo foo, mut U u) {
-    i32 a = foo.1;
+    i32 _ = foo.1;
     u.i = 1;
 }
 

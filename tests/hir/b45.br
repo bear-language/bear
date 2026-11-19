@@ -4,7 +4,7 @@
 
 struct Des has Destruct {
     i32 handle;
-    mt mut destruct() { return; }
+    fn destruct(&mut Self _) { return; }
     mt mut bump() { self.handle++; }
 }
 
@@ -23,8 +23,8 @@ struct Holder {
     var m; // oops
 }
 
-fn take_b(Des r) -> bool => true
-fn take_i(Des r) -> i32 => 1
+fn take_b(Des _) -> bool => true
+fn take_i(Des _) -> i32 => 1
 
 fn main() {
     poisoned_member();
@@ -40,16 +40,16 @@ fn loop_conds(Des r, Des r2, bool c) {
 }
 
 fn ranges(Des r, u64 n) {
-    for i32 x in 0...take_i(r) {
+    for i32 _ in 0...take_i(r) {
         void _;
     }
     for var x in 0...n {
         var _ = @static_assert(@same_type(typeof x, u64));
     }
-    for char c in 'a'...='z' {
+    for char _ in 'a'...='z' {
         void _;
     }
-    for u8 x in 0...256 { // oops
+    for u8 _ in 0...256 { // oops
         void _;
     }
 }
@@ -73,7 +73,7 @@ fn iterators(&mut DesIt mit, &DesIt it) {
     for &Des r in mit {
         r.bump(); // oops
     }
-    for var r in it { // oops, next needs a mutable reference
+    for var _ in it { // oops, next needs a mutable reference
         void _;
     }
 }

@@ -1608,6 +1608,8 @@ OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast
         maybe_tmp_did
             = context.register_def(context.symbol_id<"match scrutinee">(), false, false, 0,
                                    scrutinee_span, nullptr, DefVariable{.type_id = scrutinee_tid});
+        context.promote_mention_state_of(maybe_tmp_did.as_id(),
+                                         Def::mention_state::used_and_mutated);
         locals.push_back(maybe_tmp_did.as_id());
         scrutinee_ref_eid = context.emplace_exec(
             ExecVariable{.def_id = maybe_tmp_did.as_id(), .type_id = scrutinee_tid},
@@ -2521,6 +2523,7 @@ OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_ex
             const DefId tmp_did
                 = context.register_def(context.symbol_id<"is scrutinee">(), false, false, 0,
                                        lhs_span, nullptr, DefVariable{.type_id = lhs_tid});
+            context.promote_mention_state_of(tmp_did, Def::mention_state::used);
             locals.push_back(tmp_did);
             decomp_target->outer_block.push_back_def(tmp_did);
             scrutinee_eid = context.emplace_exec(
@@ -3356,6 +3359,7 @@ DefId RuntimeSolver::emplace_hidden_local(InProgressBlock& block, SymbolId name,
                                           Span span, OptId<ExecId> maybe_init_eid) {
     const DefId did
         = context.register_def(name, false, false, 0, span, nullptr, DefVariable{.type_id = tid});
+    context.promote_mention_state_of(did, Def::mention_state::used);
     locals.push_back(did);
     block.push_back_def(did);
     if (maybe_init_eid.has_value()) {

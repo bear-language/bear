@@ -4,9 +4,12 @@
 
 struct Res has Destruct {
     i32 handle;
-    mt mut destruct() { return; }
-    fn eat(Self self) { return; }
-    fn look(&Self self) { return; }
+    mt mut destruct() { 
+        &var _ = &self; 
+        return; 
+    }
+    fn eat(Self _self) { return; }
+    fn look(&Self _self) { return; }
 }
 
 struct Plain {
@@ -23,10 +26,10 @@ variant Maybe {
     Nothing,
 }
 
-fn take(Res r) { return; }
-fn take_holder(Holder h) { return; }
-fn take_plain(Plain p) { return; }
-fn peek(&Res r) { return; }
+fn take(Res _r) { return; }
+fn take_holder(Holder _h) { return; }
+fn take_plain(Plain _p) { return; }
+fn peek(&Res _r) { return; }
 fn make() -> Res => Res{.handle = 1}
 
 fn main() {
@@ -52,7 +55,7 @@ fn main() {
 fn copies(Plain p) {
     take_plain(p);
     take_plain(p); // fine, Plain is copyable
-    Plain q = p;
+    Plain _ = p;
     take_plain(p); // fine
 }
 
@@ -127,8 +130,8 @@ fn oops_partial(Holder h) {
 }
 
 fn oops_variant_moves(Maybe m) {
-    Maybe a = m;
-    Maybe b = m; // oops
+    Maybe _a = m;
+    Maybe _b = m; // oops
 }
 
 fn oops_yield_moves(Res r, i32 n) {

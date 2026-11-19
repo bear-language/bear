@@ -4,7 +4,7 @@
 
 struct Res has Destruct {
     i32 handle;
-    mt mut destruct() { return; }
+    fn destruct(&mut Self _) { return; }
 }
 
 variant Maybe {
@@ -17,9 +17,9 @@ struct Holder {
     Maybe m;
 }
 
-fn take(Res r) { return; }
-fn peek(&Res r) { return; }
-fn take_maybe(Maybe m) { return; }
+fn take(Res _r) { return; }
+fn peek(&Res _r) { return; }
+fn take_maybe(Maybe _m) { return; }
 fn make() -> Maybe => Maybe..Nothing
 
 fn main() {
@@ -86,7 +86,7 @@ fn match_copyable_bindings(Maybe m) {
 
 fn oops_match_moved_inside_branch(Maybe m) {
     i32 _0 = match (m) {
-        Maybe..Some(Res r) => {
+        Maybe..Some(Res _r) => {
             take_maybe(m); // oops, moved by the binding
             yield 0;
         },
@@ -96,7 +96,7 @@ fn oops_match_moved_inside_branch(Maybe m) {
 
 fn oops_match_through_ref(&Maybe m) {
     i32 _0 = match (m) {
-        Maybe..Some(Res r) => 0, // oops, can't move out of a reference
+        Maybe..Some(Res _) => 0, // oops, can't move out of a reference
         else => 1,
     };
 }
@@ -163,7 +163,7 @@ fn is_temporary() {
 
 fn oops_is_binding_scoped() {
     Maybe m = make();
-    if m is Pair(i32 a, i32 b) {
+    if m is Pair(i32 a, i32 _b) {
         i32 _0 = a;
     } else {
         i32 _1 = b; // oops, b is only in scope in the then-branch

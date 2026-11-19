@@ -55,14 +55,14 @@ fn compt_for() -> i32 {
     for compt var c in "ab" {
         var _ = @note(c as str); // note
     }
-    for compt var x in 0...512 { // fine, exactly at the cap
+    for compt var _ in 0...512 { // fine, exactly at the cap
         v += 5;
     }
-    for compt var x in 0...=512 { // oops, exceeds the cap
+    for compt var _ in 0...=512 { // oops, exceeds the cap
         v += 6;
     }
     compt [&]str strs = ["a", "b", "c", "d"];
-    for compt var x in strs {
+    for compt var _ in strs {
         v += 6;
     }
     return v;
@@ -70,47 +70,47 @@ fn compt_for() -> i32 {
 
 fn for_in() {
     i32 mut v;
-    for i32 x in (Foo{}) {
+    for i32 _ in (Foo{}) {
         v++;
     }
-    for mut i32 x in (Foo{}) {
+    for mut i32 _ in (Foo{}) {
         v++;
     }
-    for &i32 x in (Foo{}) {
+    for &i32 _ in (Foo{}) {
         v++;
     }
-    for var x in (Foo{}) {
+    for var _ in (Foo{}) {
         v++;
     }
-    for &var x in (Foo{}) {
+    for &var _ in (Foo{}) {
         v++;
     }
-    for u32 x in (Foo{}) { // oops
+    for u32 _ in (Foo{}) { // oops
         v++;
     }
-    for i32 x in (Bar{}).iter() {
+    for i32 _ in (Bar{}).iter() {
         v++;
     }
     Bar bar = {};
-    for var x in bar.iter() {
+    for var _ in bar.iter() {
         v++;
     }
-    for char c in "abc" {
+    for char _ in "abc" {
         v++;
     }
     str s = "abc";
-    for &char c in s {
+    for &char _ in s {
         v++;
     }
-    for var x in bar { // oops
+    for var _ in bar { // oops
         v++;
     }
 
     [4]i32 arr = [1,2,3,4];
-    for i32 x in arr {
+    for i32 _ in arr {
         v++;
     }
-    for &i32 x in arr {
+    for &i32 _ in arr {
         v++;
     }
     i32 s = 0;
@@ -122,7 +122,7 @@ fn for_in() {
         x++; // oops
     }
     i32 c = 0;
-    for var x in 1234 { // oops
+    for var _ in 1234 { // oops
         v++;
         c++; // oops
     }
@@ -134,7 +134,7 @@ fn for_in() {
         v += x;
         c++; // oops
     }
-    for var x in 1.0...2.0 { // oops
+    for var _ in 1.0...2.0 { // oops
         v++;
         c++; // oops
     }

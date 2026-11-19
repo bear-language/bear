@@ -9,7 +9,7 @@ compt var MY_ADMISSION = ["i", "love", "latinas"];
 compt fn collect_str_list([&]str strs, i64 i) -> str => 
     "" if i==strs.len else strs[i] + " " + collect_str_list(strs, i + 1)
 
-fn my_print_or_whatever(str s) {
+fn my_print_or_whatever(str _) {
     ;
 }
 
@@ -20,7 +20,7 @@ fn main() {
     var _ = @note MY_ADMISSION[0];
     var _ = @note collect_str_list(MY_ADMISSION, 0);
     
-    for var i in 0...100 {
+    for var _ in 0...100 {
         my_print_or_whatever(compt sum(1,2) as str);
     }
 

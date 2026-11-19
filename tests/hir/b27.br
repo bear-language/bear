@@ -40,7 +40,7 @@ fn scoped(bool c) -> i32 {
         i32 x = 1;
         return x;
     } else {
-        i64 x = 2; // fine, separate scope
+        i64 _x = 2; // fine, separate scope
     }
     return 3;
 }
@@ -82,7 +82,7 @@ fn oops_body(bool c) {
 
 fn oops_scope(bool c) -> i32 {
     if c {
-        i32 x = 1;
+        i32 _x = 1;
     }
     return x; // oops, x is out of scope
 }

@@ -1414,7 +1414,6 @@ solve_fn_call_impl(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> m
                                            diag_type::error));
         dl.link(context.emplace_diagnostic(span, diag_code::use_drop_to_destruct_a_value_early,
                                            diag_type::help));
-        return {};
     }
 
     if constexpr (!std::same_as<Solver, ComptExprSolver>) {

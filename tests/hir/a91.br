@@ -2,8 +2,8 @@
 
 fn main() {
     i32 foo;
-    &i32 rfoo = &foo;
-    i32 ifoo = &foo; // oops
+    &i32 _rfoo = &foo;
+    i32 _ifoo = &foo; // oops
     &mut var rfoo1 = &mut foo; // oops
     
     var _0 = @note @type_to_str(typeof rfoo1);
@@ -13,11 +13,11 @@ fn main() {
 
     var _1 = @note @type_to_str(typeof b);
 
-    &i32 ra = &a;
-    &mut i32 rma = &mut a; 
-    &i32 rb = &b;
+    &i32 _ra = &a;
+    &mut i32 _rma = &mut a; 
+    &i32 _rb = &b;
 
-    &u64 ra64 = &a; // oops
+    &u64 _ra64 = &a; // oops
 }
 
 fn mut_and_immut_conversions() {
@@ -26,13 +26,13 @@ fn mut_and_immut_conversions() {
     &mut i32 rma = &mut a;
     &i32 ra = &mut a; // &mut -> & is fine
 
-    &mut i32 rma1 = &a; // oops
-    &mut i32 rma2 = ra; // oops (auto-deref'd)
-    &i32 ra1 = a; // oops
-    &i64 ra64 = &a; // oops
+    &mut i32 _rma1 = &a; // oops
+    &mut i32 _rma2 = ra; // oops (auto-deref'd)
+    &i32 _ra1 = a; // oops
+    &i64 _ra64 = &a; // oops
 
-    i32 copied = ra; // auto-deref
-    mut i32 copied_mut = rma;
+    i32 _copied = ra; // auto-deref
+    mut i32 _copied_mut = rma;
 }
 
 fn reborrows() {
@@ -40,10 +40,10 @@ fn reborrows() {
     &i32 ra = &a;
     &mut i32 rma = &mut a;
 
-    &i32 rra = &ra;
-    &i32 rrma = &rma;
-    &mut i32 rrma1 = &mut rma; // should be ok, `rma` is `&mut i32`
-    &mut i32 rra1 = &mut ra; // oops
+    &i32 _rra = &ra;
+    &i32 _rrma = &rma;
+    &mut i32 _rrma1 = &mut rma; // should be ok, `rma` is `&mut i32`
+    &mut i32 _rra1 = &mut ra; // oops
 
     &var collapsed = &mut &mut a;
     var _0 = @note @type_to_str(typeof collapsed);
@@ -57,12 +57,12 @@ fn groupings_and_literals() {
     mut i32 a = 1;
     i32 b = 2;
 
-    &i32 rg = &(a);
-    &mut i32 rmg = &mut (a);
-    &mut i32 rmg1 = &mut (b); // oops
+    &i32 _rg = &(a);
+    &mut i32 _rmg = &mut (a);
+    &mut i32 _rmg1 = &mut (b); // oops
 
-    &i32 rl = &12;
-    &mut i32 rml = &mut 12; // oops
+    &i32 _rl = &12;
+    &mut i32 _rml = &mut 12; // oops
 
     &var rt = &(1, 2);
     var _0 = @note @type_to_str(typeof rt);
@@ -78,9 +78,9 @@ fn aggregates() {
     mut Foo f = Foo{};
     Foo g = Foo{};
 
-    &mut Foo rf = &mut f;
-    &Foo rg = &g;
-    &mut Foo rmg = &mut g; // oops
+    &mut Foo _rf = &mut f;
+    &Foo _rg = &g;
+    &mut Foo _rmg = &mut g; // oops
 
     mut struct(i32, i32) t = (1, 2);
     &mut var rt = &mut t;
@@ -89,7 +89,7 @@ fn aggregates() {
     var _1 = @note @type_to_str(typeof rt_mut);
 
     mut var t1 = (1, 2);
-    &mut var rt1 = &mut t1; // should be ok, `t1` is declared `mut`
+    &mut var _rt1 = &mut t1; // should be ok, `t1` is declared `mut`
 }
 
 fn inferred_refs() {
@@ -108,7 +108,7 @@ fn inferred_refs() {
     var _3 = @note @type_to_str(typeof rv);
 
     mut var c = 3;
-    &mut i32 rc = &mut c; // should be ok, `c` is declared `mut`
+    &mut i32 _rc = &mut c; // should be ok, `c` is declared `mut`
 
-    &mut i32 rx = &mut undeclared; // oops
+    &mut i32 _rx = &mut undeclared; // oops
 }

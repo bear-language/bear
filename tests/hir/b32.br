@@ -27,7 +27,7 @@ fn oops() {
     *i32 p = ^a;
     p.*; // warn
     (&a); // warn
-    mut i32 b = foo(); // oops
+    mut i32 _ = foo(); // oops
     void c = foo();
     c; // oops
     c == true; // oops

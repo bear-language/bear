@@ -11,7 +11,7 @@ fn main() {
     oops(true, 1, 1, 1, &compt Foo{}, 1);
 }
 
-fn fine(bool c, i32 a, i64 b, f32 f, &Foo r1, &Foo r2) -> i32 {
+fn fine(bool c, i32 a, i64 b, f32 _f, &Foo r1, &Foo r2) -> i32 {
     i32 _0 = a if c else 2;
     i32 _1 = 1 if c else a;
     var _2 = 1 if c else b;

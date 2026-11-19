@@ -7,17 +7,17 @@ fn main() -> i32 {
                       // we return on all paths
 }
 
-fn foo(i32 x) -> i32 {
+fn foo(i32 _) -> i32 {
     {{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{{;}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 }
 
-fn bar(i32 x) -> i32 {
+fn bar(i32 _) -> i32 {
     {
         void _0;
     }
 }
 
-fn baz(i32 x) -> i32 {
+fn baz(i32 _) -> i32 {
     {
         compt var hmmm = bar;
         {

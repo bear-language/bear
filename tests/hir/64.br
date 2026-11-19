@@ -26,11 +26,11 @@ struct Foo has Bar {
     fn bar(i32 _) { // oops
     }
 
-    mt do_work() -> void {} // oops, should've ommitted instead of returning void
+    fn do_work() -> void {} // oops, should've ommitted instead of returning void
 
-    mt oh_no() -> &void {} //oops
+    fn oh_no() -> &void {} //oops
 
-    mt oops_again() -> &var {} // oops
+    fn oops_again() -> &var {} // oops
 
     // ~~~~~~~~~~~~~ all fine ~~~~~~~~~~~~~~~~
     fn self_bar(Foo _self) {}

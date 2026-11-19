@@ -11,7 +11,7 @@ fn fine(mut i32 p, mut f64 f, mut char c) {
     a++;
     --a;
     mut i32 b = a++;
-    mut i32 d = --b;
+    mut i32 _d = --b;
     f++; // floats are fine
     --c;
     p--;
@@ -32,16 +32,16 @@ fn oops(i32 p) {
 }
 
 fn deref(*i32 mut pm, *i32 p, *void pv, &i32 r) {
-    i32 a = pm.*;
-    i32 b = p.*;
+    i32 _a = pm.*;
+    i32 _b = p.*;
     pm.*++; // chained postfix ops
-    i32 e = pm.*--;
+    i32 _e = pm.*--;
     (pm.*)++;
     --pm.*;
     ++p.*; // oops, pointee is immutable
     p.*--; // oops, pointee is immutable
-    var c = pv.*; // oops, *void
-    var d = r.*; // oops, refs are auto-dereferenced
+    var _ = pv.*; // oops, *void
+    var _ = r.*; // oops, refs are auto-dereferenced
 }
 
 fn ptr_inc(*mut i32 pm, mut *fn(i32)->i32 fp, mut *void pv) {
@@ -52,11 +52,11 @@ fn ptr_inc(*mut i32 pm, mut *fn(i32)->i32 fp, mut *void pv) {
 }
 
 fn unary(i32 a, u32 u, f64 x, bool b) {
-    i32 n = -a;
-    i32 k = ~a;
-    f64 y = -(-x);
-    bool nb = !b;
-    var e0 = -u; // oops, unsigned vals can't be negated
-    var e1 = !a; // oops
-    var e2 = ~x; // oops
+    i32 _n = -a;
+    i32 _k = ~a;
+    f64 _y = -(-x);
+    bool _nb = !b;
+    var _ = -u; // oops, unsigned vals can't be negated
+    var _ = !a; // oops
+    var _ = ~x; // oops
 }

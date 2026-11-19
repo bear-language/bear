@@ -4,7 +4,10 @@
 
 struct Res has Destruct {
     i32 handle;
-    mt mut destruct() { return; }
+    mt mut destruct() { 
+        &var _ = &self;
+        return; 
+    }
 }
 
 fn make() -> Res => Res{.handle = 1}

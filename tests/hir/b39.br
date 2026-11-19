@@ -15,7 +15,9 @@ variant Foo {
 
 struct Des has Destruct {
     Foo a;
-    mt mut destruct() {;}
+    mt mut destruct() {
+        &var _ = &self;
+    }
     fn default() -> Self => Self{.a = Foo..A}
 }
 
@@ -41,7 +43,7 @@ var _ = 3; // oops
 fn multibranch(u64 i) -> i32 {
     Des a;
     Des b;
-    Des c;
+    Des _;
     Des c;
     if i == 12 {
         Des _ = a;

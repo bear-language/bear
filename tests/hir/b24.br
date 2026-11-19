@@ -4,8 +4,8 @@
 
 fn main() {
     State a = State..State0;
-    bool b = a is State1;
-    var c = match (a) {
+    bool _ = a is State1;
+    var _ = match (a) {
         State0 => 1,
         State1 | State2 => 2,
     };

@@ -3,7 +3,7 @@
 compt var PI = 3.14159;
 
 fn main() -> i32 {
-    compt var my_pi = PI;
+    compt var _my_pi = PI;
 
     f64 my_pi;
     

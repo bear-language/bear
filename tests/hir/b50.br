@@ -13,7 +13,10 @@ IntoSomething::i32 _0 = {.a = 1};
 
 struct IntoSomethingOops<T> has Into<T> {
     T a; 
-    mt into() -> i32 => self.a if compt @same_type(T, i32) else 0
+    mt into() -> i32 {
+        var _ = self;
+        return self.a if compt @same_type(T, i32) else 0;
+    }
 }
 
 IntoSomethingOops::i32 _1 = {.a = 1}; // fine

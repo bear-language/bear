@@ -6,7 +6,7 @@ struct Counter {
 }
 
 fn main() {
-    mut Counter cnt = {};
+    mut Counter _cnt = {};
 }
 
 fn count(&mut Counter cnt) {
@@ -19,5 +19,5 @@ fn count(&mut Counter cnt) {
 }
 
 fn range_oops() {
-    i32 a = 1...2; // oops
+    i32 _ = 1...2; // oops
 }

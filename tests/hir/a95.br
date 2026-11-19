@@ -11,7 +11,7 @@ fn fine() {
     i32 a;
     var b = ^a;
     *var _c = b;
-    *i32 d = b;
+    *i32 _d = b;
     *i32 e = ^a;
     &i32 _f = &e.*;
 }

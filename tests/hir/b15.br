@@ -18,7 +18,7 @@ fn fine(i32 x, usize i) {
     char _10 = "abc"[i]; // runtime idx, not folded
 }
 
-fn oops(usize i, i32 si) {
+fn oops(usize _i, i32 si) {
     var _0 = [1, 2, 3][3]; // oops, out of bounds
     var _1 = [[1, 2], [3, 4]][1][2]; // oops, out of bounds on the inner folded list
     var _2 = [[1, 2], [3, 4]][2][0]; // oops, out of bounds on the outer list

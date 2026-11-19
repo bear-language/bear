@@ -363,8 +363,8 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             }
             if (stmt->type == AST_STMT_FN_DECL || stmt->type == AST_STMT_FN_PROTOTYPE) {
                 const bool is_small_scope = !stmts.has_value();
-                ScopeId new_scope = (is_small_scope) ? context.make_small_scope(scope, span)
-                                                     : context.make_scope(scope, span);
+                ScopeId new_scope = is_small_scope ? context.make_small_scope(scope, span)
+                                                   : context.make_scope(scope, span);
 
                 context.defs_to_scopes().insert(did, new_scope);
             }
@@ -379,8 +379,8 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             // if the type (namely a variant field decl) doesn't have statements then the scope
             // needn't be large
             const bool is_small_scope = !stmts.has_value();
-            ScopeId types_scope = (is_small_scope) ? context.make_small_scope(scope, span)
-                                                   : context.make_scope(scope, span);
+            ScopeId types_scope = is_small_scope ? context.make_small_scope(scope, span)
+                                                 : context.make_scope(scope, span);
 
             context.defs_to_scopes().insert(did, types_scope);
             // warn on lowercase structure definition
@@ -391,9 +391,8 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             // try to parse fields
             if (info.stmts.has_value()) {
                 GenericState new_gen_state{.inst_state = gen_state.inst_state,
-                                           .vis_state = (is_generic)
-                                                            ? gen_visit_state::inside_generic
-                                                            : gen_state.vis_state};
+                                           .vis_state = is_generic ? gen_visit_state::inside_generic
+                                                                   : gen_state.vis_state};
                 register_top_level_stmts_registering_ordered_members(
                     did, types_scope, info.stmts.value(), did, abi, new_gen_state);
             }
@@ -573,7 +572,7 @@ TopLevelInfo FileAstVisitor::top_level_info_for(const ast_stmt_t* stmt) {
     case AST_STMT_USE: {
         token_ptr_slice_t id_slice = stmt->stmt.use.id;
         name_tkn = id_slice.start[id_slice.len - 1];
-        kind = (stmt->stmt.use.mod) ? scope_kind::namespacee : scope_kind::type;
+        kind = stmt->stmt.use.mod ? scope_kind::namespacee : scope_kind::type;
         do_not_insert_in_scope = true; // should be deffered
         break;
     }
@@ -613,7 +612,7 @@ TopLevelInfo FileAstVisitor::top_level_info_for(const ast_stmt_t* stmt) {
 
 std::optional<const token_t*> FileAstVisitor::name_of_ast_decl(const ast_stmt_t* stmt) {
     const token_t* tkn_ptr = top_level_info_for(stmt).name_tkn;
-    return (tkn_ptr) ? tkn_ptr : std::optional<const token_t*>{};
+    return tkn_ptr ? tkn_ptr : std::optional<const token_t*>{};
 }
 
 // some helpers

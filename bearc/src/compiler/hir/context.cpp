@@ -270,7 +270,7 @@ Context::Context(const bearc_args_t& args, instances instances,
                 const Def& def = this->def(did);
                 if (should_warn_as_unused(did)) {
                     emplace_diagnostic_with_message_value(
-                        def.span, diag_code::is_never_used, diag_type::warning,
+                        name_span_for_def(did), diag_code::is_never_used, diag_type::warning,
                         DiagnosticSymbolBeforeMessage{.sid = def.name});
                 }
             }

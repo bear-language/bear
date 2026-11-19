@@ -72,7 +72,7 @@ fn nested(i32 n) -> i32 {
     return total;
 }
 
-fn oops_cond(u8 n, i32 a) {
+fn oops_cond(u8 n, i32 _a) {
     while n { // oops, not bool
         i32 _0 = true; // oops, still checked
     }
@@ -80,7 +80,7 @@ fn oops_cond(u8 n, i32 a) {
 
 fn oops_scope(i32 n) -> i32 {
     while n > 0 {
-        i32 x = n;
+        i32 _x = n;
         break;
     }
     return x; // oops, x is out of scope

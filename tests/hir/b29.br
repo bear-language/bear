@@ -94,7 +94,7 @@ fn oops_init_scope(i32 n) -> i32 {
 
 fn oops_body_not_in_step(i32 n) {
     for (mut i32 i = 0; i < n; i += x) { // oops, x is a body local
-        i32 x = 1;
+        i32 _x = 1;
     }
 }
 

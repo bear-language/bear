@@ -11,7 +11,7 @@ fn main() -> i32 {
 
     Foo _2 = {.a = null};  
 
-    u32 a = -123;
+    u32 _a = -123;
 
     return compt get_exit_code();
 }
