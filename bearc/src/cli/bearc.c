@@ -184,10 +184,7 @@ int cli_compile(const bearc_args_t* args) {
     return error_code;
 }
 
-void cli_no_args(void) {
-    printf("run '%sbearc%s --help%s' to see available operations.\n\n", ansi_bold_green(),
-           ansi_bold_reset(), ansi_reset());
-
+void do_license_text(void) {
     printf("Bear Compiler Copyright (C) 2025-2026 Zachary Mahan\n\n"
            "Licensed under the Apache License, Version 2.0 (the \"License\");\n"
            "you may not use this file except in compliance with the License.\n"
@@ -198,10 +195,15 @@ void cli_no_args(void) {
            "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n"
            "See the License for the specific language governing permissions and\n"
            "limitations under the License.\n\n");
+}
+
+void cli_no_args(void) {
+    printf("run '%sbearc%s --help%s' to see available operations.\n\n", ansi_bold_green(),
+           ansi_bold_reset(), ansi_reset());
+
+    /* do_license_text(); */
 
     cli_version();
-
-    puts("");
 }
 void cli_announce_unknown_flag(void) {
     printf("%s(bearc)%s unknown flag(s)\n", ansi_bold(), ansi_reset());
