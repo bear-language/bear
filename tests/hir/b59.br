@@ -1,0 +1,19 @@
+// tests/hir/b59.br
+
+// testing `did you mean to cast?` suggestions on failed conversions
+
+fn fine(i64 a, u8 n) {
+    i32 _0 = a as i32;
+    bool _1 = n as bool;
+    u64 _2 = 1; // compt, non-narrowing
+}
+
+fn oops(i64 a, i64 b, u8 n, bool c, *i32 p, mut u8 k) {
+    i32 _0 = a; // oops, cast to i32
+    bool _1 = n; // oops, cast to bool
+    i32 _2 = a + b; // oops, cast w/ parens
+    i32 _3 = a if c else b; // oops, cast each branch
+    *u8 _4 = p; // oops, cast the ptr
+    k = a; // oops, cast to u8 (not u8 mut)
+    u32 _5 = -1; // oops, compt, no cast suggested
+}

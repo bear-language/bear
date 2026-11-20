@@ -1,4 +1,3 @@
-//
 //     /                              /
 //    /                              /
 //   /_____  _____  _____  _____    /  _____   _  _  _____
@@ -303,6 +302,10 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
                     .sid = context.symbol_id(replacement_str),
                 }));
         }
+        const Type& from_ty = context.type(maybe_tid.as_id());
+
+        const Exec& exec = context.exec(maybe_eid.as_id());
+
         // recommend an address of
         if (into_ty.holds<TypePtr>() && into_ty.try_inner().has_value()
             && context.is_lvalue(maybe_eid.as_id())
@@ -312,7 +315,6 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
             context.prev_diagnostic()->value = DiagnosticInfoValue{
                 DiagnosticSubCode{.sub_code = diag_code::did_you_mean_to_take_the_address}};
 
-            const Exec& exec = context.exec(maybe_eid.as_id());
             std::string replacement_str{'^'};
             replacement_str += context.symbol(context.symbol_id(exec.span));
 
@@ -321,6 +323,36 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
                 DiagnosticSymbolAfterMessage{
                     .sid = context.symbol_id(replacement_str),
                 }));
+        }
+        // recommend a cast
+        else if (from_ty.castable_to(into_ty) && !exec.compt) {
+            context.prev_diagnostic()->value = DiagnosticInfoValue{
+                DiagnosticSubCode{.sub_code = diag_code::did_you_mean_to_cast}};
+            if (!exec.span.is_generated()) {
+                std::string str{};
+                if (exec.holds_any_of<ExecBinary, ExecAssignment, ExecCompoundAssignment,
+                                      ExecTernaryIf>()) {
+                    str += '(';
+                }
+                str += exec.span.as_sv(context);
+                if (exec.holds_any_of<ExecBinary, ExecAssignment, ExecCompoundAssignment,
+                                      ExecTernaryIf>()) {
+                    str += ')';
+                }
+                str += " as ";
+                if (into_ty.mut && !into_ty.holds<TypeRef>()) {
+                    str += into_ty.holds<TypeBuiltin>()
+                               ? type_to_string(context, context.type_for_builtin(
+                                                             into_ty.as<TypeBuiltin>().type))
+                               : type_to_string(context, context.emplace_type(into_ty.value,
+                                                                              into_ty.span, false));
+                } else {
+                    str += type_to_string(context, into_tid);
+                }
+                context.force_link_diagnostic(context.emplace_diagnostic_with_message_value(
+                    exec.span, diag_code::replace_with, diag_type::help,
+                    DiagnosticSymbolAfterMessage{.sid = context.symbol_id(str)}));
+            }
         }
 
         return {};

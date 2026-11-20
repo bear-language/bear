@@ -608,6 +608,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "declare a `main()` function in the top level namespace";
     case diag_code::pass_lib_to_build_as_a_library:
         return "pass `--lib` to build as a library";
+    case diag_code::did_you_mean_to_cast:
+        return "did you mean to cast?";
     }
 
     std::unreachable();

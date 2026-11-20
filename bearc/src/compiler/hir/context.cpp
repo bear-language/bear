@@ -3138,33 +3138,35 @@ IdSet<DefId>& Context::contract_set_for_struct_did(DefId struct_did) {
 }
 
 bool Context::inferable_as_struct(TypeId tid1, TypeId tid2, DefId struct_did) {
-    const Type& t1 = type(tid1);
-    const Type& t2 = type(tid2);
-    if (t1.mut != t2.mut) {
+    const Type* t1 = &type(tid1);
+    const Type* t2 = &type(tid2);
+    if (t1->mut != t2->mut) {
         return false;
     }
 
     // guard mismatched references
-    if ((t1.holds<TypeRef>() || t2.holds<TypeRef>()) && !t1.holds_same_variant_type(t2)) {
+    if ((t1->holds<TypeRef>() || t2->holds<TypeRef>()) && !t1->holds_same_variant_type(*t2)) {
         return false;
     }
+
     const TypeId tid1_canonical = try_decay(tid1);
     const TypeId tid2_canonical = try_decay(tid2);
-    if (t1.holds<TypeVar>()) {
-        const Type& t2 = type(tid2_canonical);
-        if (!t2.holds<TypeStruct>()) {
+    t1 = &type(tid1_canonical);
+    t2 = &type(tid2_canonical);
+
+    if (t1->holds<TypeVar>()) {
+        if (!t2->holds<TypeStruct>()) {
             return false;
         }
-        if (t2.as<TypeStruct>().def_id != struct_did) {
+        if (t2->as<TypeStruct>().def_id != struct_did) {
             return false;
         }
     }
-    if (t2.holds<TypeVar>()) {
-        const Type& t1 = type(tid1_canonical);
-        if (!t1.holds<TypeStruct>()) {
+    if (t2->holds<TypeVar>()) {
+        if (!t1->holds<TypeStruct>()) {
             return false;
         }
-        if (t1.as<TypeStruct>().def_id != struct_did) {
+        if (t1->as<TypeStruct>().def_id != struct_did) {
             return false;
         }
     }
@@ -3262,6 +3264,10 @@ Context::default_value_for_type_using_default_contract(TypeId tid, Span span, co
         }
         // else do nothing since not properly satisfying Default is seperate issue
     };
+
+    if (type(tid).holds<TypeStruct>()) {
+        def_visitor.visit_and_resolve_if_needed(type(tid).as<TypeStruct>().def_id);
+    }
 
     const auto maybe_scope = try_scope_for_type(tid);
 

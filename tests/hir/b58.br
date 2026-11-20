@@ -1,0 +1,57 @@
+// tests/hir/b58.br
+
+// testing compt fn-ptr contract fulfillment with default (generic) functions
+
+fn main() {
+    use foo..FooBar;
+    compt FooBar fb;
+    var _ = @static_assert fb.sum_all() == 0;
+}
+
+mod foo {
+
+fn default_destruct<T>(&mut T _) {;}
+fn struct_default<T>() -> T => T{}
+
+struct Foo has Destruct {
+    u8 a = 0;
+    u8 b = 0;
+    u8 c = 0;
+    u8 d = 0;
+    
+    compt var destruct = default_destruct::Self;
+}
+
+struct Bar {
+    u8 a = 0;
+    u8 b = 0;
+    u16 c = 0;
+}
+
+struct Foops has Destruct {
+    Foo f = {};
+    
+    compt *fn(&mut Bar) destruct = default_destruct::Bar; // oops
+}
+
+struct FooBar has Destruct + Default {
+    Foo f = {};
+    Bar b = {};
+    
+    compt *fn(&mut Self) destruct = default_destruct::<Self>;
+    compt *fn()->Self default = struct_default::FooBar;
+
+    mt sum_all() -> u32 => (
+        (self.f.a + self.f.b + self.f.c + self.f.d) as u32 
+            + (self.b.a + self.b.b) as u32 
+            + self.b.c as u32
+    ) 
+
+    fn new(u8 e, u16 st) -> Self => 
+        Self{
+            .f = {.a = e, .b = e, .c = e, .d = e}, 
+            .b = {.a = e, .b = st, .c = st}
+        }
+}
+
+}
