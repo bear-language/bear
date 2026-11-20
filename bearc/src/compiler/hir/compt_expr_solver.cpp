@@ -1213,8 +1213,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     case binary_op::bit_and:
     case binary_op::bit_xor:
     case binary_op::left_bitshift:
-    case binary_op::right_shift_logical:
-    case binary_op::right_shift_arithmetic:
+    case binary_op::right_shift:
         return handle_binary_bitwise(lhs_exec, op, rhs_exec, op_span);
     case binary_op::bool_or:
     case binary_op::bool_and:
@@ -1365,17 +1364,6 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
         return std::nullopt;
     }
 
-    // try to do these when possible
-    if (op == binary_op::right_shift_logical) {
-        auto maybe_converted = lhs_val.try_down_convert_to(builtin_type::u64);
-        lhs_val = maybe_converted.has_value() ? maybe_converted.value() : lhs_val;
-        guard_try_converge_types(lhs_val, op, rhs_val);
-    } else if (op == binary_op::right_shift_arithmetic) {
-        auto maybe_converted = lhs_val.try_down_convert_to(builtin_type::i64);
-        lhs_val = maybe_converted.has_value() ? maybe_converted.value() : lhs_val;
-        guard_try_converge_types(lhs_val, op, rhs_val);
-    }
-
     if (guard_op_not_viable_for_types(lhs, rhs, lhs_val, op, rhs_val)) {
         return std::nullopt;
     }
@@ -1395,14 +1383,9 @@ void ComptExprSolver::guard_try_converge_types(ExecConst& lhs_val, binary_op op,
     case binary_op::left_bitshift:
         maybe_value = ExecConst::bit_lsh(context, op_span, lhs_val, rhs_val);
         break;
-    case binary_op::right_shift_logical: {
-        maybe_value = ExecConst::bit_rshl(context, op_span, lhs_val, rhs_val);
+    case binary_op::right_shift:
+        maybe_value = ExecConst::bit_rsh(context, op_span, lhs_val, rhs_val);
         break;
-    }
-    case binary_op::right_shift_arithmetic: {
-        maybe_value = ExecConst::bit_rsha(context, op_span, lhs_val, rhs_val);
-        break;
-    }
     default:
         std::unreachable();
         break;

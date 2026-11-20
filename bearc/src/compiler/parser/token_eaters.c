@@ -229,17 +229,8 @@ token_range_t parser_sync(parser_t* p) { return parser_sync_call(p, &token_is_sy
 token_t* parser_expect_generic_closing_delim(parser_t* p) {
     token_t* tkn = NULL;
     // this unsigned_integral embedded val is zero initialized. So we're just overloading it here to
-    // check how many times we've ticked the tokens >>> and >> to be in place of > > > and > >
-    if ((tkn = parser_peek_match(p, TOK_RSHA))) {
-        uint32_t ticks = ++tkn->val.unsigned_integral;
-        if (ticks == 3) {
-            return parser_eat(p);
-        }
-        if (ticks < 3) {
-            return tkn;
-        }
-    }
-    if ((tkn = parser_peek_match(p, TOK_RSHL))) {
+    // check how many times we've ticked the token >> to be in place of > >
+    if ((tkn = parser_peek_match(p, TOK_RSH))) {
         uint32_t ticks = ++tkn->val.unsigned_integral;
         if (ticks == 2) {
             return parser_eat(p);
@@ -254,7 +245,7 @@ token_t* parser_expect_generic_closing_delim(parser_t* p) {
 
 token_t* parser_peek_generic_closing_delims(parser_t* p) {
     token_type_e type = parser_peek(p)->type;
-    if (type == TOK_GT || type == TOK_RSHA || type == TOK_RSHL) {
+    if (type == TOK_GT || type == TOK_RSH) {
         return parser_peek(p);
     }
     return NULL;

@@ -420,10 +420,9 @@ struct ExecComptConstant : NodeWithVariantValue<ExecComptConstant> {
     [[nodiscard]] static std::optional<ExecConst> bit_xor(ExecConst lhs, ExecConst rhs);
     [[nodiscard]] static std::optional<ExecConst> bit_lsh(Context& ctx, Span span, ExecConst lhs,
                                                           ExecConst rhs);
-    [[nodiscard]] static std::optional<ExecConst> bit_rsha(Context& ctx, Span span, ExecConst lhs,
-                                                           ExecConst rhs);
-    [[nodiscard]] static std::optional<ExecConst> bit_rshl(Context& ctx, Span span, ExecConst lhs,
-                                                           ExecConst rhs);
+    // arithmetic for signed, logical for unsigned
+    [[nodiscard]] static std::optional<ExecConst> bit_rsh(Context& ctx, Span span, ExecConst lhs,
+                                                          ExecConst rhs);
 
     [[nodiscard]] static std::optional<ExecConst> greater_than(ExecConst lhs, ExecConst rhs);
     [[nodiscard]] static std::optional<ExecConst> less_than(ExecConst lhs, ExecConst rhs);

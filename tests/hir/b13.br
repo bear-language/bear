@@ -20,7 +20,6 @@ fn oops(i32 a, u32 u, u8 c, f64 x, bool p, str s, *i32 pa, *f64 pf, Foo f, Bar b
     var _7 = pa == pf; // oops, different pointee types
     var _8 = p + p; // oops, bools aren't numeric
     var _9 = x % 2.0; // oops, no float modulo
-    var _10 = a >> 1; // oops, logical shift on signed
     var _11 = pa + u; // oops, offset needs a cast to u64
     var _12 = f == b; // oops, different structs
     var _13 = f < f; // oops, structs are only _quality comparable
@@ -34,5 +33,5 @@ fn oops(i32 a, u32 u, u8 c, f64 x, bool p, str s, *i32 pa, *f64 pf, Foo f, Bar b
     var _21 = a % 0; // oops, dividing by zero
     var _22 = a << 32; // oops, shift amount too large
     var _23 = c >> 8; // oops, shift amount too large
-    var _24 = a >>> -1; // oops, negative shift amount
+    var _24 = a >> -1; // oops, negative shift amount
 }

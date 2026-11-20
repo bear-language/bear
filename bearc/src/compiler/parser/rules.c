@@ -72,8 +72,7 @@ static uint8_t binary_prec_map[TOK__NUM] = {
     [TOK_LT] = 9,
 
     [TOK_LSH] = 7,
-    [TOK_RSHL] = 7,
-    [TOK_RSHA] = 7,
+    [TOK_RSH] = 7,
 
     [TOK_BOOL_OR] = 16,
     [TOK_BOOL_AND] = 15,
@@ -100,15 +99,14 @@ static uint8_t binary_prec_map[TOK__NUM] = {
     [TOK_ASSIGN_OR_EQ] = 19,
     [TOK_ASSIGN_XOR_EQ] = 19,
     [TOK_ASSIGN_LSH_EQ] = 19,
-    [TOK_ASSIGN_RSHL_EQ] = 19,
-    [TOK_ASSIGN_RSHA_EQ] = 19,
+    [TOK_ASSIGN_RSH_EQ] = 19,
 
 };
 uint8_t prec_binary(token_type_e type) { return binary_prec_map[type]; }
 
 bool is_binary_op(token_type_e type) { return binary_prec_map[type]; }
 bool is_angle_bracket_operator(token_type_e t) {
-    return t == TOK_GT || t == TOK_LT || t == TOK_RSHA || t == TOK_RSHL || t == TOK_LSH;
+    return t == TOK_GT || t == TOK_LT || t == TOK_RSH || t == TOK_LSH;
 }
 bool is_preunary_op(token_type_e type) { return preunary_prec_map[type]; }
 bool is_postunary_op(token_type_e type) { return postunary_prec_map[type]; }

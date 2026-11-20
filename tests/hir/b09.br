@@ -17,8 +17,7 @@ fn main() {
     x |= 7;
     x ^= 8;
     x <<= 1;
-    x >>>= 1;
-    x >>= 1; // oops
+    x >>= 1;
     x /= 0; // oops, dividing by zero
     x %= 0; // oops, dividing by zero
     x <<= 32; // oops, shift amount too large

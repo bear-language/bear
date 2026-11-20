@@ -1470,14 +1470,8 @@ template <typename T> std::optional<EConst> e_lsh(Context& ctx, Span span, ECons
     return EConst{static_cast<T>(l.as<T>() << r.as<T>())};
 }
 
-template <typename T> std::optional<EConst> e_rshl(Context& ctx, Span span, EConst l, EConst r) {
-    if (e_guard_shift_amount<T>(ctx, span, r)) {
-        return std::nullopt;
-    }
-    return EConst{static_cast<T>(l.as<T>() >> r.as<T>())};
-}
-
-template <typename T> std::optional<EConst> e_rsha(Context& ctx, Span span, EConst l, EConst r) {
+// signed T shifts arithmetically, unsigned T shifts logically
+template <typename T> std::optional<EConst> e_rsh(Context& ctx, Span span, EConst l, EConst r) {
     if (e_guard_shift_amount<T>(ctx, span, r)) {
         return std::nullopt;
     }
@@ -1853,49 +1847,26 @@ std::optional<ExecConst> ExecConst::bit_lsh(Context& ctx, Span span, ExecConst l
     }
     return std::nullopt;
 }
-std::optional<ExecConst> ExecConst::bit_rsha(Context& ctx, Span span, ExecConst lhs,
-                                             ExecConst rhs) {
-    assert(lhs.holds_same_variant_type(rhs));
-    switch (lhs.type_builtin()) {
-    case builtin_type::i8:
-        return e_rsha<i8>(ctx, span, lhs, rhs);
-    case builtin_type::i16:
-        return e_rsha<i16>(ctx, span, lhs, rhs);
-    case builtin_type::i32:
-        return e_rsha<i32>(ctx, span, lhs, rhs);
-    case builtin_type::i64:
-        return e_rsha<i64>(ctx, span, lhs, rhs);
-    case builtin_type::u8:
-    case builtin_type::u16:
-    case builtin_type::u32:
-    case builtin_type::u64:
-    case builtin_type::f32:
-    case builtin_type::f64:
-    case builtin_type::charr:
-    case builtin_type::voidd:
-    case builtin_type::str:
-    case builtin_type::nullpointer:
-    case builtin_type::boolean:
-        break;
-    }
-    return std::nullopt;
-}
-std::optional<ExecConst> ExecConst::bit_rshl(Context& ctx, Span span, ExecConst lhs,
-                                             ExecConst rhs) {
+std::optional<ExecConst> ExecConst::bit_rsh(Context& ctx, Span span, ExecConst lhs,
+                                            ExecConst rhs) {
     assert(lhs.holds_same_variant_type(rhs));
     switch (lhs.type_builtin()) {
     case builtin_type::u8:
-        return e_rshl<u8>(ctx, span, lhs, rhs);
-    case builtin_type::u16:
-        return e_rshl<u16>(ctx, span, lhs, rhs);
-    case builtin_type::u32:
-        return e_rshl<u32>(ctx, span, lhs, rhs);
-    case builtin_type::u64:
-        return e_rshl<u64>(ctx, span, lhs, rhs);
+        return e_rsh<u8>(ctx, span, lhs, rhs);
     case builtin_type::i8:
+        return e_rsh<i8>(ctx, span, lhs, rhs);
+    case builtin_type::u16:
+        return e_rsh<u16>(ctx, span, lhs, rhs);
     case builtin_type::i16:
+        return e_rsh<i16>(ctx, span, lhs, rhs);
+    case builtin_type::u32:
+        return e_rsh<u32>(ctx, span, lhs, rhs);
     case builtin_type::i32:
+        return e_rsh<i32>(ctx, span, lhs, rhs);
+    case builtin_type::u64:
+        return e_rsh<u64>(ctx, span, lhs, rhs);
     case builtin_type::i64:
+        return e_rsh<i64>(ctx, span, lhs, rhs);
     case builtin_type::f32:
     case builtin_type::f64:
     case builtin_type::charr:

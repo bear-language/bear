@@ -192,8 +192,7 @@ typedef enum token_type {
     TOK_DEC, // --
     // bitwise
     TOK_LSH,  // <<
-    TOK_RSHL, // >>
-    TOK_RSHA, // >>>
+    TOK_RSH, // >>
     // bool
     TOK_BOOL_OR,  // ||
     TOK_BOOL_AND, // &&
@@ -216,8 +215,7 @@ typedef enum token_type {
     TOK_ASSIGN_OR_EQ,   // |=
     TOK_ASSIGN_XOR_EQ,  // ^=
     TOK_ASSIGN_LSH_EQ,  // <<=
-    TOK_ASSIGN_RSHL_EQ, // >>=
-    TOK_ASSIGN_RSHA_EQ, // >>>=
+    TOK_ASSIGN_RSH_EQ, // >>=
 
     // EOF
     TOK_EOF,

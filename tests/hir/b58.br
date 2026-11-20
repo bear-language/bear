@@ -39,7 +39,7 @@ struct FooBar has Destruct + Default {
     Bar b = {};
     
     compt *fn(&mut Self) destruct = default_destruct::<Self>;
-    compt *fn()->Self default = struct_default::FooBar;
+    compt *fn()->Self default = struct_default::Self;
 
     mt sum_all() -> u32 => (
         (self.f.a + self.f.b + self.f.c + self.f.d) as u32 

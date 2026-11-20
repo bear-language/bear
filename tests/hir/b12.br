@@ -14,7 +14,7 @@ fn arith(i32 a, i32 b, u8 c, f64 x, mut i32 m) {
     f64 _4 = x * 2.0 + 1;
     i32 _5 = m + a;
     i32 _6 = a & b | a ^ b;
-    i32 _7 = a << 2 >>> 1;
+    i32 _7 = a << 2 >> 1;
     u8 _8 = c >> 1;
     u8 _9 = c + 'a' as u8;
 }
@@ -48,7 +48,7 @@ fn compt_operands(i32 a, u8 c, f64 x) {
     f64 _2 = x / 0.0;
     i32 _3 = a << 31;
     u8 _4 = c >> 7;
-    i32 _5 = a >>> 0;
+    i32 _5 = a >> 0;
 }
 
 fn ranges(i32 a, u64 n) {

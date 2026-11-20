@@ -45,10 +45,8 @@ std::optional<binary_op> token_to_binary_op(const token_t* tkn) {
         return binary_op::less_than_or_equal;
     case TOK_LSH:
         return binary_op::left_bitshift;
-    case TOK_RSHL:
-        return binary_op::right_shift_logical;
-    case TOK_RSHA:
-        return binary_op::right_shift_arithmetic;
+    case TOK_RSH:
+        return binary_op::right_shift;
     case TOK_BOOL_OR:
         return binary_op::bool_or;
     case TOK_BOOL_AND:
@@ -110,10 +108,8 @@ const char* binary_op_to_cstr(binary_op op) {
         return "<=";
     case binary_op::left_bitshift:
         return "<<";
-    case binary_op::right_shift_logical:
+    case binary_op::right_shift:
         return ">>";
-    case binary_op::right_shift_arithmetic:
-        return ">>>";
     case binary_op::bool_or:
         return "||";
     case binary_op::bool_and:

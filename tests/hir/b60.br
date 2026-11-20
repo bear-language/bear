@@ -1,0 +1,62 @@
+// tests/hir/b60.br
+
+// testing that `>>` is arithmetic for signed and logical for unsigned
+
+fn main() {;}
+
+// signed: sign bit is replicated
+compt i8 i8_neg = -128;
+var _0 = @static_assert((i8_neg >> 1) == -64);
+var _1 = @static_assert((i8_neg >> 7) == -1);
+compt i16 i16_neg = -2;
+var _2 = @static_assert((i16_neg >> 15) == -1);
+compt i32 i32_neg = -16;
+var _3 = @static_assert((i32_neg >> 2) == -4);
+var _4 = @static_assert((-1 >> 31) == -1); // untyped literal defaults to i32
+compt i64 i64_neg = -9223372036854775807 - 1;
+var _5 = @static_assert((i64_neg >> 63) == -1);
+
+// signed positives behave like a logical shift
+compt i32 i32_pos = 0x40000000;
+var _6 = @static_assert((i32_pos >> 30) == 1);
+
+// unsigned: zeroes are shifted in
+compt u8 u8_top = 0x80;
+var _7 = @static_assert((u8_top >> 1) == 0x40);
+var _8 = @static_assert((u8_top >> 7) == 1);
+compt u16 u16_max = 0xFFFF;
+var _9 = @static_assert((u16_max >> 15) == 1);
+compt u32 u32_max = 4294967295;
+var _10 = @static_assert((u32_max >> 31) == 1);
+compt u64 u64_max = 18446744073709551615;
+var _11 = @static_assert((u64_max >> 63) == 1);
+
+// same bits, different signedness, different results
+var _12 = @static_assert(((-128 as i8) >> 4) == -8);
+var _13 = @static_assert((((-128 as i8) as u8) >> 4) == 8);
+
+// compound assignment follows the same rule
+fn compound(mut i32 s, mut u32 u) {
+    s >>= 1;
+    u >>= 1;
+    s >>= 32; // oops, shift amount too large
+    u >>= 32; // oops, shift amount too large
+}
+
+fn runtime(i32 s, u32 u, i8 b, u64 w) {
+    i32 _0 = s >> 1;
+    u32 _1 = u >> 1;
+    i8 _2 = b >> 7;
+    u64 _3 = w >> 63;
+    var _4 = s >> 32; // oops, shift amount too large
+    var _5 = s >> -1; // oops, negative shift amount
+}
+
+// `>>>` no longer exists
+compt i32 _gone = 16 >>> 1; // oops
+
+// generic closers still split `>>` / `>>>` into `>`s
+struct Box<T> {
+    T val;
+}
+*Box<Box<Box<i32>>> _boxed;

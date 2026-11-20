@@ -31,8 +31,7 @@ enum class binary_op : uint8_t {
     greater_than_or_equal,
     less_than_or_equal,
     left_bitshift,
-    right_shift_logical,
-    right_shift_arithmetic,
+    right_shift, // arithmetic for signed, logical for unsigned
     bool_or,
     bool_and,
     bool_equal,
@@ -51,8 +50,7 @@ enum class assign_op : uint8_t {
     assign_or_eq,
     assign_xor_eq,
     assign_lsh_eq,
-    assign_rshl_eq,
-    assign_rsha_eq,
+    assign_rsh_eq,
 };
 
 enum class is_as_op : uint8_t { is, as };
@@ -125,11 +123,8 @@ struct ComptBinaryOp : NodeWithVariantValue<ComptBinaryOp> {
         case TOK_ASSIGN_LSH_EQ:
             value = assign_op::assign_lsh_eq;
             break;
-        case TOK_ASSIGN_RSHL_EQ:
-            value = assign_op::assign_rshl_eq;
-            break;
-        case TOK_ASSIGN_RSHA_EQ:
-            value = assign_op::assign_rsha_eq;
+        case TOK_ASSIGN_RSH_EQ:
+            value = assign_op::assign_rsh_eq;
             break;
         default:
             value = InvalidOp{};

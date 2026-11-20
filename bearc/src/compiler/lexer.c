@@ -216,12 +216,8 @@ lex_multichar_operator:
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // comparison
     case '>': {
-        if (pos + 3 < end_of_buf && n1 == '>' && pos[2] == '>' && pos[3] == '=') {
-            // >>>=
-            LEX_KNOWN_LEN_PUSH(4);
-        }
-        if (pos + 2 < end_of_buf && n1 == '>' && (pos[2] == '>' || pos[2] == '=')) {
-            // >>> or >>=
+        if (pos + 2 < end_of_buf && n1 == '>' && pos[2] == '=') {
+            // >>=
             LEX_KNOWN_LEN_PUSH(3);
         }
         if (n1 == '>' || n1 == '=') {

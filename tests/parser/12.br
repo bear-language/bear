@@ -1,6 +1,6 @@
 fn foo(&i32 mut a, &std..String b) {
     b.modify_in_some_way();
-    a >>>= 4; // for fun
+    a >>= 4; // for fun
 }
 
 fn bar() -> i32 {

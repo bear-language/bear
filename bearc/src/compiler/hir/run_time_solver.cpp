@@ -2314,10 +2314,8 @@ namespace {
         return binary_op::bit_xor;
     case assign_op::assign_lsh_eq:
         return binary_op::left_bitshift;
-    case assign_op::assign_rshl_eq:
-        return binary_op::right_shift_logical;
-    case assign_op::assign_rsha_eq:
-        return binary_op::right_shift_arithmetic;
+    case assign_op::assign_rsh_eq:
+        return binary_op::right_shift;
     }
     std::unreachable();
 }
@@ -3113,8 +3111,7 @@ bool RuntimeSolver::guard_compt_rhs_operand(builtin_type lhs_bt, binary_op op, E
         return true;
     }
 
-    if (op == binary_op::left_bitshift || op == binary_op::right_shift_logical
-        || op == binary_op::right_shift_arithmetic) {
+    if (op == binary_op::left_bitshift || op == binary_op::right_shift) {
         const HirSize bits = context.layout_for_type(context.type_for_builtin(lhs_bt)).width * 8;
         const auto maybe_amount = rhs_val.try_safe_convert_to(context, builtin_type::i64);
         if (!maybe_amount.has_value() || maybe_amount.value().as<int64_t>() < 0

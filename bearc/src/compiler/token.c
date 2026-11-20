@@ -173,8 +173,7 @@ static void string_to_token_map_init(void) {
     strimap_emplace(&string_to_token_map, "++", TOK_INC);
     strimap_emplace(&string_to_token_map, "--", TOK_DEC);
     strimap_emplace(&string_to_token_map, "<<", TOK_LSH);
-    strimap_emplace(&string_to_token_map, ">>", TOK_RSHL);
-    strimap_emplace(&string_to_token_map, ">>>", TOK_RSHA);
+    strimap_emplace(&string_to_token_map, ">>", TOK_RSH);
     strimap_emplace(&string_to_token_map, "||", TOK_BOOL_OR);
     strimap_emplace(&string_to_token_map, "&&", TOK_BOOL_AND);
     strimap_emplace(&string_to_token_map, ">=", TOK_GE);
@@ -199,8 +198,7 @@ static void string_to_token_map_init(void) {
     strimap_emplace(&string_to_token_map, "|=", TOK_ASSIGN_OR_EQ);
     strimap_emplace(&string_to_token_map, "^=", TOK_ASSIGN_XOR_EQ);
     strimap_emplace(&string_to_token_map, "<<=", TOK_ASSIGN_LSH_EQ);
-    strimap_emplace(&string_to_token_map, ">>=", TOK_ASSIGN_RSHL_EQ);
-    strimap_emplace(&string_to_token_map, ">>>=", TOK_ASSIGN_RSHA_EQ);
+    strimap_emplace(&string_to_token_map, ">>=", TOK_ASSIGN_RSH_EQ);
 }
 
 const strimap_t* get_string_to_token_strimap(void) {
@@ -371,8 +369,7 @@ static const char* token_to_string_map_impl[TOK__NUM] = {
     [TOK_INC] = "++",
     [TOK_DEC] = "--",
     [TOK_LSH] = "<<",
-    [TOK_RSHL] = ">>",
-    [TOK_RSHA] = ">>>",
+    [TOK_RSH] = ">>",
     [TOK_BOOL_OR] = "||",
     [TOK_BOOL_AND] = "&&",
     [TOK_GE] = ">=",
@@ -393,8 +390,7 @@ static const char* token_to_string_map_impl[TOK__NUM] = {
     [TOK_ASSIGN_OR_EQ] = "|=",
     [TOK_ASSIGN_XOR_EQ] = "^=",
     [TOK_ASSIGN_LSH_EQ] = "<<=",
-    [TOK_ASSIGN_RSHL_EQ] = ">>=",
-    [TOK_ASSIGN_RSHA_EQ] = ">>>=",
+    [TOK_ASSIGN_RSH_EQ] = ">>=",
 
     // EOF
     [TOK_EOF] = "eof",
