@@ -300,6 +300,7 @@ enum class diag_code : uint16_t {
     todo_here,
     todo_here_colon,
     is_declared_mut_but_is_never_mutated,
+    remove_unneeded_mut_qualifier,
 
     count, // this must be last,
 

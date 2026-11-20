@@ -266,10 +266,14 @@ Context::Context(const bearc_args_t& args, instances instances,
 
     if (warn_unused) {
         for (auto did = defs.begin_id(); did != defs.end_id(); ++did) {
+            bool warned_unused = false;
             if (mention_state_of(did) == Def::mention_state::unused) {
-                try_warn_unused(did);
+                warned_unused = try_warn_unused(did);
             }
-            try_warn_unnecessarily_declared_mut(did);
+            if (!warned_unused) {
+                // don't also warn mut here since being unused is worse, making this kinda redundant
+                try_warn_unnecessarily_declared_mut(did);
+            }
         }
     }
 }
@@ -300,11 +304,12 @@ bool Context::try_warn_unnecessarily_declared_mut(DefId did) {
         dl.link(emplace_diagnostic_with_message_value(
             def.span, diag_code::is_declared_mut_but_is_never_mutated, diag_type::warning,
             DiagnosticSymbolBeforeMessage{.sid = def.name}));
-        dl.link(emplace_diagnostic_with_message_value(
+        dl.link(emplace_diagnostic(
             ty.span, diag_code::replace_with, diag_type::help,
             DiagnosticTypeAfterMessage{.tid = ty.holds<TypeBuiltin>()
                                                   ? type_for_builtin(ty.as<TypeBuiltin>().type)
-                                                  : emplace_type(ty.value, ty.span, false)}));
+                                                  : emplace_type(ty.value, ty.span, false)},
+            DiagnosticSubCode{.sub_code = diag_code::remove_unneeded_mut_qualifier}));
 
         return true;
     }

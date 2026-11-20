@@ -1,0 +1,19 @@
+// tests/hir/b56.br
+
+fn take_ref_mut(&mut i32 a) {
+    a++;
+}
+
+fn take_ref(&i32 _a) {;}
+
+fn main() {
+    mut i32 x = 0;
+    &mut i32 rx = &mut x;
+    take_ref_mut(&mut rx); // fine, mutates thru rx
+
+    mut i32 y = 0;
+    &mut i32 ry = &mut y; // oops, could be &i32
+    take_ref(&ry);
+
+    &mut var rrx = &mut rx; // oops, never used (but not warning mut since the ununsed is more concerning)
+}

@@ -1,0 +1,15 @@
+// tests/hir/b54.br
+
+fn main() {
+    mut i32 _; // warn 
+}
+
+contract TakeMut {
+    fn foo(mut i32 a);
+}
+
+struct A has TakeMut {
+    fn foo(mut i32 _) { //fine
+        mut i32 a; // warn
+    } 
+}
