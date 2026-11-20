@@ -301,6 +301,9 @@ enum class diag_code : uint16_t {
     todo_here_colon,
     is_declared_mut_but_is_never_mutated,
     remove_unneeded_mut_qualifier,
+    cannot_find_main_function,
+    declare_a_main_function_in_the_top_level_namespace,
+    pass_lib_to_build_as_a_library,
 
     count, // this must be last,
 

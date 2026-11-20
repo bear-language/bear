@@ -136,23 +136,24 @@ br_test_result_t test_parser(void) {
 br_test_result_t test_hir(void) {
     TEST_INIT("hir");
 
-    char* hir_args[] = {"bearc", "-I", "tests/lib", "--check"};
+    char* hir_args[] = {"bearc", "-I", "tests/lib", "--check", "--lib"};
     TEST_SET_ARGS(hir_args);
 
-    char* args1[] = {"bearc", "07.br", "-I", "tests/hir", "--check"};
+    char* args1[] = {"bearc", "07.br", "-I", "tests/hir", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args1, 0);
     ASSERT_EQ_ERR("hir/07", 5);
-    char* args3[] = {"bearc", "tests/hir/04.br", "--compile", "--import-path", ".", "--check"};
+    char* args3[]
+        = {"bearc", "tests/hir/04.br", "--compile", "--import-path", ".", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args3, 10);
     char* args4[] = {"bearc", "tests/hir/00.br",      "--compile", "--import-path",
-                     ".",     "--warn-cyclic-import", "--check"};
+                     ".",     "--warn-cyclic-import", "--check",   "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args4, 2);
-    char* args5[]
-        = {"bearc", "-I", "tests/projects/00", "-c", "00.br", "--warn-cyclic-import", "--check"};
+    char* args5[] = {"bearc",   "-I",   "tests/projects/00", "-c", "00.br", "--warn-cyclic-import",
+                     "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGSN(args5, 8, 2);
-    char* args6[] = {"bearc", "-I", "tests/projects/01", "-c", "00.br", "--check"};
+    char* args6[] = {"bearc", "-I", "tests/projects/01", "-c", "00.br", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGSN(args6, 4, 2);
-    char* args7[] = {"bearc", "00.br", "-I", "tests/projects/02", "--check"};
+    char* args7[] = {"bearc", "00.br", "-I", "tests/projects/02", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGSN(args7, 12, 3);
     ASSERT_EQ_ERR("hir/09", 2);
     ASSERT_EQ_ERR("hir/10", 2);
@@ -172,7 +173,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/23", 4);
     ASSERT_EQ_ERR("hir/24", 2);
     ASSERT_EQ_ERR("hir/25", 10);
-    char* args26[] = {"bearc", "00.br", "-I", "tests/projects/03", "--check"};
+    char* args26[] = {"bearc", "00.br", "-I", "tests/projects/03", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGSN(args26, 10, 3);
     ASSERT_EQ_ERR("hir/26", 13);
     ASSERT_EQ_ERR("hir/27", 23);
@@ -235,7 +236,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/84", 12);
     ASSERT_EQ_ERR("hir/85", 37);
     ASSERT_EQ_ERR("hir/86", 0);
-    char* args87[] = {"bearc", "tests/hir/87.br", "-I", "tests/hir", "--check"};
+    char* args87[] = {"bearc", "tests/hir/87.br", "-I", "tests/hir", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args87, 16);
     ASSERT_EQ_ERR("hir/88", 7);
     ASSERT_EQ_ERR("hir/89", 4);
@@ -265,29 +266,29 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a13", 10);
     ASSERT_EQ_ERR("hir/a14", 10);
     ASSERT_EQ_ERR("hir/a15", 25);
-    char* args_a16[] = {"bearc", "tests/hir/a16.br", "-s", "--check"};
+    char* args_a16[] = {"bearc", "tests/hir/a16.br", "-s", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a16, 1);
-    char* args_a17[] = {"bearc", "tests/hir/a17.br", "-s", "--check"};
+    char* args_a17[] = {"bearc", "tests/hir/a17.br", "-s", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a17, 1);
-    char* args_a18[] = {"bearc", "tests/hir/a18.br", "-s", "--check"};
+    char* args_a18[] = {"bearc", "tests/hir/a18.br", "-s", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a18, 44);
-    char* args_a19[] = {"bearc", "tests/hir/a19.br", "-s", "-I", "tests/lib", "--check"};
+    char* args_a19[] = {"bearc", "tests/hir/a19.br", "-s", "-I", "tests/lib", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a19, 1);
-    char* args_a20[] = {"bearc", "tests/hir/a20.br", "-s", "--check"};
+    char* args_a20[] = {"bearc", "tests/hir/a20.br", "-s", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a20, 14);
-    char* args_a21[] = {"bearc", "tests/hir/a21.br", "-s", "-I", "tests/lib", "--check"};
+    char* args_a21[] = {"bearc", "tests/hir/a21.br", "-s", "-I", "tests/lib", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a21, 9);
-    char* args_a22[] = {"bearc", "tests/hir/a22.br", "-s", "--check"};
+    char* args_a22[] = {"bearc", "tests/hir/a22.br", "-s", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a22, 5);
-    char* args_a23[] = {"bearc", "tests/hir/a23.br", "-s", "--check"};
+    char* args_a23[] = {"bearc", "tests/hir/a23.br", "-s", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a23, 4);
-    char* args_a24[] = {"bearc", "tests/hir/a24.br", "-s", "--check"};
+    char* args_a24[] = {"bearc", "tests/hir/a24.br", "-s", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a24, 19);
-    char* args_a25[] = {"bearc", "tests/hir/a25.br", "-s", "--check"};
+    char* args_a25[] = {"bearc", "tests/hir/a25.br", "-s", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a25, 3);
-    char* args_a26[] = {"bearc", "tests/hir/a26.br", "-s", "--check"};
+    char* args_a26[] = {"bearc", "tests/hir/a26.br", "-s", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a26, 3);
-    char* args_a27[] = {"bearc", "tests/hir/a27.br", "-s", "--check"};
+    char* args_a27[] = {"bearc", "tests/hir/a27.br", "-s", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args_a27, 16);
     ASSERT_EQ_ERR("hir/a28", 12);
     ASSERT_EQ_ERR("hir/a29", 4);
@@ -347,7 +348,8 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a81", 604);
     ASSERT_EQ_ERR("hir/a82", 0);
     ASSERT_EQ_ERR("hir/a83", 9);
-    char* args04[] = {"bearc", "main.br", "-I", "tests/projects/04", "tests/lib", "--check"};
+    char* args04[]
+        = {"bearc", "main.br", "-I", "tests/projects/04", "tests/lib", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGSN(args04, 2, 3);
     ASSERT_EQ_ERR("hir/a84", 10);
     ASSERT_EQ_ERR("hir/a85", 2);
@@ -422,6 +424,8 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b54", 9);
     ASSERT_EQ_ERR("hir/b55", 5);
     ASSERT_EQ_ERR("hir/b56", 5);
+    char* args[] = {"bearc", "tests/hir/b57.br", "--check"};
+    ASSERT_EQ_ERR_FROM_ARGS(args, 3);
 
     return TEST_RESULT;
 }

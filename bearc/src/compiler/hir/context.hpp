@@ -894,6 +894,8 @@ class Context {
     [[nodiscard]] OptId<DefId> linear_name_match_in_def_slice(IdSlice<DefId> defs,
                                                               SymbolId name) const;
 
+    [[nodiscard]] OptId<DefId> find_main_function();
+
     /// tries to find a layout for a canonical type, but does not calculate anything if it's missing
     [[nodiscard]] OptId<LayoutId> try_layout_for_canon_type(CanonicalTypeId canon_tid) const;
 
@@ -1024,6 +1026,8 @@ class Context {
     [[nodiscard]] OptId<ExecId> try_fetch_cached_statics_of(DefId did) const;
     void insert_members_of(DefId did, ExecId eid);
     void insert_statics_of(DefId did, ExecId eid);
+
+    [[nodiscard]] static constexpr FileId root_file() { return FileId{1}; }
 
   private:
     // containers:
@@ -1289,6 +1293,9 @@ class Context {
     /// note: `infer_type_from_exec` is what should be used since that properly internally caches
     /// types
     [[nodiscard]] OptId<TypeId> do_type_inference_from_exec(ExecId eid);
+
+    /// true on failure, else false
+    bool ensure_has_main_if_exe_build();
 };
 
 } // namespace hir

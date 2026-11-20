@@ -47,7 +47,11 @@ class Span {
     [[nodiscard]] Span(const Context& ctx, FileId file_id, const token_t* tkn);
     [[nodiscard]] static std::string_view retrieve_from_buffer(const char* data, Span span);
     [[nodiscard]] std::string_view as_sv(const Context& context) const;
-    [[nodiscard]] static Span generated();
+    [[nodiscard]] static constexpr Span generated() {
+        return Span{0, 0, FileId{HIR_ID_NONE}, 0, 0};
+    }
+    [[nodiscard]] static constexpr Span start_of_file(FileId fid) { return Span{0, 1, fid, 0, 0}; }
+    [[nodiscard]] static Span entire_file(Context& context, FileId fid);
     [[nodiscard]] bool is_generated() const { return file_id.raw() == HIR_ID_NONE; };
     [[nodiscard]] static Span combine(Span span1, Span span2);
     [[nodiscard]] static Span find_between_tokens(const Context& ctx, FileId fid, const token_t* t1,

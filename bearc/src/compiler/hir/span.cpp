@@ -63,7 +63,6 @@ Span::Span(const Context& ctx, FileId file_id, const token_t* tkn)
 
 Span::Span(const Context& ctx, FileId file_id, token_ptr_slice_t token_slice)
     : Span(ctx, file_id, token_slice.start[0], token_slice.start[token_slice.len - 1]) {}
-Span Span::generated() { return Span{0, 0, FileId{HIR_ID_NONE}, 0, 0}; }
 
 Span Span::combine(Span span1, Span span2) {
     if (span1.file_id != span2.file_id) {
@@ -123,6 +122,12 @@ void Span::extend_n(const Context& ctx, HirSize n) {
         return;
     }
     len += n;
+}
+
+Span Span::entire_file(Context& context, FileId fid) {
+    const auto& ast = context.ast(fid);
+    const auto len = ast.src()->src_len;
+    return Span(0, len, fid, 0, 0);
 }
 
 } // namespace hir

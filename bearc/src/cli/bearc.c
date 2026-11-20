@@ -63,6 +63,11 @@ int bearc_compile_from_args(int argc, char** argv) {
         err = true;
     }
 
+    if (args.flags[CLI_FLAG_LIB] && args.flags[CLI_FLAG_EXE]) {
+        do_cli_announce_incompatible_flags();
+        err = true;
+    }
+
     // no compilation options
     if (args.flags[CLI_FLAG_HELP]) {
         if (!cli_args_otherwise_empty(&args, CLI_FLAG_HELP)) {
@@ -148,6 +153,8 @@ void cli_help(void) {
           "        --warn-cyclic-import issue a warning when a file imports cyclically\n"
           "        --all-src-locs, -a   show all source code locations, even in chained "
           "diagnostics\n"
+          "        --lib                build as library\n"
+          "        --exe                build as executable: default, requires main()\n"
           "        --dump-hir           print out high-level intermediate representation\n\n";
     const char* flags_w_args_title = "flags with arguments:\n";
     const char* flags_w_args

@@ -1,0 +1,46 @@
+// tests/hir/b57.br
+
+// this isn't main
+fn pain() -> i32 {
+    return 0;
+}
+
+var main = 32; // not a func
+
+fn beeg() {
+    for var i in 0...1000000 {
+        for compt var i in [1, 2, 3, 4, 5] {
+            var _ = foo(i);
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+            boo();
+        }
+    }
+}
+
+fn foo(i32 a) -> i32 => a
+fn boo() {;}

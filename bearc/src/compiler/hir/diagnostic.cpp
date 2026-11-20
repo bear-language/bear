@@ -602,6 +602,12 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "is declared `mut` but is never mutated";
     case diag_code::remove_unneeded_mut_qualifier:
         return "remove unneeded `mut` qualifier";
+    case diag_code::cannot_find_main_function:
+        return "cannot find `main` function";
+    case diag_code::declare_a_main_function_in_the_top_level_namespace:
+        return "declare a `main()` function in the top level namespace";
+    case diag_code::pass_lib_to_build_as_a_library:
+        return "pass `--lib` to build as a library";
     }
 
     std::unreachable();

@@ -276,6 +276,9 @@ Context::Context(const bearc_args_t& args, instances instances,
             }
         }
     }
+
+    // fairly important
+    ensure_has_main_if_exe_build();
 }
 
 bool Context::should_warn_as_unused(DefId did) const {
@@ -3394,6 +3397,10 @@ OptId<LayoutId> Context::try_layout_for_canon_type(CanonicalTypeId canon_tid) co
     return canon_type_ids_to_layout_ids.at(canon_tid);
 }
 
+OptId<DefId> Context::find_main_function() {
+    return look_up_variable(root_scope(), symbol_id<"main">());
+}
+
 LayoutId Context::layout_id_for_type(TypeId tid) {
     return find_or_calculate_layout_for_type(*this, tid);
 }
@@ -4753,5 +4760,24 @@ OptId<ExecId> Context::try_fetch_cached_statics_of(DefId did) const {
 }
 void Context::insert_members_of(DefId did, ExecId eid) { cached_members_of.insert(did, eid); }
 void Context::insert_statics_of(DefId did, ExecId eid) { cached_statics_of.insert(did, eid); }
+
+bool Context::ensure_has_main_if_exe_build() {
+    if (!args.flags[CLI_FLAG_LIB]) {
+        const auto maybe_main = find_main_function();
+        if (maybe_main.empty() || !def(maybe_main.as_id()).holds<DefFunction>()) {
+            DiagLinker dl{*this};
+            dl.link(emplace_diagnostic(Span::entire_file(*this, root_file()),
+                                       diag_code::cannot_find_main_function, diag_type::error));
+            dl.link(emplace_diagnostic(
+                Span::generated(), diag_code::declare_a_main_function_in_the_top_level_namespace,
+                diag_type::help));
+            dl.link(emplace_diagnostic(Span::generated(), diag_code::pass_lib_to_build_as_a_library,
+                                       diag_type::help));
+            return true;
+        }
+        // TODO: ensure correct params
+    }
+    return false;
+}
 
 } // namespace hir

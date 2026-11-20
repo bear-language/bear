@@ -1,8 +1,6 @@
 ### todos
 
 #### priority
-- [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
-    - [ ] just find main thru top-level scope; only require it in non-lib build
 - [ ] fix array to slice conversions for runtime solving
 
 #### function body resolution / runtime eval:
@@ -57,13 +55,14 @@
     - [ ] `.start` / `.end` access for builtin ranges `...` & `...=`, figure out how to handle inclusivity here
     - [ ] impl proper runtime Exec hashing so parallel match/if-else branches can be hashed and compared for duplicativity
 
+- [ ] better main 
+    - [ ] detect/report wrong parameters for main
+    - [ ] resolve empty args vs. `[&]str args` or something similar
+    - [ ] juicy? or maybe just a bit juicy
+
 - [ ] function purity recording, see TODO in `may_have_side_effects`
     - [ ] automatic detection 
     - [ ] enforce user defined `pure` functions (new keyword)
-
-- [ ] tighten up mention/mutation tracking 
-    - improve/fix `unused variable: foo` diagnostics (for non top-levels)
-    - add `foo is never mutated, consider not declaring as mutable`
 
 - [ ] handle debug-build dependent panicking on array/slice out-of-boundss 
 
