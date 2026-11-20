@@ -133,17 +133,19 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
     if (maybe_tid.empty() || context.type_is_copyable(maybe_tid.as_id())) {
         return eid;
     }
-    const Span span = context.exec(eid).span;
-    if (!context.exec(eid).holds<ExecVariable>()) {
+    const Exec& exec = context.exec(eid);
+    const Span span = exec.span;
+    const auto maybe_did = context.try_def_for_exec(eid);
+    if (!exec.holds<ExecVariable>() && !exec.holds<ExecAssignment>()) {
         context.emplace_diagnostic_with_message_value(
             span,
-            context.exec(eid).holds<ExecDeref>()
+            exec.holds<ExecDeref>()
                 ? diag_code::cannot_move_out_of_a_dereferenced_value_of_non_copyable_type
                 : diag_code::cannot_move_out_of_a_member_or_element_of_non_copyable_type,
             diag_type::error, DiagnosticTypeAfterMessage{.tid = maybe_tid.as_id()});
         return {};
     }
-    const DefId did = context.exec(eid).as<ExecVariable>().def_id;
+    const DefId did = maybe_did.as_id();
     const ExecId move_eid = context.emplace_exec(ExecMove{.moved_def = did, .exec = eid}, span);
     context.move_map(lctx.map).insert(did, move_eid);
     return move_eid;
@@ -1910,9 +1912,9 @@ bool RuntimeSolver::decompose_variant(FileId fid, LexicalCtx branch_lctx, InProg
         block.push_back_def(did);
         locals.push_back(did);
         block.push_back_exec(context.emplace_exec(
-            ExecAssignment{
-                .lhs = context.emplace_exec(ExecVariable{.def_id = did, .type_id = tid}, span),
-                .rhs = rhs_eid},
+            ExecAssignment{.lhs = context.mark_as_mutated(context.emplace_exec(
+                               ExecVariable{.def_id = did, .type_id = tid}, span)),
+                           .rhs = rhs_eid},
             span));
     }
     if (ok && moves_variant) {
@@ -1934,8 +1936,11 @@ OptId<ExecId> RuntimeSolver::handle_borrow(FileId fid, LexicalCtx lctx, const as
         return {};
     }
 
-    return try_checked_borrow(context, maybe_inner_eid.as_id(), expr->expr.borrow.mut,
-                              Span{context, fid, expr});
+    return try_checked_borrow(context,
+                              expr->expr.borrow.mut
+                                  ? context.mark_as_mutated(maybe_inner_eid.as_id())
+                                  : maybe_inner_eid.as_id(),
+                              expr->expr.borrow.mut, Span{context, fid, expr});
 }
 
 OptId<ExecId> RuntimeSolver::handle_addr_of(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
@@ -2153,7 +2158,7 @@ OptId<ExecId> RuntimeSolver::handle_inc_dec(FileId fid, LexicalCtx lctx, const a
     if (maybe_lhs_eid.empty()) {
         return {};
     }
-    const ExecId lhs_eid = maybe_lhs_eid.as_id();
+    const ExecId lhs_eid = context.mark_as_mutated(maybe_lhs_eid.as_id());
 
     const Span lhs_span = context.exec(lhs_eid).span;
 
@@ -2301,6 +2306,7 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
     if (maybe_lhs_eid.empty()) {
         return {};
     }
+    context.mark_as_mutated(maybe_lhs_eid.as_id());
     const auto maybe_lhs_tid = infer_type_from_exec(maybe_lhs_eid.as_id());
     if (maybe_lhs_tid.empty()) {
         return {};
@@ -2425,6 +2431,7 @@ OptId<ExecId> RuntimeSolver::handle_assign(FileId fid, LexicalCtx lctx, const as
                                                            .yield_old = false},
                                     Span{context, fid, expr});
     }
+
     return context.emplace_exec(
         ExecAssignment{.lhs = maybe_lhs_eid.as_id(), .rhs = maybe_rhs_eid.as_id()},
         Span{context, fid, expr});
@@ -2528,8 +2535,10 @@ OptId<ExecId> RuntimeSolver::handle_is(FileId fid, LexicalCtx lctx, const ast_ex
             decomp_target->outer_block.push_back_def(tmp_did);
             scrutinee_eid = context.emplace_exec(
                 ExecVariable{.def_id = tmp_did, .type_id = lhs_tid}, lhs_span);
-            decomp_target->outer_block.push_back_exec(context.emplace_exec(
-                ExecAssignment{.lhs = scrutinee_eid, .rhs = maybe_consumed_eid.as_id()}, lhs_span));
+            decomp_target->outer_block.push_back_exec(
+                context.emplace_exec(ExecAssignment{.lhs = context.mark_as_mutated(scrutinee_eid),
+                                                    .rhs = maybe_consumed_eid.as_id()},
+                                     lhs_span));
         }
         if (!decompose_variant(fid, decomp_target->then_lctx, decomp_target->then_block,
                                pattern_expr, hopefully_var_field, scrutinee_eid)) {
@@ -3364,9 +3373,9 @@ DefId RuntimeSolver::emplace_hidden_local(InProgressBlock& block, SymbolId name,
     block.push_back_def(did);
     if (maybe_init_eid.has_value()) {
         block.push_back_exec(context.emplace_exec(
-            ExecAssignment{
-                .lhs = context.emplace_exec(ExecVariable{.def_id = did, .type_id = tid}, span),
-                .rhs = maybe_init_eid.as_id()},
+            ExecAssignment{.lhs = context.mark_as_mutated(context.emplace_exec(
+                               ExecVariable{.def_id = did, .type_id = tid}, span)),
+                           .rhs = maybe_init_eid.as_id()},
             span));
     }
     return did;
@@ -3464,9 +3473,9 @@ bool RuntimeSolver::bind_for_each_var(FileId fid, LexicalCtx body_lctx, InProgre
     // push_back regardless of `ok` to minimize cascades
     if (maybe_rhs_eid.has_value()) {
         prelude.push_back_exec(context.emplace_exec(
-            ExecAssignment{
-                .lhs = context.emplace_exec(ExecVariable{.def_id = did, .type_id = tid}, span),
-                .rhs = maybe_rhs_eid.as_id()},
+            ExecAssignment{.lhs = context.mark_as_mutated(context.emplace_exec(
+                               ExecVariable{.def_id = did, .type_id = tid}, span)),
+                           .rhs = maybe_rhs_eid.as_id()},
             span));
     }
     return ok;
@@ -3653,7 +3662,7 @@ OptId<ExecId> RuntimeSolver::solve_range_for_in(FileId fid, LexicalCtx lctx, InP
             InProgressBlock else_block{};
             else_block.push_back_exec(context.emplace_exec(
                 ExecAssignment{
-                    .lhs = go_var(),
+                    .lhs = context.mark_as_mutated(go_var()),
                     .rhs = context.emplace_compt_exec(ExecConst{ConstantValue{false}}, range_span)},
                 range_span));
             prelude.push_back_exec(context.emplace_exec(

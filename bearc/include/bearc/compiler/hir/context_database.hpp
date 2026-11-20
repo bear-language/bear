@@ -159,11 +159,20 @@ class ContextDatabase {
     /// gets the string of an interned symbol
     [[nodiscard]] std::string_view symbol(hir::SymbolId sid) const;
 
+    /// gets the string of an interned symbol, through an index into a symbol slice
+    [[nodiscard]] std::string_view symbol(hir::IdIdx<hir::SymbolId> sididx) const;
+
     /// gets a pretty preview for an hir::Def
     /// note: does not have a trailing newline
     [[nodiscard]] std::string pretty_preview_for_def(hir::DefId did,
                                                      hir::string_preview_mode preview_mode
                                                      = hir::string_preview_mode::ticks_bear);
+
+    // make a pretty type string (doesn't exapnd deftypes)
+    [[nodiscard]] std::string type_to_string_as_mentioned(hir::TypeId tid);
+
+    // make a pretty type string (expands deftypes)
+    [[nodiscard]] std::string type_to_string_canonical(hir::TypeId tid);
 
   private:
     std::unique_ptr<const bearc_args> args;

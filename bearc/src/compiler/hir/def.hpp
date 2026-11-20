@@ -77,6 +77,9 @@ struct DefFunctionPrototype {
 struct DefVariable {
     TypeId type_id;
     OptId<ExecId> compt_value{};
+    // to supress uneeded warnings when functions are just tryna satisfy some gosh darn contracts in
+    // peace
+    bool allow_needless_mut{};
 };
 
 struct DefStruct {

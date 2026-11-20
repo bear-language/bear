@@ -3,7 +3,7 @@
 #### priority
 - [ ] handle existence of main / lack of existence (have a `--lib`/`-l` flag to compile as a lib) 
     - [ ] just find main thru top-level scope; only require it in non-lib build
-- [ ] warn var unnecessarily declared mut (if a function is just trying to meet contract compliance don't warn, although this is tricky)
+- [ ] fix array to slice conversions for runtime solving
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s

@@ -299,6 +299,7 @@ enum class diag_code : uint16_t {
     did_you_mean_to_use_dot_dot,
     todo_here,
     todo_here_colon,
+    is_declared_mut_but_is_never_mutated,
 
     count, // this must be last,
 

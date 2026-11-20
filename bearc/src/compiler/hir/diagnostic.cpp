@@ -598,6 +598,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "unresolved todo here";
     case diag_code::todo_here_colon:
         return "unresolved todo here:";
+    case diag_code::is_declared_mut_but_is_never_mutated:
+        return "is declared `mut` but is never mutated";
     }
 
     std::unreachable();

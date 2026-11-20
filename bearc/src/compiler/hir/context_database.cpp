@@ -203,6 +203,20 @@ bool ContextDatabase::file_is_intrinsic(FileId fid) const { return ctx->file_is_
 
 std::string_view ContextDatabase::symbol(SymbolId sid) const { return ctx->symbol(sid); }
 
+std::string_view ContextDatabase::symbol(IdIdx<SymbolId> sididx) const {
+    return ctx->symbol(ctx->symbol_id(sididx));
+}
+
 std::string ContextDatabase::pretty_preview_for_def(DefId did, string_preview_mode preview_mode) {
     return def_to_pretty_string_preview(*ctx, did, preview_mode);
+}
+
+// make a pretty type string (doesn't exapnd deftypes)
+std::string ContextDatabase::type_to_string_as_mentioned(hir::TypeId tid) {
+    return ::type_to_string_as_mentioned(*ctx, tid);
+}
+
+// make a pretty type string (expands deftypes)
+std::string ContextDatabase::type_to_string_canonical(hir::TypeId tid) {
+    return type_to_string(*ctx, tid);
 }

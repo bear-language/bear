@@ -32,6 +32,6 @@ compt u64 a = 2000000000000000000000000000000000000000000000000; // too big (flo
 compt i32 b = 20.0; // floating to integer no good 
 compt u64 c = 2000000000000000000; // fine
 
-compt mut u64 aa = 185;
+compt mut u64 aa = 185; // oops
 
 compt i64 fooooooooooooooooooooooooooooooooooooooooooooooooooooooo = "foo"; // long

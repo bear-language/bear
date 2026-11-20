@@ -312,6 +312,10 @@ DefId DefVisitor::resolve_def(DefId did) {
         // defs
         for (auto didx = ordered_defs.begin(); didx != ordered_defs.end(); didx++) {
             visit_as_dependent(context.def_id(didx));
+            Def& def = context.def(didx);
+            if (def.holds<DefVariable>()) {
+                def.as<DefVariable>().allow_needless_mut = true; // since the is handled seperately
+            }
         }
         // record each static member/sub-def to ensure it eventually gets lowered. Avoid lowering it
         // now because that could lead to unnecessary circular def issues
@@ -395,7 +399,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         };
 
         for (auto didx = params.begin(); didx != params.end(); didx++) {
-            const Def& param_def = context.def(didx);
+            Def& param_def = context.def(didx);
             assert(param_def.holds<DefVariable>());
 
             // guard run-time func with `var` typed params
@@ -410,6 +414,7 @@ DefId DefVisitor::resolve_def(DefId did) {
                 context.link_diagnostic(d0, d1);
             }
             context.promote_mention_state_of(context.def_id(didx), Def::mention_state::used);
+            param_def.as<DefVariable>().allow_needless_mut = true;
             type_vec.push_back(param_def.as<DefVariable>().type_id);
         }
 
@@ -509,7 +514,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         const bool func_is_runtime = !context.def(did).compt;
 
         for (auto didx = params.begin(); didx != params.end(); didx++) {
-            const Def& param_def = context.def(didx);
+            Def& param_def = context.def(didx);
             assert(param_def.holds<DefVariable>());
 
             if (didx == params.begin() && !takes_self && parent_is_struct(context, context.def(did))
@@ -536,6 +541,7 @@ DefId DefVisitor::resolve_def(DefId did) {
             if (def.compt) {
                 context.promote_mention_state_of(context.def_id(didx), Def::mention_state::used);
             }
+            param_def.as<DefVariable>().allow_needless_mut = true;
             type_vec.push_back(param_def.as<DefVariable>().type_id);
         }
 

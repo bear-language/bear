@@ -269,6 +269,7 @@ Context::Context(const bearc_args_t& args, instances instances,
             if (mention_state_of(did) == Def::mention_state::unused) {
                 try_warn_unused(did);
             }
+            try_warn_unnecessarily_declared_mut(did);
         }
     }
 }
@@ -276,6 +277,47 @@ Context::Context(const bearc_args_t& args, instances instances,
 bool Context::should_warn_as_unused(DefId did) const {
     const Def& def = this->def(did);
     return !starts_with_underscore(def.name) && !is_top_level(did) && !is_intrinsic(did);
+}
+
+bool Context::try_warn_unnecessarily_declared_mut(DefId did) {
+    const Def& def = this->def(did);
+
+    // no need to check || poisoned
+    if (!def.holds<DefVariable>() || def.compt) {
+        return false;
+    }
+
+    const DefVariable var = def.as<DefVariable>();
+
+    const bool never_mutated = mention_state_of(did) != Def::mention_state::used_and_mutated;
+
+    const bool allows_needless_mut = var.allow_needless_mut;
+
+    const Type& ty = type(var.type_id);
+
+    if (ty.mut && never_mutated && !allows_needless_mut) {
+        DiagLinker dl{*this};
+        dl.link(emplace_diagnostic_with_message_value(
+            def.span, diag_code::is_declared_mut_but_is_never_mutated, diag_type::warning,
+            DiagnosticSymbolBeforeMessage{.sid = def.name}));
+        dl.link(emplace_diagnostic_with_message_value(
+            ty.span, diag_code::replace_with, diag_type::help,
+            DiagnosticTypeAfterMessage{.tid = ty.holds<TypeBuiltin>()
+                                                  ? type_for_builtin(ty.as<TypeBuiltin>().type)
+                                                  : emplace_type(ty.value, ty.span, false)}));
+
+        return true;
+    }
+    return false;
+}
+
+ExecId Context::mark_as_mutated(ExecId eid) {
+    const auto maybe_did = try_def_for_exec(eid);
+    if (maybe_did.empty()) {
+        return eid;
+    }
+    promote_mention_state_of(maybe_did.as_id(), Def::mention_state::mutated);
+    return eid;
 }
 
 void Context::do_warn_unused(DefId did) {
@@ -3295,6 +3337,7 @@ OptId<DefId> Context::try_def_for_exec(ExecId eid) const {
         [this](const ExecDeref& e) -> OptId<DefId> { return try_def_for_exec(e.dereferenced); },
         [this](const ExecBorrow& e) -> OptId<DefId> { return try_def_for_exec(e.borrowee); },
         [this](const ExecMemberAccess& e) -> OptId<DefId> { return try_def_for_exec(e.owner); },
+        [this](const ExecAssignment& e) -> OptId<DefId> { return try_def_for_exec(e.lhs); },
         [this](const ExecSubscript& e) -> OptId<DefId> { return try_def_for_exec(e.base); },
         [this](const ExecFnCall& e) -> OptId<DefId> { return try_def_for_exec(e.callee); },
         [](const ExecFnPtr& e) -> OptId<DefId> { return e.func_def_id; },
@@ -4648,10 +4691,10 @@ std::string Context::pretty_preview_for_def(DefId did, string_preview_mode previ
             }
             return is_lvalue(e.base);
         },
+        [this](const ExecAssignment& e) -> bool { return is_lvalue(e.lhs); },
         // TODO: these *should* be handled by auto-dereferencing of reference types, otherwise
         // handle specially
         [](const ExecFnCall&) -> bool { return false; },
-        [](const ExecAssignment&) -> bool { return false; },
         [](const ExecBinary&) -> bool { return false; },
         [](const ExecUnary&) -> bool { return false; },
         // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

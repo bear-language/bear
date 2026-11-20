@@ -7,3 +7,5 @@
 compt [&mut]i32 _2 = [0, 1, 2]; // oops
 
 compt [&] mut i32 _3 = [0, 1, 2]; // oops
+
+fn main() {;}

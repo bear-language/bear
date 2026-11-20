@@ -134,6 +134,11 @@ class Context {
     /// true on should, else false
     [[nodiscard]] bool should_warn_as_unused(DefId did) const;
 
+    bool try_warn_unnecessarily_declared_mut(DefId did);
+
+    // tries to mark as mutated, always returns the same ExecId that was passed in
+    ExecId mark_as_mutated(ExecId eid);
+
     void do_warn_unused(DefId did);
 
     /// true on warned, else false
@@ -674,6 +679,9 @@ class Context {
     [[nodiscard]] const Def& def(DefId id) const { return defs.at(id); }
 
     [[nodiscard]] const Def& def(IdIdx<DefId> id) const { return defs.at(def_ids.at(id)); }
+
+    [[nodiscard]] Def& def(IdIdx<DefId> id) { return defs.at(def_ids.at(id)); }
+
     /// try to get a struct DefId, bypassing deftypes
     [[nodiscard]] OptId<DefId> ensure_struct_def(DefId did) const;
 

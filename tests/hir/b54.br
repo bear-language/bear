@@ -18,4 +18,5 @@ fn fine1(i32 _, i32 _, i32 _) {;}
 fn oops1() {
     void a; // warn 
     void _;
+    void b = a;
 }

@@ -1276,8 +1276,9 @@ template <IsExprSolver Solver>
                 = context.type(context.def(params.get(0)).as<DefVariable>().type_id);
             if (self_param_ty.holds<TypeRef>()) {
                 const ExecId self_eid = out_args[0];
-                const auto maybe_borrow = try_checked_borrow(context, self_eid, self_param_ty.mut,
-                                                             context.exec(self_eid).span);
+                const auto maybe_borrow = try_checked_borrow(
+                    context, self_param_ty.mut ? context.mark_as_mutated(self_eid) : self_eid,
+                    self_param_ty.mut, context.exec(self_eid).span);
                 if (maybe_borrow.empty()) {
                     issue = true;
                 } else {
