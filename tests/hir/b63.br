@@ -1,0 +1,75 @@
+// tests/hir/b63.br
+
+// testing variant deduction guides on variant field inits
+
+fn main() {;}
+
+variant Maybe<T> {
+    Some(T val),
+    None,
+}
+
+variant Both<A, B> {
+    Pair(A a, B b),
+    Flipped(B b, A a),
+    Neither,
+}
+
+variant Either<L, R> {
+    Left(L l),
+    Right(R r),
+}
+
+variant Same<T> {
+    Two(T a, T b),
+}
+
+struct Box<T> {
+    T val;
+}
+
+variant Wrap<T> {
+    Boxed(Box<T> inner),
+}
+
+compt var o0 = Maybe..Some(1);
+var _0 = @static_assert @same_type(typeof o0, Maybe<i32>);
+
+compt var o1 = Maybe..Some(1 as u8);
+var _1 = @static_assert @same_type(typeof o1, Maybe<u8>);
+var _2 = @static_assert match o1 {
+    Some => true,
+    None => false,
+};
+
+compt var b0 = Both..Pair('c', true);
+var _3 = @static_assert @same_type(typeof b0, Both<char, bool>);
+
+compt var b1 = Both..Flipped(true, 'c'); // params in a different order than the generic params
+var _4 = @static_assert @same_type(typeof b1, Both<char, bool>);
+
+compt var w0 = Wrap..Boxed(Box{.val = 2 as i64}); // nested, w/ a deduced struct init
+var _5 = @static_assert @same_type(typeof w0, Wrap<i64>);
+
+compt var s0 = Same..Two(1, 2);
+var _6 = @static_assert @same_type(typeof s0, Same<i32>);
+
+compt var e0 = Maybe..Some::<u16>(3); // explicit args still work
+var _7 = @static_assert @same_type(typeof e0, Maybe<u16>);
+
+compt Maybe<i32> i0 = Maybe..Some(4);
+
+fn runtime(i32 x, str s) {
+    Maybe<i32> _0 = Maybe..Some(x);
+    var _1 = Both..Pair(s, x);
+    Both<str, i32> _2 = _1;
+}
+
+fn oops(i32 x, str s) {
+    var _0 = Same..Two(x, s); // oops, T deduced as i32 from the first arg
+    var _1 = Either..Left(x); // oops, R isn't deducible from Left
+    var _2 = Maybe..None(); // oops, nothing to deduce from
+    Maybe<i64> _3 = Maybe..Some(x); // oops, into type gives Maybe<i64>, and x is an i32
+    var _4 = Maybe..Some(nope); // oops, undeclared (and no cascading deduction error)
+    var _5 = Maybe..Nope(x); // oops, not a field of Maybe
+}

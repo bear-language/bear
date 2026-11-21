@@ -1,0 +1,65 @@
+// tests/hir/b64.br
+
+// testing generic deduction from the into type for fn calls and variant inits
+
+fn main() {;}
+
+variant Maybe<T> {
+    Some(T val),
+    None,
+}
+
+variant Other<T> {
+    None,
+}
+
+struct Box<T> {
+    T val;
+}
+
+fn none<T>() -> Maybe<T> => Maybe..None::<T>()
+
+fn zero<T>() -> T => 0
+
+fn boxed_zero<T>() -> Box<T> => Box::<T>{.val = 0}
+
+fn id<T>(T a) -> T => a
+
+compt Maybe<i32> a = Maybe..None();
+var _0 = @static_assert @same_type(typeof a, Maybe<i32>);
+
+compt Maybe<u8> b = none();
+var _1 = @static_assert @same_type(typeof b, Maybe<u8>);
+
+compt Box<u16> c = boxed_zero(); // deduced through the return type's generic args
+var _2 = @static_assert c.val == 0;
+
+compt Maybe<Maybe<i8>> d = Maybe..Some(Maybe..None()); // into type flows into the nested init
+var _3 = @static_assert @same_type(typeof d, Maybe<Maybe<i8>>);
+
+compt Maybe<i64> e = Maybe..Some(1); // into type wins, so the literal converts
+var _4 = @static_assert @same_type(typeof e, Maybe<i64>);
+
+compt Box<u8> f = Box{.val = 1}; // same for struct inits
+var _5 = @static_assert @same_type(typeof f, Box<u8>);
+
+compt u64 g = id(1); // and fn calls
+var _6 = @static_assert @same_type(typeof g, u64);
+
+fn runtime(i32 x) {
+    Maybe<i64> _0 = Maybe..None();
+    Maybe<str> _1 = none();
+    u16 _2 = zero();
+    Maybe<i32> _3 = Maybe..Some(x);
+    i32 _4 = id(x);
+    var _5 = id(x); // no usable into type, so args deduce
+}
+
+fn oops(i32 x) {
+    Maybe<i32> _0 = Other..None(); // oops, into is a Maybe, not an Other
+    var _1 = Maybe..None(); // oops, nothing to deduce from
+    var _2 = none(); // oops, nothing to deduce from
+    Maybe<i64> _3 = Maybe..Some(x); // oops, into type gives Maybe<i64>, and x is an i32
+    i64 _4 = id(x); // oops, into type gives T = i64, and x is an i32
+    Opt<i32> _5 = Opt..None();
+}

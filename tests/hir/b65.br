@@ -1,0 +1,80 @@
+// tests/hir/b65.br
+
+// testing unprefixed variant field inits (w/ and w/o parens for unit fields) resolved through the
+// into type's variant scope
+
+fn main() {;}
+
+variant Maybe<T> {
+    Some(T val),
+    None,
+}
+
+variant Color {
+    Red,
+    Green,
+}
+
+struct Holder {
+    Maybe<i32> m;
+}
+
+fn takes_maybe(Maybe<i32> _m) {;}
+
+fn ret_none() -> Maybe<i32> => None()
+
+compt Maybe<i32> a = None();
+var _0 = @static_assert @same_type(typeof a, Maybe<i32>);
+
+compt Maybe<i32> b = Some(1);
+var _1 = @static_assert match b {
+    Some => true,
+    None => false,
+};
+
+compt Maybe<i64> c = Some(1); // the literal converts to the into type's T
+var _2 = @static_assert @same_type(typeof c, Maybe<i64>);
+
+compt Color d = Green(); // non-generic variants work too, w/o a `use`
+var _3 = @static_assert match d {
+    Red => false,
+    Green => true,
+};
+
+compt Maybe<Maybe<u8>> e = Some(None()); // the field's param type is the into type for the inner init
+var _4 = @static_assert @same_type(typeof e, Maybe<Maybe<u8>>);
+
+compt Maybe<i32> f = None; // unit fields don't need parens
+var _5 = @static_assert @same_type(typeof f, Maybe<i32>);
+
+compt Color g = Red;
+var _6 = @static_assert match g {
+    Red => true,
+    Green => false,
+};
+
+compt Maybe<Maybe<u8>> h = Some(None);
+var _7 = @static_assert @same_type(typeof h, Maybe<Maybe<u8>>);
+
+fn runtime(i32 x) {
+    Maybe<i32> _0 = Some(x);
+    Maybe<str> _1 = None();
+    takes_maybe(None()); // into type from a param
+    takes_maybe(Some(x));
+    var _2 = Holder{.m = Some(x)}; // into type from a struct field
+    Maybe<i32> _3 = ret_none();
+    Maybe<u8> _4 = None;
+    takes_maybe(None);
+    var _5 = Holder{.m = None};
+}
+
+fn oops() {
+    var _0 = None(); // oops, no into type to look in
+    Maybe<i32> _1 = Nope(); // oops, not a field of Maybe
+    i32 _2 = None(); // oops, into type isn't a variant
+    Maybe<i32> _3 = Some("s"); // oops, str isn't an i32
+    Maybe<i32> _4 = Some::<i32>(1); // oops, unprefixed generic args aren't looked up in the into type
+    Maybe<i32> _5 = Nope; // oops, not a field of Maybe
+    Maybe<i32> _6 = Some; // oops, Some needs a payload
+    i32 _7 = None; // oops, into type isn't a variant
+}
