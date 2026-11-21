@@ -616,6 +616,12 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "did you mean to cast?";
     case diag_code::raw_use_of_generic_contract:
         return "raw use of generic contract";
+    case diag_code::cannot_use_wildcard_for:
+        return "cannot `use` wildcard `*` for";
+    case diag_code::has_no_corresponding_scope:
+        return "has no corresponding scope";
+    case diag_code::cannot_use_variable:
+        return "cannot `use` variable";
     }
 
     std::unreachable();

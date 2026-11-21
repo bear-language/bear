@@ -159,6 +159,7 @@ typedef struct ast_stmt_import {
 typedef struct ast_stmt_use {
     token_ptr_slice_t id;
     bool mod;
+    bool wildcard;
 } ast_stmt_use_t;
 
 /// a statement expr, like `foo();`

@@ -1,0 +1,47 @@
+// tests/hir/b69.br
+
+compt var my_var = 0;
+compt fn my_func(var x) -> var => x
+
+fn main() {
+    use Vari..*;
+    use my_var..*; // oops
+    use my_func..*;
+    use foo..ben..my_pie;
+    use foo..bar..*;
+
+    compt var _ = foo..bar..my_guy;
+    compt var _ = my_guy;
+    compt var _ = my_pie;
+
+    A _; // oops
+    B _; // oops
+    C _; // oops
+
+    compt var _ = A;
+    compt var _ = B();
+    compt var _ = C();
+
+}
+
+variant Vari {
+    A,
+    B,
+    C,
+}
+
+mod foo {
+    mod bar {
+        fn my_guy(i32 x) -> i32 => (x+x)>>2
+    }
+    mod ben {
+        fn my_pie(i32 x) -> i32 => (x+x)>>2
+    }
+}
+
+mod baz {
+
+use foo..bar*; // oops
+use foo..bar**; // oopsx2
+
+}

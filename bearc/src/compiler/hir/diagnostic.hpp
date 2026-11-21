@@ -308,6 +308,9 @@ enum class diag_code : uint16_t {
     declare_a_main_function_in_the_top_level_namespace,
     pass_lib_to_build_as_a_library,
     did_you_mean_to_cast,
+    cannot_use_wildcard_for,
+    has_no_corresponding_scope,
+    cannot_use_variable,
 
     count, // this must be last,
 

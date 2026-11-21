@@ -851,10 +851,15 @@ ast_stmt_t* parse_stmt_use(parser_t* p) {
         return parser_sync_stmt(p);
     }
     use_stmt->stmt.use.mod = parser_match_token(p, TOK_MODULE);
-    token_ptr_slice_t id = parse_id_token_slice(p, TOK_SCOPE_RES);
+    token_ptr_slice_t id = parse_id_token_slice_until(p, TOK_SCOPE_RES, TOK_STAR);
     if (id.len == 0) {
         return parser_sync_stmt(p);
     }
+    bool wildcard = false;
+    if (parser_match_token(p, TOK_STAR)) {
+        wildcard = true;
+    }
+    use_stmt->stmt.use.wildcard = wildcard;
     use_stmt->stmt.use.id = id;
     use_stmt->first = use_tkn;
     token_t* term = parser_expect_token(p, TOK_SEMICOLON);

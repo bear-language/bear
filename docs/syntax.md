@@ -78,7 +78,7 @@
 - *TopLevelStatement*: 
     - | *ModuleDeclaration*: Visibility `mod` Identifier `;` | `{` TopLevelStatement(s) `}` 
     - | ImportStatement: `import` ExternalLanguage? -> PathLiteral `;` 
-    - | *UseStatement*: `use` `mod`? Identifier `;`
+    - | *UseStatement*: `use` `mod`? Identifier \[`..` `*`]? `;`
     - | *FunctionDeclaration*: Visibility `fn` Identifier GenericParams? `(` Parameters `)` [`->` Type]?  `;` | `{` BodyStatement(s) `}` | `=>` Expression | `=>` `{` Expression `}`
     - | GenericParams: `<` Identifier -> HasClause? `,` ... `>` 
         - *HasClause*: `has` `(` Contract `+`? Contract(s) `)`

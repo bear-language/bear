@@ -1020,6 +1020,10 @@ void pretty_print_stmt(const ast_stmt_t* stmt) {
         printf("identifier: ");
         print_id_slice(stmt->stmt.use.id);
         puts(",");
+        if (stmt->stmt.use.wildcard) {
+            print_op_from_type(TOK_SCOPE_RES);
+            print_op_from_type(TOK_STAR);
+        }
         printer_deindent();
         break;
     case AST_STMT_COMPT_MODIFIER:

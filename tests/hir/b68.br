@@ -2,8 +2,6 @@
 
 // testing compt closure eval and type inference + var/generic compt functions
 
-mod hir_b68 {
-
 fn main(){
     var _ = @static_assert Foo{}.foo(|Foo f| => f) == Foo{};
 
@@ -30,6 +28,4 @@ variant Vari {
     A,
     B,
     C
-}
-
 }

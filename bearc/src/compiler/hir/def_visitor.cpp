@@ -1255,12 +1255,14 @@ DefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId 
 
 void DefVisitor::resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* stmt) {
     assert(stmt->type == AST_STMT_USE);
-    Span span{context, fid, stmt};
-    auto use = stmt->stmt.use;
-    auto sid_slice = context.symbol_slice(use.id);
+    const Span span{context, fid, stmt};
+    const ast_stmt_use_t use = stmt->stmt.use;
+    const IdSlice<SymbolId> sid_slice = context.symbol_slice(use.id);
     // to be used as the name
     const token_t* last_symbol = use.id.start[use.id.len - 1];
-    Span id_span{span.file_id, context.ast(span.file_id).buffer(), use.id.start[0], last_symbol};
+    const Span id_span{span.file_id, context.ast(span.file_id).buffer(), use.id.start[0],
+                       last_symbol};
+    const bool wildcard = use.wildcard;
 
     // by default, look up a mod (a namespace). If `use mod` was NOT explicitly specified, then
     // look for a type only if a mod was NOT found. This statys in line with the "favor modules"
@@ -1279,7 +1281,14 @@ void DefVisitor::resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* s
         if (used_did.has_value()
             && !context.def(visit_and_resolve_if_needed(used_did.as_id()))
                     .holds_any_of<DefFunction, DefGenericFunction, DefFunctionPrototype>()) {
-            used_did = {};
+            DiagLinker dl{context};
+            dl.link(context.emplace_diagnostic_with_message_value(
+                span, diag_code::cannot_use_variable, diag_type::error,
+                DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice}));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                context.name_span_for_def(used_did.as_id()), diag_code::declared_here,
+                diag_type::note, DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice}));
+            return;
         }
     }
 
@@ -1339,13 +1348,44 @@ void DefVisitor::resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* s
         context.link_diagnostic(d1, d2);
         return;
     }
-    // insert base name into containing scope
-    if (used_mod) {
-        context.scope(scope).insert_namespace(context.symbol_id(last_symbol), used_did.as_id());
-    } else if (used_var) {
-        context.scope(scope).insert_variable(context.symbol_id(last_symbol), used_did.as_id());
+    if (wildcard) {
+        const auto maybe_scope
+            = used_var ? std::nullopt : context.try_scope_for_def(used_did.as_id());
+        if (maybe_scope.empty()) {
+            DiagLinker dl{context};
+            const Def& def = context.def(used_did.as_id());
+            dl.link(context.emplace_diagnostic(
+                id_span, diag_code::cannot_use_wildcard_for, diag_type::error,
+                DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice},
+                DiagnosticSubCode{.sub_code = diag_code::has_no_corresponding_scope}));
+            dl.link(context.emplace_diagnostic_with_message_value(
+                context.name_span_for_def(used_did.as_id()), diag_code::declared_here,
+                diag_type::note, DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice}));
+            return;
+        }
+        context.scope(maybe_scope.as_id())
+            .for_each_local_namespace([this, scope](ScopeIdMap::Entry e) {
+                context.scope(scope).insert_namespace(e.key(), e.val());
+            });
+        context.scope(maybe_scope.as_id()).for_each_local_type([this, scope](ScopeIdMap::Entry e) {
+            context.scope(scope).insert_type(e.key(), e.val());
+        });
+        context.scope(maybe_scope.as_id())
+            .for_each_local_variable([this, scope](ScopeIdMap::Entry e) {
+                if (context.def(visit_and_resolve_if_needed(e.val()))
+                        .holds_any_of<DefFunction, DefGenericFunction, DefFunctionPrototype>()) {
+                    context.scope(scope).insert_variable(e.key(), e.val());
+                }
+            });
     } else {
-        context.scope(scope).insert_type(context.symbol_id(last_symbol), used_did.as_id());
+        // insert base name into containing scope
+        if (used_mod) {
+            context.scope(scope).insert_namespace(context.symbol_id(last_symbol), used_did.as_id());
+        } else if (used_var) {
+            context.scope(scope).insert_variable(context.symbol_id(last_symbol), used_did.as_id());
+        } else {
+            context.scope(scope).insert_type(context.symbol_id(last_symbol), used_did.as_id());
+        }
     }
 }
 

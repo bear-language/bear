@@ -7,6 +7,7 @@
 
 #include "compiler/parser/parse_token_slice.h"
 #include "compiler/diagnostics/error_codes.h"
+#include "compiler/diagnostics/error_list.h"
 #include "compiler/parser/parser.h"
 #include "compiler/parser/token_eaters.h"
 #include "compiler/token.h"
@@ -46,5 +47,31 @@ token_ptr_slice_t parse_id_token_slice(parser_t* p, token_type_e divider) {
         spill_arr_ptr_push(&sarr, next);
     } while (!(divider == TOK_SCOPE_RES && scope_res_starts_a_range(p))
              && parser_match_token(p, divider));
+    return parser_freeze_token_ptr_slice(p, &sarr);
+}
+
+token_ptr_slice_t parse_id_token_slice_until(parser_t* p, token_type_e divider,
+                                             token_type_e until) {
+    spill_arr_ptr_t sarr;
+    spill_arr_ptr_init(&sarr);
+    if (!token_is_builtin_type_or_id(parser_peek(p)->type)) {
+        compiler_error_list_emplace(p->error_list, parser_peek(p), ERR_EXPECTED_IDENTIFER);
+        return parser_freeze_token_ptr_slice(p, &sarr);
+    }
+    do {
+        token_t* next = parser_eat(p);
+        if (!token_is_builtin_type_or_id(next->type)) {
+            compiler_error_list_emplace(p->error_list, parser_prev(p), ERR_EXPECTED_IDENTIFER);
+            break;
+        }
+        spill_arr_ptr_push(&sarr, next);
+
+        if (parser_peek_match(p, TOK_STAR)) {
+            compiler_error_list_emplace_expected_token(p->error_list, parser_peek(p),
+                                                       ERR_EXPECTED_TOKEN, TOK_SCOPE_RES);
+        }
+
+    } while (!(divider == TOK_SCOPE_RES && scope_res_starts_a_range(p))
+             && parser_match_token(p, divider) && !parser_peek_match(p, until));
     return parser_freeze_token_ptr_slice(p, &sarr);
 }
