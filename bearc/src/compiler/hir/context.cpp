@@ -214,7 +214,9 @@ Context::Context(const bearc_args_t& args, instances instances,
             FileAstVisitor visitor{*this, id};
             visitor.register_top_level_declarations();
         }
-        this->note_cnt += ast.diagnostic_count() - ast.error_count();
+        this->note_cnt += ast.count_of_type(DIAG_TYPE_NOTE);
+        this->warning_cnt += ast.count_of_type(DIAG_TYPE_WARNING);
+        this->help_cnt += ast.count_of_type(DIAG_TYPE_HELP);
         this->fatal_error_cnt += ast.error_count();
     }
     if (has_flag(CLI_FLAG_PARSE_ONLY) || (strict_syntax && error_count())) {
@@ -674,7 +676,7 @@ FileId Context::provide_root_file(const char* file_name) {
     return file_id;
 }
 
-FileId Context::file(SymbolId path_symbol) {
+FileId Context::file(SymbolId path_symbol, bool no_warn) {
     // check if file has already been requested
     OptId<FileId> maybe_file_id = symbol_id_to_file_id_map.at(path_symbol);
     if (maybe_file_id.has_value()) {
@@ -682,10 +684,11 @@ FileId Context::file(SymbolId path_symbol) {
     }
     // ****************** all lexing and parsing done in these two lines
     const char* maybe_overlay_src = try_overlay_src_for(path_symbol);
-    FileAstId ast_id = maybe_overlay_src
-                           ? this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol),
-                                                                maybe_overlay_src)
-                           : this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol));
+    FileAstId ast_id
+        = maybe_overlay_src
+              ? this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol),
+                                                   maybe_overlay_src, no_warn)
+              : this->file_asts.emplace_and_get_id(symbol_id_to_cstr(path_symbol), no_warn);
     // ^^^^^^^^^^^^^^^^^^
     FileId file_id = this->files.emplace_and_get_id(path_symbol, ast_id);
     // store this mapping for future detection
@@ -698,7 +701,7 @@ FileId Context::file(SymbolId path_symbol) {
     return file_id;
 }
 
-FileId Context::file_intrinsic(SymbolId name, const char* string_literal_src) {
+FileId Context::file_intrinsic(SymbolId name, const char* string_literal_src, bool no_warn) {
     // check if file has already been requested
     OptId<FileId> maybe_file_id = symbol_id_to_file_id_map.at(name);
     if (maybe_file_id.has_value()) {
@@ -706,7 +709,7 @@ FileId Context::file_intrinsic(SymbolId name, const char* string_literal_src) {
     }
     // ****************** all lexing and parsing done in this one line
     FileAstId ast_id
-        = this->file_asts.emplace_and_get_id(symbol_id_to_cstr(name), string_literal_src);
+        = this->file_asts.emplace_and_get_id(symbol_id_to_cstr(name), string_literal_src, no_warn);
     // ^^^^^^^^^^^^^^^^^^
     FileId file_id = this->files.emplace_and_get_id(name, ast_id);
     // store this mapping for future detection
@@ -805,6 +808,8 @@ variant Opt<T> {
 }
 mod std {
 use Opt;
+use Opt..Some;
+use Opt..None;
 }
         )";
     file_intrinsic(symbol_id(opt_name), opt_src);
@@ -856,9 +861,9 @@ FileId Context::file_parallel(SymbolId path_symbol) {
     return file_id;
 }
 
-FileId Context::file(std::filesystem::path& path) {
+FileId Context::file(std::filesystem::path& path, bool no_warn) {
     SymbolId symbol = symbol_id(path.c_str());
-    return file(symbol);
+    return file(symbol, no_warn);
 }
 FileAstId Context::emplace_ast(const char* file_name) {
     return this->file_asts.emplace_and_get_id(file_name);
@@ -3421,6 +3426,18 @@ void Context::put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_
 Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
                                           IdSlice<GenericParamId> gen_params) {
     return try_deduction_guide_for_params(stmt->params, gen_params);
+}
+
+[[nodiscard]] const ast_stmt_t* Context::find_generic_variant_field_decl(DefId generic_variant_did,
+                                                                         SymbolId field_sid) {
+    const ast_slice_of_stmts_t fields = def_ast_node(generic_variant_did)->stmt.variant_decl.fields;
+    for (size_t i = 0; i < fields.len; ++i) {
+        if (fields.start[i]->type == AST_STMT_VARIANT_FIELD_DECL
+            && symbol_id(fields.start[i]->stmt.variant_field_decl.name) == field_sid) {
+            return fields.start[i];
+        }
+    }
+    return nullptr;
 }
 
 [[nodiscard]] OptId<DeductionGuideId>

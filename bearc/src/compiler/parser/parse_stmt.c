@@ -548,8 +548,7 @@ ast_stmt_t* parse_stmt_top_level_decl(parser_t* p) {
         return parse_stmt_import(p);
     }
     if (parser_peek_match(p, TOK_USE)) {
-        compiler_error_list_emplace(p->error_list, parser_peek(p),
-                                    WARN_TOP_LEVEL_USE_CAN_POLLUTE_THE_GLOBAL_NAMESPACE);
+        parser_warn(p, parser_peek(p), WARN_TOP_LEVEL_USE_CAN_POLLUTE_THE_GLOBAL_NAMESPACE);
     }
     return parse_stmt_decl(p);
 }
@@ -572,7 +571,7 @@ ast_stmt_t* parse_stmt_decl(parser_t* p) {
     // error
     if (next_type == TOK_SEMICOLON) {
         if (!p->prev_discarded) {
-            compiler_error_list_emplace(p->error_list, parser_peek(p), NOTE_EXTRANEOUS_SEMICOLON);
+            parser_warn(p, parser_peek(p), NOTE_EXTRANEOUS_SEMICOLON);
             return parser_sync_stmt(p);
         }
         parser_eat(p); // consume lingering semicolon
@@ -1322,7 +1321,7 @@ ast_stmt_t* parse_stmt_var_or_fn_decl(parser_t* p) {
     // error
     if (next_type == TOK_SEMICOLON) {
         if (!p->prev_discarded) {
-            compiler_error_list_emplace(p->error_list, parser_peek(p), NOTE_EXTRANEOUS_SEMICOLON);
+            parser_warn(p, parser_peek(p), NOTE_EXTRANEOUS_SEMICOLON);
             return parser_sync_stmt(p);
         }
         parser_eat(p); // consume lingering semicolon

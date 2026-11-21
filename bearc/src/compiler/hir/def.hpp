@@ -145,6 +145,10 @@ struct DefGenericVariant {
     IdSlice<GenericParamId> generic_params;
 };
 
+struct DefGenericVariantField {
+    DefId generic_variant;
+};
+
 struct DefVariantField {
     /// pointing to DefVariables which containg type and name info
     ScopeId scope;
@@ -186,8 +190,8 @@ struct DefUnevaluated {};
 using DefValue
     = std::variant<DefModule, DefFunction, DefGenericFunction, DefFunctionPrototype, DefVariable,
                    DefStruct, DefGenericStruct, DefVariant, DefGenericVariant, DefVariantField,
-                   DefUnion, DefGenericContract, DefContract, DefDeftype, DefScopeWrapper,
-                   DefUnevaluated, DefMalformed>;
+                   DefGenericVariantField, DefUnion, DefGenericContract, DefContract, DefDeftype,
+                   DefScopeWrapper, DefUnevaluated, DefMalformed>;
 
 enum class abi_lang : uint8_t {
     bear = 0,

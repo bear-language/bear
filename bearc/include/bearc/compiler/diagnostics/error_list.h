@@ -60,6 +60,9 @@ size_t compiler_error_list_diagnostic_count(const compiler_error_list_t* list);
 /// check a compiler_error_list_t's err count
 size_t compiler_error_list_error_count(const compiler_error_list_t* list);
 
+/// count the diagnostics of a given type in a compiler_error_list_t
+size_t compiler_error_list_count_of_type(const compiler_error_list_t* list, error_diag_type_e type);
+
 /// base impl for diagnostic printing
 void print_diagnostic(const src_buffer_t* src_buffer, const char* start, size_t len, size_t line,
                       size_t col, const char* accent_color, const char* error_word,

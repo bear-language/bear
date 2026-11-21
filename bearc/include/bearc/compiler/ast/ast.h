@@ -29,7 +29,12 @@ typedef struct br_ast {
 
 br_ast_t ast_create_from_file(const char* file_name);
 
+br_ast_t ast_create_from_file_flag_no_warn(const char* file_name, bool no_warn);
+
 br_ast_t ast_create_from_string_literal(const char* name, const char* string_literal);
+
+br_ast_t ast_create_from_string_literal_flag_no_warn(const char* name, const char* string_literal,
+                                                     bool no_warn);
 
 void ast_destroy(br_ast_t* ast);
 

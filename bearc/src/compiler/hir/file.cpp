@@ -14,9 +14,10 @@
 #include "compiler/diagnostics/error_codes.h"
 namespace hir {
 
-FileAst::FileAst(const char* file_name) : ast(ast_create_from_file(file_name)) {}
-FileAst::FileAst(const char* file_name, const char* src_literal)
-    : ast(ast_create_from_string_literal(file_name, src_literal)) {}
+FileAst::FileAst(const char* file_name, bool no_warn)
+    : ast(ast_create_from_file_flag_no_warn(file_name, no_warn)) {}
+FileAst::FileAst(const char* file_name, const char* src_literal, bool no_warn)
+    : ast(ast_create_from_string_literal_flag_no_warn(file_name, src_literal, no_warn)) {}
 FileAst::~FileAst() {
     if (ast.file_stmt_root_node) {
         ast_destroy(&this->ast);
@@ -37,6 +38,9 @@ size_t FileAst::diagnostic_count() const {
 }
 size_t FileAst::error_count() const {
     return compiler_error_list_error_count(&this->ast.error_list);
+}
+size_t FileAst::count_of_type(error_diag_type_e type) const {
+    return compiler_error_list_count_of_type(&this->ast.error_list, type);
 }
 const char* FileAst::file_name() const noexcept { return this->ast.src_buffer.file_name; }
 void FileAst::print_token_table() const {

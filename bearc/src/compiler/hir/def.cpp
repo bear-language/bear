@@ -227,6 +227,14 @@ static std::string preview_def_to_string(Context& ctx, DefId did) {
             str += "{}";
             return str;
         },
+        [&ctx, did](const DefGenericVariantField& d) -> std::string {
+            std::string str;
+            str += "use ";
+            str += ctx.symbol(ctx.def(d.generic_variant).name);
+            str += "..";
+            str += ctx.symbol(ctx.def(did).name);
+            return str;
+        },
         [&ctx, did](const DefVariantField& d) -> std::string {
             std::string str;
             str += ctx.symbol(ctx.def(did).name);
@@ -374,6 +382,14 @@ class HirPrettyPrinter {
             },
             [&](const DefGenericVariant& d) {
                 print_generic_def(did, "variant", d.generic_params);
+            },
+            [&](const DefGenericVariantField& d) {
+                keyword("use");
+                out += ' ';
+                type_name(ctx.symbol(ctx.def(d.generic_variant).name));
+                out += "..";
+                type_name(ctx.symbol(def.name));
+                out += ';';
             },
             [&](const DefVariantField& d) {
                 type_name(ctx.symbol(def.name));
@@ -1170,6 +1186,9 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
             return preview_def_to_string(ctx, did);
         },
         [&ctx, did](const DefVariantField&) -> std::string {
+            return preview_def_to_string(ctx, did);
+        },
+        [&ctx, did](const DefGenericVariantField&) -> std::string {
             return preview_def_to_string(ctx, did);
         },
         [&ctx, did](const DefUnion&) -> std::string { return preview_def_to_string(ctx, did); },

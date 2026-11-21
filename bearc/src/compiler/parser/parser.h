@@ -36,9 +36,10 @@ typedef struct {
     size_t pos;
     arena_t* arena;
     compiler_error_list_t* error_list;
+    uint32_t yield_depth;
     parser_mode_e mode;
     bool prev_discarded;
-    uint32_t yield_depth;
+    bool no_warn;
 } parser_t;
 
 parser_t parser_create(vector_t* tokens, arena_t* arena, compiler_error_list_t* error_list);
@@ -46,6 +47,8 @@ parser_t parser_create(vector_t* tokens, arena_t* arena, compiler_error_list_t* 
 void parser_mode_set(parser_t* p, parser_mode_e mode);
 
 void parser_mode_reset(parser_t* p);
+
+void parser_warn(parser_t* p, token_t* token, error_code_e error_code);
 
 parser_mode_e parser_mode(parser_t* p);
 

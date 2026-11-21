@@ -197,6 +197,52 @@ static inline void diag_undeclared_with_into_variant_note(Context& context, Span
     }
 }
 
+[[nodiscard]] static inline OptId<DefId>
+try_generic_variant_field_alias(Context& context, DefVisitor& def_visitor, ScopeId scope,
+                                IdSlice<SymbolId> sid_slice) {
+    if (sid_slice.len() != 1) {
+        return {};
+    }
+    const SymbolId sid = context.symbol_id(sid_slice.begin());
+    if (context.look_up_variable(scope, sid).has_value()) {
+        return {};
+    }
+    const auto maybe_did = context.look_up_type(scope, sid);
+    if (maybe_did.empty()
+        || !context.def(def_visitor.visit_as_dependent(maybe_did.as_id()))
+                .holds<DefGenericVariantField>()) {
+        return {};
+    }
+    return maybe_did;
+}
+
+[[nodiscard]] static inline OptId<DefId>
+resolve_generic_variant_field_alias(Context& context, DefVisitor& def_visitor, DefId alias_did,
+                                    OptId<GenericArgIdSliceId> maybe_gen_args,
+                                    OptId<TypeId> maybe_into_tid, Span span) {
+    const DefId variant_did = context.def(alias_did).as<DefGenericVariantField>().generic_variant;
+    const OptId<DefId> maybe_instance
+        = maybe_gen_args.has_value()
+              ? context.try_generic_instantiation(def_visitor, variant_did, maybe_gen_args.as_id())
+              : try_instance_from_into_type(context, variant_did, maybe_into_tid);
+    if (maybe_instance.empty()) {
+        if (maybe_gen_args.empty()) {
+            const SymbolId variant_name = context.def(variant_did).name;
+            const auto d0 = context.emplace_diagnostic_with_message_value(
+                span, diag_code::cannot_deduce_generic_parameters_for_variant, diag_type::error,
+                DiagnosticSymbolAfterMessage{.sid = variant_name});
+            const auto d1 = context.emplace_diagnostic_with_message_value(
+                context.name_span_for_def(variant_did), diag_code::declared_here_as_generic,
+                diag_type::note, DiagnosticSymbolBeforeMessage{.sid = variant_name});
+            context.link_diagnostic(d0, d1);
+        }
+        return {};
+    }
+    const DefId instance_did = def_visitor.visit_as_dependent(maybe_instance.as_id());
+    return context.look_up_local_type(context.scope_for_def(instance_did),
+                                      context.def(alias_did).name);
+}
+
 template <compt_or_runtime C>
 [[nodiscard]] static inline OptId<ExecId>
 handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeId scope,
@@ -207,7 +253,12 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
     const Span expr_span{context, fid, id_slice};
     OptId<DefId> maybe_did{};
 
-    if (maybe_gen_args.empty()) {
+    if (const auto maybe_alias_did
+        = try_generic_variant_field_alias(context, def_visitor, scope, sid_slice)) {
+        maybe_did
+            = resolve_generic_variant_field_alias(context, def_visitor, maybe_alias_did.as_id(),
+                                                  maybe_gen_args, maybe_into_tid, expr_span);
+    } else if (maybe_gen_args.empty()) {
         maybe_did = context.look_up_scoped_variable(scope, sid_slice, expr_span);
         // try to look up scoped type if needed so we can find variant fields
         if (maybe_did.empty()) {
@@ -1089,6 +1140,78 @@ solve_variant_init_impl(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMap
 }
 
 template <IsExprSolver Solver>
+[[nodiscard]] OptId<ExecId> solve_generic_variant_field_init(
+    Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> maybe_move_map,
+    const ast_expr_t* fn_call_expr, DefId variant_did, const ast_stmt_t* field,
+    OptId<TypeId> maybe_into_tid, OptId<GenericArgIdSliceId> maybe_explicit_gen_args = {}) {
+    Context& context = solver.get_context();
+    DefVisitor& def_visitor = solver.get_def_visitor();
+
+    const SymbolId variant_name = context.def(variant_did).name;
+    const IdSlice<GenericParamId> gen_params
+        = context.def(variant_did).as<DefGenericVariant>().generic_params;
+    const SymbolId field_sid = context.symbol_id(field->stmt.variant_field_decl.name);
+
+    const ast_slice_of_exprs_t args = fn_call_expr->expr.fn_call.args;
+    llvm::SmallVector<OptId<ExecId>> presolved(args.len);
+    OptId<GenericArgIdSliceId> maybe_gen_args = maybe_explicit_gen_args;
+    OptId<DefId> maybe_instance
+        = maybe_gen_args.empty() ? try_instance_from_into_type(context, variant_did, maybe_into_tid)
+                                 : OptId<DefId>{};
+
+    const auto maybe_guide = (maybe_instance.empty() && maybe_gen_args.empty())
+                                 ? context.try_deduction_guide_for_params(
+                                       field->stmt.variant_field_decl.params, gen_params)
+                                 : OptId<DeductionGuideId>{};
+    if (maybe_guide.has_value()) {
+        llvm::SmallVector<OptId<TypeId>> tids_by_arg(args.len);
+        llvm::SmallBitVector attempted(args.len);
+        for (const auto step_idx : context.deduction_guide(maybe_guide.as_id())) {
+            const HirSize i = context.deduction_step(step_idx).order_idx;
+            if (i >= args.len || attempted.test(i)) {
+                continue;
+            }
+            attempted.set(i);
+            presolved[i] = solve_expr_helper(solver, fid, scope, maybe_move_map, args.start[i]);
+            if (presolved[i].empty()) {
+                return {};
+            }
+            tids_by_arg[i] = solver.infer_type_from_exec(presolved[i].as_id());
+        }
+        maybe_gen_args
+            = try_generic_args_from_deduction_guide(context, maybe_guide.as_id(), tids_by_arg);
+    }
+
+    if (maybe_instance.empty() && maybe_gen_args.empty()) {
+        const auto d0 = context.emplace_diagnostic_with_message_value(
+            Span{context, fid, fn_call_expr},
+            diag_code::cannot_deduce_generic_parameters_for_variant, diag_type::error,
+            DiagnosticSymbolAfterMessage{.sid = variant_name});
+        const auto d1 = context.emplace_diagnostic_with_message_value(
+            context.name_span_for_def(variant_did), diag_code::declared_here_as_generic,
+            diag_type::note, DiagnosticSymbolBeforeMessage{.sid = variant_name});
+        context.link_diagnostic(d0, d1);
+        return {};
+    }
+
+    if (maybe_instance.empty()) {
+        maybe_instance
+            = context.try_generic_instantiation(def_visitor, variant_did, maybe_gen_args.as_id());
+    }
+    if (maybe_instance.empty()) {
+        return {};
+    }
+    const DefId instance_did = def_visitor.visit_as_dependent(maybe_instance.as_id());
+    const OptId<DefId> maybe_field_did
+        = context.look_up_local_type(context.scope_for_def(instance_did), field_sid);
+    if (maybe_field_did.empty()) {
+        return {};
+    }
+    return solve_variant_init_impl(solver, fid, scope, maybe_move_map, fn_call_expr,
+                                   maybe_field_did.as_id(), presolved);
+}
+
+template <IsExprSolver Solver>
 [[nodiscard]] std::optional<OptId<ExecId>>
 try_deduced_variant_init(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> maybe_move_map,
                          const ast_expr_t* fn_call_expr, IdSlice<SymbolId> sid_slice,
@@ -1108,79 +1231,13 @@ try_deduced_variant_init(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMa
     if (!context.def(variant_did).holds<DefGenericVariant>()) {
         return std::nullopt;
     }
-    const SymbolId variant_name = context.def(variant_did).name;
-    const IdSlice<GenericParamId> gen_params
-        = context.def(variant_did).as<DefGenericVariant>().generic_params;
-    const SymbolId field_sid = context.symbol_id(sid_slice.last_elem());
-
-    const ast_slice_of_stmts_t fields = context.def_ast_node(variant_did)->stmt.variant_decl.fields;
-    const ast_stmt_t* field = nullptr;
-    for (size_t i = 0; i < fields.len; ++i) {
-        if (fields.start[i]->type == AST_STMT_VARIANT_FIELD_DECL
-            && context.symbol_id(fields.start[i]->stmt.variant_field_decl.name) == field_sid) {
-            field = fields.start[i];
-            break;
-        }
-    }
+    const ast_stmt_t* field = context.find_generic_variant_field_decl(
+        variant_did, context.symbol_id(sid_slice.last_elem()));
     if (!field) {
         return std::nullopt;
     }
-
-    const ast_slice_of_exprs_t args = fn_call_expr->expr.fn_call.args;
-    llvm::SmallVector<OptId<ExecId>> presolved(args.len);
-    OptId<DefId> maybe_instance = try_instance_from_into_type(context, variant_did, maybe_into_tid);
-    OptId<GenericArgIdSliceId> maybe_gen_args{};
-
-    const auto maybe_guide = maybe_instance.empty()
-                                 ? context.try_deduction_guide_for_params(
-                                       field->stmt.variant_field_decl.params, gen_params)
-                                 : OptId<DeductionGuideId>{};
-    if (maybe_guide.has_value()) {
-        llvm::SmallVector<OptId<TypeId>> tids_by_arg(args.len);
-        llvm::SmallBitVector attempted(args.len);
-        for (const auto step_idx : context.deduction_guide(maybe_guide.as_id())) {
-            const HirSize i = context.deduction_step(step_idx).order_idx;
-            if (i >= args.len || attempted.test(i)) {
-                continue;
-            }
-            attempted.set(i);
-            presolved[i] = solve_expr_helper(solver, fid, scope, maybe_move_map, args.start[i]);
-            if (presolved[i].empty()) {
-                return OptId<ExecId>{};
-            }
-            tids_by_arg[i] = solver.infer_type_from_exec(presolved[i].as_id());
-        }
-        maybe_gen_args
-            = try_generic_args_from_deduction_guide(context, maybe_guide.as_id(), tids_by_arg);
-    }
-
-    if (maybe_instance.empty() && maybe_gen_args.empty()) {
-        const auto d0 = context.emplace_diagnostic_with_message_value(
-            Span{context, fid, fn_call_expr},
-            diag_code::cannot_deduce_generic_parameters_for_variant, diag_type::error,
-            DiagnosticSymbolAfterMessage{.sid = variant_name});
-        const auto d1 = context.emplace_diagnostic_with_message_value(
-            context.name_span_for_def(variant_did), diag_code::declared_here_as_generic,
-            diag_type::note, DiagnosticSymbolBeforeMessage{.sid = variant_name});
-        context.link_diagnostic(d0, d1);
-        return OptId<ExecId>{};
-    }
-
-    if (maybe_instance.empty()) {
-        maybe_instance
-            = context.try_generic_instantiation(def_visitor, variant_did, maybe_gen_args.as_id());
-    }
-    if (maybe_instance.empty()) {
-        return OptId<ExecId>{};
-    }
-    const DefId instance_did = def_visitor.visit_as_dependent(maybe_instance.as_id());
-    const OptId<DefId> maybe_field_did
-        = context.look_up_local_type(context.scope_for_def(instance_did), field_sid);
-    if (maybe_field_did.empty()) {
-        return OptId<ExecId>{};
-    }
-    return solve_variant_init_impl(solver, fid, scope, maybe_move_map, fn_call_expr,
-                                   maybe_field_did.as_id(), presolved);
+    return solve_generic_variant_field_init(solver, fid, scope, maybe_move_map, fn_call_expr,
+                                            variant_did, field, maybe_into_tid);
 }
 
 /// tries to look up a function from an expression, and optionally a "self" value, if it exists
@@ -1348,6 +1405,27 @@ try_fn_look_up_from_expr_impl(Solver& solver, FileId fid, ScopeId scope,
             }
 
             if (maybe_func_did.empty()) {
+
+                if (const auto maybe_alias_did
+                    = try_generic_variant_field_alias(context, def_visitor, scope, sid_slice)) {
+                    OptId<GenericArgIdSliceId> maybe_explicit_gen_args{};
+                    if (expr->expr.fn_call.is_generic) {
+                        maybe_explicit_gen_args = solver.lower_generic_args(
+                            fid, scope, expr->expr.fn_call.generic_args, false);
+                        if (maybe_explicit_gen_args.empty()) {
+                            return std::nullopt;
+                        }
+                    }
+                    const DefId alias_did = maybe_alias_did.as_id();
+                    return FuncLookUp{
+                        .maybe_variant_init_res = solve_generic_variant_field_init(
+                            solver, fid, scope, maybe_move_map, expr,
+                            context.def(alias_did).as<DefGenericVariantField>().generic_variant,
+                            context.def_ast_node(alias_did), maybe_into_tid,
+                            maybe_explicit_gen_args),
+                        .needs_generic_deduction = false,
+                        .did_variant_initializer = true};
+                }
 
                 // try as variant init, since they take the form of function calls but live in
                 // the "type" namespace

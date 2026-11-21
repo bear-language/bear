@@ -44,8 +44,9 @@ class FileAst {
     void emplace_tokenwise_error(token_t* tkn, error_code_e error_code);
     size_t diagnostic_count() const;
     size_t error_count() const;
-    FileAst(const char* file_name);
-    FileAst(const char* file_name, const char* src_literal);
+    size_t count_of_type(error_diag_type_e type) const;
+    FileAst(const char* file_name, bool no_warn = false);
+    FileAst(const char* file_name, const char* src_literal, bool no_warn = false);
     FileAst(FileAst&& other) noexcept;
     ~FileAst();
     void try_print_info(const bearc_args_t& args) const;

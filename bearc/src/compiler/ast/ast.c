@@ -14,7 +14,7 @@
 #define PARSER_ARENA_CHUNK_SIZE_BASE 0x20000
 #define PARSER_ARENA_CHUNK_SIZE_SCALE_FACTOR 8
 
-static br_ast_t ast_create(src_buffer_t* src_buffer) {
+static br_ast_t ast_create_flag_no_warn(src_buffer_t* src_buffer, bool no_warn) {
     compiler_error_list_t error_list = compiler_error_list_create(src_buffer);
 
     br_ast_t ast = {{0}, {0}, {0}, NULL, error_list};
@@ -34,6 +34,7 @@ static br_ast_t ast_create(src_buffer_t* src_buffer) {
     arena_t arena = arena_create(PARSER_ARENA_CHUNK_SIZE_BASE
                                  + (PARSER_ARENA_CHUNK_SIZE_SCALE_FACTOR * src_buffer->total_size));
     parser_t parser = parser_create(&tkn_vec, &arena, &ast.error_list);
+    parser.no_warn = no_warn;
     ast_stmt_t* file_stmt = parse_file(&parser, src_buffer->file_name);
     ast.file_stmt_root_node = file_stmt;
     ast.src_buffer = *src_buffer;
@@ -43,13 +44,22 @@ static br_ast_t ast_create(src_buffer_t* src_buffer) {
 }
 
 br_ast_t ast_create_from_file(const char* file_name) {
+    return ast_create_from_file_flag_no_warn(file_name, false);
+}
+
+br_ast_t ast_create_from_file_flag_no_warn(const char* file_name, bool no_warn) {
     src_buffer_t src_buffer = src_buffer_from_file_create(file_name);
-    return ast_create(&src_buffer);
+    return ast_create_flag_no_warn(&src_buffer, no_warn);
 }
 
 br_ast_t ast_create_from_string_literal(const char* name, const char* string_literal) {
+    return ast_create_from_string_literal_flag_no_warn(name, string_literal, false);
+}
+
+br_ast_t ast_create_from_string_literal_flag_no_warn(const char* name, const char* string_literal,
+                                                     bool no_warn) {
     src_buffer_t src_buffer = src_buffer_from_string_literal(name, string_literal);
-    return ast_create(&src_buffer);
+    return ast_create_flag_no_warn(&src_buffer, no_warn);
 }
 
 void ast_destroy(br_ast_t* ast) {

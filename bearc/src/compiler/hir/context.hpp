@@ -151,12 +151,12 @@ class Context {
     /// register (or retireve) from a path
     ///
     /// \param path - SymbolId of the interned path string
-    [[nodiscard]] FileId file(SymbolId path);
+    [[nodiscard]] FileId file(SymbolId path, bool no_warn = false);
     /// intrinsic file made of a string_literal
     ///
     /// \param name - name, or path, that the intrinsic file
     /// \param string_literal_src - the src
-    FileId file_intrinsic(SymbolId name, const char* string_literal_src);
+    FileId file_intrinsic(SymbolId name, const char* string_literal_src, bool no_warn = true);
 
     bool file_is_intrinsic(FileId fid) const;
 
@@ -165,7 +165,7 @@ class Context {
     /// registers a file in parallel
     FileId file_parallel(SymbolId path);
     /// registers a file from a given filesystem path
-    [[nodiscard]] FileId file(std::filesystem::path& path);
+    [[nodiscard]] FileId file(std::filesystem::path& path, bool no_warn = false);
     /// retrieves the file name for a given FileId
     [[nodiscard]] const char* file_name(FileId id) const;
     /// retrieves the FileId for an already registered (canonical) file path, if any
@@ -917,6 +917,9 @@ class Context {
 
     [[nodiscard]] OptId<DeductionGuideId>
     try_deduction_guide_for_type(const ast_type_t* type, IdSlice<GenericParamId> gen_params);
+
+    [[nodiscard]] const ast_stmt_t* find_generic_variant_field_decl(DefId generic_variant_did,
+                                                                    SymbolId field_sid);
 
     /// trys to build a deduction guide for a struct
     [[nodiscard]] OptId<DeductionGuideId>

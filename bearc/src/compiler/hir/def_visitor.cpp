@@ -1294,6 +1294,38 @@ void DefVisitor::resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* s
         }
     }
 
+    if (!only_look_for_mod && used_did.empty() && sid_slice.len() >= 2) {
+        const auto maybe_variant_did = context.look_up_scoped_type(
+            scope, sid_slice.sub_slice_n(sid_slice.len() - 1), id_span);
+        if (maybe_variant_did.has_value()
+            && context.def(visit_as_dependent(maybe_variant_did.as_id()))
+                   .holds<DefGenericVariant>()) {
+            const DefId variant_did = maybe_variant_did.as_id();
+            const SymbolId field_sid = context.symbol_id(last_symbol);
+            const ast_stmt_t* field
+                = context.find_generic_variant_field_decl(variant_did, field_sid);
+            if (!field) {
+                const auto d0 = context.emplace_diagnostic_with_message_value(
+                    id_span, diag_code::use_of_undeclared_identifier, diag_type::error,
+                    DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice});
+                const auto d1 = context.emplace_diagnostic(
+                    id_span, diag_code::is_not_a_variation_of_variant, diag_type::note,
+                    DiagnosticSymbolBeforeAndAfterMessage{
+                        .before_sid = field_sid, .after_sid = context.def(variant_did).name},
+                    DiagnosticInfoNoPreview{});
+                context.link_diagnostic(d0, d1);
+                return;
+            }
+            const DefId alias_did = context.register_def(
+                field_sid,
+                Span{context, context.def(variant_did).span.file_id,
+                     field->stmt.variant_field_decl.name},
+                {}, DefGenericVariantField{.generic_variant = variant_did}, field);
+            context.scope(scope).insert_type(field_sid, alias_did);
+            return;
+        }
+    }
+
     if (used_did.empty()) {
         auto code = only_look_for_mod ? diag_code::use_of_undeclared_mod
                                       : diag_code::use_of_undeclared_identifier;

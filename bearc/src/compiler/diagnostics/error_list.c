@@ -243,3 +243,15 @@ size_t compiler_error_list_diagnostic_count(const compiler_error_list_t* list) {
 size_t compiler_error_list_error_count(const compiler_error_list_t* list) {
     return list->error_cnt;
 }
+
+size_t compiler_error_list_count_of_type(const compiler_error_list_t* list,
+                                         error_diag_type_e type) {
+    size_t cnt = 0;
+    for (size_t i = 0; i < list->list_vec.size; i++) {
+        const compiler_error_t* error = vector_at(&list->list_vec, i);
+        if (error_diagnostic_type(error->error_code) == type) {
+            cnt++;
+        }
+    }
+    return cnt;
+}
