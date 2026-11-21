@@ -1,0 +1,80 @@
+// tests/hir/b66.br
+
+// testing `use` of a generic variant's fields
+
+fn main() {;}
+
+variant Maybe<T> {
+    Some(T val),
+    None,
+}
+
+variant Either<L, R> {
+    Left(L l),
+    Right(R r),
+}
+
+use Maybe..Some;
+use Maybe..None;
+use Maybe..Nope; // oops, not a field of Maybe
+
+compt var a = Some(1); // deduced from the arg
+var _0 = @static_assert @same_type(typeof a, Maybe<i32>);
+
+compt Maybe<i64> b = Some(1); // deduced from the into type
+var _1 = @static_assert @same_type(typeof b, Maybe<i64>);
+
+compt Maybe<u8> c = None;
+var _2 = @static_assert @same_type(typeof c, Maybe<u8>);
+
+compt Maybe<u8> d = None();
+var _3 = @static_assert @same_type(typeof d, Maybe<u8>);
+
+compt var e = Some::<u16>(3); // explicit generic args
+var _4 = @static_assert @same_type(typeof e, Maybe<u16>);
+
+compt var f = None::<i8>;
+var _5 = @static_assert @same_type(typeof f, Maybe<i8>);
+
+compt var g = Some(Some(1));
+var _6 = @static_assert @same_type(typeof g, Maybe::Maybe::i32);
+
+compt Maybe<Maybe<u8>> h = Some(None);
+var _7 = @static_assert @same_type(typeof h, Maybe::Maybe::u8);
+
+var _8 = @static_assert match a {
+    Some => true,
+    None => false,
+};
+
+fn takes(Maybe<i32> _m) {;}
+
+fn runtime(i32 x) {
+    var _ = Some(x);
+    Maybe<i32> _ = None;
+    takes(None);
+    takes(Some(x));
+    var _ = None::<str>();
+    var _ = Some::<i32>(1);
+    Opt::i32 _ = Opt..None();
+    Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe
+        ::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe
+        ::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Maybe::Either<i8, u8> _ = None; 
+}
+
+fn local_use(i32 x) {
+    use Either..Left;
+    Either<i32, str> _0 = Left(x);
+    var _1 = Left(x); // oops, R isn't deducible from Left
+}
+
+fn shadowed(i32 x) {
+    var Some = 3; // a variable named Some wins over the imported field
+    i32 _0 = Some + x;
+}
+
+fn oops() {
+    var _0 = None; // oops, no into type to deduce from
+    var _1 = None(); // oops, no into type to deduce from
+    var _2 = Left(1); // oops, Left was only imported inside local_use
+}
