@@ -1,6 +1,15 @@
 ### todos
 
 #### priority
+- [ ] better `use_of_undeclared_identifier` diagnostics
+    - [ ] factor out repeated uses into a helper in `Context`
+    - [ ] make a `use_of_undeclared_identifier_colon` helper that actually does `... identifier: foo` 
+    - [ ] when `sid_slice.len() > 1`, walk the id path to actually trace which components that are undeclared (might be tricky and require searching for paralell defs of different kinds (i.e. mod vs. var vs. type)) to be most helpful
+    - [ ] using the scope iterator, use Levenshtein distance < 2 or 3 
+        - [ ] make a `help: did you mean:` `...` (add bearls support to make this equivalent to `replace_with`)
+        - [ ] this should probably be part of the scope walk (make sure that the distance is persistent across each level tho, i.e. not < 2 or 3 per level)
+        - [ ] only do this say 128 times before stopping to avoid slowing down compilation to excess on bad problems like a missing import
+
 - [ ] minimal LLVM slice
     - [ ] `main` + builtins 
     - [ ] functions 
@@ -185,9 +194,3 @@ lexer & parser
     - [ ] suffixes?
 - [ ] issue better diagnostics (in parse_expr) for unterminated string literals
     - [ ] set a special ERR_UNTERM_STR as the token_type when lexing and then report during parsing
-
-hir & later 
------------ 
-
-#### diagnostics
-- [ ] using a scope iterator, use Levenshtein distance to make a `help: did you mean:` `...`
