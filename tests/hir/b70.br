@@ -1,0 +1,20 @@
+// tests/hir/b70.br
+
+// testing deftype to mut types
+
+fn main() {
+    deftype MInt = mut i32; // warn cuz mut and unused cuz later redefined and shadowed
+    deftype MInt = mut i32; // warn, also this shadowing is fine for local deftypes
+    deftype MRInt = &mut i32; // warn
+
+    compt MInt _0 = 1; // fine
+
+    var _ = @static_assert(@same_type(MInt, i32));
+    var _ = @static_assert(@same_type(MRInt, &i32));
+
+}
+
+struct Foo;
+
+deftype MFoo = mut Foo; // warn
+deftype MFoo = mut Foo; // oops, redefined deftype at lop-level is an error

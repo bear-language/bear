@@ -883,11 +883,17 @@ OptId<ExecId> RuntimeSolver::handle_deftype(FileId fid, LexicalCtx lctx, const a
         return {}; // posioned
     }
 
+    if (const Type& ty = context.type(maybe_tid.as_id()); ty.mut) {
+        context.report_deftype_to_mut_type(maybe_tid.as_id());
+    }
+
     SymbolId name = context.symbol_id(stmt->stmt.deftype.alias_id);
 
     const DefId did
         = context.register_def(name, /*compt=*/false, /*statik=*/false, 0, Span{context, fid, stmt},
                                stmt, DefDeftype{.type = maybe_tid.as_id()}, {});
+
+    // shadowing is fine for local deftypes
 
     context.insert_type(lctx.scope, name, did);
 

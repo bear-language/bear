@@ -361,13 +361,17 @@ DefId DefVisitor::resolve_def(DefId did) {
         if (stmt->stmt.deftype.aliased_type_expr->type != AST_EXPR_TYPE) {
             goto cleanup; // already malformed during parsing
         }
-        OptId<TypeId> maybe_type = TypeResolver{context, *this}.resolve_type(
+        OptId<TypeId> maybe_tid = TypeResolver{context, *this}.resolve_type(
             span.file_id, scope, stmt->stmt.deftype.aliased_type_expr->expr.type_expr.type);
-        if (!maybe_type.has_value()) {
+        if (!maybe_tid.has_value()) {
             goto cleanup;
         }
 
-        context.def(did).set_value(DefDeftype{.type = maybe_type.as_id()});
+        if (const Type& ty = context.type(maybe_tid.as_id()); ty.mut) {
+            context.report_deftype_to_mut_type(maybe_tid.as_id());
+        }
+
+        context.def(did).set_value(DefDeftype{.type = maybe_tid.as_id()});
 
         break;
     }

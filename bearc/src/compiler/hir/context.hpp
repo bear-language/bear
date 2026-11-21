@@ -679,6 +679,8 @@ class Context {
     DiagRange report_invalid_contract(DefId did, IdSlice<SymbolId> contract_sid,
                                       Span contract_mention_span);
 
+    DiagRange report_deftype_to_mut_type(TypeId tid);
+
     [[nodiscard]] const Def& def(DefId id) const { return defs.at(id); }
 
     [[nodiscard]] const Def& def(IdIdx<DefId> id) const { return defs.at(def_ids.at(id)); }

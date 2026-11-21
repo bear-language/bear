@@ -77,18 +77,18 @@
 - Visibility: \[`pub` | `hid`]?
 - *TopLevelStatement*: 
     - | *ModuleDeclaration*: Visibility `mod` Identifier `;` | `{` TopLevelStatement(s) `}` 
-    - | ImportStatement: `import` ExternalLanguage? -> PathLiteral `;` 
+    - | ImportStatement: `import` ExternalLanguage? PathLiteral `;` 
     - | *UseStatement*: `use` `mod`? Identifier \[`..` `*`]? `;`
-    - | *FunctionDeclaration*: Visibility `fn` Identifier GenericParams? `(` Parameters `)` [`->` Type]?  `;` | `{` BodyStatement(s) `}` | `=>` Expression | `=>` `{` Expression `}`
-    - | GenericParams: `<` Identifier -> HasClause? `,` ... `>` 
+    - | *FunctionDeclaration*: Visibility `fn` Identifier GenericParams? `(` Parameters `)` \[`->` Type]?  `;` | `{` BodyStatement(s) `}` | `=>` Expression | `=>` `{` Expression `}`
+    - | GenericParams: `<` Identifier HasClause? `,` ... `>` 
         - *HasClause*: `has` `(` Contract `+`? Contract(s) `)`
-    - | *StructDeclaration*: Visibility `struct` Identifier -> GenericParams? -> HasClause? -> `{` TopLevelStatement(s) | MethodDeclaration(s) `}` 
-    - | *MethodDeclaration*: Visibility `mt` `mut`? Identifier -> GenericParams? -> `(` -> Parameter(s) -> `)` -> `;` | `{` BodyStatement(s) `}`
-    - | *VariantDeclaration*: Visibility `variant` Identifier -> GenericParams? `{` VariantFieldDeclaration(s) `}`
+    - | *StructDeclaration*: Visibility `struct` Identifier GenericParams? HasClause? `;` | \[`{` TopLevelStatement(s) | MethodDeclaration(s) `}`] 
+    - | *MethodDeclaration*: Visibility `mt` `mut`? Identifier GenericParams? `(` Parameter(s) `)` `;` | `{` BodyStatement(s) `}`
+    - | *VariantDeclaration*: Visibility `variant` Identifier GenericParams? `{` VariantFieldDeclaration(s) `}`
     - | *VariantFieldDeclaration*: Identifier `(` Parameter(s) `)`
     - | *ContractDeclaration*: Visibility `contract` Identifier GenericParams? `{` MethodPrototypes `}`
     - | *UnionDeclaration*: Visibility `union` Identifier `{` MemberVariableDeclaration(s) `}`
-    - | *ExternBlock*: `extern` ExternalLanguage `{` -> FunctionDeclaration(s) `}`
+    - | *ExternBlock*: `extern` ExternalLanguage `{` FunctionDeclaration(s) `}`
     - | *DefTypeDeclaration*: Visibility `deftype` Identifier `=` Type `;`
     - | *TopLevelVariableDeclaration*: Visibility \[Type | `var`] Identifier `;` | `=` Expression `;`
 

@@ -622,6 +622,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "has no corresponding scope";
     case diag_code::cannot_use_variable:
         return "cannot `use` variable";
+    case diag_code::top_level_mut_in_a_deftypes_type_is_ignored:
+        return "top-level `mut` in a deftype's type is ignored";
     }
 
     std::unreachable();

@@ -2764,6 +2764,19 @@ DiagRange Context::report_invalid_contract(DefId did, IdSlice<SymbolId> contract
     return dl.range();
 }
 
+DiagRange Context::report_deftype_to_mut_type(TypeId tid) {
+    DiagLinker dl{*this};
+    const Type& ty = type(tid);
+    dl.link(emplace_diagnostic(ty.span, diag_code::top_level_mut_in_a_deftypes_type_is_ignored,
+                               diag_type::warning));
+    dl.link(emplace_diagnostic_with_message_value(
+        ty.span, diag_code::replace_with, diag_type::help,
+        DiagnosticTypeAfterMessage{.tid = ty.holds<TypeBuiltin>()
+                                              ? type_for_builtin(ty.as<TypeBuiltin>().type)
+                                              : emplace_type(ty.value, ty.span, false)}));
+    return dl.range();
+}
+
 /// checks if a Def is a struct without resolving it
 bool Context::is_struct(DefId did) const {
     const auto* node = def_ast_node(did);

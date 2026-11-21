@@ -311,6 +311,7 @@ enum class diag_code : uint16_t {
     cannot_use_wildcard_for,
     has_no_corresponding_scope,
     cannot_use_variable,
+    top_level_mut_in_a_deftypes_type_is_ignored,
 
     count, // this must be last,
 

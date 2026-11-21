@@ -1048,10 +1048,14 @@ ast_stmt_t* parse_stmt_struct_decl(parser_t* p) {
         struct_stmt->stmt.struct_decl.contracts.len = 0;
     }
 
-    parser_expect_token(p, TOK_LBRACE);
-    struct_stmt->stmt.struct_decl.fields
-        = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_stmt_inside_struct_decl);
-    parser_expect_token(p, TOK_RBRACE);
+    if (parser_match_token(p, TOK_SEMICOLON)) {
+        struct_stmt->stmt.struct_decl.fields = (ast_slice_of_stmts_t){.start = NULL, .len = 0};
+    } else {
+        parser_expect_token(p, TOK_LBRACE);
+        struct_stmt->stmt.struct_decl.fields
+            = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_stmt_inside_struct_decl);
+        parser_expect_token(p, TOK_RBRACE);
+    }
     struct_stmt->first = struct_tkn;
     struct_stmt->last = parser_prev(p);
     return struct_stmt;
