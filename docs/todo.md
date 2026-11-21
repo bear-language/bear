@@ -1,7 +1,21 @@
 ### todos
 
 #### priority
-- [ ] fix array to slice conversions for runtime solving
+- [ ] minimal LLVM slice
+    - [ ] `main` + builtins 
+    - [ ] functions 
+    - [ ] exprs w/ operators on builtins
+    - [ ] var decls 
+    - [ ] ctrl flow 
+    - [ ] ptrs/refs
+    - [ ] arrays
+    - [ ] structs 
+    - [ ] unions
+    - [ ] variants
+        - [ ] init 
+        - [ ] checking discrim
+        - [ ] match 
+    - [ ] static var decls
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s
@@ -23,10 +37,12 @@
                 - [ ] handle `f(make_thing())` destructing temporaries after the end of the statement if they're not moved out (currently won't work easily w/ `MoveMap` which has `DefId` keys, maybe create temp `DefId`s?)
                 - [x] ban `foo.destruct()` but provide `drop(foo)` which just moves foo out
 
-- [ ] finish runtime solving 
+- [ ] finish runtime (and some compt) solving 
     - `RuntimeSolver` 
         - [ ] closures (rust-like capture semantics): delayable until after backend
         - [ ] `ExecMatchBranch` patterns keep their solved type (e.g. `i32` literal patterns on a `u8` scrutinee): convert them in HIR or cast when lowering the `switch`
+        - [ ] allow implicit array to slice conversions for runtime solving
+        - [ ] allow slicing into arrays with the `foo[start...end]` syntax (at both compt at runtime) to produce slices
     - [ ] replace `dt self()` with a builtin `Destruct` contract w/ `mt mut destruct()`
         - [x] remove `TOK_DT`, `dt` from `token_is_mt_or_dt` & co., special case in `context.cpp`, `DestructorDeclaration` in syntax.md, update parser tests 30 & 44
         - [x] `Destruct` is intrinsic
