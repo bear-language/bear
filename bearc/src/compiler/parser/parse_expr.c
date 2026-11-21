@@ -210,7 +210,26 @@ ast_expr_t* parse_expr(parser_t* p) {
     return parse_expr_prec(p, lhs, PREC_INIT);
 }
 
+static void try_fix_scope_res_used_as_range(parser_t* p, const ast_expr_t* lhs) {
+    token_t* op = parser_peek(p);
+    if (!lhs || op->type != TOK_SCOPE_RES) {
+        return;
+    }
+    const bool inclusive = parser_peek_n(p, 1)->type == TOK_ASSIGN_EQ;
+    const token_t* rhs_first = parser_peek_n(p, inclusive ? 2 : 1);
+    const bool lhs_can_start_path = lhs->type == AST_EXPR_ID || lhs->type == AST_EXPR_GENERIC_ID;
+    if (lhs_can_start_path && !inclusive && !token_is_literal(rhs_first->type)) {
+        return;
+    }
+    compiler_error_list_emplace(p->error_list, op, ERR_SCOPE_RES_IS_NOT_A_RANGE_OPERATOR);
+    compiler_error_list_emplace(p->error_list, op,
+                                inclusive ? HELP_USE_ELLIPSE_EQ_FOR_AN_INCLUSIVE_RANGE
+                                          : HELP_USE_ELLIPSE_FOR_AN_EXCLUSIVE_RANGE);
+    op->type = inclusive ? TOK_ELLIPSE_EQ : TOK_ELLIPSE;
+}
+
 ast_expr_t* parse_expr_prec(parser_t* p, ast_expr_t* lhs, uint8_t prec) {
+    try_fix_scope_res_used_as_range(p, lhs);
     token_type_e op = parser_peek(p)->type;
     if (!lhs && is_preunary_op(op)) {
         return parse_preunary_expr(p);
@@ -742,6 +761,9 @@ ast_expr_t* parse_binary(parser_t* p, ast_expr_t* lhs, uint8_t max_prec) {
         return parse_expr_ternary_if(p, lhs);
     }
     token_t* op_tkn = parser_eat(p); // already verfied legit
+    if (op_tkn->type == TOK_ELLIPSE_EQ && op_tkn->len == 2) {
+        parser_match_token(p, TOK_ASSIGN_EQ);
+    }
     binary_expr->type = AST_EXPR_BINARY;
     binary_expr->expr.binary.lhs = lhs;
     binary_expr->expr.binary.op = op_tkn;
@@ -756,11 +778,13 @@ ast_expr_t* parse_binary(parser_t* p, ast_expr_t* lhs, uint8_t max_prec) {
         middle_expr = parse_primary_expr_impl(p, NULL, !is_access);
     }
     token_type_e curr_op = op_tkn->type;
+    try_fix_scope_res_used_as_range(p, middle_expr);
     token_type_e next_op = parser_peek(p)->type;
 
     while (binary_bind_right(curr_op, next_op)) {
         middle_expr = parse_expr_prec(p, middle_expr, prec_binary(curr_op));
         curr_op = next_op;
+        try_fix_scope_res_used_as_range(p, middle_expr);
         next_op = parser_peek(p)->type;
     }
     binary_expr->expr.binary.rhs = middle_expr;
@@ -773,6 +797,7 @@ ast_expr_t* parse_binary(parser_t* p, ast_expr_t* lhs, uint8_t max_prec) {
         }
     }
 
+    try_fix_scope_res_used_as_range(p, binary_expr);
     if (is_legal_binary_op(p, parser_peek(p)->type)
         && prec_binary(parser_peek(p)->type) < max_prec) {
         return parse_binary(p, binary_expr, max_prec);

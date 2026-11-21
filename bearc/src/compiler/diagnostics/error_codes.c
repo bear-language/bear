@@ -16,7 +16,9 @@ static const uint8_t diag_types[ERR__COUNT]
        [WARN_TOP_LEVEL_USE_CAN_POLLUTE_THE_GLOBAL_NAMESPACE] = DIAG_TYPE_WARNING,
        [HELP_REMOVE_SEMICOLON_TO_YIELD_EXPRESSION_VALUE] = DIAG_TYPE_HELP,
        [USE_IS_ALLOWED_AT_MODULE_LEVEL_AND_INSIDE_FUNCTIONS] = DIAG_TYPE_HELP,
-       [HELP_REPLACE_WITH_EQ_ARROW] = DIAG_TYPE_HELP};
+       [HELP_REPLACE_WITH_EQ_ARROW] = DIAG_TYPE_HELP,
+       [HELP_USE_ELLIPSE_FOR_AN_EXCLUSIVE_RANGE] = DIAG_TYPE_HELP,
+       [HELP_USE_ELLIPSE_EQ_FOR_AN_INCLUSIVE_RANGE] = DIAG_TYPE_HELP};
 bool is_non_error_diagnostic(error_code_e error_code) { return diag_types[error_code]; }
 static const char* error_messages[ERR__COUNT] = {
     [ERR_EXPECTED_IDENTIFER] = "expected identifier",
@@ -69,7 +71,10 @@ static const char* error_messages[ERR__COUNT] = {
       "function bodies",
     [ERR_RETURN_TYPE_ARROW_NOT_ALLOWED_HERE] = "`->` is not allowed here in match branch",
     [ERR_OVERSIZED_INTEGER_LITERAL] = "oversized integer literal",
-    [HELP_REPLACE_WITH_EQ_ARROW] = "replace with `=>`"};
+    [HELP_REPLACE_WITH_EQ_ARROW] = "replace with `=>`",
+    [ERR_SCOPE_RES_IS_NOT_A_RANGE_OPERATOR] = "`..` is for scope resolution, not ranges",
+    [HELP_USE_ELLIPSE_FOR_AN_EXCLUSIVE_RANGE] = "use `...` for an exclusive range",
+    [HELP_USE_ELLIPSE_EQ_FOR_AN_INCLUSIVE_RANGE] = "use `...=` for an inclusive range"};
 
 const char* error_message_for_code(error_code_e error_code) { return error_messages[error_code]; }
 

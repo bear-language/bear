@@ -1,0 +1,35 @@
+// tests/parser/68.br
+
+// testing `..` used as a range operator (it's scope resolution, ranges are `...` and `...=`)
+
+fn main() {;}
+
+variant V { A, B }
+
+struct Foo<T> {}
+
+struct A { struct B<T> {} }
+
+fn fine(i32 n, [&]i32 s) {
+    use V..A;
+    var _0 = V..B;
+    var _1 = 0...10;
+    var _2 = 0...=n;
+    var _3 = s[1...=2];
+    var _4 = Foo::A..B::<i32>{};
+    for i32 _i in n...5 {;}
+}
+
+fn oops(i32 n, [&]i32 s) {
+    var _0 = 0..10; // oops, use `...`
+    var _1 = 0..=n; // oops, use `...=`
+    var _2 = n..5; // oops, use `...`
+    var _3 = n..=5; // oops, use `...=`
+    var _4 = s[1..=2]; // oops, use `...=`
+    var _5 = (n + 1)..n; // oops, use `...`
+    var _6 = match n {
+        0..5 => 1, // oops, use `...`
+        else => 2,
+    };
+    for i32 _i in 0..n {;} // oops, use `...`
+}

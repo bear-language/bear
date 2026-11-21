@@ -22,6 +22,14 @@ token_ptr_slice_t parser_freeze_token_ptr_slice(parser_t* p, spill_arr_ptr_t* sa
     return slice;
 }
 
+static bool scope_res_starts_a_range(parser_t* p) {
+    if (!parser_peek_match(p, TOK_SCOPE_RES)) {
+        return false;
+    }
+    const token_type_e after = parser_peek_n(p, 1)->type;
+    return after == TOK_ASSIGN_EQ || token_is_literal(after);
+}
+
 token_ptr_slice_t parse_id_token_slice(parser_t* p, token_type_e divider) {
     spill_arr_ptr_t sarr;
     spill_arr_ptr_init(&sarr);
@@ -36,6 +44,7 @@ token_ptr_slice_t parse_id_token_slice(parser_t* p, token_type_e divider) {
             break;
         }
         spill_arr_ptr_push(&sarr, next);
-    } while (parser_match_token(p, divider));
+    } while (!(divider == TOK_SCOPE_RES && scope_res_starts_a_range(p))
+             && parser_match_token(p, divider));
     return parser_freeze_token_ptr_slice(p, &sarr);
 }
