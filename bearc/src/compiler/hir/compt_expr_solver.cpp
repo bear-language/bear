@@ -209,7 +209,7 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
         OptId<ExecId> maybe_eid{};
 
         if (expr->type == AST_EXPR_ID) {
-            maybe_eid = handle_any_id(fid, scope, expr->expr.id.slice);
+            maybe_eid = handle_any_id(fid, scope, expr->expr.id.slice, {}, into_tid);
         } else if (expr->type == AST_EXPR_MATCH) {
             maybe_eid = handle_match(fid, scope, expr);
         } else {
@@ -1794,9 +1794,10 @@ ComptExprSolver::handle_any_generic_id(FileId fid, ScopeId scope, token_ptr_slic
 
 [[nodiscard]] OptId<ExecId>
 ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_slice,
-                               OptId<GenericArgIdSliceId> maybe_gen_args) {
+                               OptId<GenericArgIdSliceId> maybe_gen_args,
+                               OptId<TypeId> maybe_into_tid) {
     return handle_any_id_impl<compt_or_runtime::compt>(context, def_visitor, fid, scope, id_slice,
-                                                       maybe_gen_args);
+                                                       maybe_gen_args, maybe_into_tid);
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::handle_same_type(FileId fid, ScopeId scope,

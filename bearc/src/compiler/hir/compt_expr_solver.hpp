@@ -195,7 +195,8 @@ class ComptExprSolver {
 
     // tries to get the const value corresponding to some variable's name, if it exists
     [[nodiscard]] OptId<ExecId> handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_slice,
-                                              OptId<GenericArgIdSliceId> maybe_gen_args);
+                                              OptId<GenericArgIdSliceId> maybe_gen_args,
+                                              OptId<TypeId> maybe_into_tid = {});
 
     [[nodiscard]] OptId<ExecId> handle_same_type(FileId fid, ScopeId scope,
                                                  const ast_expr_t* same_type_expr);

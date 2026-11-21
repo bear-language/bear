@@ -163,7 +163,8 @@ class RuntimeSolver {
     [[nodiscard]] OptId<ExecId> handle_any_typed_expr(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
     [[nodiscard]] OptId<ExecId> handle_any_id(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
-                                              bool check_moved = true);
+                                              bool check_moved = true,
+                                              OptId<TypeId> maybe_into_tid = {});
     [[nodiscard]] OptId<ExecId> handle_any_generic_id(FileId fid, LexicalCtx lctx,
                                                       const ast_expr_t* expr);
     OptId<ExecId> handle_compt(FileId fid, LexicalCtx lctx, InProgressBlock& block,

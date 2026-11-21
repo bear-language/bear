@@ -196,7 +196,7 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
         maybe_eid = handle_literal(fid, expr, into_tid); // tries conversion if possible internally
         break;
     case AST_EXPR_ID:
-        maybe_eid = handle_any_id(fid, lctx, expr);
+        maybe_eid = handle_any_id(fid, lctx, expr, true, into_tid);
         break;
     case AST_EXPR_GENERIC_ID:
         maybe_eid = handle_any_generic_id(fid, lctx, expr);
@@ -1469,10 +1469,10 @@ OptId<ExecId> RuntimeSolver::handle_if(FileId fid, LexicalCtx lctx, InProgressBl
 }
 
 OptId<ExecId> RuntimeSolver::handle_any_id(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
-                                           bool check_moved) {
+                                           bool check_moved, OptId<TypeId> maybe_into_tid) {
     assert(expr->type == AST_EXPR_ID);
     const auto maybe_eid = handle_any_id_impl<compt_or_runtime::runtime>(
-        context, def_visitor, fid, lctx.scope, expr->expr.id.slice, {});
+        context, def_visitor, fid, lctx.scope, expr->expr.id.slice, {}, maybe_into_tid);
     if (!check_moved || maybe_eid.empty()) {
         return maybe_eid;
     }

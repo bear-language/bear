@@ -154,10 +154,54 @@ solve_expr_literal(Context& ctx, FileId fid, const ast_expr_t* expr) {
         ExecFnPtr{.func_def_id = func_did, .fn_ptr_tid = fn_ptr_tid_for(context, func_did)}, span);
 }
 
+[[nodiscard]] static inline OptId<DefId> try_variant_from_into_type(Context& context,
+                                                                    DefVisitor& def_visitor,
+                                                                    OptId<TypeId> maybe_into_tid) {
+    const auto maybe_tid = usable_into_tid(context, maybe_into_tid);
+    if (maybe_tid.empty() || !context.type(maybe_tid.as_id()).holds<TypeVariant>()) {
+        return {};
+    }
+    const DefId variant_did
+        = def_visitor.visit_as_dependent(context.type(maybe_tid.as_id()).as<TypeVariant>().def_id);
+    if (!context.def(variant_did).holds<DefVariant>()) {
+        return {};
+    }
+    return variant_did;
+}
+
+[[nodiscard]] static inline OptId<DefId> try_variant_field_in(Context& context,
+                                                              DefVisitor& def_visitor,
+                                                              DefId variant_did,
+                                                              SymbolId field_sid) {
+    const auto maybe_field_did
+        = context.look_up_local_type(context.scope_for_def(variant_did), field_sid);
+    if (maybe_field_did.empty()
+        || !context.def(def_visitor.visit_as_dependent(maybe_field_did.as_id()))
+                .holds<DefVariantField>()) {
+        return {};
+    }
+    return maybe_field_did;
+}
+
+static inline void diag_undeclared_with_into_variant_note(Context& context, Span span, SymbolId sid,
+                                                          OptId<DefId> maybe_variant_did) {
+    const auto d0 = context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
+                                               diag_type::error);
+    if (maybe_variant_did.has_value()) {
+        const auto d1 = context.emplace_diagnostic(
+            span, diag_code::is_not_a_variation_of_variant, diag_type::note,
+            DiagnosticSymbolBeforeAndAfterMessage{
+                .before_sid = sid, .after_sid = context.def(maybe_variant_did.as_id()).name},
+            DiagnosticInfoNoPreview{});
+        context.link_diagnostic(d0, d1);
+    }
+}
+
 template <compt_or_runtime C>
 [[nodiscard]] static inline OptId<ExecId>
 handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeId scope,
-                   token_ptr_slice_t id_slice, OptId<GenericArgIdSliceId> maybe_gen_args) {
+                   token_ptr_slice_t id_slice, OptId<GenericArgIdSliceId> maybe_gen_args,
+                   OptId<TypeId> maybe_into_tid = {}) {
 
     const auto sid_slice = context.symbol_slice(id_slice);
     const Span expr_span{context, fid, id_slice};
@@ -169,8 +213,18 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
         if (maybe_did.empty()) {
             maybe_did = context.look_up_scoped_type(scope, sid_slice, expr_span);
         }
-        if (maybe_did.empty()) {
-
+        if (maybe_did.empty() && sid_slice.len() == 1) {
+            const SymbolId sid = context.symbol_id(sid_slice.begin());
+            const auto maybe_variant_did
+                = try_variant_from_into_type(context, def_visitor, maybe_into_tid);
+            if (maybe_variant_did.has_value()) {
+                maybe_did
+                    = try_variant_field_in(context, def_visitor, maybe_variant_did.as_id(), sid);
+            }
+            if (maybe_did.empty()) {
+                diag_undeclared_with_into_variant_note(context, expr_span, sid, maybe_variant_did);
+            }
+        } else if (maybe_did.empty()) {
             context.emplace_diagnostic(Span{context, fid, id_slice},
                                        diag_code::use_of_undeclared_identifier, diag_type::error);
         }
@@ -1327,11 +1381,29 @@ try_fn_look_up_from_expr_impl(Solver& solver, FileId fid, ScopeId scope,
                     }
                 }
 
+                OptId<DefId> maybe_into_variant_did{};
+                if (!expr->expr.fn_call.is_generic && sid_slice.len() == 1) {
+                    maybe_into_variant_did
+                        = try_variant_from_into_type(context, def_visitor, maybe_into_tid);
+                    if (maybe_into_variant_did.has_value()) {
+                        if (const auto maybe_field_did = try_variant_field_in(
+                                context, def_visitor, maybe_into_variant_did.as_id(),
+                                context.symbol_id(sid_slice.begin()))) {
+                            return FuncLookUp{.maybe_variant_init_res = solve_variant_init_impl(
+                                                  solver, fid, scope, maybe_move_map, expr,
+                                                  maybe_field_did.as_id()),
+                                              .needs_generic_deduction = false,
+                                              .did_variant_initializer = true};
+                        }
+                    }
+                }
+
                 // no corresponding variant either, so this is just the
                 // use_of_undeclared_identifier
                 if (prior_diag_cnt == context.diagnostic_count()) {
-                    context.emplace_diagnostic(called_span, diag_code::use_of_undeclared_identifier,
-                                               diag_type::error);
+                    diag_undeclared_with_into_variant_note(context, called_span,
+                                                           context.symbol_id(sid_slice.last_elem()),
+                                                           maybe_into_variant_did);
                 }
 
                 return std::nullopt;
