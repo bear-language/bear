@@ -619,6 +619,8 @@ struct Exec : NodeWithVariantValue<Exec> {
 
 std::string exec_to_string(Context& ctx, ExecId eid);
 
+std::string def_to_plain_string(Context& ctx, DefId did);
+
 bool e_equivalent_exec(const Context& ctx, ExecId eid1, ExecId eid2);
 
 size_t e_hash_exec(const Context& ctx, ExecId eid);

@@ -19,6 +19,7 @@
 #include <limits>
 #include <optional>
 #include <stddef.h>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 namespace hir {
@@ -1847,8 +1848,7 @@ std::optional<ExecConst> ExecConst::bit_lsh(Context& ctx, Span span, ExecConst l
     }
     return std::nullopt;
 }
-std::optional<ExecConst> ExecConst::bit_rsh(Context& ctx, Span span, ExecConst lhs,
-                                            ExecConst rhs) {
+std::optional<ExecConst> ExecConst::bit_rsh(Context& ctx, Span span, ExecConst lhs, ExecConst rhs) {
     assert(lhs.holds_same_variant_type(rhs));
     switch (lhs.type_builtin()) {
     case builtin_type::u8:
@@ -2250,6 +2250,53 @@ std::optional<ExecConst> ExecConst::preunary_bit_not(ExecConst ec) {
     return std::nullopt;
 }
 
+static void append_escaped_char(std::string& str, char ch, char quote) {
+    switch (ch) {
+    case '\n':
+        str += "\\n";
+        return;
+    case '\t':
+        str += "\\t";
+        return;
+    case '\r':
+        str += "\\r";
+        return;
+    case '\0':
+        str += "\\0";
+        return;
+    case '\\':
+        str += "\\\\";
+        return;
+    default:
+        break;
+    }
+    if (ch == quote) {
+        str += '\\';
+    }
+    str += ch;
+}
+
+static std::string compt_constant_to_source_string(const Context& ctx, const ExecComptConstant& c) {
+    std::string str;
+    switch (c.type_builtin()) {
+    case builtin_type::str:
+        str += '"';
+        for (const char ch : std::string_view{ctx.symbol_id_to_cstr(c.as<SymbolId>())}) {
+            append_escaped_char(str, ch, '"');
+        }
+        str += '"';
+        return str;
+    case builtin_type::charr:
+        str += '\'';
+        append_escaped_char(str, c.as<char>(), '\'');
+        str += '\'';
+        return str;
+    default:
+        break;
+    }
+    return c.to_string(ctx);
+}
+
 static std::string exec_id_str(ExecId eid) {
     return std::string{"Exec#"} + std::to_string(eid.raw());
 }
@@ -2287,7 +2334,7 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
 
             for (const auto didx : block.defs) {
                 str += TAB;
-                str += def_to_string(ctx, ctx.def_id(didx));
+                str += def_to_plain_string(ctx, ctx.def_id(didx));
                 str += '\n';
             }
 
@@ -2409,7 +2456,9 @@ std::string exec_to_string(Context& ctx, ExecId eid) {
         [&ctx](const ExecVariable& t) -> std::string {
             return ctx.symbol_id_to_cstr(ctx.def(t.def_id).name);
         },
-        [&ctx](const ExecComptConstant& t) -> std::string { return t.to_string(ctx); },
+        [&ctx](const ExecComptConstant& t) -> std::string {
+            return compt_constant_to_source_string(ctx, t);
+        },
         [&ctx](const ExecListLiteral& t) -> std::string {
             std::string str{};
             str += '[';

@@ -13,6 +13,7 @@
 #include "compiler/hir/generic.hpp"
 #include "compiler/hir/indexing.hpp"
 #include "compiler/hir/scope.hpp"
+#include "utils/ansi_codes.h"
 #include <string>
 #include <string_view>
 
@@ -153,9 +154,7 @@ static std::string preview_def_to_string(Context& ctx, DefId did) {
             str += ctx.symbol(ctx.def(did).name);
             if (d.compt_value) {
                 str += " = ";
-                str += "(compt ";
                 str += exec_to_string(ctx, d.compt_value.as_id());
-                str += ')';
             }
             str += ';';
             return str;
@@ -287,26 +286,37 @@ namespace {
 
 class HirPrettyPrinter {
   public:
-    explicit HirPrettyPrinter(Context& ctx) : ctx{ctx} {}
+    HirPrettyPrinter(Context& ctx, bool colored) : ctx{ctx}, colored{colored} {
+        if (colored) {
+            out += ansi_reset();
+        }
+    }
 
-    std::string take() { return std::move(out); }
+    std::string take() {
+        if (colored) {
+            out += ansi_reset();
+        }
+        return std::move(out);
+    }
 
     void print_def(DefId did, bool qualify_name) {
         const Def& def = ctx.def(did);
         const auto vs = Ovld{
             [&](const DefModule& d) {
                 print_def_prefix(def);
-                out += "mod ";
+                keyword("mod");
+                out += ' ';
                 out += def_name(did, qualify_name);
                 out += ' ';
                 print_braced_scope(d.scope, {});
             },
             [&](const DefFunction& d) { print_function(did, d, qualify_name); },
-            [&](const DefGenericFunction& d) { print_generic_def(did, "fn ", d.generic_params); },
+            [&](const DefGenericFunction& d) { print_generic_def(did, "fn", d.generic_params); },
             [&](const DefFunctionPrototype& d) {
                 print_def_prefix(def);
-                out += "fn ";
-                out += def_name(did, qualify_name);
+                keyword("fn");
+                out += ' ';
+                fn_name(def_name(did, qualify_name));
                 print_params(d.params);
                 print_return_type(d.return_type, d.discardable);
                 out += ';';
@@ -314,14 +324,17 @@ class HirPrettyPrinter {
             [&](const DefVariable& d) {
                 print_def_prefix(def);
                 if (def.compt) {
-                    out += "compt ";
+                    keyword("compt");
+                    out += ' ';
                 }
                 if (def.alignment_preference) {
-                    out += "alignas(";
-                    out += std::to_string(def.alignment_preference);
-                    out += ") ";
+                    keyword("alignas");
+                    open('(');
+                    literal(std::to_string(def.alignment_preference));
+                    close(')');
+                    out += ' ';
                 }
-                out += type_to_string(ctx, d.type_id);
+                type_name(type_to_string(ctx, d.type_id));
                 out += ' ';
                 out += ctx.symbol(def.name);
                 if (d.compt_value) {
@@ -332,15 +345,16 @@ class HirPrettyPrinter {
             },
             [&](const DefStruct& d) {
                 print_def_prefix(def);
-                out += "struct ";
-                out += ctx.symbol(def.name);
-                if (d.maybe_generic_args.has_value()) {
-                    out += gen_args_to_str(ctx, d.maybe_generic_args.as_id());
-                }
+                keyword("struct");
+                out += ' ';
+                type_name(def_name_with_gen_args(did, d.maybe_generic_args));
                 if (d.contracts.len()) {
-                    out += " has ";
+                    out += ' ';
+                    keyword("has");
+                    out += ' ';
                     for (const auto didx : d.contracts) {
-                        out += ctx.symbol_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
+                        type_name(
+                            ctx.symbol_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx))));
                         if (didx != d.contracts.last_elem()) {
                             out += " + ";
                         }
@@ -349,63 +363,63 @@ class HirPrettyPrinter {
                 out += ' ';
                 print_braced_scope(d.scope, d.ordered_members);
             },
-            [&](const DefGenericStruct& d) { print_generic_def(did, "struct ", d.generic_params); },
+            [&](const DefGenericStruct& d) { print_generic_def(did, "struct", d.generic_params); },
             [&](const DefVariant& d) {
                 print_def_prefix(def);
-                out += "variant ";
-                out += ctx.symbol(def.name);
-                if (d.maybe_generic_args.has_value()) {
-                    out += gen_args_to_str(ctx, d.maybe_generic_args.as_id());
-                }
+                keyword("variant");
+                out += ' ';
+                type_name(def_name_with_gen_args(did, d.maybe_generic_args));
                 out += ' ';
                 print_braced_scope(d.scope, d.ordered_members);
             },
             [&](const DefGenericVariant& d) {
-                print_generic_def(did, "variant ", d.generic_params);
+                print_generic_def(did, "variant", d.generic_params);
             },
             [&](const DefVariantField& d) {
-                out += ctx.symbol(def.name);
+                type_name(ctx.symbol(def.name));
                 print_params(d.members);
                 out += ',';
             },
             [&](const DefUnion& d) {
                 print_def_prefix(def);
-                out += "union ";
-                out += ctx.symbol(def.name);
+                keyword("union");
+                out += ' ';
+                type_name(ctx.symbol(def.name));
                 out += ' ';
                 print_braced_scope(d.scope, d.ordered_members);
             },
             [&](const DefGenericContract& d) {
-                print_generic_def(did, "contract ", d.generic_params);
+                print_generic_def(did, "contract", d.generic_params);
             },
             [&](const DefContract& d) {
                 print_def_prefix(def);
-                out += "contract ";
-                out += ctx.symbol(def.name);
-                if (d.maybe_generic_args.has_value()) {
-                    out += gen_args_to_str(ctx, d.maybe_generic_args.as_id());
-                }
+                keyword("contract");
+                out += ' ';
+                type_name(def_name_with_gen_args(did, d.maybe_generic_args));
                 out += ' ';
                 print_braced_scope(d.scope, d.funcs);
             },
             [&](const DefDeftype& d) {
                 print_def_prefix(def);
-                out += "deftype ";
-                out += ctx.symbol(def.name);
+                keyword("deftype");
+                out += ' ';
+                type_name(ctx.symbol(def.name));
                 out += " = ";
-                out += type_to_string_with_akas(ctx, d.type);
+                type_name(type_to_string_with_akas(ctx, d.type));
                 out += ';';
             },
             [&](const DefScopeWrapper& d) { print_braced_scope(d.scope, {}); },
             [&](const DefUnevaluated&) {
-                out += "(unevaluated ";
+                open('(');
+                out += "unevaluated ";
                 out += ctx.symbol(def.name);
-                out += ')';
+                close(')');
             },
             [&](const DefMalformed&) {
-                out += "(malformed ";
+                open('(');
+                out += "malformed ";
                 out += ctx.symbol(def.name);
-                out += ')';
+                close(')');
             },
         };
         def.visit(vs);
@@ -440,6 +454,35 @@ class HirPrettyPrinter {
     std::string out;
     HirSize depth{};
     HirSize block_depth{};
+    bool colored;
+    bool delim_red{true};
+
+    void colorize(const char* color, std::string_view text) {
+        if (colored) {
+            out += color;
+        }
+        out += text;
+        if (colored) {
+            out += ansi_reset();
+        }
+    }
+
+    void keyword(std::string_view text) { colorize(ansi_magenta_fg(), text); }
+    void literal(std::string_view text) { colorize(ansi_green_fg(), text); }
+    void type_name(std::string_view text) { colorize(ansi_yellow_fg(), text); }
+    void fn_name(std::string_view text) { colorize(ansi_cyan_fg(), text); }
+
+    const char* delim_color() const { return delim_red ? ansi_red_fg() : ansi_blue_fg(); }
+
+    void open(char delim) {
+        colorize(delim_color(), std::string_view{&delim, 1});
+        delim_red = !delim_red;
+    }
+
+    void close(char delim) {
+        delim_red = !delim_red;
+        colorize(delim_color(), std::string_view{&delim, 1});
+    }
 
     void newline() {
         out += '\n';
@@ -467,24 +510,37 @@ class HirPrettyPrinter {
         return std::string{ctx.symbol(ctx.def(did).name)};
     }
 
+    std::string def_name_with_gen_args(DefId did, OptId<GenericArgIdSliceId> gen_args) {
+        std::string name{ctx.symbol(ctx.def(did).name)};
+        if (gen_args.has_value()) {
+            name += gen_args_to_str(ctx, gen_args.as_id());
+        }
+        return name;
+    }
+
     void print_def_prefix(const Def& def) {
         if (def.abi == abi_lang::c) {
-            out += "extern C ";
+            keyword("extern");
+            out += ' ';
+            literal("C");
+            out += ' ';
         }
         if (!def.pub && !block_depth) {
-            out += "hid ";
+            keyword("hid");
+            out += ' ';
         }
         if (def.statik) {
-            out += "static ";
+            keyword("static");
+            out += ' ';
         }
     }
 
     void print_params(IdSlice<DefId> params) {
-        out += '(';
+        open('(');
         for (const auto didx : params) {
             const Def& param = ctx.def(didx);
             if (param.holds<DefVariable>()) {
-                out += type_to_string(ctx, param.as<DefVariable>().type_id);
+                type_name(type_to_string(ctx, param.as<DefVariable>().type_id));
                 out += ' ';
             }
             out += ctx.symbol(param.name);
@@ -492,13 +548,13 @@ class HirPrettyPrinter {
                 out += ", ";
             }
         }
-        out += ')';
+        close(')');
     }
 
     void print_return_type(OptId<TypeId> return_type, bool discardable) {
         if (return_type.has_value()) {
             out += discardable ? " ~> " : " -> ";
-            out += type_to_string(ctx, return_type.as_id());
+            type_name(type_to_string(ctx, return_type.as_id()));
         }
     }
 
@@ -506,13 +562,16 @@ class HirPrettyPrinter {
         const Def& def = ctx.def(did);
         print_def_prefix(def);
         if (def.compt) {
-            out += "compt ";
+            keyword("compt");
+            out += ' ';
         }
-        out += "fn ";
-        out += def_name(did, qualify_name);
+        keyword("fn");
+        out += ' ';
+        std::string name = def_name(did, qualify_name);
         if (d.maybe_generic_args.has_value()) {
-            out += gen_args_to_str(ctx, d.maybe_generic_args.as_id());
+            name += gen_args_to_str(ctx, d.maybe_generic_args.as_id());
         }
+        fn_name(name);
         print_params(d.params);
         print_return_type(d.return_type, d.discardable);
         if (d.body) {
@@ -523,8 +582,7 @@ class HirPrettyPrinter {
         }
     }
 
-    void print_generic_def(DefId did, std::string_view keyword,
-                           IdSlice<GenericParamId> generic_params) {
+    void print_generic_def(DefId did, std::string_view kw, IdSlice<GenericParamId> generic_params) {
         const Def& def = ctx.def(did);
         const ast_stmt_t* node = ctx.def_ast_node(did);
         if (node && node->first && node->last) {
@@ -543,17 +601,26 @@ class HirPrettyPrinter {
         }
         print_def_prefix(def);
         if (def.compt) {
-            out += "compt ";
+            keyword("compt");
+            out += ' ';
         }
-        out += keyword;
-        out += ctx.symbol(def.name);
-        out += gen_params_to_string(ctx, generic_params);
-        out += " {}";
+        keyword(kw);
+        out += ' ';
+        const std::string name
+            = std::string{ctx.symbol(def.name)} + gen_params_to_string(ctx, generic_params);
+        if (kw == "fn") {
+            fn_name(name);
+        } else {
+            type_name(name);
+        }
+        out += ' ';
+        open('{');
+        close('}');
     }
 
     void print_braced_scope(ScopeId sid, IdSlice<DefId> ordered) {
+        open('{');
         const auto before = out.size();
-        out += '{';
         indent();
         for (const auto didx : ordered) {
             newline();
@@ -567,21 +634,20 @@ class HirPrettyPrinter {
             out.resize(before_scope);
         }
         dedent();
-        if (out.size() == before + 1) {
-            out += '}';
-            return;
+        if (out.size() != before) {
+            newline();
         }
-        newline();
-        out += '}';
+        close('}');
     }
 
     void print_block(BlockId bid) {
         const Block& block = ctx.block(bid);
         if (!block.defs.len() && !block.execs.len()) {
-            out += "{}";
+            open('{');
+            close('}');
             return;
         }
-        out += '{';
+        open('{');
         indent();
         ++block_depth;
         for (const auto didx : block.defs) {
@@ -595,7 +661,7 @@ class HirPrettyPrinter {
         --block_depth;
         dedent();
         newline();
-        out += '}';
+        close('}');
     }
 
     void print_body(ExecId eid) {
@@ -603,9 +669,11 @@ class HirPrettyPrinter {
             print_block(ctx.exec(eid).as<ExecBlock>().block_id);
             return;
         }
-        out += "{ ";
+        open('{');
+        out += ' ';
         print_stmt(eid);
-        out += " }";
+        out += ' ';
+        close('}');
     }
 
     void print_stmt(ExecId eid) {
@@ -630,11 +698,11 @@ class HirPrettyPrinter {
                           || exec.holds<ExecCompoundAssignment>() || exec.holds<ExecCast>()
                           || exec.holds<ExecRange>() || (postfix && is_prefix);
         if (wrap) {
-            out += '(';
+            open('(');
         }
         print_exec(eid);
         if (wrap) {
-            out += ')';
+            close(')');
         }
     }
 
@@ -648,49 +716,51 @@ class HirPrettyPrinter {
     }
 
     void print_constant(const ExecComptConstant& c) {
+        std::string text;
         switch (c.type_builtin()) {
         case builtin_type::str:
-            out += '"';
+            text += '"';
             for (const char ch : std::string_view{ctx.symbol_id_to_cstr(c.as<SymbolId>())}) {
-                print_escaped_char(ch, '"');
+                append_escaped_char(text, ch, '"');
             }
-            out += '"';
-            return;
+            text += '"';
+            break;
         case builtin_type::charr:
-            out += '\'';
-            print_escaped_char(c.as<char>(), '\'');
-            out += '\'';
-            return;
+            text += '\'';
+            append_escaped_char(text, c.as<char>(), '\'');
+            text += '\'';
+            break;
         default:
+            text = c.to_string(ctx);
             break;
         }
-        out += c.to_string(ctx);
+        literal(text);
     }
 
-    void print_escaped_char(char ch, char quote) {
+    static void append_escaped_char(std::string& text, char ch, char quote) {
         switch (ch) {
         case '\n':
-            out += "\\n";
+            text += "\\n";
             return;
         case '\t':
-            out += "\\t";
+            text += "\\t";
             return;
         case '\r':
-            out += "\\r";
+            text += "\\r";
             return;
         case '\0':
-            out += "\\0";
+            text += "\\0";
             return;
         case '\\':
-            out += "\\\\";
+            text += "\\\\";
             return;
         default:
             break;
         }
         if (ch == quote) {
-            out += '\\';
+            text += '\\';
         }
-        out += ch;
+        text += ch;
     }
 
     OptId<ExecId> chained_else_if(ExecId eid) {
@@ -718,38 +788,47 @@ class HirPrettyPrinter {
         const auto vs = Ovld{
             [&](const ExecBlock& t) { print_block(t.block_id); },
             [&](const ExecJump& t) {
-                out += t.spot == jump_spot::start ? "continue " : "break ";
+                keyword(t.spot == jump_spot::start ? "continue" : "break");
+                out += ' ';
                 out += exec_label(t.block);
             },
             [&](const ExecLoop& t) {
                 out += exec_label(eid);
                 out += ": ";
                 if (t.update.has_value()) {
-                    out += "for (; ";
+                    keyword("for");
+                    out += ' ';
+                    open('(');
+                    out += "; ";
                     if (t.condition.has_value()) {
                         print_exec(t.condition.as_id());
                     }
                     out += "; ";
                     print_exec(t.update.as_id());
-                    out += ") ";
+                    close(')');
+                    out += ' ';
                 } else {
-                    out += "while ";
+                    keyword("while");
+                    out += ' ';
                     if (t.condition.has_value()) {
                         print_exec(t.condition.as_id());
                     } else {
-                        out += "true";
+                        literal("true");
                     }
                     out += ' ';
                 }
                 print_body(t.body);
             },
             [&](const ExecBranch& t) {
-                out += "if ";
+                keyword("if");
+                out += ' ';
                 print_exec(t.condition);
                 out += ' ';
                 print_body(t.then_block);
                 if (t.else_block.has_value()) {
-                    out += " else ";
+                    out += ' ';
+                    keyword("else");
+                    out += ' ';
                     const ExecId else_eid = t.else_block.as_id();
                     const OptId<ExecId> chained = chained_else_if(else_eid);
                     if (chained.has_value()) {
@@ -760,14 +839,14 @@ class HirPrettyPrinter {
                 }
             },
             [&](const ExecReturn& t) {
-                out += "return";
+                keyword("return");
                 if (t.return_value.has_value()) {
                     out += ' ';
                     print_exec(t.return_value.as_id());
                 }
             },
             [&](const ExecYield& t) {
-                out += "yield";
+                keyword("yield");
                 if (t.yield_value.has_value()) {
                     out += ' ';
                     print_exec(t.yield_value.as_id());
@@ -775,46 +854,48 @@ class HirPrettyPrinter {
             },
             [&](const ExecUnionInit& t) {
                 const Def& union_def = ctx.def(t.union_def_id);
-                out += ctx.symbol(union_def.name);
-                out += "{.";
+                type_name(ctx.symbol(union_def.name));
+                open('{');
+                out += '.';
                 out += ctx.symbol(
                     ctx.def(union_def.as<DefUnion>().ordered_members.get(t.active_member_idx))
                         .name);
                 out += " = ";
                 const bool explicit_move = t.move && !ctx.exec(t.member_init).holds<ExecMove>();
                 if (explicit_move) {
-                    out += "move(";
+                    keyword("move");
+                    open('(');
                 }
                 print_exec(t.member_init);
                 if (explicit_move) {
-                    out += ')';
+                    close(')');
                 }
-                out += '}';
+                close('}');
             },
             [&](const ExecVariantInit& t) {
-                out += ctx.symbol(ctx.def(t.variant_def_id).name);
+                type_name(ctx.symbol(ctx.def(t.variant_def_id).name));
                 out += "..";
                 print_exec(t.payload_init);
             },
             [&](const ExecVariantFieldInit& t) {
-                out += ctx.symbol(ctx.def(t.variant_field_def_id).name);
-                out += '(';
+                type_name(ctx.symbol(ctx.def(t.variant_field_def_id).name));
+                open('(');
                 print_exec_list(t.member_inits, ", ");
-                out += ')';
+                close(')');
             },
             [&](const ExecStructInit& t) {
                 if (t.anonymous) {
-                    out += '(';
+                    open('(');
                     for (const auto eidx : t.member_inits) {
                         print_exec(ctx.exec_id(eidx));
                         out += ", ";
                     }
-                    out += ')';
+                    close(')');
                     return;
                 }
                 const auto& members = ctx.def(t.struct_def_id).as<DefStruct>().ordered_members;
-                out += ctx.symbol(ctx.def(t.struct_def_id).name);
-                out += '{';
+                type_name(ctx.symbol(ctx.def(t.struct_def_id).name));
+                open('{');
                 for (HirSize i = 0; i < t.member_inits.len(); ++i) {
                     if (i) {
                         out += ", ";
@@ -824,14 +905,14 @@ class HirPrettyPrinter {
                     out += " = ";
                     print_exec(ctx.exec_id(t.member_inits.get(i)));
                 }
-                out += '}';
+                close('}');
             },
             [&](const ExecVariable& t) { out += ctx.symbol(ctx.def(t.def_id).name); },
             [&](const ExecComptConstant& t) { print_constant(t); },
             [&](const ExecListLiteral& t) {
-                out += '[';
+                open('[');
                 print_exec_list(t.elems, ", ");
-                out += ']';
+                close(']');
             },
             [&](const ExecAssignment& t) {
                 print_exec(t.lhs);
@@ -852,27 +933,37 @@ class HirPrettyPrinter {
             },
             [&](const ExecCast& t) {
                 print_operand(t.exec);
-                out += " as ";
-                out += type_to_string_with_akas(ctx, t.target_tid);
+                out += ' ';
+                keyword("as");
+                out += ' ';
+                type_name(type_to_string_with_akas(ctx, t.target_tid));
             },
             [&](const ExecSubscript& t) {
                 print_postfix_operand(t.base);
-                out += '[';
+                open('[');
                 print_exec(t.index);
-                out += ']';
+                close(']');
             },
             [&](const ExecFnCall& t) {
                 print_postfix_operand(t.callee);
-                out += '(';
+                open('(');
                 print_exec_list(t.args, ", ");
-                out += ')';
+                close(')');
             },
             [&](const ExecBorrow& t) {
-                out += t.mut ? "&mut " : "&";
+                out += '&';
+                if (t.mut) {
+                    keyword("mut");
+                    out += ' ';
+                }
                 print_operand(t.borrowee);
             },
             [&](const ExecAddrOf& t) {
-                out += t.mut ? "^mut " : "^";
+                out += '^';
+                if (t.mut) {
+                    keyword("mut");
+                    out += ' ';
+                }
                 print_operand(t.addressed);
             },
             [&](const ExecDeref& t) {
@@ -880,9 +971,11 @@ class HirPrettyPrinter {
                 print_operand(t.dereferenced);
             },
             [&](const ExecMatch& t) {
-                out += "match ";
+                keyword("match");
+                out += ' ';
                 print_exec(t.scrutinee);
-                out += " {";
+                out += ' ';
+                open('{');
                 indent();
                 for (const auto eidx : t.branches) {
                     newline();
@@ -891,28 +984,32 @@ class HirPrettyPrinter {
                 }
                 dedent();
                 newline();
-                out += '}';
+                close('}');
             },
             [&](const ExecMatchBranch& t) {
                 if (t.patterns.len()) {
                     print_exec_list(t.patterns, " | ");
                 } else {
-                    out += "else";
+                    keyword("else");
                 }
                 out += " => ";
                 print_exec(t.body);
             },
             [&](const ExecTernaryIf& t) {
-                out += '(';
+                open('(');
                 print_operand(t.then_value);
-                out += " if ";
+                out += ' ';
+                keyword("if");
+                out += ' ';
                 print_operand(t.condition);
-                out += " else ";
+                out += ' ';
+                keyword("else");
+                out += ' ';
                 print_operand(t.else_value);
-                out += ')';
+                close(')');
             },
             [&](const ExecFnPtr& t) {
-                out += ctx.symbol_id_slice_to_string(ctx.canonical_name(t.func_def_id));
+                fn_name(ctx.symbol_id_slice_to_string(ctx.canonical_name(t.func_def_id)));
             },
             [&](const ExecRange& t) {
                 print_operand(t.start);
@@ -958,9 +1055,10 @@ class HirPrettyPrinter {
                 }
             },
             [&](const ExecMove& t) {
-                out += "move(";
+                keyword("move");
+                open('(');
                 print_exec(t.exec);
-                out += ')';
+                close(')');
             },
         };
         ctx.exec(eid).visit(vs);
@@ -1121,14 +1219,20 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
     return str;
 }
 
+std::string def_to_plain_string(Context& ctx, DefId did) {
+    HirPrettyPrinter printer{ctx, false};
+    printer.print_def(did, true);
+    return printer.take();
+}
+
 std::string def_to_string(Context& ctx, DefId did) {
-    HirPrettyPrinter printer{ctx};
+    HirPrettyPrinter printer{ctx, true};
     printer.print_def(did, true);
     return printer.take();
 }
 
 std::string scope_to_string(Context& ctx, ScopeId scope) {
-    HirPrettyPrinter printer{ctx};
+    HirPrettyPrinter printer{ctx, true};
     printer.print_scope_contents(scope, {}, true);
     return printer.take();
 }
