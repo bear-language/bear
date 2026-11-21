@@ -9,8 +9,9 @@
 #ifndef BEARC_COMPILER_HIR_DEDUCTION_HPP
 #define BEARC_COMPILER_HIR_DEDUCTION_HPP
 
-#include "compiler/hir/expr_solver.hpp"
+#include "compiler/ast/stmt.h"
 #include "compiler/hir/indexing.hpp"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace hir {
@@ -28,10 +29,11 @@ struct DeductionStep {
     OptId<DeductionStepId> next{};
 };
 
+[[nodiscard]] const ast_stmt_t* try_unravel_instance_fields(const ast_stmt_t* stmt);
+
 [[nodiscard]] OptId<GenericArgIdSliceId>
-try_generic_args_from_deduction_guide(IsExprSolver auto& solver,
-                                      const llvm::SmallVectorImpl<ExecId>& eids,
-                                      DeductionGuideId guide_id);
+try_generic_args_from_deduction_guide(Context& context, DeductionGuideId guide_id,
+                                      llvm::ArrayRef<OptId<TypeId>> tids_by_order_idx);
 
 } // namespace hir
 

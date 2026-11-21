@@ -217,6 +217,7 @@ enum class diag_code : uint16_t {
     invalid_escape_sequence,
     oversized_escape_sequence,
     cannot_deduce_generic_paramters_for_function,
+    cannot_deduce_generic_parameters_for_struct,
     takes_no_arguments,
     does_not_have_contract_default_so_an_initial_value_is_needed,
     reference_does_not_have_an_explicit_initializer,

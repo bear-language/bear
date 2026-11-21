@@ -1,0 +1,51 @@
+// tests/hir/b62.br
+
+// testing function deduction guides when the deduced param isn't the first one
+
+fn main() {;}
+
+struct Box<T> {
+    T val;
+}
+
+fn after_ref<T>(&i32 _a, T b) -> T => b
+
+compt fn after_generics<T>(*fn(i32)->i32 _f, Box<i32> _c, Box<T> b) -> T => b.val
+
+fn after_ref_into_ptr<T>(&i32 _a, *T b) -> *T => b
+
+compt fn inc(i32 x) -> i32 => x + 1
+
+compt var a0 = after_generics(inc, Box{.val = 1}, Box{.val = 3 as u16}); // T = u16
+var _0 = @static_assert @same_type(typeof a0, u16);
+var _1 = @static_assert a0 == 3;
+
+fn runtime(i32 x, *u8 p) {
+    *u8 _0 = after_ref(&x, p); // T = *u8, not u8
+    *u8 _1 = after_ref_into_ptr(&x, p); // T = u8
+    u8 _2 = after_ref(&x, p); // oops, deduced *u8
+}
+
+// args are checked against the instantiated param types
+
+fn take<T>(&T _a) {;}
+
+fn two<T>(T a, T _b) -> T => a
+
+fn checked(&u64 ry, u64 x, str s) {
+    take(&x);
+    u64 _0 = two(x, 1); // literal converts to the deduced u64
+    take(ry); // oops, ry is a u64 value here, not a &u64
+    var _1 = two(x, s); // oops, T deduced as u64 from x
+}
+
+// generic methods don't deduce from `self`
+
+struct Printer {
+    i32 id = 0;
+    compt mt echo<T>(T val) -> T => val
+}
+
+compt var printer = Printer{};
+compt var echoed = printer.echo("hi");
+var _5 = @static_assert @same_type(typeof echoed, str);

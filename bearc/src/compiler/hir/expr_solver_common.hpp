@@ -22,7 +22,6 @@
 #include "compiler/hir/scope.hpp"
 #include "compiler/hir/type_resolver.hpp"
 #include "llvm/ADT/SmallBitVector.h"
-#include <iostream>
 
 namespace hir {
 
@@ -332,6 +331,11 @@ handle_struct_or_union_init_impl(Solver& solver, FileId fid, ScopeId scope,
             const Def& def = context.def(did);
             // check for raw use of generic struct
             if (def.generic) {
+                if (!expr->expr.struct_init.is_generic
+                    && context.deduction_guide_for_def(did).has_value()) {
+                    return solve_deduced_struct_init(solver, fid, scope, maybe_move_map, did, expr,
+                                                     into_tid);
+                }
                 auto d0 = context.emplace_diagnostic_with_message_value(
                     Span{context, fid, id_slice}, diag_code::raw_use_of_generic_type,
                     diag_type::error, DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
@@ -437,9 +441,114 @@ solve_union_init(Solver& solver, FileId fid, ScopeId scope, OptId<MoveMapId> may
 }
 
 template <IsExprSolver Solver>
+[[nodiscard]] OptId<ExecId> check_solved_exec_against(Context& context, ExecId eid,
+                                                      TypeId into_tid) {
+    if constexpr (std::same_as<Solver, ComptExprSolver>) {
+        into_tid = context.try_decay(into_tid);
+        const Exec& exec = context.exec(eid);
+        const Type& into_ty = context.type(into_tid);
+        if (exec.holds<ExecListLiteral>() && into_ty.holds<TypeSlice>()) {
+            const auto maybe_elem_tid = exec.as<ExecListLiteral>().elem_type_id;
+            if (maybe_elem_tid.empty()
+                || context.assignable_and_inferable_from_type_to(maybe_elem_tid.as_id(),
+                                                                 into_ty.as<TypeSlice>().inner)) {
+                return eid;
+            }
+        }
+    }
+    if (context.exec(eid).holds<ExecConst>()) {
+        if (const auto maybe_conv = context.try_convert_to(eid, into_tid)) {
+            eid = maybe_conv.as_id();
+        }
+    }
+    const auto maybe_tid = context.infer_type_from_exec(eid);
+    if (maybe_tid.empty()) {
+        return {};
+    }
+    if (!context.assignable_and_inferable_from_type_to(maybe_tid.as_id(), into_tid)) {
+        context.emplace_diagnostic_with_message_value(
+            context.exec(eid).span, diag_code::cannot_convert_value_of_type, diag_type::error,
+            DiagnosticTypeToType{.from = maybe_tid.as_id(), .to = into_tid});
+        return {};
+    }
+    return eid;
+}
+
+template <IsExprSolver Solver>
+[[nodiscard]] OptId<ExecId> solve_deduced_struct_init(Solver& solver, FileId fid, ScopeId scope,
+                                                      OptId<MoveMapId> maybe_move_map,
+                                                      DefId generic_did, const ast_expr_t* expr,
+                                                      OptId<TypeId> into_tid) {
+    Context& context = solver.get_context();
+    DefVisitor& def_visitor = solver.get_def_visitor();
+    const ast_slice_of_stmts_t fields = context.def_ast_node(generic_did)->stmt.struct_decl.fields;
+    const ast_slice_of_exprs_t init_slice = expr->expr.struct_init.member_inits;
+
+    const DeductionGuideId guide_id = context.deduction_guide_for_def(generic_did).as_id();
+    llvm::SmallVector<OptId<ExecId>> presolved(init_slice.len);
+    llvm::SmallVector<OptId<TypeId>> tids_by_field(fields.len);
+
+    for (const auto step_idx : context.deduction_guide(guide_id)) {
+        const HirSize order_idx = context.deduction_step(step_idx).order_idx;
+        if (order_idx >= fields.len || tids_by_field[order_idx].has_value()) {
+            continue;
+        }
+        const ast_stmt_t* field = try_unravel_instance_fields(fields.start[order_idx]);
+        if (!field) {
+            continue;
+        }
+        const SymbolId field_sid
+            = context.symbol_id(field->type == AST_STMT_VAR_DECL ? field->stmt.var_decl.name
+                                                                 : field->stmt.var_init_decl.name);
+        for (HirSize i = 0; i < init_slice.len; ++i) {
+            const ast_expr_t* init = init_slice.start[i];
+            if (init->type != AST_EXPR_STRUCT_MEMBER_INIT
+                || context.symbol_id(init->expr.struct_member_init.id) != field_sid) {
+                continue;
+            }
+            presolved[i] = solve_expr_helper(solver, fid, scope, maybe_move_map,
+                                             init->expr.struct_member_init.value);
+            if (presolved[i].empty()) {
+                return {};
+            }
+            tids_by_field[order_idx] = solver.infer_type_from_exec(presolved[i].as_id());
+            break;
+        }
+    }
+
+    const auto maybe_gen_args
+        = try_generic_args_from_deduction_guide(context, guide_id, tids_by_field);
+    if (maybe_gen_args.empty()) {
+        const auto d0 = context.emplace_diagnostic_with_message_value(
+            Span{context, fid, expr}, diag_code::cannot_deduce_generic_parameters_for_struct,
+            diag_type::error, DiagnosticSymbolAfterMessage{.sid = context.def(generic_did).name});
+        const auto d1 = context.emplace_diagnostic_with_message_value(
+            context.name_span_for_def(generic_did), diag_code::declared_here_as_generic,
+            diag_type::note, DiagnosticSymbolBeforeMessage{.sid = context.def(generic_did).name});
+        context.link_diagnostic(d0, d1);
+        return {};
+    }
+
+    const OptId<DefId> maybe_instance
+        = context.try_generic_instantiation(def_visitor, generic_did, maybe_gen_args.as_id());
+    if (maybe_instance.empty()) {
+        return {};
+    }
+    const OptId<DefId> maybe_struct_did
+        = context.ensure_struct_def(def_visitor.visit_as_dependent(maybe_instance.as_id()));
+    if (maybe_struct_did.empty()
+        || !context.def(maybe_struct_did.as_id()).template holds<DefStruct>()) {
+        return {};
+    }
+    return solve_struct_init(solver, fid, scope, maybe_move_map, maybe_struct_did.as_id(), expr,
+                             into_tid, presolved);
+}
+
+template <IsExprSolver Solver>
 [[nodiscard]] OptId<ExecId> solve_struct_init(Solver& solver, FileId fid, ScopeId scope,
                                               OptId<MoveMapId> maybe_move_map, DefId struct_did,
-                                              const ast_expr_t* expr, OptId<TypeId> into_tid) {
+                                              const ast_expr_t* expr, OptId<TypeId> into_tid,
+                                              llvm::ArrayRef<OptId<ExecId>> presolved_inits = {}) {
 
     static constexpr bool is_compt_eval = std::same_as<Solver, ComptExprSolver>;
 
@@ -487,7 +596,9 @@ template <IsExprSolver Solver>
         }
         TypeId mem_tid = context.def(maybe_mem_did.as_id()).as<DefVariable>().type_id;
         OptId<ExecId> maybe_eid
-            = solve_expr_helper(solver, fid, scope, maybe_move_map, mem_init.value, mem_tid);
+            = (i < presolved_inits.size() && presolved_inits[i].has_value())
+                  ? check_solved_exec_against<Solver>(context, presolved_inits[i].as_id(), mem_tid)
+                  : solve_expr_helper(solver, fid, scope, maybe_move_map, mem_init.value, mem_tid);
         if (!maybe_eid) {
             poisoned_members.set(context.def(maybe_mem_did.as_id()).member_idx);
             continue;
@@ -557,16 +668,17 @@ template <IsExprSolver Solver>
     if (into_tid.has_value() && context.type(into_tid.as_id()).template holds<TypeStruct>()) {
         if (auto into_did = context.type(into_tid.as_id()).template as<TypeStruct>().def_id;
             struct_did != into_did) {
-            context.emplace_diagnostic(Span{context, fid, expr},
-                                       diag_code::cannot_convert_value_of_type, diag_type::error,
-                                       DiagnosticTypeToType{.from = context.emplace_type(
-                                                                TypeStruct{
-                                                                    .def_id = struct_did,
-                                                                    .gen_args_slice = {},
-                                                                },
-                                                                Span{context, fid, expr}, false),
-                                                            .to = into_tid.as_id()},
-                                       DiagnosticNoOtherInfo{});
+            context.emplace_diagnostic(
+                Span{context, fid, expr}, diag_code::cannot_convert_value_of_type, diag_type::error,
+                DiagnosticTypeToType{
+                    .from = context.emplace_type(
+                        TypeStruct{
+                            .def_id = struct_did,
+                            .gen_args_slice = context.search_for_gen_args_for_def(struct_did),
+                        },
+                        Span{context, fid, expr}, false),
+                    .to = into_tid.as_id()},
+                DiagnosticNoOtherInfo{});
             return {};
         }
     }
@@ -1197,23 +1309,42 @@ template <IsExprSolver Solver>
             context.link_diagnostic(d0, d1);
             return {};
         }
-        for (HirSize i = 0; i < exprs.len; i++) {
-            const ast_expr_t* arg = exprs.start[i];
+        const HirSize self_offset = maybe_self_val.has_value() ? 1 : 0;
+        const HirSize total_args = self_offset + exprs.len;
+        const ast_stmt_t* gen_fn_node = context.def_ast_node(func_did);
+        const HirSize implicit_self_offset = (gen_fn_node && gen_fn_node->type == AST_STMT_FN_DECL
+                                              && gen_fn_node->stmt.fn_decl->kw->type == TOK_MT)
+                                                 ? 1
+                                                 : 0;
 
-            OptId<ExecId> maybe_arg_eid
-                = solve_expr_helper(solver, fid, scope, maybe_move_map, arg);
-            if (maybe_arg_eid.empty()) {
-                issue = true;
-            } else {
-                out_args.push_back(maybe_arg_eid.as_id());
+        llvm::SmallVector<OptId<ExecId>> solved_args(total_args);
+        llvm::SmallBitVector attempted(total_args);
+        if (maybe_self_val.has_value()) {
+            solved_args[0] = maybe_self_val;
+            attempted.set(0);
+        }
+        for (const auto step_idx : context.deduction_guide(maybe_deduction_guide.as_id())) {
+            const HirSize p = context.deduction_step(step_idx).order_idx + implicit_self_offset;
+            if (p >= total_args || attempted.test(p)) {
+                continue;
             }
-            total_arg_cnt++;
+            attempted.set(p);
+            solved_args[p] = solve_expr_helper(solver, fid, scope, maybe_move_map,
+                                               exprs.start[p - self_offset]);
+            issue |= solved_args[p].empty();
         }
         if (issue) {
             return {};
         }
+
+        llvm::SmallVector<OptId<TypeId>> tids_by_param{};
+        for (HirSize p = implicit_self_offset; p < total_args; ++p) {
+            tids_by_param.push_back(solved_args[p].has_value()
+                                        ? solver.infer_type_from_exec(solved_args[p].as_id())
+                                        : OptId<TypeId>{});
+        }
         const auto maybe_gen_args = try_generic_args_from_deduction_guide(
-            solver, out_args, maybe_deduction_guide.as_id());
+            context, maybe_deduction_guide.as_id(), tids_by_param);
         if (maybe_gen_args.empty()) {
 
             // try to give the helpful possible diagnostics
@@ -1241,6 +1372,29 @@ template <IsExprSolver Solver>
         }
         func_did = maybe_gen_instant.as_id();
         params = context.def(maybe_gen_instant.as_id()).as<DefFunction>().params;
+        for (HirSize i = 0; i < exprs.len; ++i) {
+            const HirSize p = i + self_offset;
+            const OptId<TypeId> maybe_param_tid
+                = p < params.len()
+                      ? OptId<TypeId>{context.def(params.get(p)).as<DefVariable>().type_id}
+                      : std::nullopt;
+            OptId<ExecId> maybe_arg_eid{};
+            if (solved_args[p].has_value()) {
+                maybe_arg_eid = maybe_param_tid.has_value()
+                                    ? check_solved_exec_against<Solver>(
+                                          context, solved_args[p].as_id(), maybe_param_tid.as_id())
+                                    : solved_args[p];
+            } else {
+                maybe_arg_eid = solve_expr_helper(solver, fid, scope, maybe_move_map,
+                                                  exprs.start[i], maybe_param_tid);
+            }
+            if (maybe_arg_eid.empty()) {
+                issue = true;
+            } else {
+                out_args.push_back(maybe_arg_eid.as_id());
+            }
+            total_arg_cnt++;
+        }
     } else {
 
         params = context.def(func_did).as<DefFunction>().params;

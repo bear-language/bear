@@ -5,7 +5,7 @@ import "compt_fn.br";
 
 mod hir_a64;
 
-compt [&]i32 a = filter([1, -1, 2, 3], is_pos);
+compt [&]i32 a = filter([1, -1, 2, 3], is_pos::i32);
 
 var _a = @help list_to_str(a);
 
@@ -33,13 +33,13 @@ compt var cols = [Red(), Green(), Blue(), Green()];
 
 compt var _2 = @static_assert filter(cols, color_matches::Red()) == [Red()];
 
-compt var _3 = @static_assert filter([-1, -1], is_pos) == [];
+compt var _3 = @static_assert filter([-1, -1], is_pos::i32) == [];
 
-compt var _4 = @static_assert filter([-1, -1], is_pos) == filter([Red, Red, Green], color_matches::Blue());
+compt var _4 = @static_assert filter([-1, -1], is_pos::i32) == filter([Red, Red, Green], color_matches::Blue());
 
-compt var _5 = @static_assert [-1, -1, 0, 60, 68].filter(is_pos).filter(is_neg::i32) == [Red, Red, Green].filter(color_matches::Blue());
+compt var _5 = @static_assert [-1, -1, 0, 60, 68].filter(is_pos::i32).filter(is_neg::i32) == [Red, Red, Green].filter(color_matches::Blue());
 
-compt var _6 = @static_assert [-2, -1, 0, 1, 2].map(is_pos) == [false, false, false, true, true];
+compt var _6 = @static_assert [-2, -1, 0, 1, 2].map(is_pos::i32) == [false, false, false, true, true];
 
 deftype RgbPx = [3]u8;
 

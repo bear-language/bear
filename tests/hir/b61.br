@@ -1,0 +1,71 @@
+// tests/hir/b61.br
+
+// testing struct deduction guides on struct init exprs
+
+fn main() {;}
+
+struct Box<T> {
+    T val;
+}
+
+struct Pair<A, B> {
+    mt first() -> A => self.a
+    A a;
+    i32 tag = 0;
+    pub B b;
+}
+
+struct Wrapper<T> {
+    Box<T> inner;
+}
+
+struct Same<T> {
+    T x;
+    T y;
+}
+
+struct Holder<T> {
+    &T r;
+}
+
+struct Unused<T> {
+    i32 x;
+}
+
+compt var b0 = Box{.val = 1};
+var _0 = @static_assert @same_type(typeof b0, Box<i32>);
+
+compt var b1 = Box{.val = 1 as u8};
+var _1 = @static_assert @same_type(typeof b1, Box<u8>);
+
+compt var p0 = Pair{.b = true, .a = 'c'}; // out of order and skipping a defaulted field
+var _2 = @static_assert @same_type(typeof p0, Pair<char, bool>);
+var _3 = @static_assert p0.first() == 'c';
+
+compt var w0 = Wrapper{.inner = Box{.val = 2 as i64}}; // nested deduction
+var _4 = @static_assert @same_type(typeof w0, Wrapper<i64>);
+var _5 = @static_assert w0.inner.val == 2;
+
+compt var s0 = Same{.x = 1, .y = 2};
+var _6 = @static_assert @same_type(typeof s0, Same<i32>);
+
+compt var e0 = Box::<u16>{.val = 3}; // explicit args still work
+var _7 = @static_assert @same_type(typeof e0, Box<u16>);
+
+compt Box<i32> i0 = Box{.val = 4};
+
+fn runtime(i32 x, u64 y, str s) {
+    Box<i32> _0 = Box{.val = x};
+    var _1 = Holder{.r = &y}; // deduced through the reference
+    Holder<u64> _2 = _1;
+    var _3 = Pair{.a = s, .b = Box{.val = x}, .tag = 7};
+    Pair<str, Box<i32>> _4 = _3;
+}
+
+fn oops(i32 x, str s) {
+    var _0 = Same{.x = x, .y = s}; // oops, T deduced as i32 from .x
+    var _1 = Box{}; // oops, nothing to deduce from
+    var _2 = Unused{.x = 1}; // oops, T not deducible from any field
+    Box<i64> _3 = Box{.val = x}; // oops, deduced Box<i32>
+    var _4 = Box{.val = nope}; // oops, undeclared (and no cascading deduction error)
+}

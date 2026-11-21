@@ -90,39 +90,49 @@ namespace hir {
     return {};
 }
 
+[[nodiscard]] const ast_stmt_t* try_unravel_instance_fields(const ast_stmt_t* stmt) {
+    while (stmt) {
+        switch (stmt->type) {
+        case AST_STMT_VAR_DECL:
+        case AST_STMT_VAR_INIT_DECL:
+            return stmt;
+        case AST_STMT_VISIBILITY_MODIFIER:
+            stmt = stmt->stmt.vis_modifier.stmt;
+            break;
+        case AST_STMT_ALIGNAS_MODIFIER:
+            stmt = stmt->stmt.alignaz.inner;
+            break;
+        default:
+            return nullptr;
+        }
+    }
+    return nullptr;
+}
+
 [[nodiscard]] OptId<GenericArgIdSliceId>
-try_generic_args_from_deduction_guide(IsExprSolver auto& solver,
-                                      const llvm::SmallVectorImpl<ExecId>& eids,
-                                      DeductionGuideId guide_id) {
-    Context& context = solver.get_context();
+try_generic_args_from_deduction_guide(Context& context, DeductionGuideId guide_id,
+                                      llvm::ArrayRef<OptId<TypeId>> tids_by_order_idx) {
     llvm::SmallVector<GenericArgId> gen_args{};
 
     const IdSlice<DeductionStepId> guide = context.deduction_guide(guide_id);
 
     for (auto step_idx = guide.begin(); step_idx != guide.end(); ++step_idx) {
         const auto step = context.deduction_step(step_idx);
-        if (step.order_idx >= eids.size()) {
+        if (step.order_idx >= tids_by_order_idx.size()) {
             return {};
         }
-        const auto maybe_tid = solver.infer_type_from_exec(eids[step.order_idx]);
+        const auto maybe_tid = tids_by_order_idx[step.order_idx];
         if (maybe_tid.empty()) {
             return {};
         }
-        const auto tid = maybe_tid.as_id();
-        const auto maybe_deduced_tid = deduction_step_helper(context, tid, step);
+        const auto maybe_deduced_tid = deduction_step_helper(context, maybe_tid.as_id(), step);
         if (maybe_deduced_tid.empty()) {
             return {};
         }
         gen_args.push_back(context.emplace_generic_arg(maybe_deduced_tid.as_id()));
     }
 
-    const auto gargs = context.emplace_generic_arg_id_slice(context.freeze_id_vec(gen_args));
-    return gargs;
+    return context.emplace_generic_arg_id_slice(context.freeze_id_vec(gen_args));
 }
-
-template OptId<GenericArgIdSliceId> try_generic_args_from_deduction_guide<ComptExprSolver>(
-    ComptExprSolver& solver, const llvm::SmallVectorImpl<ExecId>& eids, DeductionGuideId guide_id);
-template OptId<GenericArgIdSliceId> try_generic_args_from_deduction_guide<RuntimeSolver>(
-    RuntimeSolver& solver, const llvm::SmallVectorImpl<ExecId>& eids, DeductionGuideId guide_id);
 
 } // namespace hir

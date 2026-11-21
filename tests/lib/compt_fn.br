@@ -7,7 +7,7 @@ hid compt fn filter_helper<T>([&]T elems, *fn(T)->bool ok, u32 i) -> [&]T =>
         ([elems[i]] + filter_helper(elems, ok, i + 1)) if ok(elems[i]) else
         (filter_helper(elems, ok, i + 1))
 
-compt fn is_pos(var val) -> bool => val > 0
+compt fn is_pos<T>(T val) -> bool => val > 0
 
 compt fn is_neg<T>(T val) -> bool => val < 0
 

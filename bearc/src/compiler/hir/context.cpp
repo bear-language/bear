@@ -3472,12 +3472,7 @@ Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
     switch (canon_base_type->tag) {
     case AST_TYPE_BASE: {
         const auto id_slice = canon_base_type->type.base.id;
-        if (id_slice.len != 1) {
-            return {};
-        }
-        SymbolId base_sid = symbol_id(id_slice.start[0]);
-        // hit on this type
-        if (base_sid == sid) {
+        if (id_slice.len == 1 && symbol_id(id_slice.start[0]) == sid) {
             return deduction_steps.emplace_and_get_id(step);
         }
         break;
@@ -3507,7 +3502,7 @@ Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
                     const auto id_slice = arg->arg.expr->expr.id.slice;
 
                     if (id_slice.len != 1) {
-                        continue;
+                        break;
                     }
                     SymbolId base_sid = symbol_id(id_slice.start[0]);
                     // hit on this type
@@ -3570,6 +3565,8 @@ Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
     // if we're not nested, try the next param
     if (!nested) {
         ++step.order_idx;
+        step.depth = 0;
+        step.sub_idx = 0;
         // base case (no more params to try)
         if (step.order_idx >= params.len) {
             return {};
@@ -3583,26 +3580,22 @@ Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
 /// returns nullptr if missed
 static const ast_type_t* try_next_type(const ast_slice_of_stmts_t stmts, DeductionStep& step,
                                        bool skip = false) {
-    const ast_type_t* ty = nullptr;
     if (skip) {
         ++step.order_idx;
     }
+    step.depth = 0;
+    step.sub_idx = 0;
     for (; step.order_idx < stmts.len; ++step.order_idx) {
-
-        const auto i = step.order_idx;
-
-        const auto tag = stmts.start[i]->type;
-
-        if (tag == AST_STMT_VAR_DECL) {
-            ty = stmts.start[i]->stmt.var_decl.type;
-            break;
+        const ast_stmt_t* field = try_unravel_instance_fields(stmts.start[step.order_idx]);
+        if (!field) {
+            continue;
         }
-        if (tag == AST_STMT_VAR_INIT_DECL) {
-            ty = stmts.start[i]->stmt.var_init_decl.type;
-            break;
+        if (field->type == AST_STMT_VAR_DECL) {
+            return field->stmt.var_decl.type;
         }
+        return field->stmt.var_init_decl.type;
     }
-    return ty;
+    return nullptr;
 }
 
 [[nodiscard]] OptId<DeductionGuideId>
@@ -3663,12 +3656,7 @@ Context::recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice
     switch (canon_base_type->tag) {
     case AST_TYPE_BASE: {
         const auto id_slice = canon_base_type->type.base.id;
-        if (id_slice.len != 1) {
-            return {};
-        }
-        SymbolId base_sid = symbol_id(id_slice.start[0]);
-        // hit on this type
-        if (base_sid == sid) {
+        if (id_slice.len == 1 && symbol_id(id_slice.start[0]) == sid) {
             return deduction_steps.emplace_and_get_id(step);
         }
         break;
@@ -3698,7 +3686,7 @@ Context::recursive_deduction_step_helper_for_stmts(DeductionStep step, ast_slice
                     const auto id_slice = arg->arg.expr->expr.id.slice;
 
                     if (id_slice.len != 1) {
-                        continue;
+                        break;
                     }
                     SymbolId base_sid = symbol_id(id_slice.start[0]);
                     // hit on this type

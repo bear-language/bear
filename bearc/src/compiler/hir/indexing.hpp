@@ -64,6 +64,7 @@ struct Layout;
 struct DeductionStep;
 class MoveMap;
 struct Block;
+class Context;
 
 /// primary means of tracking interned strings in the hir
 using SymbolId = Id<Symbol>;
