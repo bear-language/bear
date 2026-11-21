@@ -614,6 +614,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "pass `--lib` to build as a library";
     case diag_code::did_you_mean_to_cast:
         return "did you mean to cast?";
+    case diag_code::raw_use_of_generic_contract:
+        return "raw use of generic contract";
     }
 
     std::unreachable();

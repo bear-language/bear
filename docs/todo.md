@@ -2,9 +2,6 @@
 
 #### priority
 - [ ] fix array to slice conversions for runtime solving
-- [ ] make compt fn ptr compatibility less strict: generic fn calls now check args against the instantiated param types, so unannotated closures (`|i32 x| => x % 2 == 0` is `*fn(i32)`, no return type) and `var`-param compt fns (`*fn(var)->bool`) can't be passed to `*fn(T)->bool` params anymore (a65/a75/projects/04 were updated to annotate/genericize around this)
-    - [ ] infer closure return types
-    - [ ] decide whether compt fn ptrs w/ `var` params / missing return types should be compatible with concrete fn ptr types (do it for both generic and non-generic calls)
 
 #### function body resolution / runtime eval:
 - [ ] see `TODO`s

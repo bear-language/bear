@@ -1,0 +1,35 @@
+// tests/hir/b68.br
+
+// testing compt closure eval and type inference + var/generic compt functions
+
+mod hir_b68 {
+
+fn main(){
+    var _ = @static_assert Foo{}.foo(|Foo f| => f) == Foo{};
+
+    use Vari..A;
+    use Vari..B;
+    use Vari..C;
+
+    var _ = @static_assert A().foo(|Vari v| => v) == A();
+    var _ = @static_assert A().foo(|Vari v| => v) != B();
+    var _ = @static_assert A().gfoo(|Vari v| => v) != C();
+
+    var _ = @static_assert A().gfoo(|Vari v| => v) == A();
+    var _ = @static_assert A().gfoo(|Vari v| => v) != B();
+    var _ = @static_assert A().gfoo(|Vari v| => v) != C();
+}
+
+struct Foo {}
+
+compt fn foo(var x, *fn(var)->var tf) -> var => tf(x)
+
+fn gfoo::<T>(T x, *fn(T)->T tf) -> T => tf(x) // allowed to be runtime since it's generic
+
+variant Vari {
+    A,
+    B,
+    C
+}
+
+}

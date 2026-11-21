@@ -180,6 +180,7 @@ enum class diag_code : uint16_t {
     in_generic_instantiated_here,
     in_generic_instantiation_of_type,
     raw_use_of_generic_type,
+    raw_use_of_generic_contract,
     no_generic_args_provided_for,
     use_of_undefined_type,
     declared_here_without_necessary_contracts,

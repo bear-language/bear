@@ -1179,14 +1179,8 @@ IdSlice<DefId> DefVisitor::resolve_contracts_for_generic_param(FileId fid, Scope
                                        DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
             return {};
         }
-        if (!context.is_contract(visit_as_transparent(maybe_did.as_id()))) {
-            const auto d0
-                = context.emplace_diagnostic(span, diag_code::invalid_contract, diag_type::error,
-                                             DiagnosticSubCode{diag_code::not_a_contract});
-            const auto d1 = context.emplace_diagnostic_with_message_value(
-                context.def(maybe_did.as_id()).span, diag_code::declared_here, diag_type::note,
-                DiagnosticIdentifierBeforeMessage{.sid_slice = sid_slice});
-            context.link_diagnostic(d0, d1);
+        if (!context.def(visit_and_resolve_if_needed(maybe_did.as_id())).holds<DefContract>()) {
+            context.report_invalid_contract(maybe_did.as_id(), sid_slice, span);
             return {};
         }
         contract_vec.push_back(maybe_did.as_id());
@@ -1214,18 +1208,19 @@ DefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId 
                   : Span{context, context.def(did).span.file_id, contract->expr.generic_id.slice};
 
         OptId<DefId> maybe_contract_did{};
+        IdSlice<SymbolId> sid_slice{};
         if (t == AST_EXPR_ID) {
-            maybe_contract_did = context.look_up_scoped_type(
-                containing_scope, context.symbol_slice(contract->expr.id.slice), ctr_span);
+            sid_slice = context.symbol_slice(contract->expr.id.slice);
+            maybe_contract_did = context.look_up_scoped_type(containing_scope, sid_slice, ctr_span);
         } else {
             const auto maybe_gen_args = ComptExprSolver{context, *this}.lower_generic_args(
                 ctr_span.file_id, containing_scope, contract->expr.generic_id.args, false);
             if (maybe_gen_args.empty()) {
                 return {};
             }
+            sid_slice = context.symbol_slice(contract->expr.generic_id.slice);
             maybe_contract_did = context.look_up_scoped_type_generic(
-                *this, containing_scope, context.symbol_slice(contract->expr.generic_id.slice),
-                ctr_span, maybe_gen_args.as_id());
+                *this, containing_scope, sid_slice, ctr_span, maybe_gen_args.as_id());
         }
         if (maybe_contract_did.empty()) {
             auto d = context.emplace_diagnostic(
@@ -1238,13 +1233,7 @@ DefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId 
         const Def& contract_def = context.def(contract_did);
 
         if (!contract_def.holds<DefContract>()) {
-            auto d = context.emplace_diagnostic(
-                ctr_span, diag_code::invalid_contract, diag_type::error,
-                DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
-            dlinker.link(d);
-            auto d1 = context.emplace_diagnostic(context.def(contract_did).span,
-                                                 diag_code::declared_here, diag_type::note);
-            dlinker.link(d1);
+            dlinker.link(context.report_invalid_contract(contract_did, sid_slice, ctr_span));
             continue;
         }
         // try to insert contract into struct's scope

@@ -284,7 +284,7 @@ template <typename T> class TypeContainsSome {
             && "double invocation should not be called when checking if a type contains a deftype");
         return 0;
     }
-    bool operator()(const Type& t1) const { return t1.holds<T>(); }
+    bool operator()(const Type& t1) const;
     static bool transform(bool res1, bool res2) { return res1 || res2; }
 };
 

@@ -2744,6 +2744,26 @@ bool Context::report_invalid_return_type(TypeId return_tid, bool is_compt) {
     return false;
 }
 
+DiagRange Context::report_invalid_contract(DefId did, IdSlice<SymbolId> contract_sid,
+                                           Span contract_mention_span) {
+    DiagLinker dl{*this};
+    if (def(did).holds<DefGenericContract>()) {
+        dl.link(emplace_diagnostic(contract_mention_span, diag_code::invalid_contract,
+                                   diag_type::error,
+                                   DiagnosticSubCode{diag_code::raw_use_of_generic_contract}));
+        dl.link(emplace_diagnostic_with_message_value(
+            def(did).span, diag_code::declared_here_as_generic, diag_type::note,
+            DiagnosticIdentifierBeforeMessage{.sid_slice = contract_sid}));
+    } else {
+        dl.link(emplace_diagnostic(contract_mention_span, diag_code::invalid_contract,
+                                   diag_type::error, DiagnosticSubCode{diag_code::not_a_contract}));
+        dl.link(emplace_diagnostic_with_message_value(
+            def(did).span, diag_code::declared_here, diag_type::note,
+            DiagnosticIdentifierBeforeMessage{.sid_slice = contract_sid}));
+    }
+    return dl.range();
+}
+
 /// checks if a Def is a struct without resolving it
 bool Context::is_struct(DefId did) const {
     const auto* node = def_ast_node(did);

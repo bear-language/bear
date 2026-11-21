@@ -168,7 +168,7 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
         TypeId fnp_tid = maybe_tnp_tid.as_id();
 
         // guard diff type
-        if (!context.equivalent_type(into_tid, fnp_tid)) {
+        if (!context.type_inferable_as(into_tid, fnp_tid)) {
             context.emplace_diagnostic_with_message_value(
                 Span(fid, context.ast(fid).buffer(), expr->first, expr->last),
                 diag_code::cannot_convert_value_of_type, diag_type::error,
@@ -901,7 +901,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
             return std::nullopt;
         }
         if (into_tid.has_value()
-            && context.equivalent_type(context.try_decay(def_variable.type_id), into_tid.as_id())) {
+            && context.type_inferable_as(context.try_decay(def_variable.type_id),
+                                         into_tid.as_id())) {
             // since it's compt (immutable, it's perfectly fine to just share the
             // original exec value here)
             return def_variable.compt_value;
@@ -2490,18 +2491,19 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
 
     Span contract_id_span{context, fid, has_ctr.contract};
     OptId<DefId> maybe_did{};
+    IdSlice<SymbolId> sid_slice{};
     if (has_ctr.contract->type == AST_EXPR_ID) {
-        maybe_did = context.look_up_scoped_type(
-            scope, context.symbol_slice(has_ctr.contract->expr.id.slice), contract_id_span);
+        sid_slice = context.symbol_slice(has_ctr.contract->expr.id.slice);
+        maybe_did = context.look_up_scoped_type(scope, sid_slice, contract_id_span);
     } else if (has_ctr.contract->type == AST_EXPR_GENERIC_ID) {
         const auto maybe_generic_args
             = lower_generic_args(fid, scope, has_ctr.contract->expr.generic_id.args, false);
         if (maybe_generic_args.empty()) {
             return {}; // poisoned
         }
+        sid_slice = context.symbol_slice(has_ctr.contract->expr.generic_id.slice);
         maybe_did = context.look_up_scoped_type_generic(
-            def_visitor, scope, context.symbol_slice(has_ctr.contract->expr.generic_id.slice),
-            contract_id_span, maybe_generic_args.as_id());
+            def_visitor, scope, sid_slice, contract_id_span, maybe_generic_args.as_id());
     }
 
     if (maybe_did.empty()) {
@@ -2512,16 +2514,9 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
     }
 
     const auto did = maybe_did.as_id();
-    const Def& def = context.def(did);
-    if (!def.holds<DefContract>()) {
-        auto d0 = context.emplace_diagnostic(
-            contract_id_span, diag_code::invalid_contract, diag_type::error,
-            DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
-        auto d1 = context.emplace_diagnostic_with_message_value(
-            context.name_span_for_def(did), diag_code::declared_here, diag_type::note,
-            DiagnosticSymbolBeforeMessage{.sid = def.name});
-        context.link_diagnostic(d0, d1);
-        return std::nullopt;
+    if (!context.def(def_visitor.visit_as_dependent(did)).holds<DefContract>()) {
+        context.report_invalid_contract(did, sid_slice, contract_id_span);
+        return {};
     }
 
     return context.emplace_exec(ExecConst{context.type_has_contract(tid, did)}, span, true);
@@ -3167,6 +3162,8 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
 
     if (expr->expr.closure.has_explicit_return_type) {
         return_type = resolve_type(fid, scope, expr->expr.closure.return_type);
+    } else {
+        return_type = context.type_for_var();
     }
 
     const auto param_types = context.freeze_id_vec(type_vec);

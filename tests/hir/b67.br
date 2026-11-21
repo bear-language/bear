@@ -1,0 +1,31 @@
+// tests/hir/b67.br
+
+// testing compt closure eval and type inference + compt function rules + generic contract mishaps
+
+fn main() {
+    compt var x = 5.foo(doub);
+    var _ = @static_assert x == 10;
+    var _ = @static_assert 12.foo(doub_explicit_rt) == 24;
+    var _ = @static_assert 12.foo(trip_oops) == 24;
+    var _ = @static_assert 14.0.foo(trip) == 14*3; // fine (guranteed non-narrow)
+    var _ = @static_assert 14.1.foo(trip) == 14*3; // oops 
+    var _ = @static_assert Foo{}.loose_foo(|Foo f| => f) == Foo{};
+}
+
+contract Con<T> {}
+
+struct Foo has Con {} // oops
+
+compt var doub = |i32 x| => x+x;
+
+compt var doub_explicit_rt = |i32 x| -> i32 => x+x;
+
+compt var trip_oops = |var x| => Foo{};
+
+compt var trip = |var x| => 3*x;
+
+fn foo(i32 x, *fn(i32)->i32 tf) -> i32 => tf(x)
+
+fn loose_foo_oops(var x, *fn(var)->var tf) -> var => tf(x) // oops
+
+compt fn loose_foo(var x, *fn(var)->var tf) -> var => tf(x)

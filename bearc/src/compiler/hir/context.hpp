@@ -111,7 +111,7 @@ class Context {
 
     [[nodiscard]] TypeId type_for_builtin(builtin_type type) const;
 
-    [[nodiscard]] TypeId type_for_var(bool mut) const;
+    [[nodiscard]] TypeId type_for_var(bool mut = false) const;
 
     // ----- accessors / emplacers --------
 
@@ -675,6 +675,9 @@ class Context {
 
     // returns true on an invalid return type
     bool report_invalid_return_type(TypeId return_tid, bool is_compt);
+
+    DiagRange report_invalid_contract(DefId did, IdSlice<SymbolId> contract_sid,
+                                      Span contract_mention_span);
 
     [[nodiscard]] const Def& def(DefId id) const { return defs.at(id); }
 

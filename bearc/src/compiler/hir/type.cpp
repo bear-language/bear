@@ -120,6 +120,24 @@ template <ConsiderMut C> bool TypeComparator<C>::operator()(const Type& t1, cons
     return t1.visit(vs);
 }
 
+template <typename T> bool TypeContainsSome<T>::operator()(const Type& t1) const {
+    if (t1.holds<TypeFnPtr>()) {
+        const auto fnp = t1.as<TypeFnPtr>();
+        if (fnp.return_type
+            && TypeContainsSome<T>{context}(context.type(fnp.return_type.as_id()))) {
+            return true;
+        }
+        for (const auto tidx : fnp.param_types) {
+            if (TypeContainsSome<T>{context}(context.type(tidx))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    return t1.holds<T>();
+}
+
 template <ConsiderMut C> size_t TypeHasher<C>::operator()(const Type& t1) const {
     auto vs = Ovld{
         [&](const TypeBuiltin& t) -> size_t { return mix(0x01uz ^ static_cast<size_t>(t.type)); },
@@ -1022,5 +1040,8 @@ template class TypeTransformer<TypeToString<DoNotConsiderMut>>;
 template class TypeTransformer<TypeContainsVar>;
 template class TypeTransformer<TypeContainsDeftype>;
 template class TypeTransformer<TypeContainsMut>;
+
+template class TypeContainsSome<TypeVar>;
+template class TypeContainsSome<TypeDeftype>;
 
 } // namespace hir
