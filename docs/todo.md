@@ -9,6 +9,7 @@
         - [ ] make a `help: did you mean:` `...` (add bearls support to make this equivalent to `replace_with`)
         - [ ] this should probably be part of the scope walk (make sure that the distance is persistent across each level tho, i.e. not < 2 or 3 per level)
         - [ ] only do this say 128 times before stopping to avoid slowing down compilation to excess on bad problems like a missing import
+        - [ ] expose this walk in `ContextDatabase` so bearls can use this if needed
 
 - [ ] minimal LLVM slice
     - [ ] `main` + builtins 
@@ -194,3 +195,7 @@ lexer & parser
     - [ ] suffixes?
 - [ ] issue better diagnostics (in parse_expr) for unterminated string literals
     - [ ] set a special ERR_UNTERM_STR as the token_type when lexing and then report during parsing
+
+hir
+---
+- [ ] once stdlib is farther along, perhaps use the knowledge of stdlib names and Levenshtein distance to recommend imports on undeclared ids
