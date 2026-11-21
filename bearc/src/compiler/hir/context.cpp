@@ -242,7 +242,7 @@ Context::Context(const bearc_args_t& args, instances instances,
             const OptId<DefId> maybe_gen_parent = try_generic_parent_for_def(did);
             if (maybe_gen_parent.has_value() && def(maybe_gen_parent.as_id()).holds<DefStruct>()) {
                 const Def& d = def(maybe_gen_parent.as_id());
-                const OptId<CanonicalGenericArgsId> gen_args
+                const OptId<GenericArgIdSliceId> gen_args
                     = generic_args_for_def(maybe_gen_parent.as_id());
                 if (gen_args.empty()) {
                     continue;
@@ -3360,7 +3360,7 @@ OptId<DefId> Context::try_def_for_exec(ExecId eid) const {
     return exec(eid).visit(vs);
 }
 
-OptId<CanonicalGenericArgsId> Context::generic_args_for_def(DefId did) const {
+OptId<GenericArgIdSliceId> Context::generic_args_for_def(DefId did) const {
     const Def& d = def(did);
     if (d.holds<DefFunction>()) {
         return d.as<DefFunction>().maybe_generic_args;
@@ -3420,8 +3420,30 @@ void Context::put_layout_for_canon_type(CanonicalTypeId canon_tid, LayoutId lay_
 [[nodiscard]] OptId<DeductionGuideId>
 Context::try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
                                           IdSlice<GenericParamId> gen_params) {
-    const ast_slice_of_params_t params = stmt->params;
+    return try_deduction_guide_for_params(stmt->params, gen_params);
+}
 
+[[nodiscard]] OptId<DeductionGuideId>
+Context::try_deduction_guide_for_type(const ast_type_t* type, IdSlice<GenericParamId> gen_params) {
+    if (!type) {
+        return {};
+    }
+    llvm::SmallVector<DeductionStepId> deduction_steps;
+    for (auto gen_param_idx = gen_params.begin(); gen_param_idx != gen_params.end();
+         ++gen_param_idx) {
+        const auto maybe_ded_step = recursive_deduction_step_helper_for_params(
+            DeductionStep{}, ast_slice_of_params_t{}, type, this->gen_param(gen_param_idx).name);
+        if (maybe_ded_step.empty()) {
+            return {};
+        }
+        deduction_steps.push_back(maybe_ded_step.as_id());
+    }
+    return deduction_guides.emplace_and_get_id(freeze_id_vec(deduction_steps));
+}
+
+[[nodiscard]] OptId<DeductionGuideId>
+Context::try_deduction_guide_for_params(ast_slice_of_params_t params,
+                                        IdSlice<GenericParamId> gen_params) {
     if (!params.len) {
         return {};
     }

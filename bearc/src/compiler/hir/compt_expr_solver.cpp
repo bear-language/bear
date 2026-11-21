@@ -185,7 +185,7 @@ OptId<TypeId> ComptExprSolver::resolve_type(FileId fid, ScopeId scope, const ast
 
     // handle MyVariant..Thingy(var a)
     if (into_type.holds<TypeVariant>() && expr->type == AST_EXPR_FN_CALL) {
-        const auto maybe_eid = solve_fn_call(fid, scope, expr);
+        const auto maybe_eid = solve_fn_call(fid, scope, expr, {}, into_tid);
         if (maybe_eid.empty()) {
             return std::nullopt; // poison
         }
@@ -533,7 +533,7 @@ ComptExprSolver::solve_builtin_compt_expr(FileId fid, ScopeId scope, const ast_e
     case AST_EXPR_DEFINED:
         return handle_defined(fid, scope, expr);
     case AST_EXPR_FN_CALL: {
-        OptId<ExecId> maybe_eid = solve_fn_call(fid, scope, expr);
+        OptId<ExecId> maybe_eid = solve_fn_call(fid, scope, expr, {}, into_tid);
         return guard_type_mismatch(maybe_eid);
     }
     case AST_EXPR_SUBSCRIPT: {
@@ -935,7 +935,7 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
         return solve_expr(fid, scope, expr->expr.compt_expr.inner, into_tid);
         // these are all invalid
     case AST_EXPR_FN_CALL: {
-        maybe_eid = solve_fn_call(fid, scope, expr);
+        maybe_eid = solve_fn_call(fid, scope, expr, {}, into_tid);
         break;
     }
     case AST_EXPR_SUBSCRIPT:
@@ -2289,8 +2289,9 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::solve_fn_call(FileId fid, ScopeId scope,
                                                            const ast_expr_t* expr,
-                                                           OptId<ExecId> maybe_self_val) {
-    return solve_fn_call_impl(*this, fid, scope, {}, expr, maybe_self_val);
+                                                           OptId<ExecId> maybe_self_val,
+                                                           OptId<TypeId> maybe_into_tid) {
+    return solve_fn_call_impl(*this, fid, scope, {}, expr, maybe_self_val, maybe_into_tid);
 }
 
 [[nodiscard]] OptId<ExecId> ComptExprSolver::solve_expr_borrow(FileId fid, ScopeId scope,

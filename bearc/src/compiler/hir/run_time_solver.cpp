@@ -232,7 +232,7 @@ static MoveMapId snapshot_moves(Context& context, MoveMapId from, MoveMapId unti
         maybe_eid = handle_subscript(fid, lctx, expr);
         break;
     case AST_EXPR_FN_CALL:
-        maybe_eid = handle_fn_call(fid, lctx, expr);
+        maybe_eid = handle_fn_call(fid, lctx, expr, into_tid);
         break;
     case AST_EXPR_MATCH:
         maybe_eid = handle_match(fid, lctx, expr, into_tid);
@@ -1552,9 +1552,10 @@ OptId<ExecId> RuntimeSolver::handle_tuple_init(FileId fid, LexicalCtx lctx,
     return solve_tuple_init_impl(*this, fid, lctx.scope, lctx.map, expr);
 }
 
-OptId<ExecId> RuntimeSolver::handle_fn_call(FileId fid, LexicalCtx lctx, const ast_expr_t* expr) {
+OptId<ExecId> RuntimeSolver::handle_fn_call(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                            OptId<TypeId> maybe_into_tid) {
     assert(expr->type == AST_EXPR_FN_CALL);
-    return solve_fn_call_impl(*this, fid, lctx.scope, lctx.map, expr);
+    return solve_fn_call_impl(*this, fid, lctx.scope, lctx.map, expr, std::nullopt, maybe_into_tid);
 }
 
 OptId<ExecId> RuntimeSolver::handle_match(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,

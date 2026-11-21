@@ -222,7 +222,8 @@ class ComptExprSolver {
     }
 
     [[nodiscard]] OptId<ExecId> solve_fn_call(FileId fid, ScopeId scope, const ast_expr_t* expr,
-                                              OptId<ExecId> maybe_self_val = std::nullopt);
+                                              OptId<ExecId> maybe_self_val = std::nullopt,
+                                              OptId<TypeId> maybe_into_tid = {});
 
     [[nodiscard]] OptId<ExecId> solve_expr_borrow(FileId fid, ScopeId scope, const ast_expr_t* expr,
                                                   OptId<TypeId> maybe_into_tid);

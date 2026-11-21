@@ -252,7 +252,8 @@ class RuntimeSolver {
     }
     [[nodiscard]] OptId<ExecId> handle_tuple_init(FileId fid, LexicalCtx lctx,
                                                   const ast_expr_t* expr);
-    [[nodiscard]] OptId<ExecId> handle_fn_call(FileId fid, LexicalCtx lctx, const ast_expr_t* expr);
+    [[nodiscard]] OptId<ExecId> handle_fn_call(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
+                                               OptId<TypeId> maybe_into_tid = {});
     [[nodiscard]] OptId<ExecId> handle_match(FileId fid, LexicalCtx lctx, const ast_expr_t* expr,
                                              OptId<TypeId> maybe_into_tid);
     [[nodiscard]] OptId<ExecId> handle_ternary_if(FileId fid, LexicalCtx lctx,

@@ -23,7 +23,7 @@ var _1 = @static_assert a0 == 3;
 fn runtime(i32 x, *u8 p) {
     *u8 _0 = after_ref(&x, p); // T = *u8, not u8
     *u8 _1 = after_ref_into_ptr(&x, p); // T = u8
-    u8 _2 = after_ref(&x, p); // oops, deduced *u8
+    u8 _2 = after_ref(&x, p); // oops, into type gives T = u8, and p is a *u8
 }
 
 // args are checked against the instantiated param types

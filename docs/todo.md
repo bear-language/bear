@@ -81,10 +81,6 @@
 - [ ] make a way to reserve the root FileId so intrinsics can be registered first (better diagnostic order for redefinitions)
 
 #### top-level resol / compt improvements / features:
-- [ ] deduction guides
-    - [ ] struct deduction guide use (building them is impl'd but untested)
-    - [ ] variant deduction guides (building and use)
-
 - [ ] generic deftypes e.g. `deftype MutDecay<T> = mut decay T;` 
 
 - [ ] add `@in_compt` builtin which is true during compt-eval, else false

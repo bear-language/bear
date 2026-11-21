@@ -219,7 +219,7 @@ using CanonicalTypeId = Id<TypeId>;
 using GenericArgIdSliceId = Id<IdSlice<GenericArgId>>;
 
 /// for canonicalizing slices of generic args
-using CanonicalGenericArgsId = Id<IdSlice<GenericArgId>>;
+using CanonicalGenericArgsId = Id<GenericArgIdSliceId>;
 
 /// for indexing maps of GenericArgIds to DefIds
 using CanonicalGenericArgsIdMapId = Id<IdSlice<CanonicalGenericArgsId>>;

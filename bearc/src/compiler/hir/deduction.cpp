@@ -51,14 +51,22 @@ namespace hir {
                                      context.deduction_step(step.next.as_id()));
     };
 
+    const auto gen_args_of = [&context](DefId did, OptId<GenericArgIdSliceId> maybe_slice) {
+        return maybe_slice.has_value() ? maybe_slice : context.search_for_gen_args_for_def(did);
+    };
+
     const auto& ty = context.type(tid);
-    if (ty.template holds<TypeStruct>()
-        && ty.template as<TypeStruct>().gen_args_slice.has_value()) {
-        return try_nested_generic_tid(ty.template as<TypeStruct>().gen_args_slice.as_id());
+    if (ty.template holds<TypeStruct>()) {
+        const auto t = ty.template as<TypeStruct>();
+        if (const auto maybe_args = gen_args_of(t.def_id, t.gen_args_slice)) {
+            return try_nested_generic_tid(maybe_args.as_id());
+        }
     }
-    if (ty.template holds<TypeVariant>()
-        && ty.template as<TypeVariant>().gen_args_slice.has_value()) {
-        return try_nested_generic_tid(ty.template as<TypeVariant>().gen_args_slice.as_id());
+    if (ty.template holds<TypeVariant>()) {
+        const auto t = ty.template as<TypeVariant>();
+        if (const auto maybe_args = gen_args_of(t.def_id, t.gen_args_slice)) {
+            return try_nested_generic_tid(maybe_args.as_id());
+        }
     }
     if (ty.template holds<TypeStruct>() && ty.template as<TypeStruct>().anonymous) {
         const auto t = ty.template as<TypeStruct>();

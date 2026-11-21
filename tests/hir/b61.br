@@ -66,6 +66,6 @@ fn oops(i32 x, str s) {
     var _0 = Same{.x = x, .y = s}; // oops, T deduced as i32 from .x
     var _1 = Box{}; // oops, nothing to deduce from
     var _2 = Unused{.x = 1}; // oops, T not deducible from any field
-    Box<i64> _3 = Box{.val = x}; // oops, deduced Box<i32>
+    Box<i64> _3 = Box{.val = x}; // oops, into type gives Box<i64>, and x is an i32
     var _4 = Box{.val = nope}; // oops, undeclared (and no cascading deduction error)
 }

@@ -837,7 +837,7 @@ class Context {
 
     [[nodiscard]] OptId<DefId> try_def_for_exec(ExecId eid) const;
 
-    [[nodiscard]] OptId<CanonicalGenericArgsId> generic_args_for_def(DefId did) const;
+    [[nodiscard]] OptId<GenericArgIdSliceId> generic_args_for_def(DefId did) const;
 
     [[nodiscard]] CanonicalGenericArgsIdMapId make_generic_args_map_and_get_id();
 
@@ -910,6 +910,13 @@ class Context {
     [[nodiscard]] OptId<DeductionGuideId>
     try_deduction_guide_for_function(const ast_stmt_fn_decl_t* stmt,
                                      IdSlice<GenericParamId> gen_params);
+
+    [[nodiscard]] OptId<DeductionGuideId>
+    try_deduction_guide_for_params(ast_slice_of_params_t params,
+                                   IdSlice<GenericParamId> gen_params);
+
+    [[nodiscard]] OptId<DeductionGuideId>
+    try_deduction_guide_for_type(const ast_type_t* type, IdSlice<GenericParamId> gen_params);
 
     /// trys to build a deduction guide for a struct
     [[nodiscard]] OptId<DeductionGuideId>
