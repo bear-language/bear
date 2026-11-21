@@ -9,27 +9,33 @@
 #include "compiler/hir/def.hpp"
 #include "compiler/ast/stmt.h"
 #include "compiler/hir/context.hpp"
+#include "compiler/hir/exec.hpp"
+#include "compiler/hir/generic.hpp"
 #include "compiler/hir/indexing.hpp"
+#include "compiler/hir/scope.hpp"
 #include <string>
+#include <string_view>
 
 namespace hir {
 
 static std::string scope_id_str(ScopeId sid) { return "Scope#" + std::to_string(sid.raw()); }
 
-std::string scope_to_string(Context& ctx, ScopeId scope) {
+static std::string preview_def_to_string(Context& ctx, DefId did);
+
+static std::string preview_scope_to_string(Context& ctx, ScopeId scope) {
     std::string str;
     str += scope_id_str(scope);
     str += "{\n";
     ctx.scope(scope).for_each_local_namespace([&ctx, &str](ScopeIdMap::Entry e) {
-        str += def_to_string(ctx, e.val());
+        str += preview_def_to_string(ctx, e.val());
         str += '\n';
     });
     ctx.scope(scope).for_each_local_type([&ctx, &str](ScopeIdMap::Entry e) {
-        str += def_to_string(ctx, e.val());
+        str += preview_def_to_string(ctx, e.val());
         str += '\n';
     });
     ctx.scope(scope).for_each_local_variable([&ctx, &str](ScopeIdMap::Entry e) {
-        str += def_to_string(ctx, e.val());
+        str += preview_def_to_string(ctx, e.val());
         str += '\n';
     });
     str += "\n}";
@@ -37,14 +43,14 @@ std::string scope_to_string(Context& ctx, ScopeId scope) {
     return str;
 }
 
-std::string def_to_string(Context& ctx, DefId did) {
+static std::string preview_def_to_string(Context& ctx, DefId did) {
     const auto vs = Ovld{
         [&ctx, did](const DefModule& d) -> std::string {
             std::string str;
             str += "mod ";
             str += ctx.symbol_id_slice_to_string(ctx.canonical_name(did));
             str += ' ';
-            str += scope_to_string(ctx, d.scope);
+            str += preview_scope_to_string(ctx, d.scope);
             return str;
         },
         [&ctx, did](const DefFunction& d) -> std::string {
@@ -179,11 +185,11 @@ std::string def_to_string(Context& ctx, DefId did) {
 
             for (const auto didx : ordered_mems) {
                 str += "    ";
-                str += def_to_string(ctx, ctx.def_id(didx));
+                str += preview_def_to_string(ctx, ctx.def_id(didx));
                 str += '\n';
             }
 
-            str += scope_to_string(ctx, d.scope);
+            str += preview_scope_to_string(ctx, d.scope);
 
             str += "}\n";
 
@@ -197,11 +203,21 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += "{}";
             return str;
         },
-        [&ctx, did](const DefVariant&) -> std::string {
+        [&ctx, did](const DefVariant& d) -> std::string {
             std::string str;
             str += "variant ";
             str += ctx.symbol(ctx.def(did).name);
-            str += "{}";
+            if (!d.ordered_members.len()) {
+                str += " {}";
+                return str;
+            }
+            str += " {\n";
+            for (const auto didx : d.ordered_members) {
+                str += "    ";
+                str += preview_def_to_string(ctx, ctx.def_id(didx));
+                str += ",\n";
+            }
+            str += '}';
             return str;
         },
         [&ctx, did](const DefGenericVariant& d) -> std::string {
@@ -212,11 +228,23 @@ std::string def_to_string(Context& ctx, DefId did) {
             str += "{}";
             return str;
         },
-        [&ctx, did](const DefVariantField&) -> std::string {
+        [&ctx, did](const DefVariantField& d) -> std::string {
             std::string str;
             str += ctx.symbol(ctx.def(did).name);
-            str += "()";
-            return {};
+            str += '(';
+            for (const auto didx : d.members) {
+                const Def& member = ctx.def(didx);
+                if (member.holds<DefVariable>()) {
+                    str += type_to_string(ctx, member.as<DefVariable>().type_id);
+                    str += ' ';
+                }
+                str += ctx.symbol(member.name);
+                if (didx != d.members.last_elem()) {
+                    str += ", ";
+                }
+            }
+            str += ')';
+            return str;
         },
         [&ctx, did](const DefUnion&) -> std::string {
             std::string str;
@@ -253,6 +281,703 @@ std::string def_to_string(Context& ctx, DefId did) {
         [](const DefMalformed&) -> std::string { return "(malformed)"; },
     };
     return ctx.def(did).visit(vs);
+}
+
+namespace {
+
+class HirPrettyPrinter {
+  public:
+    explicit HirPrettyPrinter(Context& ctx) : ctx{ctx} {}
+
+    std::string take() { return std::move(out); }
+
+    void print_def(DefId did, bool qualify_name) {
+        const Def& def = ctx.def(did);
+        const auto vs = Ovld{
+            [&](const DefModule& d) {
+                print_def_prefix(def);
+                out += "mod ";
+                out += def_name(did, qualify_name);
+                out += ' ';
+                print_braced_scope(d.scope, {});
+            },
+            [&](const DefFunction& d) { print_function(did, d, qualify_name); },
+            [&](const DefGenericFunction& d) { print_generic_def(did, "fn ", d.generic_params); },
+            [&](const DefFunctionPrototype& d) {
+                print_def_prefix(def);
+                out += "fn ";
+                out += def_name(did, qualify_name);
+                print_params(d.params);
+                print_return_type(d.return_type, d.discardable);
+                out += ';';
+            },
+            [&](const DefVariable& d) {
+                print_def_prefix(def);
+                if (def.compt) {
+                    out += "compt ";
+                }
+                if (def.alignment_preference) {
+                    out += "alignas(";
+                    out += std::to_string(def.alignment_preference);
+                    out += ") ";
+                }
+                out += type_to_string(ctx, d.type_id);
+                out += ' ';
+                out += ctx.symbol(def.name);
+                if (d.compt_value) {
+                    out += " = ";
+                    print_exec(d.compt_value.as_id());
+                }
+                out += ';';
+            },
+            [&](const DefStruct& d) {
+                print_def_prefix(def);
+                out += "struct ";
+                out += ctx.symbol(def.name);
+                if (d.maybe_generic_args.has_value()) {
+                    out += gen_args_to_str(ctx, d.maybe_generic_args.as_id());
+                }
+                if (d.contracts.len()) {
+                    out += " has ";
+                    for (const auto didx : d.contracts) {
+                        out += ctx.symbol_id_slice_to_string(ctx.canonical_name(ctx.def_id(didx)));
+                        if (didx != d.contracts.last_elem()) {
+                            out += " + ";
+                        }
+                    }
+                }
+                out += ' ';
+                print_braced_scope(d.scope, d.ordered_members);
+            },
+            [&](const DefGenericStruct& d) { print_generic_def(did, "struct ", d.generic_params); },
+            [&](const DefVariant& d) {
+                print_def_prefix(def);
+                out += "variant ";
+                out += ctx.symbol(def.name);
+                if (d.maybe_generic_args.has_value()) {
+                    out += gen_args_to_str(ctx, d.maybe_generic_args.as_id());
+                }
+                out += ' ';
+                print_braced_scope(d.scope, d.ordered_members);
+            },
+            [&](const DefGenericVariant& d) {
+                print_generic_def(did, "variant ", d.generic_params);
+            },
+            [&](const DefVariantField& d) {
+                out += ctx.symbol(def.name);
+                print_params(d.members);
+                out += ',';
+            },
+            [&](const DefUnion& d) {
+                print_def_prefix(def);
+                out += "union ";
+                out += ctx.symbol(def.name);
+                out += ' ';
+                print_braced_scope(d.scope, d.ordered_members);
+            },
+            [&](const DefGenericContract& d) {
+                print_generic_def(did, "contract ", d.generic_params);
+            },
+            [&](const DefContract& d) {
+                print_def_prefix(def);
+                out += "contract ";
+                out += ctx.symbol(def.name);
+                if (d.maybe_generic_args.has_value()) {
+                    out += gen_args_to_str(ctx, d.maybe_generic_args.as_id());
+                }
+                out += ' ';
+                print_braced_scope(d.scope, d.funcs);
+            },
+            [&](const DefDeftype& d) {
+                print_def_prefix(def);
+                out += "deftype ";
+                out += ctx.symbol(def.name);
+                out += " = ";
+                out += type_to_string_with_akas(ctx, d.type);
+                out += ';';
+            },
+            [&](const DefScopeWrapper& d) { print_braced_scope(d.scope, {}); },
+            [&](const DefUnevaluated&) {
+                out += "(unevaluated ";
+                out += ctx.symbol(def.name);
+                out += ')';
+            },
+            [&](const DefMalformed&) {
+                out += "(malformed ";
+                out += ctx.symbol(def.name);
+                out += ')';
+            },
+        };
+        def.visit(vs);
+    }
+
+    void print_scope_contents(ScopeId sid, IdSlice<DefId> skip, bool blank_line_between) {
+        bool first = true;
+        const auto emit = [&](ScopeIdMap::Entry e) {
+            const DefId did = e.val();
+            if (slice_contains(skip, did) || ctx.def(did).is_ordered()) {
+                return;
+            }
+            if (!first) {
+                newline();
+                if (blank_line_between) {
+                    newline();
+                }
+            }
+            first = false;
+            print_def(did, false);
+        };
+        const Scope& scope = ctx.scope(sid);
+        scope.for_each_local_namespace(emit);
+        scope.for_each_local_type(emit);
+        scope.for_each_local_variable(emit);
+    }
+
+  private:
+    static constexpr std::string_view TAB = "    ";
+
+    Context& ctx;
+    std::string out;
+    HirSize depth{};
+    HirSize block_depth{};
+
+    void newline() {
+        out += '\n';
+        for (HirSize i = 0; i < depth; ++i) {
+            out += TAB;
+        }
+    }
+
+    void indent() { ++depth; }
+    void dedent() { --depth; }
+
+    bool slice_contains(IdSlice<DefId> slice, DefId did) {
+        for (const auto didx : slice) {
+            if (ctx.def_id(didx) == did) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    std::string def_name(DefId did, bool qualify) {
+        if (qualify) {
+            return ctx.symbol_id_slice_to_string(ctx.canonical_name(did));
+        }
+        return std::string{ctx.symbol(ctx.def(did).name)};
+    }
+
+    void print_def_prefix(const Def& def) {
+        if (def.abi == abi_lang::c) {
+            out += "extern C ";
+        }
+        if (!def.pub && !block_depth) {
+            out += "hid ";
+        }
+        if (def.statik) {
+            out += "static ";
+        }
+    }
+
+    void print_params(IdSlice<DefId> params) {
+        out += '(';
+        for (const auto didx : params) {
+            const Def& param = ctx.def(didx);
+            if (param.holds<DefVariable>()) {
+                out += type_to_string(ctx, param.as<DefVariable>().type_id);
+                out += ' ';
+            }
+            out += ctx.symbol(param.name);
+            if (didx != params.last_elem()) {
+                out += ", ";
+            }
+        }
+        out += ')';
+    }
+
+    void print_return_type(OptId<TypeId> return_type, bool discardable) {
+        if (return_type.has_value()) {
+            out += discardable ? " ~> " : " -> ";
+            out += type_to_string(ctx, return_type.as_id());
+        }
+    }
+
+    void print_function(DefId did, const DefFunction& d, bool qualify_name) {
+        const Def& def = ctx.def(did);
+        print_def_prefix(def);
+        if (def.compt) {
+            out += "compt ";
+        }
+        out += "fn ";
+        out += def_name(did, qualify_name);
+        if (d.maybe_generic_args.has_value()) {
+            out += gen_args_to_str(ctx, d.maybe_generic_args.as_id());
+        }
+        print_params(d.params);
+        print_return_type(d.return_type, d.discardable);
+        if (d.body) {
+            out += ' ';
+            print_body(d.body.as_id());
+        } else {
+            out += ';';
+        }
+    }
+
+    void print_generic_def(DefId did, std::string_view keyword,
+                           IdSlice<GenericParamId> generic_params) {
+        const Def& def = ctx.def(did);
+        const ast_stmt_t* node = ctx.def_ast_node(did);
+        if (node && node->first && node->last) {
+            const auto src = Span{ctx, def.span.file_id, node->first, node->last}.as_sv(ctx);
+            for (const char c : src) {
+                if (c == '\n') {
+                    while (!out.empty() && (out.back() == ' ' || out.back() == '\t')) {
+                        out.pop_back();
+                    }
+                    newline();
+                } else {
+                    out += c;
+                }
+            }
+            return;
+        }
+        print_def_prefix(def);
+        if (def.compt) {
+            out += "compt ";
+        }
+        out += keyword;
+        out += ctx.symbol(def.name);
+        out += gen_params_to_string(ctx, generic_params);
+        out += " {}";
+    }
+
+    void print_braced_scope(ScopeId sid, IdSlice<DefId> ordered) {
+        const auto before = out.size();
+        out += '{';
+        indent();
+        for (const auto didx : ordered) {
+            newline();
+            print_def(ctx.def_id(didx), false);
+        }
+        const auto before_scope = out.size();
+        newline();
+        const auto after_newline = out.size();
+        print_scope_contents(sid, ordered, false);
+        if (out.size() == after_newline) {
+            out.resize(before_scope);
+        }
+        dedent();
+        if (out.size() == before + 1) {
+            out += '}';
+            return;
+        }
+        newline();
+        out += '}';
+    }
+
+    void print_block(BlockId bid) {
+        const Block& block = ctx.block(bid);
+        if (!block.defs.len() && !block.execs.len()) {
+            out += "{}";
+            return;
+        }
+        out += '{';
+        indent();
+        ++block_depth;
+        for (const auto didx : block.defs) {
+            newline();
+            print_def(ctx.def_id(didx), false);
+        }
+        for (const auto eidx : block.execs) {
+            newline();
+            print_stmt(ctx.exec_id(eidx));
+        }
+        --block_depth;
+        dedent();
+        newline();
+        out += '}';
+    }
+
+    void print_body(ExecId eid) {
+        if (ctx.exec(eid).holds<ExecBlock>()) {
+            print_block(ctx.exec(eid).as<ExecBlock>().block_id);
+            return;
+        }
+        out += "{ ";
+        print_stmt(eid);
+        out += " }";
+    }
+
+    void print_stmt(ExecId eid) {
+        const Exec& exec = ctx.exec(eid);
+        print_exec(eid);
+        const bool needs_terminator = !exec.holds<ExecBlock>() && !exec.holds<ExecBranch>()
+                                      && !exec.holds<ExecLoop>() && !exec.holds<ExecMatch>();
+        if (needs_terminator) {
+            out += ';';
+        }
+    }
+
+    void print_operand(ExecId eid) { print_wrapped(eid, false); }
+
+    void print_postfix_operand(ExecId eid) { print_wrapped(eid, true); }
+
+    void print_wrapped(ExecId eid, bool postfix) {
+        const Exec& exec = ctx.exec(eid);
+        const bool is_prefix = exec.holds<ExecDeref>() || exec.holds<ExecUnary>()
+                               || exec.holds<ExecBorrow>() || exec.holds<ExecAddrOf>();
+        const bool wrap = exec.holds<ExecBinary>() || exec.holds<ExecAssignment>()
+                          || exec.holds<ExecCompoundAssignment>() || exec.holds<ExecCast>()
+                          || exec.holds<ExecRange>() || (postfix && is_prefix);
+        if (wrap) {
+            out += '(';
+        }
+        print_exec(eid);
+        if (wrap) {
+            out += ')';
+        }
+    }
+
+    void print_exec_list(IdSlice<ExecId> elems, std::string_view sep) {
+        for (auto eidx = elems.begin(); eidx != elems.end(); ++eidx) {
+            print_exec(ctx.exec_id(eidx));
+            if (eidx != elems.last_elem()) {
+                out += sep;
+            }
+        }
+    }
+
+    void print_constant(const ExecComptConstant& c) {
+        switch (c.type_builtin()) {
+        case builtin_type::str:
+            out += '"';
+            for (const char ch : std::string_view{ctx.symbol_id_to_cstr(c.as<SymbolId>())}) {
+                print_escaped_char(ch, '"');
+            }
+            out += '"';
+            return;
+        case builtin_type::charr:
+            out += '\'';
+            print_escaped_char(c.as<char>(), '\'');
+            out += '\'';
+            return;
+        default:
+            break;
+        }
+        out += c.to_string(ctx);
+    }
+
+    void print_escaped_char(char ch, char quote) {
+        switch (ch) {
+        case '\n':
+            out += "\\n";
+            return;
+        case '\t':
+            out += "\\t";
+            return;
+        case '\r':
+            out += "\\r";
+            return;
+        case '\0':
+            out += "\\0";
+            return;
+        case '\\':
+            out += "\\\\";
+            return;
+        default:
+            break;
+        }
+        if (ch == quote) {
+            out += '\\';
+        }
+        out += ch;
+    }
+
+    OptId<ExecId> chained_else_if(ExecId eid) {
+        const Exec& exec = ctx.exec(eid);
+        if (exec.holds<ExecBranch>()) {
+            return eid;
+        }
+        if (!exec.holds<ExecBlock>()) {
+            return {};
+        }
+        const Block& block = ctx.block(exec.as<ExecBlock>().block_id);
+        if (block.defs.len() || block.execs.len() != 1) {
+            return {};
+        }
+        const ExecId inner = ctx.exec_id(block.execs.begin());
+        if (ctx.exec(inner).holds<ExecBranch>()) {
+            return inner;
+        }
+        return {};
+    }
+
+    static std::string exec_label(ExecId eid) { return "Exec#" + std::to_string(eid.raw()); }
+
+    void print_exec(ExecId eid) {
+        const auto vs = Ovld{
+            [&](const ExecBlock& t) { print_block(t.block_id); },
+            [&](const ExecJump& t) {
+                out += t.spot == jump_spot::start ? "continue " : "break ";
+                out += exec_label(t.block);
+            },
+            [&](const ExecLoop& t) {
+                out += exec_label(eid);
+                out += ": ";
+                if (t.update.has_value()) {
+                    out += "for (; ";
+                    if (t.condition.has_value()) {
+                        print_exec(t.condition.as_id());
+                    }
+                    out += "; ";
+                    print_exec(t.update.as_id());
+                    out += ") ";
+                } else {
+                    out += "while ";
+                    if (t.condition.has_value()) {
+                        print_exec(t.condition.as_id());
+                    } else {
+                        out += "true";
+                    }
+                    out += ' ';
+                }
+                print_body(t.body);
+            },
+            [&](const ExecBranch& t) {
+                out += "if ";
+                print_exec(t.condition);
+                out += ' ';
+                print_body(t.then_block);
+                if (t.else_block.has_value()) {
+                    out += " else ";
+                    const ExecId else_eid = t.else_block.as_id();
+                    const OptId<ExecId> chained = chained_else_if(else_eid);
+                    if (chained.has_value()) {
+                        print_exec(chained.as_id());
+                    } else {
+                        print_body(else_eid);
+                    }
+                }
+            },
+            [&](const ExecReturn& t) {
+                out += "return";
+                if (t.return_value.has_value()) {
+                    out += ' ';
+                    print_exec(t.return_value.as_id());
+                }
+            },
+            [&](const ExecYield& t) {
+                out += "yield";
+                if (t.yield_value.has_value()) {
+                    out += ' ';
+                    print_exec(t.yield_value.as_id());
+                }
+            },
+            [&](const ExecUnionInit& t) {
+                const Def& union_def = ctx.def(t.union_def_id);
+                out += ctx.symbol(union_def.name);
+                out += "{.";
+                out += ctx.symbol(
+                    ctx.def(union_def.as<DefUnion>().ordered_members.get(t.active_member_idx))
+                        .name);
+                out += " = ";
+                const bool explicit_move = t.move && !ctx.exec(t.member_init).holds<ExecMove>();
+                if (explicit_move) {
+                    out += "move(";
+                }
+                print_exec(t.member_init);
+                if (explicit_move) {
+                    out += ')';
+                }
+                out += '}';
+            },
+            [&](const ExecVariantInit& t) {
+                out += ctx.symbol(ctx.def(t.variant_def_id).name);
+                out += "..";
+                print_exec(t.payload_init);
+            },
+            [&](const ExecVariantFieldInit& t) {
+                out += ctx.symbol(ctx.def(t.variant_field_def_id).name);
+                out += '(';
+                print_exec_list(t.member_inits, ", ");
+                out += ')';
+            },
+            [&](const ExecStructInit& t) {
+                if (t.anonymous) {
+                    out += '(';
+                    for (const auto eidx : t.member_inits) {
+                        print_exec(ctx.exec_id(eidx));
+                        out += ", ";
+                    }
+                    out += ')';
+                    return;
+                }
+                const auto& members = ctx.def(t.struct_def_id).as<DefStruct>().ordered_members;
+                out += ctx.symbol(ctx.def(t.struct_def_id).name);
+                out += '{';
+                for (HirSize i = 0; i < t.member_inits.len(); ++i) {
+                    if (i) {
+                        out += ", ";
+                    }
+                    out += '.';
+                    out += ctx.symbol(ctx.def(members.get(i)).name);
+                    out += " = ";
+                    print_exec(ctx.exec_id(t.member_inits.get(i)));
+                }
+                out += '}';
+            },
+            [&](const ExecVariable& t) { out += ctx.symbol(ctx.def(t.def_id).name); },
+            [&](const ExecComptConstant& t) { print_constant(t); },
+            [&](const ExecListLiteral& t) {
+                out += '[';
+                print_exec_list(t.elems, ", ");
+                out += ']';
+            },
+            [&](const ExecAssignment& t) {
+                print_exec(t.lhs);
+                out += " = ";
+                print_exec(t.rhs);
+            },
+            [&](const ExecMemberAccess& t) {
+                print_postfix_operand(t.owner);
+                out += '.';
+                out += ctx.symbol(ctx.def(t.member).name);
+            },
+            [&](const ExecBinary& t) {
+                print_operand(t.lhs);
+                out += ' ';
+                out += binary_op_to_cstr(t.op);
+                out += ' ';
+                print_operand(t.rhs);
+            },
+            [&](const ExecCast& t) {
+                print_operand(t.exec);
+                out += " as ";
+                out += type_to_string_with_akas(ctx, t.target_tid);
+            },
+            [&](const ExecSubscript& t) {
+                print_postfix_operand(t.base);
+                out += '[';
+                print_exec(t.index);
+                out += ']';
+            },
+            [&](const ExecFnCall& t) {
+                print_postfix_operand(t.callee);
+                out += '(';
+                print_exec_list(t.args, ", ");
+                out += ')';
+            },
+            [&](const ExecBorrow& t) {
+                out += t.mut ? "&mut " : "&";
+                print_operand(t.borrowee);
+            },
+            [&](const ExecAddrOf& t) {
+                out += t.mut ? "^mut " : "^";
+                print_operand(t.addressed);
+            },
+            [&](const ExecDeref& t) {
+                out += '*';
+                print_operand(t.dereferenced);
+            },
+            [&](const ExecMatch& t) {
+                out += "match ";
+                print_exec(t.scrutinee);
+                out += " {";
+                indent();
+                for (const auto eidx : t.branches) {
+                    newline();
+                    print_exec(ctx.exec_id(eidx));
+                    out += ',';
+                }
+                dedent();
+                newline();
+                out += '}';
+            },
+            [&](const ExecMatchBranch& t) {
+                if (t.patterns.len()) {
+                    print_exec_list(t.patterns, " | ");
+                } else {
+                    out += "else";
+                }
+                out += " => ";
+                print_exec(t.body);
+            },
+            [&](const ExecTernaryIf& t) {
+                out += '(';
+                print_operand(t.then_value);
+                out += " if ";
+                print_operand(t.condition);
+                out += " else ";
+                print_operand(t.else_value);
+                out += ')';
+            },
+            [&](const ExecFnPtr& t) {
+                out += ctx.symbol_id_slice_to_string(ctx.canonical_name(t.func_def_id));
+            },
+            [&](const ExecRange& t) {
+                print_operand(t.start);
+                out += t.inclusive ? "...=" : "...";
+                print_operand(t.end);
+            },
+            [&](const ExecCompoundAssignment& t) {
+                if (t.yield_old) {
+                    print_postfix_operand(t.lhs);
+                    out += t.op == binary_op::plus ? "++" : "--";
+                    return;
+                }
+                print_exec(t.lhs);
+                out += ' ';
+                out += binary_op_to_cstr(t.op);
+                out += "= ";
+                print_exec(t.rhs);
+            },
+            [&](const ExecUnary& t) {
+                out += unary_op_to_cstr(t.op);
+                print_operand(t.operand);
+            },
+            [&](const ExecBuiltinAccess& t) {
+                print_postfix_operand(t.from);
+                switch (t.kind) {
+                case builtin_access::str_len:
+                case builtin_access::slice_len:
+                    out += ".len";
+                    break;
+                case builtin_access::str_ptr:
+                case builtin_access::slice_ptr:
+                    out += ".@ptr";
+                    break;
+                case builtin_access::variant_discriminant:
+                    out += ".@discriminant";
+                    break;
+                case builtin_access::range_start:
+                    out += ".start";
+                    break;
+                case builtin_access::range_end:
+                    out += ".end";
+                    break;
+                }
+            },
+            [&](const ExecMove& t) {
+                out += "move(";
+                print_exec(t.exec);
+                out += ')';
+            },
+        };
+        ctx.exec(eid).visit(vs);
+    }
+};
+
+} // namespace
+
+static std::string_view preview_visibility(Context& ctx, DefId did) {
+    const Def& def = ctx.def(did);
+    if (def.pub || def.holds<DefVariantField>()) {
+        return "";
+    }
+    if (!def.parent.has_value() && !def.top_level) {
+        return "";
+    }
+    return "hid ";
 }
 
 std::string def_to_pretty_string_preview(Context& ctx, DefId did,
@@ -298,9 +1023,13 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
 
             return str;
         },
-        [&ctx, did](const DefGenericFunction&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefFunctionPrototype&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefVariable&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefGenericFunction&) -> std::string {
+            return preview_def_to_string(ctx, did);
+        },
+        [&ctx, did](const DefFunctionPrototype&) -> std::string {
+            return preview_def_to_string(ctx, did);
+        },
+        [&ctx, did](const DefVariable&) -> std::string { return preview_def_to_string(ctx, did); },
         [&ctx, did](const DefStruct& d) -> std::string {
             std::string str;
             str += "struct ";
@@ -326,7 +1055,8 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
 
             for (const auto didx : ordered_mems) {
                 str += "    ";
-                str += def_to_string(ctx, ctx.def_id(didx));
+                str += preview_visibility(ctx, ctx.def_id(didx));
+                str += preview_def_to_string(ctx, ctx.def_id(didx));
                 str += '\n';
             }
 
@@ -334,17 +1064,29 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
 
             return str;
         },
-        [&ctx, did](const DefGenericStruct&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefVariant&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefGenericVariant&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefVariantField&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefUnion&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefGenericContract&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefContract&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefDeftype&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefScopeWrapper&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefUnevaluated&) -> std::string { return def_to_string(ctx, did); },
-        [&ctx, did](const DefMalformed&) -> std::string { return def_to_string(ctx, did); },
+        [&ctx, did](const DefGenericStruct&) -> std::string {
+            return preview_def_to_string(ctx, did);
+        },
+        [&ctx, did](const DefVariant&) -> std::string { return preview_def_to_string(ctx, did); },
+        [&ctx, did](const DefGenericVariant&) -> std::string {
+            return preview_def_to_string(ctx, did);
+        },
+        [&ctx, did](const DefVariantField&) -> std::string {
+            return preview_def_to_string(ctx, did);
+        },
+        [&ctx, did](const DefUnion&) -> std::string { return preview_def_to_string(ctx, did); },
+        [&ctx, did](const DefGenericContract&) -> std::string {
+            return preview_def_to_string(ctx, did);
+        },
+        [&ctx, did](const DefContract&) -> std::string { return preview_def_to_string(ctx, did); },
+        [&ctx, did](const DefDeftype&) -> std::string { return preview_def_to_string(ctx, did); },
+        [&ctx, did](const DefScopeWrapper&) -> std::string {
+            return preview_def_to_string(ctx, did);
+        },
+        [&ctx, did](const DefUnevaluated&) -> std::string {
+            return preview_def_to_string(ctx, did);
+        },
+        [&ctx, did](const DefMalformed&) -> std::string { return preview_def_to_string(ctx, did); },
     };
 
     std::string cannonical_name_comment = "// canonical name: ";
@@ -355,12 +1097,14 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
     case string_preview_mode::no_ticks:
         str += cannonical_name_comment;
         str += '\n';
+        str += preview_visibility(ctx, did);
         str += ctx.def(did).visit(vs);
         break;
     case string_preview_mode::ticks:
         str += "```\n";
         str += cannonical_name_comment;
         str += '\n';
+        str += preview_visibility(ctx, did);
         str += ctx.def(did).visit(vs);
         str += "\n```";
         break;
@@ -368,12 +1112,25 @@ std::string def_to_pretty_string_preview(Context& ctx, DefId did,
         str += "```bear\n";
         str += cannonical_name_comment;
         str += '\n';
+        str += preview_visibility(ctx, did);
         str += ctx.def(did).visit(vs);
         str += "\n```";
         break;
     }
 
     return str;
+}
+
+std::string def_to_string(Context& ctx, DefId did) {
+    HirPrettyPrinter printer{ctx};
+    printer.print_def(did, true);
+    return printer.take();
+}
+
+std::string scope_to_string(Context& ctx, ScopeId scope) {
+    HirPrettyPrinter printer{ctx};
+    printer.print_scope_contents(scope, {}, true);
+    return printer.take();
 }
 
 } // namespace hir
