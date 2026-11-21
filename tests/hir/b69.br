@@ -22,6 +22,11 @@ fn main() {
     compt var _ = B();
     compt var _ = C();
 
+    use foo..ben..*;
+    Gary _;
+    foo..ben..Gary..Snail _; // oops 
+    foo..ben..Gary..Bail _; // oops
+
 }
 
 variant Vari {
@@ -36,7 +41,12 @@ mod foo {
     }
     mod ben {
         fn my_pie(i32 x) -> i32 => (x+x)>>2
+        variant Gary {
+            Snail,
+            Bail,
+        }
     }
+    use ben..Gary..*;
 }
 
 mod baz {

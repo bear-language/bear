@@ -149,7 +149,7 @@ enum class diag_code : uint16_t {
     compt_union_does_not_hold_field,
     compt_union_holds_field,
     raw_use_of_variant_field,
-    variant_fields_cannot_be_used_outside_of_a_variant,
+    variant_fields_cannot_be_used_as_types_outside_of_a_variant,
     invalid_variant_init_for_field,
     not_a_variant,
     cannot_use_is_for_non_variant_values,

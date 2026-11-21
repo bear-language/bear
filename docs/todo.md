@@ -70,14 +70,18 @@
     - [ ] hand out errors for C-incompatible functions when under a C abi extern basically w/ generics, etc.
     - [ ] scrap the `import C "foo.h";` construct or have it automatically translate-c (halfway between old/new Zig)
 
+- [ ] make a way to reserve the root FileId so intrinsics can be registered first (better diagnostic order for redefinitions)
+
+- [ ] make `use` statements non-order dependent for top-level resolution
+    - [ ] track a list of (`ScopeId`, `IdSlice<SymbolId>`) which is (into_scope, pending_path) of pending uses during `AstVisitor`'s walk. At end of walk, resolve and error on undefined uses. Also can probably do redundancy checks for this as well (trivial, just be sure to do a redefinition check)
+
+#### top-level resol / compt improvements / features:
+
 - [ ] allow contract satisfaction `CanonicalTypeId`-wise instead of `DefId`-wise (to allow non-structs to have contracts)
     - [ ] will require new `satisfy Foo for Bar {}` syntax
     - [ ] `DefId` -> `DefId` contract maps will need to be use `CanonicalTypeId` keys instead 
     - [ ] will complicate method look up (look up type's contract scope, then on miss check current scope)
 
-- [ ] make a way to reserve the root FileId so intrinsics can be registered first (better diagnostic order for redefinitions)
-
-#### top-level resol / compt improvements / features:
 - [ ] generic deftypes e.g. `deftype MutDecay<T> = mut decay T;` 
 
 - [ ] add `@in_compt` builtin which is true during compt-eval, else false

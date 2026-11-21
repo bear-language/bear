@@ -283,8 +283,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "compile-time union holds field";
     case diag_code::raw_use_of_variant_field:
         return "raw use of variant field";
-    case diag_code::variant_fields_cannot_be_used_outside_of_a_variant:
-        return "variant fields cannot be used outside of their parent variant";
+    case diag_code::variant_fields_cannot_be_used_as_types_outside_of_a_variant:
+        return "variant fields cannot be used as types outside of their parent variant";
     case diag_code::invalid_variant_init_for_field:
         return "invalid variant initializer for field";
     case diag_code::not_a_variant:

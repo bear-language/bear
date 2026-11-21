@@ -1353,7 +1353,6 @@ void DefVisitor::resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* s
             = used_var ? std::nullopt : context.try_scope_for_def(used_did.as_id());
         if (maybe_scope.empty()) {
             DiagLinker dl{context};
-            const Def& def = context.def(used_did.as_id());
             dl.link(context.emplace_diagnostic(
                 id_span, diag_code::cannot_use_wildcard_for, diag_type::error,
                 DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice},

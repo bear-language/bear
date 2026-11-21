@@ -127,13 +127,20 @@ class TypeResolver {
                     span, diag_code::raw_use_of_variant_field, diag_type::error,
                     DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice}));
                 dl.link(context.emplace_diagnostic(
-                    span, diag_code::variant_fields_cannot_be_used_outside_of_a_variant,
+                    span, diag_code::variant_fields_cannot_be_used_as_types_outside_of_a_variant,
                     diag_type::note, DiagnosticInfoNoPreview{}));
-                if (sid_slice.len() > 1) {
-                    const auto ssl = sid_slice.sub_slice_n(sid_slice.len() - 1);
-                    dl.link(context.emplace_diagnostic_with_message_value(
-                        span, diag_code::replace_with, diag_type::help,
-                        DiagnosticIdentifierAfterMessage{.sid_slice = ssl}));
+                if (const auto maybe_parent = context.def(did).parent) {
+                    if (sid_slice.len() > 1) {
+                        dl.link(context.emplace_diagnostic_with_message_value(
+                            span, diag_code::replace_with, diag_type::help,
+                            DiagnosticIdentifierAfterMessage{
+                                .sid_slice = context.canonical_name(maybe_parent.as_id())}));
+                    } else {
+                        dl.link(context.emplace_diagnostic_with_message_value(
+                            span, diag_code::replace_with, diag_type::help,
+                            DiagnosticSymbolAfterMessage{
+                                .sid = context.def(maybe_parent.as_id()).name}));
+                    }
                 }
                 return {};
             }
