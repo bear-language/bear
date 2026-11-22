@@ -11,5 +11,5 @@
 int main(int argc, char** argv) {
     int exit_code = bearc_compile_from_args(argc, argv);
 
-    return exit_code;
+    return exit_code > 255 ? 255 : exit_code;
 }
