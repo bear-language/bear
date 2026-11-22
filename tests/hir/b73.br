@@ -1,3 +1,7 @@
+// tests/hir/b73.br
+
+// testing utterly gut-wrenching explosive generic recursion test cases
+
 struct A<T> {}
 struct B<T> {}
 
