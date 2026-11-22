@@ -1036,6 +1036,9 @@ template class TypeTransformer<TypeComparator<DoNotConsiderMut>>;
 template class TypeTransformer<TypeInferer<DoConsiderMut>>;
 template class TypeTransformer<TypeInferer<DoNotConsiderMut>>;
 
+template class TypeToString<DoConsiderMut>;
+template class TypeToString<DoNotConsiderMut>;
+
 template class TypeTransformer<TypeToString<DoConsiderMut>>;
 template class TypeTransformer<TypeToString<DoNotConsiderMut>>;
 
