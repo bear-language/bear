@@ -151,7 +151,9 @@ Context::Context(const bearc_args_t& args, instances instances,
       deduction_step_ids{DEFAULT_TYPE_CAP}, deduction_guides{DEFAULT_TYPE_CAP / 4},
       def_to_deduction_guides_arena{DEFAULT_ARENA_CAP / 4},
       def_to_deduction_guides{def_to_deduction_guides_arena, DEFAULT_TYPE_CAP / 4},
-      symbol_to_leven_search{id_map_arena, MAX_LEVEN_SEARCHES}, diagnostics{DEFAULT_DIAG_NUM},
+      symbol_to_leven_search{id_map_arena, MAX_LEVEN_SEARCHES},
+      generic_def_to_resolving_cnt{id_map_arena, DEFAULT_DEF_SLICE_COUNT},
+      instance_to_generic_def{id_map_arena, DEFAULT_DEF_SLICE_COUNT}, diagnostics{DEFAULT_DIAG_NUM},
       diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
       only_one_context_instance((instances == instances::one) && one_instance_status),
       register_spans{do_register_spans}, compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]),
@@ -282,6 +284,50 @@ Context::Context(const bearc_args_t& args, instances instances,
 
     // fairly important
     ensure_has_main_if_exe_build();
+}
+
+void Context::report_generic_inst_limit(Span span) {
+    const auto d0
+        = emplace_diagnostic(span, diag_code::circular_generic_instantiation, diag_type::error);
+    const auto d1
+        = emplace_diagnostic(span, diag_code::this_diag_has_been_reemitted_due_to_criticality,
+                             diag_type::note, DiagnosticInfoNoPreview{});
+    link_diagnostic(d0, d1);
+    if (llvm::none_of(critical_diagnostics,
+                      [&](DiagnosticId id) { return diagnostic(id).span == span; })) {
+        critical_diagnostics.emplace_back(d0);
+        critical_diagnostics.emplace_back(d1);
+    }
+}
+
+DefId Context::outermost_generic_def(DefId generic_did) const {
+    const OptId<DefId> instance = try_generic_parent_for_def(generic_did);
+    if (instance.empty()) {
+        return generic_did;
+    }
+    return instance_to_generic_def.at(instance.as_id()).get_or(generic_did);
+}
+
+OptId<DefId> Context::enter_resolving(DefId did) {
+    const OptId<DefId> instance = try_generic_parent_for_def(did);
+    if (instance.empty()
+        || (instance.as_id() != did
+            && resol_state_of(instance.as_id()) == Def::resol_state::in_progress)) {
+        return {};
+    }
+    const OptId<DefId> generic_did = instance_to_generic_def.at(instance.as_id());
+    if (generic_did.has_value()) {
+        const HirSize cnt = generic_def_to_resolving_cnt.at(generic_did.as_id()).raw();
+        generic_def_to_resolving_cnt.insert(generic_did.as_id(), CountId{cnt + 1});
+    }
+    return generic_did;
+}
+
+void Context::exit_resolving(OptId<DefId> generic_did) {
+    if (generic_did.has_value()) {
+        const HirSize cnt = generic_def_to_resolving_cnt.at(generic_did.as_id()).raw();
+        generic_def_to_resolving_cnt.insert(generic_did.as_id(), CountId{cnt - 1});
+    }
 }
 
 bool Context::should_warn_as_unused(DefId did) const {
@@ -1153,6 +1199,7 @@ Context::make_new_generic_instantiation(DefVisitor& def_visitor, DefId did,
 
     // record the instance's generic args
     register_gen_args_for_def(maybe_instance_did.as_id(), gen_args_id);
+    instance_to_generic_def.insert(maybe_instance_did.as_id(), outermost_generic_def(did));
     // set up for resolving the instantiated def
     def(maybe_instance_did.as_id()).generic = false; // "concretifies" the instatiation
     // make sure generic args are locable
@@ -4139,6 +4186,13 @@ CanonicalGenericArgsId Context::canonical_gen_args(GenericArgIdSliceId slice_id)
         if (resol_state_of(orig_def_id) == Def::resol_state::attempting_insantiation) {
             def_visitor.visit_and_check_for_circular_instantiation(orig_def_id);
             return {}; // cyclical
+        }
+        const HirSize resolving_cnt
+            = generic_def_to_resolving_cnt.at(outermost_generic_def(orig_def_id)).raw();
+        if (resolving_cnt > MAX_GENERIC_INST_DEPTH || map.size() >= MAX_INSTS_PER_GENERIC_DEF) {
+            const Span span = span_for_gen_args(generic_args_id);
+            report_generic_inst_limit(span.is_generated() ? name_span_for_def(orig_def_id) : span);
+            return {};
         }
         const auto new_instance
             = make_new_generic_instantiation(def_visitor, orig_def_id, generic_args_id);

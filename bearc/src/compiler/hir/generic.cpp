@@ -160,6 +160,11 @@ CanonicalGenericArgsId CanonicalComptArgsTable::canonical(GenericArgIdSliceId id
 }
 
 std::string gen_args_to_str(Context& ctx, GenericArgIdSliceId args_id) {
+    HirSize nodes_left = TypeToString<DoConsiderMut>::MAX_NODES;
+    return gen_args_to_str(ctx, args_id, nodes_left);
+}
+
+std::string gen_args_to_str(Context& ctx, GenericArgIdSliceId args_id, HirSize& nodes_left) {
     const auto args_slice = ctx.gen_arg_id_slice(args_id);
     std::string str{};
     str.reserve(static_cast<HirSize>(32 * args_slice.len())); // decent size, limit uneeded allocs
@@ -168,7 +173,7 @@ std::string gen_args_to_str(Context& ctx, GenericArgIdSliceId args_id) {
         str += "<";
     }
     for (HirSize i = 0; i < args_slice.len(); ++i) {
-        str += gen_arg_to_str(ctx, ctx.gen_arg_id(args_slice.get(i)));
+        str += gen_arg_to_str(ctx, ctx.gen_arg_id(args_slice.get(i)), nodes_left);
         if (i != args_slice.len() - 1) {
             str += ", ";
         }
@@ -179,10 +184,10 @@ std::string gen_args_to_str(Context& ctx, GenericArgIdSliceId args_id) {
     return str;
 }
 
-std::string gen_arg_to_str(Context& ctx, GenericArgId arg_id) {
+std::string gen_arg_to_str(Context& ctx, GenericArgId arg_id, HirSize& nodes_left) {
     GenericArg garg = ctx.gen_arg(arg_id);
     if (garg.holds<TypeId>()) {
-        return type_to_string(ctx, garg.as<TypeId>());
+        return TypeToString<DoConsiderMut>{ctx, nodes_left}.nested(garg.as<TypeId>());
     }
     return exec_to_string(ctx, garg.as<ExecId>());
 }

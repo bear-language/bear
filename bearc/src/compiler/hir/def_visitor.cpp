@@ -42,8 +42,10 @@ DefId DefVisitor::visit_and_resolve_if_needed(DefId def) {
         return def;
     }
     def_stack.push_back(def);
+    const OptId<DefId> resolving_generic = context.enter_resolving(def);
     context.set_resol_state_of(def, Def::resol_state::in_progress);
     auto d = resolve_def(def);
+    context.exit_resolving(resolving_generic);
     context.set_resol_state_of(def, Def::resol_state::resolved);
     def_stack.pop_back();
     return d;

@@ -47,6 +47,7 @@ class IdHashMap {
         }
         return OptId<V>{V{*value}};
     }
+    [[nodiscard]] HirSize size() const noexcept { return map.size; }
     bool contains(K key) const { return mapu32u32_cat(&map, key.raw()) != 0; }
 
     class Entry {

@@ -442,6 +442,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b70", 13);
     ASSERT_EQ_ERR("hir/b71", 12);
     ASSERT_EQ_ERR("hir/b72", 30);
+    ASSERT_EQ_ERR("hir/b73", 33367);
 
     return TEST_RESULT;
 }

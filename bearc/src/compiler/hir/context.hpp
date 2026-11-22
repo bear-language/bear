@@ -268,16 +268,7 @@ class Context {
                 }
                 // -- guard infinite instantiation (leads to stack overflow)
                 if (++this->generic_inst_depth > MAX_GENERIC_INST_DEPTH) {
-                    const auto d0 = emplace_diagnostic(span_for_gen_args(gen_args_id),
-                                                       diag_code::circular_generic_instantiation,
-                                                       diag_type::error);
-                    const auto d1 = emplace_diagnostic(
-                        span_for_gen_args(gen_args_id),
-                        diag_code::this_diag_has_been_reemitted_due_to_criticality, diag_type::note,
-                        DiagnosticInfoNoPreview{});
-                    link_diagnostic(d0, d1);
-                    critical_diagnostics.emplace_back(d0);
-                    critical_diagnostics.emplace_back(d1);
+                    report_generic_inst_limit(span_for_gen_args(gen_args_id));
                     --this->generic_inst_depth;
                     return {};
                 }
@@ -892,6 +883,9 @@ class Context {
 
     [[nodiscard]] Span span_for_gen_args(GenericArgIdSliceId gen_arg_slice) const;
 
+    [[nodiscard]] OptId<DefId> enter_resolving(DefId did);
+    void exit_resolving(OptId<DefId> generic_did);
+
     /// adds a function to the vector acting as a list of all functions
     void record_function_def(DefId def_id);
 
@@ -1260,12 +1254,15 @@ class Context {
         OptId<id_type> next;
     };
     IdHashMap<SymbolId, LevenSearch::id_type> symbol_to_leven_search;
+    IdHashMap<DefId, CountId> generic_def_to_resolving_cnt;
+    IdHashMap<DefId, DefId> instance_to_generic_def;
     llvm::SmallVector<LevenSearch, MAX_LEVEN_SEARCHES> leven_search_cache;
 
     // generic tracking
     // checking generic instantiation depth
     std::vector<DiagnosticId> critical_diagnostics{};
     static constexpr HirSize MAX_GENERIC_INST_DEPTH = 200;
+    static constexpr HirSize MAX_INSTS_PER_GENERIC_DEF = 4096;
     HirSize generic_inst_depth{};
 
     // for parallel ast building
@@ -1320,6 +1317,8 @@ class Context {
     void report_cycle(llvm::SmallVectorImpl<FileId>& import_stack, const token_t* import_path_tkn);
     [[nodiscard]] OptId<FileId> try_file_from_import_statement(FileId importer_id,
                                                                const ast_stmt_t* import_statement);
+    void report_generic_inst_limit(Span span);
+    [[nodiscard]] DefId outermost_generic_def(DefId generic_did) const;
     [[nodiscard]] OptId<DefId> make_new_generic_instantiation(DefVisitor& def_visitor, DefId did,
                                                               GenericArgIdSliceId gen_args_id);
 

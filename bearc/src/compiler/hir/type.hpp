@@ -203,6 +203,7 @@ concept TypeTransformerFunctor = requires(F f, Context& context, const Type& t1,
 
 template <TypeTransformerFunctor F> class TypeTransformer {
     Context& context;
+    F functor;
     Type get_type(TypeId tid) const noexcept;
     Type get_type_as_mentioned(TypeId tid) const noexcept;
 
@@ -210,7 +211,9 @@ template <TypeTransformerFunctor F> class TypeTransformer {
     F::value_type invoke(TypeId tid1, TypeId tid2, auto get_type_functor);
 
   public:
-    TypeTransformer(Context& context) : context(context) {}
+    template <typename... Args>
+    TypeTransformer(Context& context, Args&... args)
+        : context(context), functor{context, args...} {}
     F::value_type operator()(TypeId tid1, TypeId tid2);
     F::value_type operator()(TypeId tid);
     F::value_type invoke_as_mentioned(TypeId tid);
@@ -314,10 +317,18 @@ struct TypeToStringValue {
 
 template <ConsiderMut C> class TypeToString {
     Context& context;
+    HirSize own_nodes_left = MAX_NODES;
+    HirSize& nodes_left;
 
   public:
+    static constexpr HirSize MAX_NODES = 512;
     using value_type = TypeToStringValue;
-    TypeToString(Context& context) : context(context) {}
+    TypeToString(Context& context) : context(context), nodes_left(own_nodes_left) {}
+    TypeToString(Context& context, HirSize& nodes_left)
+        : context(context), nodes_left(nodes_left) {}
+    TypeToString(const TypeToString&) = delete;
+    TypeToString& operator=(const TypeToString&) = delete;
+    [[nodiscard]] std::string nested(TypeId tid) const;
     // probably not needed for the hasher
     TypeToStringValue operator()(const Type&, const Type&) const {
         assert(false && "double invocation should not be called when using ToString");

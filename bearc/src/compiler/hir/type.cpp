@@ -224,9 +224,7 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
                 const auto dids = context.def(t.def_id).template as<DefStruct>().ordered_members;
 
                 for (const auto didx : dids) {
-                    str += TypeTransformer<TypeToString>{context}(
-                               context.def(didx).template as<DefVariable>().type_id)
-                               .str;
+                    str += nested(context.def(didx).template as<DefVariable>().type_id);
                     if (didx != dids.last_elem()) {
                         str += ',';
                     }
@@ -236,7 +234,7 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
             } else {
                 str += context.symbol_id_to_cstr(context.def(t.def_id).name);
                 if (t.gen_args_slice.has_value()) {
-                    str += gen_args_to_str(context, t.gen_args_slice.as_id());
+                    str += gen_args_to_str(context, t.gen_args_slice.as_id(), nodes_left);
                 }
             }
             if constexpr (considers_mut()) {
@@ -248,7 +246,7 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
         [&](const TypeVariant& t) {
             str += context.symbol_id_to_cstr(context.def(t.def_id).name);
             if (t.generic && t.gen_args_slice.has_value()) {
-                str += gen_args_to_str(context, t.gen_args_slice.as_id());
+                str += gen_args_to_str(context, t.gen_args_slice.as_id(), nodes_left);
             }
             if constexpr (considers_mut()) {
                 if (t1.mut) {
@@ -318,7 +316,7 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
             str += '(';
             for (auto tidx = t.param_types.begin(); tidx != t.param_types.end(); tidx++) {
                 auto tid = context.type_id(tidx);
-                str += TypeTransformer<TypeToString>{context}(tid).str;
+                str += nested(tid);
                 if (tidx != t.param_types.last_elem()) {
                     str += ", ";
                 }
@@ -326,7 +324,7 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
             str += ')';
             if (t.return_type.has_value()) {
                 str += "->";
-                str += TypeTransformer<TypeToString>{context}(t.return_type.as_id()).str;
+                str += nested(t.return_type.as_id());
             }
         },
         [&](const TypeVar&) {
@@ -343,6 +341,14 @@ template <ConsiderMut C> TypeToStringValue TypeToString<C>::operator()(const Typ
     t1.visit(vs);
 
     return val;
+}
+
+template <ConsiderMut C> std::string TypeToString<C>::nested(TypeId tid) const {
+    if (nodes_left == 0) {
+        return "...";
+    }
+    --nodes_left;
+    return TypeTransformer<TypeToString>{context, nodes_left}(tid).str;
 }
 
 template <ConsiderMut C>
@@ -363,10 +369,8 @@ template <TypeTransformerFunctor F>
 F::value_type TypeTransformer<F>::invoke(TypeId tid, auto get_type_functor) {
     auto t = get_type_functor(tid);
 
-    const auto invoker = F{context};
-
     // get first value up-front (prevents collection bugs from a default initialized collector)
-    typename F::value_type collector = invoker(t);
+    typename F::value_type collector = functor(t);
 
     OptId<TypeId> maybe_tid{tid};
 
@@ -378,7 +382,7 @@ F::value_type TypeTransformer<F>::invoke(TypeId tid, auto get_type_functor) {
         if (!maybe_tid.has_value()) {
             break;
         }
-        collector = invoker.transform(collector, invoker(t));
+        collector = functor.transform(collector, functor(t));
     }
     return collector;
 }
@@ -389,10 +393,8 @@ F::value_type TypeTransformer<F>::invoke(TypeId tid1, TypeId tid2, auto get_type
     Type t1 = get_type_functor(tid1);
     Type t2 = get_type_functor(tid2);
 
-    const auto invoker = F{context};
-
     // get first value up-front (prevents collection bugs from a default initialized collector)
-    typename F::value_type collector = invoker(t1, t2);
+    typename F::value_type collector = functor(t1, t2);
 
     OptId<TypeId> maybe_tid1{tid1};
     OptId<TypeId> maybe_tid2{tid2};
@@ -409,15 +411,15 @@ F::value_type TypeTransformer<F>::invoke(TypeId tid1, TypeId tid2, auto get_type
         if (!maybe_tid1.has_value() || !maybe_tid2.has_value()) {
             break;
         }
-        collector = invoker.transform(collector, invoker(t1, t2));
+        collector = functor.transform(collector, functor(t1, t2));
     }
     // neither have a value, so return the collector
     if (!maybe_tid1.has_value() && !maybe_tid2.has_value()) {
         return collector;
     }
     // return conditional single-invocation
-    return maybe_tid1.has_value() ? invoker.transform(collector, invoker(t1))
-                                  : invoker.transform(collector, invoker(t2));
+    return maybe_tid1.has_value() ? functor.transform(collector, functor(t1))
+                                  : functor.transform(collector, functor(t2));
 }
 
 template <TypeTransformerFunctor F>

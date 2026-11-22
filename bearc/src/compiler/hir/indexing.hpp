@@ -103,6 +103,8 @@ using LayoutId = Id<Layout>;
 
 using Offset = Id<HirSize>;
 
+using CountId = Id<HirSize>;
+
 using MoveMapId = Id<MoveMap>;
 
 using BlockId = Id<Block>;
