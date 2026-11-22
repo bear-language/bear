@@ -2810,7 +2810,7 @@ DiagRange Context::report_use_of_undeclared(ScopeId scope, scope_kind scope_kind
                 id_span, opts.suggestion_code, diag_type::help,
                 DiagnosticSymbolAfterMessage{.sid = best.first.as_id()}));
             dl.link(emplace_diagnostic_with_message_value(
-                def(best.second.as_id()).span, diag_code::declared_here, diag_type::note,
+                name_span_for_def(best.second.as_id()), diag_code::declared_here, diag_type::note,
                 DiagnosticSymbolBeforeMessage{.sid = best.first.as_id()}));
         }
     }

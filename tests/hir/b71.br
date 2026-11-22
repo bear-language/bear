@@ -2,7 +2,20 @@
 
 fn main() {
     ;
-    var _ = boo;
+    var _ = boo; // oops
+    Boo _; // oops
+    Foo _;
+
+    use my_md; // oops
+    use ma_mod; // oops
 }
 
 compt var foo = 1;
+
+struct Foo has Default {
+    fn default() -> Self => {}
+}
+
+mod my_mod {
+
+}
