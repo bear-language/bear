@@ -17,6 +17,13 @@ extern "C" {
 /**
  * compiles a source file given the file name
  *
+ * returns the count of compiler diagnostics
+ */
+int compile_file_diag_cnt(const bearc_args_t* args);
+
+/**
+ * compiles a source file given the file name
+ *
  * returns the count of compiler errors
  */
 int compile_file(const bearc_args_t* args);

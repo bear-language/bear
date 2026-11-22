@@ -6,9 +6,7 @@ fn main() {
 }
 
 extern C {
-    fn foobar() -> i32 {
-        return 42;
-    }
+    fn foobar();
 }
 
 deftype Foo = FooBar<i32>;

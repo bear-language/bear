@@ -1289,7 +1289,7 @@ ast_stmt_t* parse_stmt_extern_block(parser_t* p) {
         return parser_sync_stmt(p);
     }
     // only parse fn declarations in extern blocks
-    stmt->stmt.extern_block.decls = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_fn_decl);
+    stmt->stmt.extern_block.decls = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_fn_prototype);
     token_t* rbrace = parser_expect_token(p, TOK_RBRACE);
     if (!rbrace) {
         return parser_sync_stmt(p);

@@ -47,7 +47,7 @@ void print_result(br_test_result_t* res);
 
 #define ASSERT_EQ_ERR(file_name, err_cnt)                                                          \
     args.input_file_name = "tests/" file_name ".br";                                               \
-    true_cnt = compile_file(&args);                                                                \
+    true_cnt = compile_file_diag_cnt(&args);                                                       \
     if (true_cnt == (err_cnt)) {                                                                   \
         br_test_result.cnt_success++;                                                              \
     } else {                                                                                       \
@@ -61,7 +61,7 @@ void print_result(br_test_result_t* res);
 #define ASSERT_EQ_ERR_FROM_ARGS(args_, err_cnt)                                                    \
     do {                                                                                           \
         bearc_args_t arrggss = parse_cli_args(sizeof(args_) / sizeof((args_)[0]), args_);          \
-        true_cnt = compile_file(&arrggss);                                                         \
+        true_cnt = compile_file_diag_cnt(&arrggss);                                                \
         if (true_cnt == (err_cnt)) {                                                               \
             br_test_result.cnt_success++;                                                          \
         } else {                                                                                   \
@@ -76,7 +76,7 @@ void print_result(br_test_result_t* res);
 #define ASSERT_EQ_ERR_FROM_ARGSN(args_, err_cnt, arg_index_indicating_name)                        \
     do {                                                                                           \
         bearc_args_t arrggss = parse_cli_args(sizeof(args_) / sizeof((args_)[0]), args_);          \
-        true_cnt = compile_file(&arrggss);                                                         \
+        true_cnt = compile_file_diag_cnt(&arrggss);                                                \
         if (true_cnt == (err_cnt)) {                                                               \
             br_test_result.cnt_success++;                                                          \
         } else {                                                                                   \
