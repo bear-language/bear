@@ -1,0 +1,23 @@
+struct A<T> {}
+struct B<T> {}
+
+struct Queued<T> { compt *Queued<Queued<T>> next = null; }
+struct Counted<i32 I> { compt *Counted<I + 1> next = null; }
+struct Branched<T> {
+    compt *Branched<A<T>> a = null;
+    compt *Branched<B<T>> b = null;
+}
+struct Method<T> { fn m(*Method<Method<T>> _p) {} }
+struct Eager<T> { compt i32 v = Eager..v::<A<T>> + Eager..v::<B<T>>; }
+
+Queued<i32> _0 = {};
+Counted<0> _1 = {};
+Branched<i32> _2 = {};
+Eager<i32> _3 = {};
+
+fn f(*Method<i32> _p) {}
+fn g() -> i32 => "oops"
+
+fn main() -> i32 {
+    return 0;
+}
