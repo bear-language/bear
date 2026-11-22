@@ -310,7 +310,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/a44", 1);
     ASSERT_EQ_ERR("hir/a45", 2);
     ASSERT_EQ_ERR("hir/a46", 2);
-    ASSERT_EQ_ERR("hir/a47", 5);
+    ASSERT_EQ_ERR("hir/a47", 7);
     ASSERT_EQ_ERR("hir/a48", 2);
     ASSERT_EQ_ERR("hir/a49", 0);
     ASSERT_EQ_ERR("hir/a50", 1);
@@ -441,6 +441,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b69", 22);
     ASSERT_EQ_ERR("hir/b70", 13);
     ASSERT_EQ_ERR("hir/b71", 12);
+    ASSERT_EQ_ERR("hir/b72", 30);
 
     return TEST_RESULT;
 }

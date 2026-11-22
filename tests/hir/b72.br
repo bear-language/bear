@@ -1,0 +1,50 @@
+mod tools {
+    pub compt i32 limit = 4;
+    hid compt i32 secret = 5;
+    pub mod inner {
+        pub compt i32 depth = 2;
+    }
+    pub variant Color {
+        Crimson,
+        Azure,
+    }
+    pub fn scale(i32 a) -> i32 => a
+}
+
+mod toolz {
+    pub compt i32 unrelated = 1;
+}
+
+struct First {
+    i32 coordx;
+    compt i32 limit = 1;
+}
+
+struct Second {
+    compt i32 limi = 2;
+}
+
+fn pick<T>() -> i32 => T..limt
+
+fn main() {
+    var _ = tools..limt;
+    var _ = tools..iner..depth;
+    var _ = tols..limit;
+    var _ = toolx..limit;
+    var _ = tools..Color..Crimsn;
+    var _ = tools..secrt;
+    var _ = First..coordz;
+
+    use tools..Color;
+    var color = Color..Crimson;
+    var _ = match color {
+        Color..Crimsn => 1,
+        else => 2,
+    };
+
+    use tools..scle;
+    use tools..limt;
+
+    var _ = pick::<First>();
+    var _ = pick::<Second>();
+}

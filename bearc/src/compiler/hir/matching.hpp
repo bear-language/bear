@@ -124,8 +124,9 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId containing_scope,
 
             if (maybe_variant_field_did.empty()) {
                 dl.link(context.report_use_of_undeclared(
-                    matched_variant_scope, scope_kind::type, sid_slice, id_span,
-                    {.code = diag_code::use_of_undeclared_identifier, .local_only = true}));
+                    containing_scope, scope_kind::type, sid_slice, id_span,
+                    {.code = diag_code::use_of_undeclared_identifier,
+                     .variant_scope = matched_variant_scope}));
 
                 valid = false;
                 continue;

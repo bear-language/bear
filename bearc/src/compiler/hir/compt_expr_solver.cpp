@@ -2685,7 +2685,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             if (maybe_did.empty()) {
                 context.report_use_of_undeclared(
                     scope, scope_kind::type, sid_slice, span,
-                    {.code = diag_code::use_of_undeclared_identifier, .local_only = true});
+                    {.code = diag_code::use_of_undeclared_identifier, .variant_scope = scope});
                 return {};
             }
             return maybe_did.as_id() == variant_field_def_id;
@@ -3080,7 +3080,8 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
     if (maybe_existing_did.empty()) {
         context.report_use_of_undeclared(
             scope, scope_kind::variable, sid_slice,
-            Span{context, fid, expr->expr.reflected_scoped_id.reflected_id});
+            Span{context, fid, expr->expr.reflected_scoped_id.reflected_id},
+            {.suggestion_code = diag_code::did_you_mean_colon_no_replace});
         return {};
     }
     const Def& def = context.def(maybe_existing_did.as_id());

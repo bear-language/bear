@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <optional>
 #include <stddef.h>
+#include <utility>
 
 namespace hir {
 
@@ -59,8 +60,20 @@ Scope::Scope(ScopeId parent, size_t capacity, DataArena& arena, storage storage)
     assert(storage == storage::variables);
 }
 
-OptId<DefId> Scope::look_up_impl(const Context& context, ScopeId local_scope_id, SymbolId symbol,
-                                 scope_kind kind) {
+OptId<DefId> Scope::look_up_local(SymbolId symbol, scope_kind kind) const {
+    switch (kind) {
+    case scope_kind::namespacee:
+        return namespaces.at(symbol);
+    case scope_kind::variable:
+        return variables.at(symbol);
+    case scope_kind::type:
+        return types.at(symbol);
+    }
+    std::unreachable();
+}
+
+OptId<DefId> Scope::look_up(const Context& context, ScopeId local_scope_id, SymbolId symbol,
+                            scope_kind kind) {
 
     if (!local_scope_id.raw()) {
         return std::nullopt;
@@ -75,17 +88,7 @@ OptId<DefId> Scope::look_up_impl(const Context& context, ScopeId local_scope_id,
     // start walking scopes from local thru parents
     while (!def.raw()) {
         curr_scope = &context.scope(curr_scope_id);
-        switch (kind) {
-        case scope_kind::namespacee:
-            def = curr_scope->namespaces.at(symbol);
-            break;
-        case scope_kind::variable:
-            def = curr_scope->variables.at(symbol);
-            break;
-        case scope_kind::type:
-            def = curr_scope->types.at(symbol);
-            break;
-        }
+        def = curr_scope->look_up_local(symbol, kind);
         if (def.raw()) {
             break; // hit, stop now since we allow shadowing
         }
@@ -101,13 +104,13 @@ OptId<DefId> Scope::look_up_impl(const Context& context, ScopeId local_scope_id,
 OptId<DefId> Scope::look_up_namespace(const Context& context, ScopeId local_scope,
 
                                       SymbolId symbol) {
-    return look_up_impl(context, local_scope, symbol, scope_kind::namespacee);
+    return look_up(context, local_scope, symbol, scope_kind::namespacee);
 }
 OptId<DefId> Scope::look_up_variable(const Context& context, ScopeId local_scope, SymbolId symbol) {
-    return look_up_impl(context, local_scope, symbol, scope_kind::variable);
+    return look_up(context, local_scope, symbol, scope_kind::variable);
 }
 OptId<DefId> Scope::look_up_type(const Context& context, ScopeId local_scope, SymbolId symbol) {
-    return look_up_impl(context, local_scope, symbol, scope_kind::type);
+    return look_up(context, local_scope, symbol, scope_kind::type);
 }
 
 // ------------------ insert helpers ----------------------

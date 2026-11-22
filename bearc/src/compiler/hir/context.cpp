@@ -151,8 +151,7 @@ Context::Context(const bearc_args_t& args, instances instances,
       deduction_step_ids{DEFAULT_TYPE_CAP}, deduction_guides{DEFAULT_TYPE_CAP / 4},
       def_to_deduction_guides_arena{DEFAULT_ARENA_CAP / 4},
       def_to_deduction_guides{def_to_deduction_guides_arena, DEFAULT_TYPE_CAP / 4},
-      symbol_to_leven_search{id_map_arena, MAX_LEVEN_SEARCHES},
-      leven_search_cache{MAX_LEVEN_SEARCHES}, diagnostics{DEFAULT_DIAG_NUM},
+      symbol_to_leven_search{id_map_arena, MAX_LEVEN_SEARCHES}, diagnostics{DEFAULT_DIAG_NUM},
       diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
       only_one_context_instance((instances == instances::one) && one_instance_status),
       register_spans{do_register_spans}, compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]),
@@ -2779,6 +2778,28 @@ DiagRange Context::report_deftype_to_mut_type(TypeId tid) {
     return dl.range();
 }
 
+static constexpr std::array PREFIX_KINDS{scope_kind::namespacee, scope_kind::type};
+
+static bool can_suggest_at_end_of_path(const Context& context, DefId did, scope_kind kind,
+                                       const UndeclaredReportOpts& opts) {
+    const Def& def = context.def(did);
+    if (opts.variant_scope.has_value()) {
+        return context.look_up_local_type(opts.variant_scope.as_id(), def.name) == did;
+    }
+    if (kind == scope_kind::type) {
+        return !opts.or_variant_field || context.is_variant_field(did);
+    }
+    if (kind == scope_kind::namespacee) {
+        return true;
+    }
+    if (opts.search_all_kinds) {
+        const ast_stmt_t* node = context.def_ast_node(did);
+        return node && (node->type == AST_STMT_FN_DECL || node->type == AST_STMT_FN_PROTOTYPE);
+    }
+    return def.statik || context.is_function(did) || def.parent.empty()
+           || context.def(def.parent.as_id()).holds<DefModule>();
+}
+
 DiagRange Context::report_use_of_undeclared(ScopeId scope, scope_kind scope_kind,
                                             IdSlice<SymbolId> sid_slice, Span id_span,
                                             UndeclaredReportOpts opts) {
@@ -2798,36 +2819,123 @@ DiagRange Context::report_use_of_undeclared(ScopeId scope, scope_kind scope_kind
     dl.link(emplace_diagnostic(id_span, opts.code.value_or(code), diag_type::error,
                                DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice},
                                DiagnosticSubCode{.sub_code = opts.sub_code}));
-    if (sid_slice.len() == 1) {
-        llvm::SmallVector<enum scope_kind, 3> kinds{scope_kind};
-        if (opts.search_all_kinds) {
-            kinds = {scope_kind::namespacee, scope_kind::type, scope_kind::variable};
+    const bool qualified = sid_slice.len() > 1;
+    llvm::SmallVector<enum scope_kind, 3> kinds{scope_kind};
+    if (opts.search_all_kinds) {
+        kinds = {scope_kind::namespacee, scope_kind::type, scope_kind::variable};
+    } else if (qualified && opts.or_variant_field) {
+        kinds.push_back(scope_kind::type);
+    }
+    llvm::SmallVector<SymbolId, 8> path;
+    for (const auto sidx : sid_slice) {
+        path.push_back(symbol_id(sidx));
+    }
+    const ScopeId start = qualified ? scope : opts.variant_scope.get_or(scope);
+    const auto walk = walk_path_quietly(start, path, kinds);
+    if (!walk || walk->resolved == path.size()) {
+        return dl.range();
+    }
+
+    const HirSize bad = walk->resolved;
+    const auto accept = [&](SymbolId sid) -> bool {
+        if (!qualified) {
+            return true;
         }
-        const std::pair best = best_match_for_undeclared_symbol(
-            scope, kinds, symbol_id(sid_slice.get(0)), id_span, opts.local_only);
-        if (best.first) {
-            dl.link(emplace_diagnostic_with_message_value(
-                id_span, opts.suggestion_code, diag_type::help,
-                DiagnosticSymbolAfterMessage{.sid = best.first.as_id()}));
-            dl.link(emplace_diagnostic_with_message_value(
-                name_span_for_def(best.second.as_id()), diag_code::declared_here, diag_type::note,
-                DiagnosticSymbolBeforeMessage{.sid = best.first.as_id()}));
-        }
+        path[bad] = sid;
+        const auto fixed = walk_path_quietly(start, path, kinds);
+        return fixed && fixed->resolved == path.size()
+               && can_suggest_at_end_of_path(*this, fixed->last_did.as_id(), fixed->last_kind,
+                                             opts);
+    };
+    const bool local_only = qualified ? bad != 0 : opts.variant_scope.has_value();
+    const auto [match_sid, match_did] = best_match_for_undeclared_symbol(
+        *walk, bad + 1 == path.size() ? llvm::ArrayRef(kinds) : PREFIX_KINDS, sid_slice, id_span,
+        local_only, accept);
+    if (match_sid.has_value()) {
+        path[bad] = match_sid.as_id();
+        const IdSlice<SymbolId> suggested = freeze_id_vec(path);
+        dl.link(emplace_diagnostic_with_message_value(
+            id_span, opts.suggestion_code, diag_type::help,
+            DiagnosticIdentifierAfterMessage{.sid_slice = suggested}));
+        dl.link(emplace_diagnostic_with_message_value(
+            name_span_for_def(match_did.as_id()), diag_code::declared_here, diag_type::note,
+            DiagnosticIdentifierBeforeMessage{.sid_slice = suggested.sub_slice_n(bad + 1)}));
     }
     return dl.range();
 }
 
-std::pair<OptId<SymbolId>, OptId<DefId>>
-Context::best_match_for_undeclared_symbol(ScopeId scope_id, llvm::ArrayRef<scope_kind> kinds,
-                                          SymbolId sid, Span id_span, bool local_only) {
+std::optional<Context::PathWalk>
+Context::walk_path_quietly(ScopeId start, llvm::ArrayRef<SymbolId> path,
+                           llvm::ArrayRef<scope_kind> leaf_kinds) const {
+    PathWalk walk{.base = start, .base_did = {}, .resolved = 0, .last_did = {}, .last_kind = {}};
+    for (const SymbolId sid : path) {
+        const bool first = walk.resolved == 0;
+        const bool last = walk.resolved + 1 == path.size();
+        OptId<DefId> found{};
+        for (const auto kind : last ? leaf_kinds : PREFIX_KINDS) {
+            found = first ? Scope::look_up(*this, walk.base, sid, kind)
+                          : scope(walk.base).look_up_local(sid, kind);
+            if (found.has_value()) {
+                walk.last_kind = kind;
+                break;
+            }
+        }
+        if (found.empty()) {
+            return walk;
+        }
+        DefId did = found.as_id();
+        const Def& found_def = def(did);
+        if (!found_def.pub
+            && Scope::look_up(*this, start, found_def.name, walk.last_kind) != found) {
+            return std::nullopt;
+        }
+        walk.resolved++;
+        walk.last_did = did;
+        if (last) {
+            break;
+        }
+        if (found_def.holds<DefDeftype>()) {
+            did = try_def_for_type(try_decay(found_def.as<DefDeftype>().type)).get_or(did);
+        }
+        const auto next = try_scope_for_def(did);
+        if (next.empty()) {
+            return std::nullopt;
+        }
+        walk.base = next.as_id();
+        walk.base_did = did;
+    }
+    return walk;
+}
+
+std::pair<OptId<SymbolId>, OptId<DefId>> Context::best_match_for_undeclared_symbol(
+    const PathWalk& walk, llvm::ArrayRef<scope_kind> kinds, IdSlice<SymbolId> sid_slice,
+    Span id_span, bool local_only, llvm::function_ref<bool(SymbolId)> accept) {
+    const SymbolId sid = symbol_id(sid_slice.get(walk.resolved));
+    const Span base_decl
+        = walk.base_did.has_value() ? name_span_for_def(walk.base_did.as_id()) : Span::generated();
+    const auto same_path = [this, sid_slice](IdSlice<SymbolId> other) -> bool {
+        if (other.len() != sid_slice.len()) {
+            return false;
+        }
+        for (HirSize i = 0; i < other.len(); i++) {
+            if (symbol_id(other.get(i)) != symbol_id(sid_slice.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    };
     for (auto curr = symbol_to_leven_search.at(sid); curr.has_value();
-         curr = leven_search_cache.at(curr.as_id()).next) {
-        const LevenSearch& cached = leven_search_cache.at(curr.as_id());
-        if (cached.file_id == id_span.file_id && cached.span_start == id_span.start) {
+         curr = leven_search_cache[curr.as_id().raw() - 1].next) {
+        const LevenSearch& cached = leven_search_cache[curr.as_id().raw() - 1];
+        if (cached.file_id == id_span.file_id && cached.span_start == id_span.start
+            && cached.base_decl == base_decl && same_path(cached.path)) {
+            if (cached.match_sid.has_value() && !accept(cached.match_sid.as_id())) {
+                return {};
+            }
             return {cached.match_sid, cached.match_did};
         }
     }
-    if (leven_searches >= MAX_LEVEN_SEARCHES) {
+    if (leven_search_cache.size() >= MAX_LEVEN_SEARCHES) {
         return {};
     }
 
@@ -2856,29 +2964,11 @@ Context::best_match_for_undeclared_symbol(ScopeId scope_id, llvm::ArrayRef<scope
         break;
     }
 
-    for (const auto kind : kinds) {
-        OptId<DefId> maybe_exact{};
-        switch (kind) {
-        case scope_kind::namespacee:
-            maybe_exact = look_up_namespace(scope_id, sid);
-            break;
-        case scope_kind::variable:
-            maybe_exact = look_up_variable(scope_id, sid);
-            break;
-        case scope_kind::type:
-            maybe_exact = look_up_type(scope_id, sid);
-            break;
-        }
-        if (maybe_exact.has_value()) {
-            return {};
-        }
-    }
-
     std::pair<OptId<SymbolId>, OptId<DefId>> maybe_match{};
     HirSize best_dist = max_acceptable + 1;
-    const auto consider = [this, sid, &best_dist, &maybe_match](Scope::Entry e) {
+    const auto consider = [this, sid, accept, &best_dist, &maybe_match](Scope::Entry e) {
         const HirSize dist = levenshtein_distance(sid, e.key(), best_dist - 1);
-        if (dist < best_dist) {
+        if (dist < best_dist && accept(e.key())) {
             best_dist = dist;
             maybe_match = std::pair(e.key(), e.val());
         }
@@ -2886,7 +2976,7 @@ Context::best_match_for_undeclared_symbol(ScopeId scope_id, llvm::ArrayRef<scope
     const auto cannot_improve = [&best_dist] -> bool { return best_dist <= 1; };
 
     for (const auto kind : kinds) {
-        for (OptId<ScopeId> curr = scope_id; curr.has_value() && !cannot_improve();
+        for (OptId<ScopeId> curr = walk.base; curr.has_value() && !cannot_improve();
              curr = local_only ? OptId<ScopeId>{} : scope(curr.as_id()).parent()) {
             const Scope& curr_scope = scope(curr.as_id());
             switch (kind) {
@@ -2903,14 +2993,15 @@ Context::best_match_for_undeclared_symbol(ScopeId scope_id, llvm::ArrayRef<scope
         }
     }
 
-    this->leven_searches++;
-    const auto search_id = leven_search_cache.emplace_and_get_id(
-        LevenSearch{.file_id = id_span.file_id,
-                    .span_start = id_span.start,
-                    .match_sid = maybe_match.first,
-                    .match_did = maybe_match.second,
-                    .next = symbol_to_leven_search.at(sid)});
-    symbol_to_leven_search.insert(sid, search_id);
+    leven_search_cache.push_back(LevenSearch{.file_id = id_span.file_id,
+                                             .span_start = id_span.start,
+                                             .path = sid_slice,
+                                             .base_decl = base_decl,
+                                             .match_sid = maybe_match.first,
+                                             .match_did = maybe_match.second,
+                                             .next = symbol_to_leven_search.at(sid)});
+    symbol_to_leven_search.insert(
+        sid, LevenSearch::id_type{static_cast<HirId>(leven_search_cache.size())});
 
     return maybe_match;
 }

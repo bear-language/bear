@@ -30,6 +30,7 @@
 #include "compiler/token.h"
 #include "utils/data_arena.hpp"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLFunctionalExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include <array>
 #include <cstddef>
@@ -57,7 +58,8 @@ struct UndeclaredReportOpts {
     diag_code sub_code = diag_code::not_declared_in_this_scope;
     std::optional<diag_code> code{};
     diag_code suggestion_code = diag_code::did_you_mean_colon;
-    bool local_only = false;
+    OptId<ScopeId> variant_scope{};
+    bool or_variant_field = false;
     bool search_all_kinds = false;
 };
 
@@ -698,9 +700,22 @@ class Context {
     [[nodiscard]] HirSize levenshtein_distance(SymbolId sid1, SymbolId sid2,
                                                HirSize max_acceptable);
 
+    struct PathWalk {
+        ScopeId base;
+        OptId<DefId> base_did;
+        HirSize resolved;
+        OptId<DefId> last_did;
+        scope_kind last_kind;
+    };
+
+    [[nodiscard]] std::optional<PathWalk>
+    walk_path_quietly(ScopeId start, llvm::ArrayRef<SymbolId> path,
+                      llvm::ArrayRef<scope_kind> leaf_kinds) const;
+
     [[nodiscard]] std::pair<OptId<SymbolId>, OptId<DefId>>
-    best_match_for_undeclared_symbol(ScopeId scope, llvm::ArrayRef<scope_kind> kinds, SymbolId sid,
-                                     Span id_span, bool local_only);
+    best_match_for_undeclared_symbol(const PathWalk& walk, llvm::ArrayRef<scope_kind> kinds,
+                                     IdSlice<SymbolId> sid_slice, Span id_span, bool local_only,
+                                     llvm::function_ref<bool(SymbolId)> accept);
 
     [[nodiscard]] const Def& def(DefId id) const { return defs.at(id); }
 
@@ -1232,19 +1247,20 @@ class Context {
     IdHashMap<DefId, DeductionGuideId> def_to_deduction_guides;
 
     // for levenshtein distance scratch
-    std::vector<HirSize> lev_dist_scratch{};
-    HirSize leven_searches{};
+    llvm::SmallVector<HirSize, 64> lev_dist_scratch{};
     static constexpr HirSize MAX_LEVEN_SEARCHES = 64;
     struct LevenSearch {
         using id_type = Id<LevenSearch>;
         FileId file_id;
         HirSize span_start;
+        IdSlice<SymbolId> path;
+        Span base_decl;
         OptId<SymbolId> match_sid;
         OptId<DefId> match_did;
         OptId<id_type> next;
     };
     IdHashMap<SymbolId, LevenSearch::id_type> symbol_to_leven_search;
-    SmallNodeVector<LevenSearch> leven_search_cache;
+    llvm::SmallVector<LevenSearch, MAX_LEVEN_SEARCHES> leven_search_cache;
 
     // generic tracking
     // checking generic instantiation depth

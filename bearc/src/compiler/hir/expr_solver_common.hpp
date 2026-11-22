@@ -187,7 +187,8 @@ static inline void diag_undeclared_with_into_variant_note(Context& context, Scop
                                                           Span span, IdSlice<SymbolId> sid_slice,
                                                           OptId<DefId> maybe_variant_did) {
     DiagLinker dl{context};
-    dl.link(context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, span));
+    dl.link(context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, span,
+                                             {.or_variant_field = true}));
     if (maybe_variant_did.has_value()) {
         dl.link(context.emplace_diagnostic(
             span, diag_code::is_not_a_variation_of_variant, diag_type::note,
@@ -278,7 +279,8 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
                                                        maybe_variant_did);
             }
         } else if (maybe_did.empty()) {
-            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, expr_span);
+            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, expr_span,
+                                             {.or_variant_field = true});
         }
     } else {
         const HirSize prior_diag_cnt = context.diagnostic_count();
@@ -299,7 +301,8 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
         // if no other issue and we just legit didn't find, then make sure to report, since
         // that means just straight up didn't find anything
         if (maybe_did.empty() && prior_diag_cnt == post_diag_cnt) {
-            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, expr_span);
+            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, expr_span,
+                                             {.or_variant_field = true});
         }
     }
     if (maybe_did.empty()) {
