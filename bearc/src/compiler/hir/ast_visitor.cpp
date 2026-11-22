@@ -576,10 +576,14 @@ TopLevelInfo FileAstVisitor::top_level_info_for(const ast_stmt_t* stmt) {
         do_not_insert_in_scope = true; // should be deffered
         break;
     }
+    // registered by special case, but still has a name to point diagnostics at
+    case AST_STMT_MODULE:
+        name_tkn = stmt->stmt.module.id;
+        kind = scope_kind::namespacee;
+        break;
         // handled by special case ~~~~~~~~~~
     case AST_STMT_FILE:
     case AST_STMT_EXTERN_BLOCK:
-    case AST_STMT_MODULE:
     case AST_STMT_VISIBILITY_MODIFIER:
     case AST_STMT_COMPT_MODIFIER:
     case AST_STMT_STATIC_MODIFIER:
