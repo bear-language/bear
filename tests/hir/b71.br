@@ -8,6 +8,7 @@ fn main() {
 
     use my_md; // oops
     use ma_mod; // oops
+    use my_mod;
 }
 
 compt var foo = 1;
