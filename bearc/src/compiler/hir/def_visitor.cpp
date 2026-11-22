@@ -1178,7 +1178,10 @@ IdSlice<DefId> DefVisitor::resolve_contracts_for_generic_param(FileId fid, Scope
                                                             maybe_generic_args.as_id());
         }
         if (maybe_did.empty()) {
-            context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, span,
+            const Span id_span{context, fid,
+                               contract->type == AST_EXPR_ID ? contract->expr.id.slice
+                                                             : contract->expr.generic_id.slice};
+            context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, id_span,
                                              {.sub_code = diag_code::not_a_contract});
             return {};
         }

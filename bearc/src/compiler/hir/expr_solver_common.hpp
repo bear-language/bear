@@ -299,7 +299,7 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
         // if no other issue and we just legit didn't find, then make sure to report, since
         // that means just straight up didn't find anything
         if (maybe_did.empty() && prior_diag_cnt == post_diag_cnt) {
-            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, span);
+            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, expr_span);
         }
     }
     if (maybe_did.empty()) {
@@ -1338,9 +1338,9 @@ try_fn_look_up_from_expr_impl(Solver& solver, FileId fid, ScopeId scope,
 
             if (maybe_func_did.empty()) {
                 if (context.diagnostic_count() == prior_diag_cnt) {
-                    context.report_use_of_undeclared(
-                        scope, scope_kind::variable, context.freeze_id_vec({func_name}),
-                        Span{context, fid, expr->expr.fn_call.left_expr});
+                    context.report_use_of_undeclared(scope, scope_kind::variable,
+                                                     context.freeze_id_vec({func_name}),
+                                                     fn_name_span);
                 }
                 return std::nullopt;
             }

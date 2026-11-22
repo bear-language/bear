@@ -625,6 +625,7 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::top_level_mut_in_a_deftypes_type_is_ignored:
         return "top-level `mut` in a deftype's type is ignored";
     case diag_code::did_you_mean_colon:
+    case diag_code::did_you_mean_colon_no_replace:
         return "did you mean:";
     }
 

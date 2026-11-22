@@ -23,6 +23,7 @@ enum class diag_code : uint16_t {
     // actionable
     replace_with,
     remove,
+    did_you_mean_colon,
     // ^^^^^^^^
     imported_file_dne,
     redefined_symbol,
@@ -312,7 +313,7 @@ enum class diag_code : uint16_t {
     has_no_corresponding_scope,
     cannot_use_variable,
     top_level_mut_in_a_deftypes_type_is_ignored,
-    did_you_mean_colon,
+    did_you_mean_colon_no_replace, // for when the span is not the misspelled name itself
 
     count, // this must be last,
 

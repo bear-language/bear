@@ -56,6 +56,7 @@ struct SourceOverlay {
 struct UndeclaredReportOpts {
     diag_code sub_code = diag_code::not_declared_in_this_scope;
     std::optional<diag_code> code{};
+    diag_code suggestion_code = diag_code::did_you_mean_colon;
     bool local_only = false;
     bool search_all_kinds = false;
 };

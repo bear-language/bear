@@ -166,7 +166,7 @@ class TypeResolver {
             return {};
         }
 
-        context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, span);
+        context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, id_span);
         return {};
     }
 

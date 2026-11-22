@@ -2807,7 +2807,7 @@ DiagRange Context::report_use_of_undeclared(ScopeId scope, scope_kind scope_kind
             scope, kinds, symbol_id(sid_slice.get(0)), id_span, opts.local_only);
         if (best.first) {
             dl.link(emplace_diagnostic_with_message_value(
-                id_span, diag_code::did_you_mean_colon, diag_type::help,
+                id_span, opts.suggestion_code, diag_type::help,
                 DiagnosticSymbolAfterMessage{.sid = best.first.as_id()}));
             dl.link(emplace_diagnostic_with_message_value(
                 def(best.second.as_id()).span, diag_code::declared_here, diag_type::note,

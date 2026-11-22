@@ -871,7 +871,8 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
            visit_def](OptId<DefId> maybe_did, token_ptr_slice_t id_slice) -> OptId<ExecId> {
         if (!maybe_did.has_value()) {
             auto sid_slice = context.symbol_slice(id_slice);
-            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, expr_span);
+            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice,
+                                             Span{context, expr_span.file_id, id_slice});
             return std::nullopt;
         }
         // happy path, canonicalize compt value
@@ -2504,7 +2505,11 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
     }
 
     if (maybe_did.empty()) {
-        context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, contract_id_span,
+        const Span name_span{context, fid,
+                             has_ctr.contract->type == AST_EXPR_ID
+                                 ? has_ctr.contract->expr.id.slice
+                                 : has_ctr.contract->expr.generic_id.slice};
+        context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, name_span,
                                          {.sub_code = diag_code::not_a_contract});
         return std::nullopt;
     }
@@ -3032,8 +3037,11 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
     const auto maybe_existing_did = context.look_up_variable(scope, sid);
 
     if (maybe_existing_did.empty()) {
-        context.report_use_of_undeclared(scope, scope_kind::variable, context.freeze_id_vec({sid}),
-                                         Span{context, fid, expr->expr.reflected_id.inner});
+        // the span is of an expr evaluating to the name, so the suggestion can't replace it
+        context.report_use_of_undeclared(
+            scope, scope_kind::variable, context.freeze_id_vec({sid}),
+            Span{context, fid, expr->expr.reflected_id.inner},
+            {.suggestion_code = diag_code::did_you_mean_colon_no_replace});
         return {};
     }
     return try_compt_constant_from_did(maybe_existing_did.as_id(), sid,
