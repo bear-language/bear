@@ -1,0 +1,8 @@
+// tests/hir/b71.br
+
+fn main() {
+    ;
+    var _ = boo;
+}
+
+compt var foo = 1;

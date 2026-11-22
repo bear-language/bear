@@ -1178,9 +1178,8 @@ IdSlice<DefId> DefVisitor::resolve_contracts_for_generic_param(FileId fid, Scope
                                                             maybe_generic_args.as_id());
         }
         if (maybe_did.empty()) {
-            context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
-                                       diag_type::error,
-                                       DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
+            context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, span,
+                                             {.sub_code = diag_code::not_a_contract});
             return {};
         }
         if (!context.def(visit_and_resolve_if_needed(maybe_did.as_id())).holds<DefContract>()) {
@@ -1227,10 +1226,9 @@ DefVisitor::supply_and_get_contracts_for_struct(ScopeId containing_scope, DefId 
                 *this, containing_scope, sid_slice, ctr_span, maybe_gen_args.as_id());
         }
         if (maybe_contract_did.empty()) {
-            auto d = context.emplace_diagnostic(
-                ctr_span, diag_code::use_of_undeclared_identifier, diag_type::error,
-                DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
-            dlinker.link(d);
+            dlinker.link(context.report_use_of_undeclared(containing_scope, scope_kind::type,
+                                                          sid_slice, ctr_span,
+                                                          {.sub_code = diag_code::not_a_contract}));
             continue;
         }
         auto contract_did = visit_as_dependent(maybe_contract_did.as_id());
@@ -1307,15 +1305,14 @@ void DefVisitor::resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* s
             const ast_stmt_t* field
                 = context.find_generic_variant_field_decl(variant_did, field_sid);
             if (!field) {
-                const auto d0 = context.emplace_diagnostic_with_message_value(
-                    id_span, diag_code::use_of_undeclared_identifier, diag_type::error,
-                    DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice});
-                const auto d1 = context.emplace_diagnostic(
+                DiagLinker dl{context};
+                dl.link(context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice,
+                                                         id_span));
+                dl.link(context.emplace_diagnostic(
                     id_span, diag_code::is_not_a_variation_of_variant, diag_type::note,
                     DiagnosticSymbolBeforeAndAfterMessage{
                         .before_sid = field_sid, .after_sid = context.def(variant_did).name},
-                    DiagnosticInfoNoPreview{});
-                context.link_diagnostic(d0, d1);
+                    DiagnosticInfoNoPreview{}));
                 return;
             }
             const DefId alias_did = context.register_def(
@@ -1329,12 +1326,9 @@ void DefVisitor::resolve_use_stmt(FileId fid, ScopeId scope, const ast_stmt_t* s
     }
 
     if (used_did.empty()) {
-        auto code = only_look_for_mod ? diag_code::use_of_undeclared_mod
-                                      : diag_code::use_of_undeclared_identifier;
-
-        context.emplace_diagnostic_with_message_value(
-            id_span, code, diag_type::error,
-            DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice});
+        const auto kind = only_look_for_mod ? scope_kind::namespacee : scope_kind::variable;
+        context.report_use_of_undeclared(scope, kind, sid_slice, id_span,
+                                         {.search_all_kinds = !only_look_for_mod});
 
         return; // don't insert!
     }

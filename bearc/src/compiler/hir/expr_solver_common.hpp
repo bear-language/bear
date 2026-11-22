@@ -183,17 +183,18 @@ solve_expr_literal(Context& ctx, FileId fid, const ast_expr_t* expr) {
     return maybe_field_did;
 }
 
-static inline void diag_undeclared_with_into_variant_note(Context& context, Span span, SymbolId sid,
+static inline void diag_undeclared_with_into_variant_note(Context& context, ScopeId scope,
+                                                          Span span, IdSlice<SymbolId> sid_slice,
                                                           OptId<DefId> maybe_variant_did) {
-    const auto d0 = context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
-                                               diag_type::error);
+    DiagLinker dl{context};
+    dl.link(context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, span));
     if (maybe_variant_did.has_value()) {
-        const auto d1 = context.emplace_diagnostic(
+        dl.link(context.emplace_diagnostic(
             span, diag_code::is_not_a_variation_of_variant, diag_type::note,
             DiagnosticSymbolBeforeAndAfterMessage{
-                .before_sid = sid, .after_sid = context.def(maybe_variant_did.as_id()).name},
-            DiagnosticInfoNoPreview{});
-        context.link_diagnostic(d0, d1);
+                .before_sid = context.symbol_id(sid_slice.last_elem()),
+                .after_sid = context.def(maybe_variant_did.as_id()).name},
+            DiagnosticInfoNoPreview{}));
     }
 }
 
@@ -273,11 +274,11 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
                     = try_variant_field_in(context, def_visitor, maybe_variant_did.as_id(), sid);
             }
             if (maybe_did.empty()) {
-                diag_undeclared_with_into_variant_note(context, expr_span, sid, maybe_variant_did);
+                diag_undeclared_with_into_variant_note(context, scope, expr_span, sid_slice,
+                                                       maybe_variant_did);
             }
         } else if (maybe_did.empty()) {
-            context.emplace_diagnostic(Span{context, fid, id_slice},
-                                       diag_code::use_of_undeclared_identifier, diag_type::error);
+            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, expr_span);
         }
     } else {
         const HirSize prior_diag_cnt = context.diagnostic_count();
@@ -298,8 +299,7 @@ handle_any_id_impl(Context& context, DefVisitor& def_visitor, FileId fid, ScopeI
         // if no other issue and we just legit didn't find, then make sure to report, since
         // that means just straight up didn't find anything
         if (maybe_did.empty() && prior_diag_cnt == post_diag_cnt) {
-            context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
-                                       diag_type::error);
+            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, span);
         }
     }
     if (maybe_did.empty()) {
@@ -455,10 +455,7 @@ handle_struct_or_union_init_impl(Solver& solver, FileId fid, ScopeId scope,
         }
 
         if (maybe_did.empty()) {
-            context.emplace_diagnostic(
-                id_span, diag_code::use_of_undeclared_identifier, diag_type::error,
-                DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice},
-                DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
+            context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, id_span);
             return std::nullopt;
         }
 
@@ -1341,10 +1338,9 @@ try_fn_look_up_from_expr_impl(Solver& solver, FileId fid, ScopeId scope,
 
             if (maybe_func_did.empty()) {
                 if (context.diagnostic_count() == prior_diag_cnt) {
-                    context.emplace_diagnostic(
-                        Span{context, fid, expr->expr.fn_call.left_expr},
-                        diag_code::use_of_undeclared_identifier, diag_type::error,
-                        DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
+                    context.report_use_of_undeclared(
+                        scope, scope_kind::variable, context.freeze_id_vec({func_name}),
+                        Span{context, fid, expr->expr.fn_call.left_expr});
                 }
                 return std::nullopt;
             }
@@ -1479,8 +1475,7 @@ try_fn_look_up_from_expr_impl(Solver& solver, FileId fid, ScopeId scope,
                 // no corresponding variant either, so this is just the
                 // use_of_undeclared_identifier
                 if (prior_diag_cnt == context.diagnostic_count()) {
-                    diag_undeclared_with_into_variant_note(context, called_span,
-                                                           context.symbol_id(sid_slice.last_elem()),
+                    diag_undeclared_with_into_variant_note(context, scope, called_span, sid_slice,
                                                            maybe_into_variant_did);
                 }
 

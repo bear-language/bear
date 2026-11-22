@@ -29,6 +29,7 @@
 #include "compiler/hir/type.hpp"
 #include "compiler/token.h"
 #include "utils/data_arena.hpp"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include <array>
 #include <cstddef>
@@ -50,6 +51,13 @@ namespace hir {
 struct SourceOverlay {
     std::string_view path;
     const char* src;
+};
+
+struct UndeclaredReportOpts {
+    diag_code sub_code = diag_code::not_declared_in_this_scope;
+    std::optional<diag_code> code{};
+    bool local_only = false;
+    bool search_all_kinds = false;
 };
 
 /**
@@ -681,6 +689,18 @@ class Context {
 
     DiagRange report_deftype_to_mut_type(TypeId tid);
 
+    DiagRange report_use_of_undeclared(ScopeId scope, scope_kind scope_kind,
+                                       IdSlice<SymbolId> sid_slice, Span id_span,
+                                       UndeclaredReportOpts opts = {});
+
+    /// returns HIR_SIZE_MAX when max_acceptable is exceeded
+    [[nodiscard]] HirSize levenshtein_distance(SymbolId sid1, SymbolId sid2,
+                                               HirSize max_acceptable);
+
+    [[nodiscard]] std::pair<OptId<SymbolId>, OptId<DefId>>
+    best_match_for_undeclared_symbol(ScopeId scope, llvm::ArrayRef<scope_kind> kinds, SymbolId sid,
+                                     Span id_span, bool local_only);
+
     [[nodiscard]] const Def& def(DefId id) const { return defs.at(id); }
 
     [[nodiscard]] const Def& def(IdIdx<DefId> id) const { return defs.at(def_ids.at(id)); }
@@ -1209,6 +1229,21 @@ class Context {
     StableIdVecMap<DeductionGuideId, IdSlice<DeductionStepId>> deduction_guides;
     DataArena def_to_deduction_guides_arena;
     IdHashMap<DefId, DeductionGuideId> def_to_deduction_guides;
+
+    // for levenshtein distance scratch
+    std::vector<HirSize> lev_dist_scratch{};
+    HirSize leven_searches{};
+    static constexpr HirSize MAX_LEVEN_SEARCHES = 64;
+    struct LevenSearch {
+        using id_type = Id<LevenSearch>;
+        FileId file_id;
+        HirSize span_start;
+        OptId<SymbolId> match_sid;
+        OptId<DefId> match_did;
+        OptId<id_type> next;
+    };
+    IdHashMap<SymbolId, LevenSearch::id_type> symbol_to_leven_search;
+    SmallNodeVector<LevenSearch> leven_search_cache;
 
     // generic tracking
     // checking generic instantiation depth

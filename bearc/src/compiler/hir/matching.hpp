@@ -123,9 +123,9 @@ bool valid_exhaustive_match_for_variant(S& solver, ScopeId containing_scope,
             }
 
             if (maybe_variant_field_did.empty()) {
-                dl.link(context.emplace_diagnostic(
-                    id_span, diag_code::use_of_undeclared_identifier, diag_type::error,
-                    DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope}));
+                dl.link(context.report_use_of_undeclared(
+                    matched_variant_scope, scope_kind::type, sid_slice, id_span,
+                    {.code = diag_code::use_of_undeclared_identifier, .local_only = true}));
 
                 valid = false;
                 continue;
@@ -196,9 +196,8 @@ struct IntegralInterval {
     uint64_t hi;
 };
 
-inline std::optional<IntegralInterval> try_integral_interval_for_range(const Context& ctx,
-                                                                       ExecId range_eid,
-                                                                       bool is_signed) {
+inline std::optional<IntegralInterval>
+try_integral_interval_for_range(const Context& ctx, ExecId range_eid, bool is_signed) {
     const Exec& range_exec = ctx.exec(range_eid);
     assert(range_exec.holds<ExecRange>());
     const ExecRange range = range_exec.as<ExecRange>();
@@ -244,7 +243,8 @@ inline std::optional<IntegralDomain> try_integral_domain(builtin_type type) {
     };
     switch (type) {
     case builtin_type::i8:
-        return signed_domain(std::numeric_limits<int8_t>::min(), std::numeric_limits<int8_t>::max());
+        return signed_domain(std::numeric_limits<int8_t>::min(),
+                             std::numeric_limits<int8_t>::max());
     case builtin_type::i16:
         return signed_domain(std::numeric_limits<int16_t>::min(),
                              std::numeric_limits<int16_t>::max());
@@ -354,7 +354,9 @@ class RangeList {
                 }
                 return entries[a].interval.hi >= entries[b].interval.hi ? a : b;
             },
-            [&](size_t prior, size_t i) { return entries[prior].interval.hi >= entries[i].interval.lo; },
+            [&](size_t prior, size_t i) {
+                return entries[prior].interval.hi >= entries[i].interval.lo;
+            },
             true);
         sweep(
             [&](size_t a, size_t b) {
@@ -363,7 +365,9 @@ class RangeList {
                 }
                 return entries[a].interval.lo <= entries[b].interval.lo ? a : b;
             },
-            [&](size_t prior, size_t i) { return entries[prior].interval.lo <= entries[i].interval.hi; },
+            [&](size_t prior, size_t i) {
+                return entries[prior].interval.lo <= entries[i].interval.hi;
+            },
             false);
 
         for (size_t i = 0; i < n; ++i) {
@@ -423,7 +427,8 @@ inline bool pattern_can_match(Context& ctx, ExecId matched_eid, ExecId pattern_e
     }
     const TypeId matched_tid = ctx.try_decay(maybe_tid.as_id());
     const Exec& pattern = ctx.exec(pattern_eid);
-    const ExecId probe_eid = pattern.holds<ExecRange>() ? pattern.as<ExecRange>().start : pattern_eid;
+    const ExecId probe_eid
+        = pattern.holds<ExecRange>() ? pattern.as<ExecRange>().start : pattern_eid;
     const Exec& probe = ctx.exec(probe_eid);
     const Type& matched_ty = ctx.type(matched_tid);
     if (probe.holds<ExecConst>() && probe.as<ExecConst>().is_integral()
@@ -642,8 +647,7 @@ bool valid_exhaustive_match_for_non_variant(S& solver, ScopeId scope, FileId fid
                 DiagnosticSymbolAfterMessage{.sid = context.symbol_id(text)},
                 DiagnosticInfoNoPreview{}));
         }
-        dl.link(
-            context.emplace_diagnostic(span, diag_code::add_an_else_branch, diag_type::help));
+        dl.link(context.emplace_diagnostic(span, diag_code::add_an_else_branch, diag_type::help));
         return valid;
     }
 

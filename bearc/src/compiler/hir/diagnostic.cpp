@@ -345,8 +345,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "raw use of generic type";
     case diag_code::no_generic_args_provided_for:
         return "no generic args provided for";
-    case diag_code::use_of_undefined_type:
-        return "use of undefined type";
+    case diag_code::use_of_undeclared_type:
+        return "use of undeclared type";
     case diag_code::declared_here_without_necessary_contracts:
         return "declared here without necessary contracts";
     case diag_code::generic_parameter_variable_must_be_immutable:
@@ -624,6 +624,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "cannot `use` variable";
     case diag_code::top_level_mut_in_a_deftypes_type_is_ignored:
         return "top-level `mut` in a deftype's type is ignored";
+    case diag_code::did_you_mean_colon:
+        return "did you mean:";
     }
 
     std::unreachable();

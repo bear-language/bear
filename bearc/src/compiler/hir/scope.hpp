@@ -14,6 +14,7 @@
 #include "compiler/hir/span.hpp"
 #include "compiler/hir/variant_helpers.hpp"
 #include "utils/data_arena.hpp"
+#include <concepts>
 #include <cstdint>
 #include <variant>
 
@@ -100,6 +101,10 @@ template <typename T> struct Tester : T, DummyCall {};
 template <typename C>
 concept Callable = std::is_class_v<C> && !requires(Tester<C> t) { &Tester<C>::operator(); };
 
+struct NeverDone {
+    constexpr bool operator()() const { return false; }
+};
+
 /**
  * maps SymbolId -> DefId
  * models named blocks/namespaces, such as function bodies or ctrl flow blocks
@@ -166,25 +171,37 @@ class Scope {
 
     /// call some functor F for each locally namespace defined in the scope
     /// note: F must be callable with F(Scope::Entry)
-    template <Callable F> void for_each_local_namespace(F f) const {
+    template <Callable F, std::predicate Done = NeverDone>
+    void for_each_local_namespace(F f, Done done = {}) const {
         for (Entry e : this->namespaces) {
             f(e);
+            if (done()) {
+                break;
+            }
         }
     }
 
     /// call some functor F for each locally type defined in the scope
     /// note: F must be callable with F(Scope::Entry)
-    template <Callable F> void for_each_local_type(F f) const {
+    template <Callable F, std::predicate Done = NeverDone>
+    void for_each_local_type(F f, Done done = {}) const {
         for (Entry e : this->types) {
             f(e);
+            if (done()) {
+                break;
+            }
         }
     }
 
     /// call some functor F for each locally type defined in the scope
     /// note: F must be callable with F(Scope::Entry)
-    template <Callable F> void for_each_local_variable(F f) const {
+    template <Callable F, std::predicate Done = NeverDone>
+    void for_each_local_variable(F f, Done done = {}) const {
         for (Entry e : this->variables) {
             f(e);
+            if (done()) {
+                break;
+            }
         }
     }
 };

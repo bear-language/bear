@@ -151,7 +151,9 @@ Context::Context(const bearc_args_t& args, instances instances,
       deduction_step_ids{DEFAULT_TYPE_CAP}, deduction_guides{DEFAULT_TYPE_CAP / 4},
       def_to_deduction_guides_arena{DEFAULT_ARENA_CAP / 4},
       def_to_deduction_guides{def_to_deduction_guides_arena, DEFAULT_TYPE_CAP / 4},
-      diagnostics{DEFAULT_DIAG_NUM}, diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
+      symbol_to_leven_search{id_map_arena, MAX_LEVEN_SEARCHES},
+      leven_search_cache{MAX_LEVEN_SEARCHES}, diagnostics{DEFAULT_DIAG_NUM},
+      diagnostics_used{DEFAULT_DIAG_NUM}, args{args},
       only_one_context_instance((instances == instances::one) && one_instance_status),
       register_spans{do_register_spans}, compact_diagnostics(args.flags[CLI_FLAG_COMPACT_DIAGS]),
       terse{args.flags[CLI_FLAG_TERSE]}, strict_syntax{args.flags[CLI_FLAG_STRICT_SYNTAX]},
@@ -2775,6 +2777,188 @@ DiagRange Context::report_deftype_to_mut_type(TypeId tid) {
                                               ? type_for_builtin(ty.as<TypeBuiltin>().type)
                                               : emplace_type(ty.value, ty.span, false)}));
     return dl.range();
+}
+
+DiagRange Context::report_use_of_undeclared(ScopeId scope, scope_kind scope_kind,
+                                            IdSlice<SymbolId> sid_slice, Span id_span,
+                                            UndeclaredReportOpts opts) {
+    diag_code code;
+    switch (scope_kind) {
+    case scope_kind::namespacee:
+        code = diag_code::use_of_undeclared_mod;
+        break;
+    case scope_kind::variable:
+        code = diag_code::use_of_undeclared_identifier;
+        break;
+    case scope_kind::type:
+        code = diag_code::use_of_undeclared_type;
+        break;
+    }
+    DiagLinker dl{*this};
+    dl.link(emplace_diagnostic(id_span, opts.code.value_or(code), diag_type::error,
+                               DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice},
+                               DiagnosticSubCode{.sub_code = opts.sub_code}));
+    if (sid_slice.len() == 1) {
+        llvm::SmallVector<enum scope_kind, 3> kinds{scope_kind};
+        if (opts.search_all_kinds) {
+            kinds = {scope_kind::namespacee, scope_kind::type, scope_kind::variable};
+        }
+        const std::pair best = best_match_for_undeclared_symbol(
+            scope, kinds, symbol_id(sid_slice.get(0)), id_span, opts.local_only);
+        if (best.first) {
+            dl.link(emplace_diagnostic_with_message_value(
+                id_span, diag_code::did_you_mean_colon, diag_type::help,
+                DiagnosticSymbolAfterMessage{.sid = best.first.as_id()}));
+            dl.link(emplace_diagnostic_with_message_value(
+                def(best.second.as_id()).span, diag_code::declared_here, diag_type::note,
+                DiagnosticSymbolBeforeMessage{.sid = best.first.as_id()}));
+        }
+    }
+    return dl.range();
+}
+
+std::pair<OptId<SymbolId>, OptId<DefId>>
+Context::best_match_for_undeclared_symbol(ScopeId scope_id, llvm::ArrayRef<scope_kind> kinds,
+                                          SymbolId sid, Span id_span, bool local_only) {
+    for (auto curr = symbol_to_leven_search.at(sid); curr.has_value();
+         curr = leven_search_cache.at(curr.as_id()).next) {
+        const LevenSearch& cached = leven_search_cache.at(curr.as_id());
+        if (cached.file_id == id_span.file_id && cached.span_start == id_span.start) {
+            return {cached.match_sid, cached.match_did};
+        }
+    }
+    if (leven_searches >= MAX_LEVEN_SEARCHES) {
+        return {};
+    }
+
+    std::string_view s = symbol(sid);
+    HirSize max_acceptable{};
+    switch (s.length()) {
+    case 0:
+    case 1:
+    case 2:
+        return {};
+    case 3:
+    case 4:
+        max_acceptable = 1;
+        break;
+    case 5:
+    case 6:
+        max_acceptable = 2;
+        break;
+    case 7:
+    case 8:
+    case 9:
+        max_acceptable = 3;
+        break;
+    default:
+        max_acceptable = s.length() / 3;
+        break;
+    }
+
+    for (const auto kind : kinds) {
+        OptId<DefId> maybe_exact{};
+        switch (kind) {
+        case scope_kind::namespacee:
+            maybe_exact = look_up_namespace(scope_id, sid);
+            break;
+        case scope_kind::variable:
+            maybe_exact = look_up_variable(scope_id, sid);
+            break;
+        case scope_kind::type:
+            maybe_exact = look_up_type(scope_id, sid);
+            break;
+        }
+        if (maybe_exact.has_value()) {
+            return {};
+        }
+    }
+
+    std::pair<OptId<SymbolId>, OptId<DefId>> maybe_match{};
+    HirSize best_dist = max_acceptable + 1;
+    const auto consider = [this, sid, &best_dist, &maybe_match](Scope::Entry e) {
+        const HirSize dist = levenshtein_distance(sid, e.key(), best_dist - 1);
+        if (dist < best_dist) {
+            best_dist = dist;
+            maybe_match = std::pair(e.key(), e.val());
+        }
+    };
+    const auto cannot_improve = [&best_dist] -> bool { return best_dist <= 1; };
+
+    for (const auto kind : kinds) {
+        for (OptId<ScopeId> curr = scope_id; curr.has_value() && !cannot_improve();
+             curr = local_only ? OptId<ScopeId>{} : scope(curr.as_id()).parent()) {
+            const Scope& curr_scope = scope(curr.as_id());
+            switch (kind) {
+            case scope_kind::namespacee:
+                curr_scope.for_each_local_namespace(consider, cannot_improve);
+                break;
+            case scope_kind::variable:
+                curr_scope.for_each_local_variable(consider, cannot_improve);
+                break;
+            case scope_kind::type:
+                curr_scope.for_each_local_type(consider, cannot_improve);
+                break;
+            }
+        }
+    }
+
+    this->leven_searches++;
+    const auto search_id = leven_search_cache.emplace_and_get_id(
+        LevenSearch{.file_id = id_span.file_id,
+                    .span_start = id_span.start,
+                    .match_sid = maybe_match.first,
+                    .match_did = maybe_match.second,
+                    .next = symbol_to_leven_search.at(sid)});
+    symbol_to_leven_search.insert(sid, search_id);
+
+    return maybe_match;
+}
+
+HirSize Context::levenshtein_distance(SymbolId sid1, SymbolId sid2, HirSize max_acceptable) {
+    std::string_view s1 = symbol(sid1);
+    std::string_view s2 = symbol(sid2);
+
+    if (s1.size() < s2.size()) {
+        std::swap(s1, s2);
+    }
+
+    const size_t m = s1.size();
+    const size_t n = s2.size();
+
+    if (m - n > max_acceptable) {
+        return HIR_SIZE_MAX;
+    }
+    if (n == 0) {
+        return m;
+    }
+
+    // represents a single row of the dp matrix
+    lev_dist_scratch.resize(n + 1);
+    std::iota(lev_dist_scratch.begin(), lev_dist_scratch.end(), 0);
+
+    for (size_t i = 1; i <= m; ++i) {
+        HirSize prev_diagonal = lev_dist_scratch[0];
+        lev_dist_scratch[0] = i;
+
+        for (size_t j = 1; j <= n; ++j) {
+            size_t temp = lev_dist_scratch[j];
+            if (s1[i - 1] == s2[j - 1]) {
+                lev_dist_scratch[j] = prev_diagonal; // chars match; no edit needed
+            } else {
+                lev_dist_scratch[j] = 1
+                                      + std::min({
+                                          lev_dist_scratch[j],     // Deletion
+                                          lev_dist_scratch[j - 1], // Insertion
+                                          prev_diagonal            // Substitution
+                                      });
+            }
+            prev_diagonal = temp;
+        }
+    }
+
+    const HirSize dist = lev_dist_scratch[n];
+    return dist > max_acceptable ? HIR_SIZE_MAX : dist;
 }
 
 /// checks if a Def is a struct without resolving it

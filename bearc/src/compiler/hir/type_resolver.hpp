@@ -166,9 +166,7 @@ class TypeResolver {
             return {};
         }
 
-        context.emplace_diagnostic(
-            span, diag_code::use_of_undefined_type, diag_type::error,
-            DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
+        context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, span);
         return {};
     }
 
@@ -324,8 +322,7 @@ class TypeResolver {
             Span span{context, fid, expr->first, expr->last};
             auto maybe_did = context.look_up_scoped_variable(scope, sid, span);
             if (maybe_did.empty()) {
-                context.emplace_diagnostic(span, diag_code::use_of_undeclared_identifier,
-                                           diag_type::error);
+                context.report_use_of_undeclared(scope, scope_kind::variable, sid, span);
                 return {};
             }
             const Def& def = context.def(def_visitor.visit_as_dependent(maybe_did.as_id()));
@@ -409,9 +406,7 @@ class TypeResolver {
         if (maybe_instant.empty()) {
             // if no other issue and we just legit didn't find, then make sure to report
             if (prior_diag_cnt == post_diag_cnt) {
-                context.emplace_diagnostic(
-                    span, diag_code::use_of_undefined_type, diag_type::error,
-                    DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
+                context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, span);
             }
             return {}; // some issue or not found
         }

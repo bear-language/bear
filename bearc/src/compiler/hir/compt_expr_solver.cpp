@@ -867,14 +867,11 @@ ComptExprSolver::try_compt_fn_call(DefId func_did, const llvm::SmallVectorImpl<E
     const auto prior_diag_cnt = context.diagnostic_count();
 
     auto validate_lookup
-        = [this, into_tid, expr_span, visit_def](OptId<DefId> maybe_did,
-                                                 token_ptr_slice_t id_slice) -> OptId<ExecId> {
+        = [this, scope, into_tid, expr_span,
+           visit_def](OptId<DefId> maybe_did, token_ptr_slice_t id_slice) -> OptId<ExecId> {
         if (!maybe_did.has_value()) {
             auto sid_slice = context.symbol_slice(id_slice);
-            context.emplace_diagnostic(
-                expr_span, diag_code::use_of_undeclared_identifier, diag_type::error,
-                DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice},
-                DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
+            context.report_use_of_undeclared(scope, scope_kind::variable, sid_slice, expr_span);
             return std::nullopt;
         }
         // happy path, canonicalize compt value
@@ -2507,9 +2504,8 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
     }
 
     if (maybe_did.empty()) {
-        context.emplace_diagnostic(contract_id_span, diag_code::use_of_undeclared_identifier,
-                                   diag_type::error,
-                                   DiagnosticSubCode{.sub_code = diag_code::not_a_contract});
+        context.report_use_of_undeclared(scope, scope_kind::type, sid_slice, contract_id_span,
+                                         {.sub_code = diag_code::not_a_contract});
         return std::nullopt;
     }
 
@@ -2679,12 +2675,12 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             const token_ptr_slice_t id_slice = (pattern_expr->type == AST_EXPR_ID)
                                                    ? pattern_expr->expr.id.slice
                                                    : pattern_expr->expr.variant_decomp.id;
-            const auto maybe_did
-                = context.look_up_scoped_type(scope, context.symbol_slice(id_slice), span);
+            const auto sid_slice = context.symbol_slice(id_slice);
+            const auto maybe_did = context.look_up_scoped_type(scope, sid_slice, span);
             if (maybe_did.empty()) {
-                context.emplace_diagnostic(
-                    span, diag_code::use_of_undeclared_identifier, diag_type::error,
-                    DiagnosticSubCode{.sub_code = diag_code::not_declared_in_this_scope});
+                context.report_use_of_undeclared(
+                    scope, scope_kind::type, sid_slice, span,
+                    {.code = diag_code::use_of_undeclared_identifier, .local_only = true});
                 return {};
             }
             return maybe_did.as_id() == variant_field_def_id;
@@ -3036,10 +3032,8 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
     const auto maybe_existing_did = context.look_up_variable(scope, sid);
 
     if (maybe_existing_did.empty()) {
-        context.emplace_diagnostic_with_message_value(
-            Span{context, fid, expr->expr.reflected_id.inner},
-            diag_code::use_of_undeclared_identifier, diag_type::error,
-            DiagnosticSymbolAfterMessage{.sid = sid});
+        context.report_use_of_undeclared(scope, scope_kind::variable, context.freeze_id_vec({sid}),
+                                         Span{context, fid, expr->expr.reflected_id.inner});
         return {};
     }
     return try_compt_constant_from_did(maybe_existing_did.as_id(), sid,
@@ -3076,10 +3070,9 @@ ComptExprSolver::lower_generic_arg(FileId fid, ScopeId scope, const ast_generic_
         = context.look_up_scoped_variable(scope, sid_slice, Span{context, fid, expr});
 
     if (maybe_existing_did.empty()) {
-        context.emplace_diagnostic_with_message_value(
-            Span{context, fid, expr->expr.reflected_scoped_id.reflected_id},
-            diag_code::use_of_undeclared_identifier, diag_type::error,
-            DiagnosticIdentifierAfterMessage{.sid_slice = sid_slice});
+        context.report_use_of_undeclared(
+            scope, scope_kind::variable, sid_slice,
+            Span{context, fid, expr->expr.reflected_scoped_id.reflected_id});
         return {};
     }
     const Def& def = context.def(maybe_existing_did.as_id());

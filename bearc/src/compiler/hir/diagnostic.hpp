@@ -182,7 +182,7 @@ enum class diag_code : uint16_t {
     raw_use_of_generic_type,
     raw_use_of_generic_contract,
     no_generic_args_provided_for,
-    use_of_undefined_type,
+    use_of_undeclared_type,
     declared_here_without_necessary_contracts,
     invalid_type_for_generic_paramter,
     generic_parameter_variable_must_be_immutable,
@@ -312,6 +312,7 @@ enum class diag_code : uint16_t {
     has_no_corresponding_scope,
     cannot_use_variable,
     top_level_mut_in_a_deftypes_type_is_ignored,
+    did_you_mean_colon,
 
     count, // this must be last,
 

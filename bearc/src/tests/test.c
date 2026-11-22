@@ -179,7 +179,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/26", 13);
     ASSERT_EQ_ERR("hir/27", 23);
     ASSERT_EQ_ERR("hir/28", 9);
-    ASSERT_EQ_ERR("hir/29", 15);
+    ASSERT_EQ_ERR("hir/29", 17);
     ASSERT_EQ_ERR("hir/30", 7);
     ASSERT_EQ_ERR("hir/31", 0);
     ASSERT_EQ_ERR("hir/32", 11);
@@ -214,7 +214,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/61", 4);
     ASSERT_EQ_ERR("hir/62", 1);
     ASSERT_EQ_ERR("hir/63", 53);
-    ASSERT_EQ_ERR("hir/64", 47);
+    ASSERT_EQ_ERR("hir/64", 49);
     ASSERT_EQ_ERR("hir/65", 39);
     ASSERT_EQ_ERR("hir/66", 3);
     ASSERT_EQ_ERR("hir/67", 0);
@@ -235,7 +235,7 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/82", 3);
     ASSERT_EQ_ERR("hir/83", 3);
     ASSERT_EQ_ERR("hir/84", 12);
-    ASSERT_EQ_ERR("hir/85", 37);
+    ASSERT_EQ_ERR("hir/85", 39);
     ASSERT_EQ_ERR("hir/86", 0);
     char* args87[] = {"bearc", "tests/hir/87.br", "-I", "tests/hir", "--check", "--lib"};
     ASSERT_EQ_ERR_FROM_ARGS(args87, 16);
@@ -330,7 +330,7 @@ br_test_result_t test_hir(void) {
     // this test is kinda dodgy and only exists because it accidently  found a spanning issue with
     // function call diagnostics (hir/a64):
     ASSERT_EQ_ERR("hir/a64", 21);
-    ASSERT_EQ_ERR("hir/a65", 3);
+    ASSERT_EQ_ERR("hir/a65", 5);
     ASSERT_EQ_ERR("hir/a66", 12);
     ASSERT_EQ_ERR("hir/a67", 9);
     ASSERT_EQ_ERR("hir/a68", 13);
