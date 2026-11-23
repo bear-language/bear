@@ -109,6 +109,7 @@ enum class diag_code : uint16_t {
     compt_expressions_do_not_have_addrs_so_no_ptrs,
     value_is_not_a_pointer,
     id_does_not_name_a_method_of,
+    not_a_member_variable,
     value_is_not_callable,
     not_a_function,
     expected,
@@ -369,6 +370,10 @@ struct DiagnosticTypeAfterMessage {
 };
 
 struct DiagnosticCanonicalTypeAfterMessage {
+    TypeId tid;
+};
+
+struct DiagnosticTypeAsMentionedAfterMessage {
     TypeId tid;
 };
 

@@ -2200,9 +2200,10 @@ Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_
     auto maybe_def
         = Scope::look_up_local_variable(*this, struct_def.as<DefStruct>().scope, symbol_id);
     if (maybe_def.empty()) {
-        dl->get().link(emplace_diagnostic_with_message_value(
-            id_span, diag_code::id_does_not_name_a_member_variable_of, diag_type::error,
-            DiagnosticSymbolAfterMessage{.sid = struct_def.name}));
+        dl->get().link(report_use_of_undeclared(struct_def.as<DefStruct>().scope,
+                                                scope_kind::variable, symbol_id, id_span,
+                                                {.sub_code = diag_code::not_a_member_variable,
+                                                 .local_scope = struct_def.as<DefStruct>().scope}));
         dl->get().link(emplace_diagnostic_with_message_value(
             struct_def.span, diag_code::declared_here, diag_type::note,
             DiagnosticSymbolBeforeMessage{.sid = struct_def.name}));
@@ -2256,13 +2257,14 @@ Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_
         maybe_did = try_func_did(maybe_did.as_id());
     }
     if (maybe_did.empty()) {
-        auto d0 = emplace_diagnostic_with_message_value(
-            id_span, diag_code::id_does_not_name_a_method_of, diag_type::error,
-            DiagnosticSymbolAfterMessage{.sid = struct_name});
-        auto d1 = emplace_diagnostic_with_message_value(
+        DiagLinker dl{*this};
+        dl.link(report_use_of_undeclared(struct_def.as<DefStruct>().scope, scope_kind::variable,
+                                         symbol_id, id_span,
+                                         {.sub_code = diag_code::not_a_function,
+                                          .local_scope = struct_def.as<DefStruct>().scope}));
+        dl.link(emplace_diagnostic_with_message_value(
             struct_span, diag_code::declared_here, diag_type::note,
-            DiagnosticSymbolBeforeMessage{.sid = struct_name});
-        link_diagnostic(d0, d1);
+            DiagnosticSymbolBeforeMessage{.sid = struct_name}));
         return std::nullopt;
     }
     const Def& def = this->try_func_def(def_visitor.visit_as_dependent(maybe_did.as_id()));
@@ -2735,8 +2737,7 @@ bool Context::guard_non_assignable_inferred_type(TypeId from, TypeId to, Span fr
                                                         Span::generated(), type(from).mut);
             const auto d1 = emplace_diagnostic(
                 to_ty.span, diag_code::replace_with, diag_type::help,
-                DiagnosticSymbolAfterMessage{
-                    .sid = symbol_id(type_to_string_as_mentioned(*this, replacement_tid))},
+                DiagnosticCanonicalTypeAfterMessage{.tid = replacement_tid},
                 DiagnosticSubCode{.sub_code = diag_code::write_this_as_a_reference_type});
             link_diagnostic(d0, d1);
         }
@@ -2830,8 +2831,15 @@ static constexpr std::array PREFIX_KINDS{scope_kind::namespacee, scope_kind::typ
 static bool can_suggest_at_end_of_path(const Context& context, DefId did, scope_kind kind,
                                        const UndeclaredReportOpts& opts) {
     const Def& def = context.def(did);
-    if (opts.variant_scope.has_value()) {
-        return context.look_up_local_type(opts.variant_scope.as_id(), def.name) == did;
+    if (opts.local_scope.has_value()) {
+        switch (kind) {
+        case scope_kind::namespacee:
+            return context.look_up_local_namespace(opts.local_scope.as_id(), def.name) == did;
+        case scope_kind::variable:
+            return context.look_up_local_variable(opts.local_scope.as_id(), def.name) == did;
+        case scope_kind::type:
+            return context.look_up_local_type(opts.local_scope.as_id(), def.name) == did;
+        }
     }
     if (kind == scope_kind::type) {
         return !opts.or_variant_field || context.is_variant_field(did);
@@ -2845,6 +2853,12 @@ static bool can_suggest_at_end_of_path(const Context& context, DefId did, scope_
     }
     return def.statik || context.is_function(did) || def.parent.empty()
            || context.def(def.parent.as_id()).holds<DefModule>();
+}
+
+DiagRange Context::report_use_of_undeclared(ScopeId scope, scope_kind scope_kind, SymbolId sid,
+                                            Span id_span, UndeclaredReportOpts opts) {
+    return report_use_of_undeclared(scope, scope_kind, freeze_id_vec(llvm::SmallVector{sid}),
+                                    id_span, opts);
 }
 
 DiagRange Context::report_use_of_undeclared(ScopeId scope, scope_kind scope_kind,
@@ -2877,7 +2891,7 @@ DiagRange Context::report_use_of_undeclared(ScopeId scope, scope_kind scope_kind
     for (const auto sidx : sid_slice) {
         path.push_back(symbol_id(sidx));
     }
-    const ScopeId start = qualified ? scope : opts.variant_scope.get_or(scope);
+    const ScopeId start = qualified ? scope : opts.local_scope.get_or(scope);
     const auto walk = walk_path_quietly(start, path, kinds);
     if (!walk || walk->resolved == path.size()) {
         return dl.range();
@@ -2894,7 +2908,7 @@ DiagRange Context::report_use_of_undeclared(ScopeId scope, scope_kind scope_kind
                && can_suggest_at_end_of_path(*this, fixed->last_did.as_id(), fixed->last_kind,
                                              opts);
     };
-    const bool local_only = qualified ? bad != 0 : opts.variant_scope.has_value();
+    const bool local_only = qualified ? bad != 0 : opts.local_scope.has_value();
     const auto [match_sid, match_did] = best_match_for_undeclared_symbol(
         *walk, bad + 1 == path.size() ? llvm::ArrayRef(kinds) : PREFIX_KINDS, sid_slice, id_span,
         local_only, accept);

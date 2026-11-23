@@ -633,6 +633,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
         return "expected main to have return type `i32` or nothing";
     case diag_code::nothing:
         return "";
+    case diag_code::not_a_member_variable:
+        return "not a member variable";
     }
 
     std::unreachable();

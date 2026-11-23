@@ -2685,7 +2685,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             if (maybe_did.empty()) {
                 context.report_use_of_undeclared(
                     scope, scope_kind::type, sid_slice, span,
-                    {.code = diag_code::use_of_undeclared_identifier, .variant_scope = scope});
+                    {.code = diag_code::use_of_undeclared_identifier, .local_scope = scope});
                 return {};
             }
             return maybe_did.as_id() == variant_field_def_id;

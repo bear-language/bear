@@ -1,0 +1,31 @@
+// tests/hir/b75.br
+
+struct Cat {
+    str meow = "";
+
+    mt say_meow() -> str => self.meow
+
+    compt mt i_really_like_this_cat() -> bool => true || self.meow
+}
+
+fn main() {
+    var _ = Cat{.meon = ""}; // oops, fixable
+
+    compt Cat c = Cat{.meow = "mwahhhhhh"};
+
+    var _ = @note c.say_meow();
+
+    var _ = @note c.pay_meow(); // oops, fixable
+
+    var _ = @note c.pay_neew(); // oops, fixable
+
+    var _ = @note c.pay_neee(); // oops, too different
+
+    var _ = @static_assert c.i_really_like_this_cat();
+
+    var _ = @static_assert c.i_really_dislike_this_cat(); // oops, fix! how dare you not like this cat
+
+    var _ = @static_assert c.i_really_really_ike_this_cat(); // oops, fix
+
+    var _ = @static_assert c.i_really_really_really_like_this_cat(); // oops, too different
+}

@@ -58,7 +58,7 @@ struct UndeclaredReportOpts {
     diag_code sub_code = diag_code::not_declared_in_this_scope;
     std::optional<diag_code> code{};
     diag_code suggestion_code = diag_code::did_you_mean_colon;
-    OptId<ScopeId> variant_scope{};
+    OptId<ScopeId> local_scope{};
     bool or_variant_field = false;
     bool search_all_kinds = false;
 };
@@ -686,6 +686,9 @@ class Context {
     DiagRange report_use_of_undeclared(ScopeId scope, scope_kind scope_kind,
                                        IdSlice<SymbolId> sid_slice, Span id_span,
                                        UndeclaredReportOpts opts = {});
+
+    DiagRange report_use_of_undeclared(ScopeId scope, scope_kind scope_kind, SymbolId sid,
+                                       Span id_span, UndeclaredReportOpts opts = {});
 
     /// returns HIR_SIZE_MAX when max_acceptable is exceeded
     [[nodiscard]] HirSize levenshtein_distance(SymbolId sid1, SymbolId sid2,

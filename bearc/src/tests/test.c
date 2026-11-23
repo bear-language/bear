@@ -443,7 +443,9 @@ br_test_result_t test_hir(void) {
     ASSERT_EQ_ERR("hir/b71", 12);
     ASSERT_EQ_ERR("hir/b72", 30);
     ASSERT_EQ_ERR("hir/b73", 33367);
-    ASSERT_EQ_ERR("hir/b74", 4);
+    char* args_b74[] = {"bearc", "tests/hir/b74.br", "--check"};
+    ASSERT_EQ_ERR_FROM_ARGS(args_b74, 4);
+    ASSERT_EQ_ERR("hir/b75", 25);
 
     return TEST_RESULT;
 }
