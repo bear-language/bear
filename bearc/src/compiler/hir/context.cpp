@@ -5159,7 +5159,11 @@ void Context::insert_statics_of(DefId did, ExecId eid) { cached_statics_of.inser
 bool Context::ensure_has_main_if_exe_build() {
     if (!args.flags[CLI_FLAG_LIB]) {
         const auto maybe_main = find_main_function();
-        if (maybe_main.empty() || !def(maybe_main.as_id()).holds<DefFunction>()) {
+        if (maybe_main.empty()) {
+            return {};
+        }
+        const Def& main_def = this->def(maybe_main.as_id());
+        if (!main_def.holds<DefFunction>()) {
             DiagLinker dl{*this};
             dl.link(emplace_diagnostic(Span::entire_file(*this, root_file()),
                                        diag_code::cannot_find_main_function, diag_type::error));
@@ -5170,7 +5174,36 @@ bool Context::ensure_has_main_if_exe_build() {
                                        diag_type::help));
             return true;
         }
-        // TODO: ensure correct params
+        if (main_def.holds<DefFunction>()) {
+            const auto& func = main_def.as<DefFunction>();
+            DiagLinker dl{*this};
+            bool cooked = false;
+            if (func.params.len()) {
+                Span span = Span::combine(def(func.params.first()).span,
+                                          def(func.params.last_elem()).span);
+                dl.link(emplace_diagnostic(name_span_for_def(maybe_main.as_id()),
+                                           diag_code::expected_main_have_no_parameters,
+                                           diag_type::error));
+                dl.link(emplace_diagnostic(span, diag_code::remove, diag_type::help,
+                                           DiagnosticSymbolAfterMessage{.sid = symbol_id(span)},
+                                           DiagnosticSubCode{.sub_code = diag_code::nothing}));
+                cooked = true;
+            }
+            if (func.return_type
+                && (!type(func.return_type.as_id()).holds<TypeBuiltin>()
+                    || type(func.return_type.as_id()).as<TypeBuiltin>().type
+                           != builtin_type::i32)) {
+                dl.link(emplace_diagnostic(name_span_for_def(maybe_main.as_id()),
+                                           diag_code::expected_main_to_return_i32_or_nothing,
+                                           diag_type::error));
+                dl.link(emplace_diagnostic(
+                    type(func.return_type.as_id()).span, diag_code::replace_with, diag_type::help,
+                    DiagnosticTypeAfterMessage{.tid = type_for_builtin(builtin_type::i32)},
+                    DiagnosticSubCode{.sub_code = diag_code::nothing}));
+                cooked = true;
+            }
+            return cooked;
+        }
     }
     return false;
 }

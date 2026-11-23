@@ -20,6 +20,8 @@ namespace hir {
 
 class Context;
 enum class diag_code : uint16_t {
+    // nothing ("")
+    nothing,
     // actionable
     replace_with,
     remove,
@@ -314,6 +316,10 @@ enum class diag_code : uint16_t {
     cannot_use_variable,
     top_level_mut_in_a_deftypes_type_is_ignored,
     did_you_mean_colon_no_replace, // for when the span is not the misspelled name itself
+    // ---------- subject to change ----------
+    expected_main_have_no_parameters,
+    expected_main_to_return_i32_or_nothing,
+    // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     count, // this must be last,
 

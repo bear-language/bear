@@ -1,0 +1,5 @@
+// tests/hir/b74.br
+
+fn main(i32 _) -> u8 {
+    return 0;
+}

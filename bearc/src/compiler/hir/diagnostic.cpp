@@ -627,6 +627,12 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     case diag_code::did_you_mean_colon:
     case diag_code::did_you_mean_colon_no_replace:
         return "did you mean:";
+    case diag_code::expected_main_have_no_parameters:
+        return "expected main to have no parameters";
+    case diag_code::expected_main_to_return_i32_or_nothing:
+        return "expected main to have return type `i32` or nothing";
+    case diag_code::nothing:
+        return "";
     }
 
     std::unreachable();
