@@ -121,6 +121,11 @@
 
 - [ ] intrinsic atomics (not builtin types but special-cased structs)
 
+- [ ] `@embed_str` to embed bytes of a file. make sure it's within the root file's parent path and also set a size limit. probably 64 MB
+    - [ ] use a replacement cpp data structure that isn't strimap for the intern pool cuz:
+        - [ ] strimap truncates/compares keys at NUL (`hash_str`/`strcmp`/`strlen` in emplace, `strncmp` in atn) -> incorrect collisions, so store len + use `hash_strn`/`memcmp`
+        - [ ] strimap copies keys into its own arena -> every embed stored twice; point at the interned bytes instead
+
 #### language server / ContextDatabase stuff
 - [ ] better Span queries: index Span -> Exec and Span -> Type when `ctx.register_spans` is set
     - [ ] registration lives entirely in the emplacers (`emplace_exec`, `emplace_compt_exec`, `register_exec`, `emplace_type`), Context owns all the state
