@@ -2247,7 +2247,6 @@ Context::look_up_member_var_guarding_hid(DefId struct_did, SymbolId symbol_id, S
                                                                          ScopeId local_scope) {
     const Def& struct_def = def(struct_did);
     const SymbolId struct_name = struct_def.name;
-    const Span struct_span = struct_def.span;
     const ScopeId struct_scope = struct_def.as<DefStruct>().scope;
     auto maybe_did = look_up_variable(struct_scope, symbol_id);
     bool looked_up_on_local = false;

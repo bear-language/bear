@@ -384,6 +384,9 @@ ast_stmt_t* parse_fn_decl(parser_t* p) {
         parser_match_token(
             p, TOK_SEMICOLON); // allow a trailing semicolon so we don't later emit a warning for it
 
+    } else if (parser_match_token(p, TOK_SEMICOLON)) {
+        compiler_error_list_emplace(p->error_list, parser_prev(p), ERR_EXPECTED_FN_BODY);
+        cooked = true;
     } else {
         ast_stmt_t* block = parse_stmt_block(p);
         if (block->type == AST_STMT_INVALID) {
@@ -1140,7 +1143,21 @@ ast_stmt_t* parse_fn_prototype(parser_t* p) {
     }
     decl->stmt.fn_prototype->only_expr = false;
     decl->stmt.fn_prototype->expr = NULL;
-    parser_expect_token(p, TOK_SEMICOLON);
+    if (parser_peek_match(p, TOK_LBRACE)) {
+        token_t* tok = parser_peek(p);
+        parse_stmt_block(p);
+        compiler_error_list_emplace_expected_token(p->error_list, tok, ERR_EXPECTED_TOKEN,
+                                                   TOK_SEMICOLON);
+        compiler_error_list_emplace(p->error_list, tok, NOTE_EXPECTED_FN_PROTOTPE_WITHOUT_BODY);
+    } else if (token_is_arrow(parser_peek(p)->type)) {
+        token_t* tok = parser_eat(p);
+        parse_expr(p);
+        compiler_error_list_emplace_expected_token(p->error_list, tok, ERR_EXPECTED_TOKEN,
+                                                   TOK_SEMICOLON);
+        compiler_error_list_emplace(p->error_list, tok, NOTE_EXPECTED_FN_PROTOTPE_WITHOUT_BODY);
+    } else {
+        parser_expect_token(p, TOK_SEMICOLON);
+    }
     decl->first = decl->stmt.fn_prototype->kw;
     decl->last = parser_prev(p);
     if (cooked) {

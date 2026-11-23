@@ -18,7 +18,8 @@ static const uint8_t diag_types[ERR__COUNT]
        [USE_IS_ALLOWED_AT_MODULE_LEVEL_AND_INSIDE_FUNCTIONS] = DIAG_TYPE_HELP,
        [HELP_REPLACE_WITH_EQ_ARROW] = DIAG_TYPE_HELP,
        [HELP_USE_ELLIPSE_FOR_AN_EXCLUSIVE_RANGE] = DIAG_TYPE_HELP,
-       [HELP_USE_ELLIPSE_EQ_FOR_AN_INCLUSIVE_RANGE] = DIAG_TYPE_HELP};
+       [HELP_USE_ELLIPSE_EQ_FOR_AN_INCLUSIVE_RANGE] = DIAG_TYPE_HELP,
+       [NOTE_EXPECTED_FN_PROTOTPE_WITHOUT_BODY] = DIAG_TYPE_NOTE};
 bool is_non_error_diagnostic(error_code_e error_code) { return diag_types[error_code]; }
 static const char* error_messages[ERR__COUNT] = {
     [ERR_EXPECTED_IDENTIFER] = "expected identifier",
@@ -74,7 +75,10 @@ static const char* error_messages[ERR__COUNT] = {
     [HELP_REPLACE_WITH_EQ_ARROW] = "replace with `=>`",
     [ERR_SCOPE_RES_IS_NOT_A_RANGE_OPERATOR] = "`..` is for scope resolution, not ranges",
     [HELP_USE_ELLIPSE_FOR_AN_EXCLUSIVE_RANGE] = "use `...` for an exclusive range",
-    [HELP_USE_ELLIPSE_EQ_FOR_AN_INCLUSIVE_RANGE] = "use `...=` for an inclusive range"};
+    [HELP_USE_ELLIPSE_EQ_FOR_AN_INCLUSIVE_RANGE] = "use `...=` for an inclusive range",
+    [ERR_EXPECTED_FN_BODY] = "expected function body",
+    [NOTE_EXPECTED_FN_PROTOTPE_WITHOUT_BODY]
+    = "expected a function prototype, which should not have a body"};
 
 const char* error_message_for_code(error_code_e error_code) { return error_messages[error_code]; }
 

@@ -1,0 +1,15 @@
+// tests/parser/69.br
+
+fn main() {;}
+
+extern C {
+    fn foo();
+    fn bar() {
+        foo();
+        foo();
+        foo();
+    }
+    fn boo() => foo()
+}
+
+fn foo();  
