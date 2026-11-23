@@ -2944,7 +2944,7 @@ OptId<ExecId> RuntimeSolver::handle_access(FileId fid, LexicalCtx lctx, const as
         }
 
         const auto maybe_mem_var = context.look_up_member_var_guarding_hid(
-            context.def(struct_did), context.symbol_id(id_slice.start[0]), rhs_span, lctx.scope);
+            struct_did, context.symbol_id(id_slice.start[0]), rhs_span, lctx.scope);
         if (maybe_mem_var.empty()) {
             return {}; // poisoned
         }

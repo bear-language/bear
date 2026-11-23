@@ -2186,9 +2186,10 @@ OptId<DefId> Context::look_up_scoped_namespace_bypassing_visibility(ScopeId scop
 }
 
 OptId<DefId>
-Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_id, Span id_span,
+Context::look_up_member_var_guarding_hid(DefId struct_did, SymbolId symbol_id, Span id_span,
                                          ScopeId local_scope,
                                          std::optional<std::reference_wrapper<DiagLinker>> dl) {
+    const Def& struct_def = def(struct_did);
     assert(struct_def.holds<DefStruct>());
 
     DiagLinker loc_dl{*this};
@@ -2205,7 +2206,7 @@ Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_
                                                 {.sub_code = diag_code::not_a_member_variable,
                                                  .local_scope = struct_def.as<DefStruct>().scope}));
         dl->get().link(emplace_diagnostic_with_message_value(
-            struct_def.span, diag_code::declared_here, diag_type::note,
+            name_span_for_def(struct_did), diag_code::declared_here, diag_type::note,
             DiagnosticSymbolBeforeMessage{.sid = struct_def.name}));
         return {};
     }
@@ -2240,10 +2241,11 @@ Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_
 }
 
 [[nodiscard]] OptId<DefId> Context::look_up_member_function_guarding_hid(DefVisitor& def_visitor,
-                                                                         const Def& struct_def,
+                                                                         DefId struct_did,
                                                                          SymbolId symbol_id,
                                                                          Span id_span,
                                                                          ScopeId local_scope) {
+    const Def& struct_def = def(struct_did);
     const SymbolId struct_name = struct_def.name;
     const Span struct_span = struct_def.span;
     const ScopeId struct_scope = struct_def.as<DefStruct>().scope;
@@ -2263,7 +2265,7 @@ Context::look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_
                                          {.sub_code = diag_code::not_a_function,
                                           .local_scope = struct_def.as<DefStruct>().scope}));
         dl.link(emplace_diagnostic_with_message_value(
-            struct_span, diag_code::declared_here, diag_type::note,
+            name_span_for_def(struct_did), diag_code::declared_here, diag_type::note,
             DiagnosticSymbolBeforeMessage{.sid = struct_name}));
         return std::nullopt;
     }

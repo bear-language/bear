@@ -733,8 +733,8 @@ template <IsExprSolver Solver>
         ast_expr_struct_member_init mem_init = member_init_expr->expr.struct_member_init;
         const SymbolId mem_sid = context.symbol_id(mem_init.id);
         Span id_span{context, fid, mem_init.id};
-        const OptId<DefId> maybe_mem_did = context.look_up_member_var_guarding_hid(
-            context.def(struct_did), mem_sid, id_span, scope, dl);
+        const OptId<DefId> maybe_mem_did
+            = context.look_up_member_var_guarding_hid(struct_did, mem_sid, id_span, scope, dl);
         if (maybe_mem_did.empty()) {
             continue;
         }
@@ -1315,7 +1315,7 @@ try_fn_look_up_from_expr_impl(Solver& solver, FileId fid, ScopeId scope,
                     }
                 } else {
                     maybe_func_did = context.look_up_member_function_guarding_hid(
-                        def_visitor, context.def(struct_did), func_name, fn_name_span, scope);
+                        def_visitor, struct_did, func_name, fn_name_span, scope);
                 }
             } else {
                 if (expr->expr.fn_call.is_generic) {

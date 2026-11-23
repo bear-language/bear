@@ -2176,7 +2176,8 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             }
             return std::nullopt;
         }
-        const Def& struct_def = context.def(lhs_exec.as<ExecStructInit>().struct_def_id);
+        const auto struct_did = lhs_exec.as<ExecStructInit>().struct_def_id;
+        const Def& struct_def = context.def(struct_did);
 
         if (rhs_expr->type == AST_EXPR_ID) {
             assert(struct_def.holds<DefStruct>());
@@ -2187,7 +2188,7 @@ ComptExprSolver::handle_any_id(FileId fid, ScopeId scope, token_ptr_slice_t id_s
             }
 
             auto maybe_mem_var = context.look_up_member_var_guarding_hid(
-                struct_def, context.symbol_id(id_slice.start[0]), rhs_span, scope);
+                struct_did, context.symbol_id(id_slice.start[0]), rhs_span, scope);
 
             if (maybe_mem_var.empty()) {
                 return std::nullopt; // posioned

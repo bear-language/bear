@@ -396,7 +396,7 @@ class Context {
     /// struct_def must correspond to a Def with value of DefStruct
     /// only returns a DefId if it is a variable definition
     [[nodiscard]] OptId<DefId>
-    look_up_member_var_guarding_hid(const Def& struct_def, SymbolId symbol_id, Span id_span,
+    look_up_member_var_guarding_hid(DefId struct_did, SymbolId symbol_id, Span id_span,
                                     ScopeId local_scope,
                                     std::optional<std::reference_wrapper<DiagLinker>> dl = {});
 
@@ -405,7 +405,7 @@ class Context {
 
     /// returns some only when a DefFunction or DefGenericFunction is found
     [[nodiscard]] OptId<DefId>
-    look_up_member_function_guarding_hid(DefVisitor& def_visitor, const Def& struct_def,
+    look_up_member_function_guarding_hid(DefVisitor& def_visitor, DefId struct_did,
                                          SymbolId symbol_id, Span id_span, ScopeId local_scope);
 
     [[nodiscard]] OptId<DefId>
