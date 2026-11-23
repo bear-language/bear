@@ -21,7 +21,7 @@ TEST_DIRS = [ROOT / "tests" / "parser", ROOT / "tests" / "hir", ROOT / "tests" /
 TIMEOUT_S = 0.5
 WORKERS = os.cpu_count() or 1
 MAX_FILE_SIZE = 64 * 1024  # skips huge generated tests (e.g. hir/a52.br)
-BUILD_TYPE = "Debug"
+BUILD_TYPE = "RelWithDebInfo"
 SAMPLE_RATE = 50
 
 

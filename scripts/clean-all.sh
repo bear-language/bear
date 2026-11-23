@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# usage: [Debug|Release]
+# usage: [Debug|Release|RelWithDebInfo]
 config="${1:-Debug}"
 
 case "$config" in
-    Debug|Release) ;;
-    *) echo "Invalid config: $config (expected Debug or Release)" >&2; exit 1;;
+    Debug|Release|RelWithDebInfo) ;;
+    *) echo "Invalid config: $config (expected Debug or Release or RelWithDebInfo)" >&2; exit 1;;
 esac
 
 rm -rf build

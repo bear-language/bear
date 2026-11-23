@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# usage: ./run-tests.sh [Debug|Release]
+# usage: ./run-tests.sh [Debug|Release|RelWithDebInfo]
 config="${1:-Debug}"
 
 case "$config" in
-    Debug|Release) ;;
+    Debug|Release|RelWithDebInfo) ;;
     *)
-        echo "Invalid config: $config (expected Debug or Release)" >&2
+        echo "Invalid config: $config (expected Debug or Release or RelWithDebInfo)" >&2
         exit 1
         ;;
 esac
