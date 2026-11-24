@@ -195,7 +195,7 @@ Context::Context(const bearc_args_t& args, instances instances,
     const std::filesystem::path& root_file = maybe_root_file.value();
 
     // this has to come first
-    FileId root_id = provide_root_file(root_file.c_str());
+    FileId root_id = provide_root_file(root_file.string().c_str());
 
     // registers intrinsic pseudo source files
     register_intrinsic_files();
@@ -910,7 +910,7 @@ FileId Context::file_parallel(SymbolId path_symbol) {
 }
 
 FileId Context::file(std::filesystem::path& path, bool no_warn) {
-    SymbolId symbol = symbol_id(path.c_str());
+    SymbolId symbol = symbol_id(path.string());
     return file(symbol, no_warn);
 }
 FileAstId Context::emplace_ast(const char* file_name) {
@@ -4573,7 +4573,7 @@ void Context::register_import_files_parallel(const char* const* file_paths, uint
         const std::optional<std::filesystem::path> maybe_path
             = resolve_on_import_path(file_paths[i], ".", &args);
         if (maybe_path.has_value()) {
-            symbol_vec.push_back(symbol_id(maybe_path.value().c_str()));
+            symbol_vec.push_back(symbol_id(maybe_path.value().string()));
         }
     }
     const uint32_t n_threads = std::min(count, std::thread::hardware_concurrency());
