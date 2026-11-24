@@ -8,6 +8,7 @@
 
 #include "compiler/hir/context_database.hpp"
 #include "compiler/hir/indexing.hpp"
+#include <filesystem>
 #include <optional>
 
 namespace {
@@ -163,7 +164,7 @@ copy_overlays(std::span<const SourceOverlay> overlays) {
     std::vector<std::pair<std::string, std::string>> storage;
     storage.reserve(overlays.size());
     for (const SourceOverlay& overlay : overlays) {
-        storage.emplace_back(overlay.path, overlay.src);
+        storage.emplace_back(std::filesystem::path(overlay.path).generic_string(), overlay.src);
     }
     return storage;
 }
