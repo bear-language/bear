@@ -1092,11 +1092,11 @@ class Context {
 
     /// FileId -> IdSlice<FileId> since all importees are always known when lowering a given
     /// file
-    StableIdVecMap<FileId, IdSlice<FileId>> importer_to_importees;
+    IdVecMap<FileId, IdSlice<FileId>> importer_to_importees;
     /// FileId -> llvm::SmallVector<FileId> since this will be updated less predictably
-    StableIdVecMap<FileId, llvm::SmallVector<FileId>> importee_to_importers;
+    IdVecMap<FileId, llvm::SmallVector<FileId>> importee_to_importers;
     // maps a FileId to a list of diagnostics
-    StableIdVecMap<FileId, llvm::SmallVector<DiagnosticId>> file_to_diagnostics;
+    IdVecMap<FileId, llvm::SmallVector<DiagnosticId>> file_to_diagnostics;
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // for tracking all functions (which are rather important)
