@@ -18,7 +18,7 @@
 - `otool -L bearc` should list just `libSystem` and `libc++` (w/ no `/opt/homebrew` or `/usr/local` paths)
 - build `arm64` and `x86_64` (and/or a universal binary w/ `lipo`)
 - set `CMAKE_OSX_DEPLOYMENT_TARGET`
-- sign/notarize, or document `xattr -d com.apple.quarantine bearc`
+- or document `xattr -d com.apple.quarantine bearc` but not a prob for winget/curl acquisitions
 #### verification
 - Windows: `objdump -p bearc.exe | grep "DLL Name"`
 - Linux: `ldd bearc` ("not a dynamic executable")
