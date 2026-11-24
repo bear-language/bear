@@ -22,7 +22,7 @@
 #### Build
 - See the [build docs](docs/build.md) for more detailed instructions, including how to build a custom LLVM distribution (if wanted) and building on Windows.
 - You will need git, gcc or clang, and CMake installed.
-- The build also works using MinGW on Windows.
+- The build also works using MinGW on Windows (Msys2 ucrt64).
 ```bash
 # installing LLVM development packages:
 
