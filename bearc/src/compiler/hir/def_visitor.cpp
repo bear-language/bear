@@ -401,12 +401,14 @@ DefId DefVisitor::resolve_def(DefId did) {
             return false;
         };
 
+        const Def& def = context.def(did);
+
         for (auto didx = params.begin(); didx != params.end(); didx++) {
             Def& param_def = context.def(didx);
             assert(param_def.holds<DefVariable>());
 
             // guard run-time func with `var` typed params
-            if (func_is_runtime && !parent_is_contract(context.def(did))
+            if (func_is_runtime && !parent_is_contract(def)
                 && TypeTransformer<TypeContainsVar>{context}(param_def.as<DefVariable>().type_id)) {
                 const Span ty_span = context.type(param_def.as<DefVariable>().type_id).span;
                 auto d0 = context.emplace_diagnostic(
@@ -428,15 +430,24 @@ DefId DefVisitor::resolve_def(DefId did) {
                   ? TypeResolver{context, *this}.resolve_type(fid, scope, fn_decl.return_type)
                   : std::nullopt;
 
-        if (return_tid.has_value() && !parent_is_contract(context.def(did))) {
+        if (return_tid.has_value() && !parent_is_contract(def)) {
             context.report_invalid_return_type(return_tid.as_id(), !func_is_runtime);
         }
 
-        context.def(did).set_value(DefFunctionPrototype{.params = params,
-                                                        .param_types = param_types,
-                                                        .return_type = return_tid,
-                                                        .takes_self = maybe_self_type.has_value(),
-                                                        .discardable = fn_decl.discardable});
+        if (parent_is_contract(def)) {
+            context.def(did).set_value(
+                DefFunctionPrototype{.params = params,
+                                     .param_types = param_types,
+                                     .return_type = return_tid,
+                                     .takes_self = maybe_self_type.has_value(),
+                                     .discardable = fn_decl.discardable});
+        } else {
+            context.def(did).set_value(DefFunction{.params = params,
+                                                   .param_types = param_types,
+                                                   .return_type = return_tid,
+                                                   .discardable = fn_decl.discardable,
+                                                   .takes_self = maybe_self_type.has_value()});
+        }
 
         break;
     }
