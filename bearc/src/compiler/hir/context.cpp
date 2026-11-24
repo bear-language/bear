@@ -44,6 +44,7 @@
 #include <cstring>
 #include <filesystem>
 #include <mutex>
+#include <numeric>
 #include <optional>
 #include <shared_mutex>
 #include <span>
