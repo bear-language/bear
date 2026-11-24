@@ -23,3 +23,7 @@
 - Windows: `objdump -p bearc.exe | grep "DLL Name"`
 - Linux: `ldd bearc` ("not a dynamic executable")
 - macOS: `otool -L bearc`
+#### other styuff
+- find stdlib relative to exec parent path and then walk to root searching `lib/std.br` to find a suitable path
+    - make sure to allow override (env var or cli flag) 
+- invoking system linker is fine but perhaps for linux statically link lld
