@@ -581,66 +581,48 @@ ast_stmt_t* parse_stmt_decl(parser_t* p) {
         next_type = parser_peek(p)->type;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    if (token_is_function_leading_kw(next_type)) {
+    switch (next_type) {
+    case TOK_FN:
+    case TOK_MT:
         return parse_fn_decl(p);
-    }
-    if (next_type == TOK_MODULE) {
+    case TOK_MODULE:
         return parse_module(p);
-    }
-
-    if (next_type == TOK_USE) {
+    case TOK_USE:
         return parse_stmt_use(p);
-    }
-
-    if (next_type == TOK_STRUCT && parser_peek_n(p, 1)->type == TOK_LPAREN) {
-        return parse_var_decl(p);
-    }
-
-    if (next_type == TOK_STRUCT) {
+    case TOK_STRUCT: {
+        if (parser_peek_n(p, 1)->type == TOK_LPAREN) {
+            return parse_var_decl(p);
+        }
         return parse_stmt_struct_decl(p);
     }
-
-    if (next_type == TOK_CONTRACT) {
+    case TOK_CONTRACT:
         return parse_stmt_contract_decl(p);
-    }
-
-    if (next_type == TOK_UNION) {
+    case TOK_UNION:
         return parse_stmt_union_decl(p);
-    }
-
-    if (next_type == TOK_EXTERN) {
+    case TOK_EXTERN:
         return parse_stmt_extern_block(p);
-    }
-
-    if (next_type == TOK_DEFTYPE) {
+    case TOK_EXPORT:
+        return parse_stmt_export_block(p);
+    case TOK_DEFTYPE:
         return parse_stmt_deftype(p);
-    }
-
-    if (next_type == TOK_VARIANT) {
+    case TOK_VARIANT:
         return parse_stmt_variant_decl(p);
-    }
-
-    if (token_is_visibility_modifier(next_type)) {
+    case TOK_HID:
+    case TOK_PUB:
         return parse_stmt_vis_modifier(p, &parse_stmt_decl);
-    }
-
-    if (next_type == TOK_COMPT) {
+    case TOK_COMPT:
         return parse_stmt_compt_modifier(p, &parse_stmt_var_or_fn_decl);
-    }
-
-    // handle static variable decls
-    if (next_type == TOK_STATIC) {
+    case TOK_STATIC:
         return parse_stmt_static_modifier(p, &parse_var_decl);
-    }
-
-    if (next_type == TOK_ALIGNAS) {
+    case TOK_ALIGNAS:
         return parse_stmt_alignas_modifier(p, &parse_var_decl);
-    }
-
-    if (next_type == TOK_IMPORT) {
+    case TOK_IMPORT:
         compiler_error_list_emplace(p->error_list, parser_peek(p),
                                     ERR_NON_TOP_LEVEL_IMPORT_STATEMENT);
         return parser_sync_stmt(p);
+    default:
+
+        break;
     }
 
     // allow parsing of (type) name;
@@ -1305,8 +1287,31 @@ ast_stmt_t* parse_stmt_extern_block(parser_t* p) {
     if (!lbrace) {
         return parser_sync_stmt(p);
     }
-    // only parse fn declarations in extern blocks
+    // only parse fn protos in extern blocks
     stmt->stmt.extern_block.decls = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_fn_prototype);
+    token_t* rbrace = parser_expect_token(p, TOK_RBRACE);
+    if (!rbrace) {
+        return parser_sync_stmt(p);
+    }
+    stmt->first = first;
+    stmt->last = rbrace;
+    return stmt;
+}
+
+ast_stmt_t* parse_stmt_export_block(parser_t* p) {
+    ast_stmt_t* stmt = parser_alloc_stmt(p);
+    stmt->type = AST_STMT_EXPORT_BLOCK;
+    token_t* first = parser_expect_token(p, TOK_EXPORT);
+    if (!first) {
+        return parser_sync_stmt(p);
+    }
+    stmt->stmt.extern_block.extern_language = parser_match_token(p, TOK_IDENTIFIER);
+    token_t* lbrace = parser_expect_token(p, TOK_LBRACE);
+    if (!lbrace) {
+        return parser_sync_stmt(p);
+    }
+    // only parse fn declarations in export blocks
+    stmt->stmt.extern_block.decls = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_fn_decl);
     token_t* rbrace = parser_expect_token(p, TOK_RBRACE);
     if (!rbrace) {
         return parser_sync_stmt(p);

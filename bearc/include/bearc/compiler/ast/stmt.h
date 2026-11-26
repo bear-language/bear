@@ -23,6 +23,7 @@ typedef enum ast_statement_type {
     // blocks
     AST_STMT_FILE, // top-level flat seq of statements w/ metadata
     AST_STMT_EXTERN_BLOCK,
+    AST_STMT_EXPORT_BLOCK,
 
     // var decls
     AST_STMT_VAR_DECL,      // type foo;
@@ -286,7 +287,7 @@ typedef struct ast_stmt_variant_field_decl {
 typedef struct ast_stmt_extern_block {
     token_t* extern_language;
     ast_slice_of_stmts_t decls;
-} ast_stmt_extern_block_t;
+} ast_stmt_extern_export_block_t;
 
 typedef struct ast_stmt_deftype {
     token_t* alias_id;
@@ -332,7 +333,8 @@ typedef union ast_stmt_u {
     ast_stmt_return_t yield_stmt;
     ast_stmt_wrapped_t static_modifier;
     ast_stmt_deftype_t deftype;
-    ast_stmt_extern_block_t extern_block;
+    ast_stmt_extern_export_block_t extern_block;
+    ast_stmt_extern_export_block_t export_block;
     ast_stmt_alignas_t alignaz;
 } ast_stmt_u;
 

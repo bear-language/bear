@@ -107,6 +107,7 @@ typedef enum token_type {
     // memory location identifiers
     TOK_STATIC,
     TOK_EXTERN,
+    TOK_EXPORT,
 
     // more operators
     TOK_SIZEOF,
@@ -191,7 +192,7 @@ typedef enum token_type {
     TOK_INC, // ++
     TOK_DEC, // --
     // bitwise
-    TOK_LSH,  // <<
+    TOK_LSH, // <<
     TOK_RSH, // >>
     // bool
     TOK_BOOL_OR,  // ||
@@ -211,10 +212,10 @@ typedef enum token_type {
     TOK_ASSIGN_MOD_EQ,   // %=
 
     // bitwise
-    TOK_ASSIGN_AND_EQ,  // &=
-    TOK_ASSIGN_OR_EQ,   // |=
-    TOK_ASSIGN_XOR_EQ,  // ^=
-    TOK_ASSIGN_LSH_EQ,  // <<=
+    TOK_ASSIGN_AND_EQ, // &=
+    TOK_ASSIGN_OR_EQ,  // |=
+    TOK_ASSIGN_XOR_EQ, // ^=
+    TOK_ASSIGN_LSH_EQ, // <<=
     TOK_ASSIGN_RSH_EQ, // >>=
 
     // EOF

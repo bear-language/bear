@@ -112,6 +112,8 @@ ast_stmt_t* parse_stmt_static_modifier(parser_t* p, ast_stmt_t* (*call)(parser_t
 
 ast_stmt_t* parse_stmt_extern_block(parser_t* p);
 
+ast_stmt_t* parse_stmt_export_block(parser_t* p);
+
 ast_stmt_t* parse_stmt_deftype(parser_t* p);
 
 ast_stmt_t* parse_stmt_var_or_fn_decl(parser_t* p);
