@@ -1171,11 +1171,11 @@ void pretty_print_stmt(const ast_stmt_t* stmt) {
     case AST_STMT_EXTERN_BLOCK: {
         print_title("extern block");
         print_delineator_from_type(TOK_EXTERN);
-        if (stmt->stmt.extern_block.extern_language) {
-            print_id_tok(stmt->stmt.extern_block.extern_language);
+        if (stmt->stmt.extern_export_block.lang) {
+            print_id_tok(stmt->stmt.extern_export_block.lang);
         }
         printer_do_indent();
-        ast_slice_of_stmts_t decls = stmt->stmt.extern_block.decls;
+        ast_slice_of_stmts_t decls = stmt->stmt.extern_export_block.decls;
         for (size_t i = 0; i < decls.len; i++) {
             pretty_print_stmt(decls.start[i]);
         }
@@ -1195,6 +1195,19 @@ void pretty_print_stmt(const ast_stmt_t* stmt) {
         pretty_print_expr(stmt->stmt.alignaz.align_expr);
         printer_do_indent();
         pretty_print_stmt(stmt->stmt.alignaz.inner);
+        printer_deindent();
+        break;
+    case AST_STMT_EXPORT_BLOCK:
+        print_title("export block");
+        print_delineator_from_type(TOK_EXPORT);
+        if (stmt->stmt.extern_export_block.lang) {
+            print_id_tok(stmt->stmt.extern_export_block.lang);
+        }
+        printer_do_indent();
+        ast_slice_of_stmts_t decls = stmt->stmt.extern_export_block.decls;
+        for (size_t i = 0; i < decls.len; i++) {
+            pretty_print_stmt(decls.start[i]);
+        }
         printer_deindent();
         break;
     }

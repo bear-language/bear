@@ -732,6 +732,7 @@ DefId DefVisitor::resolve_def(DefId did) {
         // the rest are not possible (already handled)/shouldn't be resolved at top level
     case AST_STMT_FILE:
     case AST_STMT_EXTERN_BLOCK:
+    case AST_STMT_EXPORT_BLOCK:
     case AST_STMT_MODULE:
     case AST_STMT_VISIBILITY_MODIFIER:
     case AST_STMT_COMPT_MODIFIER:
@@ -1089,8 +1090,9 @@ DefVisitor::resolve_generic_params(FileId fid, ScopeId scope,
         const SymbolId name = context.gen_param(param_id).name;
         const OptId<GenericParamId> maybe_defined_already = param_map.at(name);
         if (param_map.contains(name)) {
-            const auto d0 = context.emplace_diagnostic(
-                context.gen_param(param_id).span, diag_code::redefined_symbol, diag_type::error);
+            const auto d0 = context.emplace_diagnostic_with_message_value(
+                context.gen_param(param_id).span, diag_code::redefined_symbol_colon,
+                diag_type::error, DiagnosticSymbolAfterMessage{.sid = name});
             const auto d1
                 = context.emplace_diagnostic(context.gen_param(maybe_defined_already.as_id()).span,
                                              diag_code::previous_def_here, diag_type::note);

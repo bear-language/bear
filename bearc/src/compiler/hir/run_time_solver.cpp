@@ -634,6 +634,7 @@ OptId<ExecId> RuntimeSolver::handle_stmt(FileId fid, LexicalCtx lctx, InProgress
     case AST_STMT_VARIANT_FIELD_DECL:
     case AST_STMT_FN_DECL:
     case AST_STMT_EXTERN_BLOCK:
+    case AST_STMT_EXPORT_BLOCK:
     case AST_STMT_FILE:
     case AST_STMT_MODULE:
     case AST_STMT_FN_PROTOTYPE:

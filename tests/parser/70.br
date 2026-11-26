@@ -1,0 +1,9 @@
+// tests/parser/70.br
+
+export C {
+    fn foo() {;}
+    fn boo();
+    fn bar() -> i32 {
+        return 12;
+    }
+}

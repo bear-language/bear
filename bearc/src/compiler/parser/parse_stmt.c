@@ -1282,13 +1282,14 @@ ast_stmt_t* parse_stmt_extern_block(parser_t* p) {
     if (!first) {
         return parser_sync_stmt(p);
     }
-    stmt->stmt.extern_block.extern_language = parser_match_token(p, TOK_IDENTIFIER);
+    stmt->stmt.extern_export_block.lang = parser_match_token(p, TOK_IDENTIFIER);
     token_t* lbrace = parser_expect_token(p, TOK_LBRACE);
     if (!lbrace) {
         return parser_sync_stmt(p);
     }
     // only parse fn protos in extern blocks
-    stmt->stmt.extern_block.decls = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_fn_prototype);
+    stmt->stmt.extern_export_block.decls
+        = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_fn_prototype);
     token_t* rbrace = parser_expect_token(p, TOK_RBRACE);
     if (!rbrace) {
         return parser_sync_stmt(p);
@@ -1305,13 +1306,13 @@ ast_stmt_t* parse_stmt_export_block(parser_t* p) {
     if (!first) {
         return parser_sync_stmt(p);
     }
-    stmt->stmt.extern_block.extern_language = parser_match_token(p, TOK_IDENTIFIER);
+    stmt->stmt.extern_export_block.lang = parser_match_token(p, TOK_IDENTIFIER);
     token_t* lbrace = parser_expect_token(p, TOK_LBRACE);
     if (!lbrace) {
         return parser_sync_stmt(p);
     }
     // only parse fn declarations in export blocks
-    stmt->stmt.extern_block.decls = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_fn_decl);
+    stmt->stmt.extern_export_block.decls = parse_slice_of_stmts_call(p, TOK_RBRACE, &parse_fn_decl);
     token_t* rbrace = parser_expect_token(p, TOK_RBRACE);
     if (!rbrace) {
         return parser_sync_stmt(p);

@@ -1,0 +1,44 @@
+// tests/hir/b76.br
+
+mod foo {
+    export C {
+        fn outward(){;}
+    }
+    extern C {
+        fn inward();
+    }
+    export {
+        fn outward(){;}
+    }
+    extern {
+        fn inward();
+    }
+}
+
+mod bar {
+    export C {
+        fn outward(){;} // oops
+    }
+    extern C {
+        fn inward(); // oops
+    }
+    export {
+        fn outward(){;}
+    }
+    extern {
+        fn inward();
+    }
+    export {
+        fn redef(){;}
+        fn redef(){;} // oops
+    }
+}
+
+fn main() {
+    foo..inward();
+    bar..inward();
+    foo..outward();
+    bar..outward();
+    outward();
+    inward();
+}

@@ -1,10 +1,6 @@
 ### todos
 
 #### priority
-- [ ] add `export C` blocks to expose function definitions
-    - [ ] in both `export` / `extern` blocks parse both protos and definitions to prevent unneeded error cascades, also give help when its wrong
-        - [ ] each respective fn proto / fn decl parser func can handle this on its own
-
 - [ ] minimal LLVM slice
     - [ ] `main` + builtins 
     - [ ] functions 

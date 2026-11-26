@@ -28,7 +28,7 @@ enum class diag_code : uint16_t {
     did_you_mean_colon,
     // ^^^^^^^^
     imported_file_dne,
-    redefined_symbol,
+    redefined_symbol_colon,
     previous_def_here,
     no_matching_struct_for_method,
     capitalized_mod,

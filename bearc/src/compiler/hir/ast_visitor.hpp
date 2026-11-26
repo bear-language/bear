@@ -51,7 +51,7 @@ struct GenericState {
  */
 class FileAstVisitor {
     Context& context;
-    FileId file;
+    FileId file_id;
     struct RegisteredDefResult {
         OptId<DefId> maybe_did{};
         bool statik = false;
@@ -68,7 +68,7 @@ class FileAstVisitor {
     static TopLevelInfo top_level_info_for(const ast_stmt_t* stmt);
 
   public:
-    FileAstVisitor(Context& context, FileId file) : context(context), file(file) {}
+    FileAstVisitor(Context& context, FileId file) : context(context), file_id(file) {}
     void register_top_level_declarations();
     static std::optional<const token_t*> name_of_ast_decl(const ast_stmt_t* stmt);
     [[nodiscard]] OptId<DefId> lower_generic_stmt(ScopeId scope, const ast_stmt_t* stmt,

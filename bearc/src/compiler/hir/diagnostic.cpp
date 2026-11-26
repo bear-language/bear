@@ -28,8 +28,8 @@ const char* Diagnostic::message_for_code(enum diag_code c) {
     switch (c) {
     case diag_code::count:
         break;
-    case diag_code::redefined_symbol:
-        return "redefined symbol";
+    case diag_code::redefined_symbol_colon:
+        return "redefined symbol:";
     case diag_code::previous_def_here:
         return "previous definition here";
     case diag_code::no_matching_struct_for_method:

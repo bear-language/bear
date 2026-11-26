@@ -29,12 +29,12 @@ bool is_capital(const token_t* s);
 std::optional<abi_lang> abi_for_extern_stmt(const ast_stmt_t* stmt);
 
 void FileAstVisitor::register_top_level_declarations() {
-    if (!context.ast(file).root()) {
+    if (!context.ast(file_id).root()) {
         return;
     }
     // registers all the top level stmts of the file using the top level scope
     register_top_level_stmts(context.get_or_make_root_scope(),
-                             context.ast(file).root()->stmt.file.stmts, OptId<DefId>{},
+                             context.ast(file_id).root()->stmt.file.stmts, OptId<DefId>{},
                              abi_lang::bear,
                              GenericState{.inst_state = gen_instatiation_state::not_instantiating,
                                           .vis_state = gen_visit_state::outside_generic});
@@ -65,7 +65,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
         if (stmt->type == AST_STMT_COMPT_MODIFIER) {
             if (compt) {
                 const token_t* prefix_tkn = stmt->first;
-                Span span = Span(context, file, prefix_tkn);
+                Span span = Span(context, file_id, prefix_tkn);
 
                 DiagLinker dl{context};
 
@@ -84,7 +84,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
         if (stmt->type == AST_STMT_STATIC_MODIFIER) {
             if (statik) {
                 const token_t* prefix_tkn = stmt->first;
-                Span span = Span(context, file, prefix_tkn);
+                Span span = Span(context, file_id, prefix_tkn);
 
                 DiagLinker dl{context};
 
@@ -121,8 +121,8 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             if (align_pref != 0) {
                 const token_t* prefix_tkn_first = stmt->first;
                 const token_t* prefix_tkn_last = stmt->stmt.alignaz.align_expr->last;
-                Span span
-                    = Span(file, context.ast(file).buffer(), prefix_tkn_first, prefix_tkn_last);
+                Span span = Span(file_id, context.ast(file_id).buffer(), prefix_tkn_first,
+                                 prefix_tkn_last);
                 auto did0 = context.emplace_diagnostic(span, diag_code::multiple_alignas_on_one_def,
                                                        diag_type::error);
                 auto did1 = context.emplace_diagnostic(
@@ -146,10 +146,10 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             // meaning try_align_pref had to return the default value
             if (align_pref == 0) {
                 auto did0 = context.emplace_diagnostic(
-                    Span(file, context.ast(file).buffer(), expr->first, expr->last),
+                    Span(file_id, context.ast(file_id).buffer(), expr->first, expr->last),
                     diag_code::invalid_alignas, diag_type::error);
                 auto did1 = context.emplace_diagnostic(
-                    Span(file, context.ast(file).buffer(), expr->first, expr->last),
+                    Span(file_id, context.ast(file_id).buffer(), expr->first, expr->last),
                     diag_code::alignas_expr_must_be_a_valid_uint_lit, diag_type::help);
                 context.link_diagnostic(did0, did1);
             }
@@ -160,7 +160,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
     // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     // span of this entire current def
-    Span span{context, file, first_tkn, last_tkn};
+    Span span{context, file_id, first_tkn, last_tkn};
 
     // special cases (modules and extern blocks)
     // handle module, first search for an existing module to insert into
@@ -188,7 +188,8 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
                   ? existing.as_id()
                   : context.register_top_level_def(
                         name, pub, compt, /*not generic*/ false, statik,
-                        Span(file, context.ast(file).buffer(), /* just name token! */ name_tkn),
+                        Span(file_id, context.ast(file_id).buffer(),
+                             /* just name token! */ name_tkn),
                         stmt,
                         parent); // just make span with name token otherwise it will be too long
         ScopeId mod_scope = existing_module
@@ -200,7 +201,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
         }
         // warn capitalized_mod if the mod is new and capitalized
         if (!existing_module && is_capital(name_tkn)) {
-            context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
+            context.emplace_diagnostic(Span(file_id, context.ast(file_id).buffer(), name_tkn),
                                        diag_code::capitalized_mod, diag_type::warning);
         }
         context.def(mod_def).set_value(DefModule{.scope = mod_scope});
@@ -211,15 +212,15 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
         return {};
     }
     // handle extern block
-    if (stmt->type == AST_STMT_EXTERN_BLOCK) {
+    if (stmt->type == AST_STMT_EXTERN_BLOCK || stmt->type == AST_STMT_EXPORT_BLOCK) {
         auto maybe_abi = abi_for_extern_stmt(stmt);
         // ensure valid specified abi
         if (!maybe_abi.has_value()) {
-            Span span{file, context.ast(file).buffer(), stmt->stmt.extern_block.extern_language};
+            Span span{context, file_id, stmt->stmt.extern_export_block.lang};
             auto did0
                 = context.emplace_diagnostic(span, diag_code::invalid_extern_lang, diag_type::error,
                                              DiagnosticSymbolAfterMessage{context.symbol_id(
-                                                 stmt->stmt.extern_block.extern_language)},
+                                                 stmt->stmt.extern_export_block.lang)},
                                              DiagnosticNoOtherInfo{});
             auto did1 = context.emplace_diagnostic(
                 span, diag_code::replace_with, diag_type::help,
@@ -232,7 +233,9 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
 
         } else {
             enum abi_lang abi = maybe_abi.value();
-            register_top_level_stmts(scope, stmt->stmt.extern_block.decls, parent, abi, gen_state);
+            register_top_level_stmts(abi == abi_lang::bear ? scope : context.root_scope(),
+                                     stmt->stmt.extern_export_block.decls,
+                                     abi == abi_lang::bear ? parent : std::nullopt, abi, gen_state);
         }
         return {};
     }
@@ -276,7 +279,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             parent = maybe_type_did.as_id();
             const auto parent_info = top_level_info_for(context.def_ast_node(parent.as_id()));
             if (parent_info.is_generic) {
-                Span span{context, file, prefix};
+                Span span{context, file_id, prefix};
                 const auto d0 = context.emplace_diagnostic(
                     span,
                     diag_code::out_of_line_scoped_member_functions_not_allowed_for_generic_structs,
@@ -301,7 +304,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
         }
 
         if (no_struct) {
-            context.emplace_diagnostic(Span(file, context.ast(file).buffer(), prefix),
+            context.emplace_diagnostic(Span(file_id, context.ast(file_id).buffer(), prefix),
                                        diag_code::no_matching_struct_for_method, diag_type::error);
         }
     }
@@ -332,14 +335,19 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
         if (!currently_instatiating_a_specialized_generic
             && context.def_ast_node(already_defined.as_id()) != stmt) {
             // do diagnostics for the redefinition
-            auto d1 = context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
-                                                 diag_code::redefined_symbol, diag_type::error);
-            auto orig_file = context.def(already_defined.as_id()).span.file_id;
-            auto* t = top_level_info_for(context.def_ast_node(already_defined.as_id())).name_tkn;
-            auto d2
-                = context.emplace_diagnostic(Span(orig_file, context.ast(orig_file).buffer(), t),
-                                             diag_code::previous_def_here, diag_type::note);
-            context.link_diagnostic(d1, d2);
+            auto d0 = context.emplace_diagnostic_with_message_value(
+                Span{context, file_id, name_tkn}, diag_code::redefined_symbol_colon,
+                diag_type::error,
+                context.def(already_defined.as_id()).parent
+                    ? DiagnosticMessageValue{DiagnosticIdentifierAfterMessage{
+                          .sid_slice = context.canonical_name(already_defined.as_id())}}
+                    : DiagnosticSymbolAfterMessage{.sid = name});
+            FileId orig_file = context.def(already_defined.as_id()).span.file_id;
+            const token_t* tok
+                = top_level_info_for(context.def_ast_node(already_defined.as_id())).name_tkn;
+            auto d1 = context.emplace_diagnostic(Span{context, orig_file, tok},
+                                                 diag_code::previous_def_here, diag_type::note);
+            context.link_diagnostic(d0, d1);
             return {};
         }
     }
@@ -385,7 +393,7 @@ FileAstVisitor::register_top_level_stmt(ScopeId scope, const ast_stmt_t* stmt, O
             context.defs_to_scopes().insert(did, types_scope);
             // warn on lowercase structure definition
             if (stmt->type != AST_STMT_DEFTYPE && is_lower(name_tkn)) {
-                context.emplace_diagnostic(Span(file, context.ast(file).buffer(), name_tkn),
+                context.emplace_diagnostic(Span(file_id, context.ast(file_id).buffer(), name_tkn),
                                            diag_code::lowercase_structure, diag_type::warning);
             }
             // try to parse fields
@@ -460,12 +468,12 @@ void FileAstVisitor::register_top_level_stmts_registering_ordered_members(
         case AST_STMT_STRUCT_DEF:
             break;
         case AST_STMT_UNION_DEF:
-            context.emplace_diagnostic(Span{context, file, top_level_info_for(st).name_tkn},
+            context.emplace_diagnostic(Span{context, file_id, top_level_info_for(st).name_tkn},
                                        diag_code::empty_union, diag_type::error);
 
             break;
         case AST_STMT_VARIANT_DEF:
-            context.emplace_diagnostic(Span{context, file, top_level_info_for(st).name_tkn},
+            context.emplace_diagnostic(Span{context, file_id, top_level_info_for(st).name_tkn},
                                        diag_code::empty_variant, diag_type::error);
             break;
         case AST_STMT_CONTRACT_DEF:
@@ -584,6 +592,7 @@ TopLevelInfo FileAstVisitor::top_level_info_for(const ast_stmt_t* stmt) {
         // handled by special case ~~~~~~~~~~
     case AST_STMT_FILE:
     case AST_STMT_EXTERN_BLOCK:
+    case AST_STMT_EXPORT_BLOCK:
     case AST_STMT_VISIBILITY_MODIFIER:
     case AST_STMT_COMPT_MODIFIER:
     case AST_STMT_STATIC_MODIFIER:
@@ -624,11 +633,11 @@ std::optional<const token_t*> FileAstVisitor::name_of_ast_decl(const ast_stmt_t*
 bool is_lower(const token_t* s) { return !is_capital(s) && s->start[0] != '_'; }
 bool is_capital(const token_t* s) { return s->start[0] >= 'A' && s->start[0] <= 'Z'; }
 std::optional<abi_lang> abi_for_extern_stmt(const ast_stmt_t* stmt) {
-    if (stmt->stmt.extern_block.extern_language == nullptr) {
+    if (stmt->stmt.extern_export_block.lang == nullptr) {
         return abi_lang::bear;
     }
-    return (stmt->stmt.extern_block.extern_language->len != 0
-            && stmt->stmt.extern_block.extern_language->start[0] == 'C')
+    return (stmt->stmt.extern_export_block.lang->len != 0
+            && stmt->stmt.extern_export_block.lang->start[0] == 'C')
                ? abi_lang::c
                : std::optional<abi_lang>{};
 }
